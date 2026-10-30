@@ -76,24 +76,13 @@ p.hint, p.muted { max-width: 72ch; }
 .bad { color: var(--red); }
 .hidden { display: none !important; }
 .ico { flex: none; vertical-align: -3px; }
-/* Keyboard focus scrolled into view lands below the sticky topbar (WCAG 2.4.11, technique C43). */
-html { scroll-padding-top: 4.5rem; }
 .skip { position: absolute; inset-inline-start: 8px; top: -60px; background: var(--accent); color: var(--accent-ink); padding: 8px 12px; border-radius: var(--r-sm); z-index: 100; }
 .skip:focus { top: 6px; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-sm); }
 
-/* ------------------------------------------------------------------ topbar */
-.topbar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 16px; padding: 0 24px; height: 54px;
-  background: var(--bg-subtle); border-bottom: 1px solid var(--border); }
-.brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: var(--text-size-brand); color: var(--text); }
-.brand:hover { text-decoration: none; }
-.nav { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.nav::-webkit-scrollbar { display: none; }
-.nav a { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--r-sm); color: var(--dim); font-weight: 550; font-size: var(--fs-sm); white-space: nowrap; transition: color .2s var(--ease), background .2s var(--ease); }
-.nav a:hover { color: var(--text); background: var(--elevated); text-decoration: none; }
-.nav a.active, .nav a[aria-current="page"] { color: var(--accent); background: rgba(52, 211, 153, .09); }
-.topbar-right { display: flex; align-items: center; gap: 12px; }
-.topbar-right form { margin: 0; }
+/* The topbar navbar is gone: primary navigation is templates/macros/sidebar.html,
+   styled once in hutch-nav.css for both shells. This file keeps only the
+   contextual-header controls (live pill, badge) that the header owns. */
 .pill { font: 11.5px var(--mono); color: var(--accent); background: var(--bg-subtle); border: 1px solid var(--border); padding: 2px 8px; border-radius: var(--r-full); display: inline-flex; align-items: center; gap: 8px; }
 .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
 .pill.off { color: var(--amber); }
@@ -111,7 +100,7 @@ html { scroll-padding-top: 4.5rem; }
 .sub { color: var(--dim); margin: 2px 0 0; max-width: 72ch; }
 .crumb { color: var(--faint); font-size: var(--fs-xs); margin-bottom: 4px; }
 .kicker { display: inline-flex; align-items: center; gap: 4px; font: 600 10.5px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin-right: 8px; }
-.run-head { position: sticky; top: 54px; z-index: 30; background: rgba(5, 7, 10, .94); backdrop-filter: blur(8px); padding: 12px 0; margin: -12px 0 16px; }
+.run-head { position: sticky; top: var(--app-top-h, 56px); z-index: 30; background: rgba(5, 7, 10, .94); backdrop-filter: blur(8px); padding: 12px 0; margin: -12px 0 16px; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .actions form, form.inline { margin: 0; display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
@@ -211,26 +200,20 @@ html { scroll-padding-top: 4.5rem; }
 .seg-why { grid-column: 1 / -1; color: var(--faint); font-size: 12px; }
 .rule { font-size: var(--fs-xs); margin-bottom: 12px; }
 .detail { background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px; margin-bottom: 12px; }
-.decide { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0; }
 .decided { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; color: var(--dim); }
 
 /* ------------------------------------------------------------------ forms */
-.field { display: flex; flex-direction: column; gap: 8px; font-weight: 600; font-size: 0.875rem; color: var(--dim); min-width: 0; }
-.field.inline { flex-direction: row; align-items: center; gap: 8px; }
-.field small { font-weight: 400; color: var(--faint); }
-input[type=text], input[type=password], input[type=email], input[type=search], input[type=number], input[type=url], input[type=date], input[type=time], select, textarea { width: 100%; min-height: 44px; background: var(--bg-subtle); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 8px 12px; font: 400 1rem/1.5 var(--sans); }
-select option, select optgroup { color: var(--text); background: var(--elevated); }
-textarea { resize: vertical; }
+/* The form system (static/hutch-forms.css + hutch-form-controls.css) owns
+   every control it marks: label, help, error, focus, disabled and invalid
+   states. The generic element baseline below stays for inputs the system
+   does not own (search boxes and ad-hoc inputs outside a field), so each
+   selector skips the marked controls - otherwise this rule wins on
+   specificity and re-skins the new fields with the old values. */
+input[type=text]:not(.hutch-input), input[type=password]:not(.hutch-input), input[type=email]:not(.hutch-input), input[type=search]:not(.hutch-input), input[type=number]:not(.hutch-input), input[type=url]:not(.hutch-input), input[type=date]:not(.hutch-input), input[type=time]:not(.hutch-input), textarea:not(.hutch-textarea, .hutch-composer__textarea) { width: 100%; min-height: 44px; background: var(--bg-subtle); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 8px 12px; font: 400 1rem/1.5 var(--sans); }
+textarea:not(.hutch-textarea, .hutch-composer__textarea) { resize: vertical; }
 /* iOS Safari zooms on focus below 16px; touch devices get a 16px floor (zoom stays enabled). */
-@media (pointer: coarse) { input[type=text], input[type=password], select, textarea { font-size: 16px; } }
-input:focus, select:focus, textarea:focus { outline: 2px solid var(--focus); outline-offset: 0; border-color: transparent; }
-.settings { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.settings .wide, .form-actions { grid-column: 1 / -1; }
-.compose { display: flex; flex-direction: column; gap: 12px; }
-.compose-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
-.check { display: inline-flex; align-items: center; gap: 8px; color: var(--dim); font-weight: 500; cursor: pointer; }
-.filters { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-.filters select { width: auto; }
+@media (pointer: coarse) { input[type=text]:not(.hutch-input), input[type=password]:not(.hutch-input), textarea:not(.hutch-textarea, .hutch-composer__textarea) { font-size: 16px; } }
+input:not(.hutch-input):focus, textarea:not(.hutch-textarea, .hutch-composer__textarea):focus { outline: 2px solid var(--focus); outline-offset: 0; border-color: transparent; }
 .danger-zone { margin-top: 16px; color: var(--dim); }
 .danger-zone summary { cursor: pointer; }
 .danger-zone form { margin-top: 12px; }
@@ -285,41 +268,10 @@ tbody tr:last-child td { border-bottom: 0; }
 .tx { min-width: 0; }
 .tx-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
 .tx-title { display: inline-flex; align-items: center; gap: 8px; font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
-.turn { max-width: 84ch; }
-.turn-role { font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-bottom: 4px; }
-.turn-role time { text-transform: none; letter-spacing: 0; }
-.turn-body { white-space: pre-wrap; overflow-wrap: anywhere; }
-.turn.user .turn-body { background: var(--elevated); border: 1px solid var(--border-strong); border-radius: var(--r); padding: 12px 16px; }
-.turn.agent .turn-body { color: var(--text); }
-.toolline { border: 0; margin-left: 4px; padding: 0 0 0 12px; }
-.toolline > summary { display: flex; align-items: center; gap: 8px; min-height: 28px; cursor: pointer; list-style: none; color: var(--dim); font-size: var(--fs-xs); border-radius: var(--r-sm); }
-.toolline > summary::-webkit-details-marker { display: none; }
-.toolline > summary:hover { background: var(--elevated); }
-.toolline strong { font: 600 12.5px var(--mono); color: var(--text); flex: none; }
-.toolline .argsum { font: 12px var(--mono); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
-.toolline time, .toolline .more { margin-left: auto; color: var(--faint); font: 11px var(--mono); flex: none; }
-.toolline.result { margin-top: -6px; }
-.toolline.result > summary { color: var(--accent); }
-.toolline.result.bad > summary, .toolline.result.bad .argsum { color: var(--red); }
-.toolline[open] > summary { color: var(--text); }
-.toolline pre { margin: 4px 0 8px; padding: 8px 12px; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--dim); max-height: 320px; overflow: auto; }
-.toolcard { border: 1px solid var(--border); background: var(--bg-subtle); border-radius: var(--r-sm); padding: 8px 12px; }
-.toolcard-head { display: flex; align-items: center; gap: 8px; color: var(--dim); font-size: var(--fs-xs); }
-.toolcard-head time { margin-left: auto; color: var(--faint); font: 11px var(--mono); }
-.toolcard .args, .toolcard pre { margin-top: 8px; color: var(--dim); max-height: 280px; overflow: auto; }
-.toolcard.result.ok { border-left: 2px solid color-mix(in oklab, var(--success) 45%, transparent); }
-.toolcard.result.ok .toolcard-head { color: var(--accent); }
-.toolcard.result.bad { border-left: 2px solid rgba(248, 113, 113, .5); }
-.toolcard.result.bad .toolcard-head { color: var(--red); }
-.toolcard summary { cursor: pointer; color: var(--dim); font-size: var(--fs-xs); margin-top: 4px; }
-.line { display: flex; gap: 8px; align-items: center; color: var(--dim); font-size: var(--fs-xs); overflow-wrap: anywhere; }
-.line.muted { color: var(--faint); }
-.stepline { display: flex; gap: 12px; flex-wrap: wrap; color: var(--faint); font: 11.5px var(--mono); padding-left: 4px; }
 .tx-more { list-style: none; }
-.stream-state { display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: var(--fs-xs); margin-top: 16px; }
-.stream-state[data-state=live] { color: var(--accent); }
-.stream-state[data-state=reconnecting] { color: var(--amber); }
-.stream-state[data-state=error] { color: var(--red); }
+/* The status line itself is a message primitive now (hutch-messages.css);
+   only its separation from the event list stays here. */
+.stream-state { margin-top: 16px; }
 .foot-note { color: var(--faint); font-size: var(--fs-xs); margin-top: 12px; overflow-wrap: anywhere; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -338,24 +290,14 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 @media (max-width: 720px) {
   :root { --gutter: 12px; }
-  .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
-  .brand { order: 1; }
-  .topbar-right { order: 2; margin-left: auto; }
-  .nav { order: 3; flex-basis: 100%; }
-  .nav a { padding: 8px 12px; }
   .btn { min-height: 42px; }          /* comfortable touch targets */
   .btn.small { min-height: 38px; }
-  .decide { flex-direction: column; align-items: stretch; }
-  .decide .btn { width: 100%; }
   .hide-sm { display: none; }
   .page-head { margin-bottom: 12px; }
   h1 { font-size: 1.5rem; }
   .facts { grid-template-columns: 1fr 1fr; }
   .meters { grid-template-columns: 1fr 1fr; }
   .meters .meter:last-child:nth-child(odd) { grid-column: 1 / -1; }
-  .compose-row { flex-direction: column; align-items: stretch; }
-  .compose-row .btn { width: 100%; }
-  .filters .field.inline { width: 100%; }
 }
 @media (pointer: coarse) {
   .btn, .btn.small { min-height: 44px; }
@@ -366,28 +308,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .chip, .tag, .count, .badge, .pill { border-radius: var(--r-full); }
 th, td { font-family: var(--mono); }
 
-/* Full-screen mobile menu (header nav collapses to an overlay) */
-.nav-toggle { display: none; width: 38px; height: 38px; align-items: center; justify-content: center;
-  background: transparent; border: 1px solid var(--border); color: var(--dim); cursor: pointer; border-radius: var(--r-sm); }
-.nav-toggle[aria-expanded="true"] { color: var(--accent); border-color: rgba(52, 211, 153, .42); }
-/* Phones and tablets (<=1024px) open the nav as an overlay; 1025px and wider
-   keeps the horizontal nav so a 13-inch laptop or iPad gets the desktop model. */
-@media (max-width: 1024px) {
-  .nav-toggle { display: inline-flex; }
-  #primary-nav {
-    position: fixed; inset: 0; z-index: 120;
-    display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 4px;
-    padding: 40px 28px; background: var(--bg); border: none; overflow-y: auto;
-    transform: translateY(-100%); opacity: 0; pointer-events: none;
-    transition: transform .24s var(--ease), opacity .24s var(--ease);
-  }
-  #primary-nav.open { transform: none; opacity: 1; pointer-events: auto; }
-  #primary-nav a { font-size: var(--fs-base); font-weight: 600; padding: 16px 12px; border-bottom: 1px solid var(--border); border-radius: var(--r-btn); }
-  #primary-nav a.active { background: transparent; }
-}
-@media (prefers-reduced-motion: reduce) {
-  #primary-nav { transition: none; }
-}
+/* Navigation interaction (drawer, inertness, focus return) is owned by
+   hutch-shell.css and hutch-shell.js on every server page. */
 
 /* Status remains legible without color; identity and interaction stay separate. */
 .chip.st-succeeded::before, .chip.st-approved::before, .chip.v-allow::before { background: var(--success); }
@@ -395,4 +317,3 @@ th, td { font-family: var(--mono); }
 .chip.st-loading_model::before { background: var(--blue); }
 .tag.ok { color: var(--success); border-color: rgba(52, 211, 153, .35); }
 .chip, .tag, .count, .badge, .pill { font-size: 12px; }
-@media (max-width: 760px) { .topbar { backdrop-filter: none; -webkit-backdrop-filter: none; } }

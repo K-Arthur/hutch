@@ -16,10 +16,23 @@ from .hardware import Hardware, probe
 from .health import ProviderHealth, runtime_health
 from .presets import Resolution, catalog_meta, load_presets, resolve_preset, _data
 from .providers.base import ModelMeta
-from .providers.pricing import PriceBook, Price
+from .providers.pricing import PriceBook, Price, LOCAL_PROVIDERS
 from .slots import recorded_swaps
 
 REFERENCE_WINDOWS = (16384, 32768)
+
+
+@dataclass
+class ConfiguredModelRoute:
+    spec: str
+    provider: str
+    model_id: str
+    label: str
+    status: str
+    is_default: bool
+    bots: list[str]
+    has_key: bool
+    is_local: bool
 
 
 @dataclass
@@ -46,6 +59,9 @@ class ModelsView:
     price_errors: list[str]
     swaps: list[dict]
     notes: list[str] = field(default_factory=list)
+    configured_routes: list[ConfiguredModelRoute] = field(default_factory=list)
+    available_bots: list[tuple[str, str]] = field(default_factory=list)
+    default_model: str = ""
 
 
 def _selfcheck_status(store: Any, model: str) -> str:
@@ -80,15 +96,21 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
     inst = installed(provider) if ollama_up else {}
     bots = store.list_bots()
     used_by: dict[str, list[str]] = {}
+    by_provider: dict[str, list[str]] = {}
     for b in bots:
         used_by.setdefault(b.model, []).append(b.name)
+        by_provider.setdefault(b.model.partition("/")[0], []).append(b.name)
     rows = []
     for name, meta in sorted(inst.items()):
         raw = store.kv_get(f"model_load:{name}")
+        assigned = list(used_by.get(f"ollama/{name}", []))
+        for b_name in used_by.get(name, []):
+            if b_name not in assigned:
+                assigned.append(b_name)
         rows.append(ModelRow(
             name=name, meta=meta,
             fits={w: estimate_fit(meta, hw, w) for w in REFERENCE_WINDOWS},
-            bots=used_by.get(f"ollama/{name}", []), load_ms=json.loads(raw)["ms"] if raw else None,
+            bots=assigned, load_ms=json.loads(raw)["ms"] if raw else None,
             selfcheck=_selfcheck_status(store, name)))
         prof = store.latest_profile(f"ollama/{name}")
         if prof is not None:
@@ -109,7 +131,72 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
     if not ollama_up:
         notes.append("Ollama is not running, so installed models cannot be listed. Start it with `ollama serve`; "
                      "suggestions below are estimates from the catalog.")
-    return ModelsView(hw=hw, runtimes=runtime_health(config, store, hw, [b.model for b in bots], provider if ollama_up else None)
+    from .connections import ConnectionBook
+    conn_book = ConnectionBook(config.state_dir)
+    raw_default = store.kv_get("workspace:model-defaults")
+    saved_default = ""
+    if raw_default:
+        try:
+            saved_default = str((json.loads(raw_default) or {}).get("model") or "")
+        except (ValueError, TypeError):
+            saved_default = ""
+    saved_default = saved_default or store.kv_get("default_model") or ""
+
+    available_bots = [(b.name, b.display_name or b.name) for b in bots]
+    configured_routes = []
+    seen_specs = set()
+
+    for name, meta in sorted(inst.items()):
+        spec = f"ollama/{name}"
+        seen_specs.add(spec)
+        seen_specs.add(name)
+        assigned = list(used_by.get(spec, []))
+        for b_name in used_by.get(name, []):
+            if b_name not in assigned:
+                assigned.append(b_name)
+        is_def = spec == saved_default
+        configured_routes.append(ConfiguredModelRoute(
+            spec=spec, provider="ollama", model_id=name, label=store.kv_get(f"model_label:{spec}") or name,
+            status="ready", is_default=is_def, bots=assigned, has_key=True, is_local=True
+        ))
+
+    for c_name, conn in conn_book.configured().items():
+        has_k = bool(conn_book.key(c_name))
+        for bot_spec, b_names in used_by.items():
+            if bot_spec.startswith(f"{c_name}/"):
+                seen_specs.add(bot_spec)
+                m_id = bot_spec.split("/", 1)[1]
+                is_def = bot_spec == saved_default
+                configured_routes.append(ConfiguredModelRoute(
+                    spec=bot_spec, provider=c_name, model_id=m_id, label=store.kv_get(f"model_label:{bot_spec}") or f"{conn.title}: {m_id}",
+                    status="ready" if has_k else "needs_key", is_default=is_def,
+                    bots=b_names, has_key=has_k, is_local=False
+                ))
+
+    extra_specs = set(used_by.keys())
+    if saved_default:
+        extra_specs.add(saved_default)
+    kv_routes = [s.strip() for s in (store.kv_get("configured_model_routes") or "").split(",") if s.strip()]
+    extra_specs.update(kv_routes)
+
+    for bot_spec in sorted(extra_specs):
+        if bot_spec and bot_spec not in seen_specs:
+            b_names = used_by.get(bot_spec, [])
+            prov, mid = bot_spec.split("/", 1) if "/" in bot_spec else ("custom", bot_spec)
+            is_def = bot_spec == saved_default
+            has_k = True
+            if prov in conn_book.names():
+                has_k = bool(conn_book.key(prov))
+            configured_routes.append(ConfiguredModelRoute(
+                spec=bot_spec, provider=prov, model_id=mid, label=store.kv_get(f"model_label:{bot_spec}") or bot_spec,
+                status="ready" if has_k else "needs_key", is_default=is_def, bots=b_names, has_key=has_k, is_local=prov in LOCAL_PROVIDERS
+            ))
+
+    default_spec = saved_default
+
+    return ModelsView(hw=hw, runtimes=runtime_health(config, store, hw, [b.model for b in bots], provider if ollama_up else None,
+                                                      used_by=by_provider)
                       if with_runtimes else [], ollama_up=ollama_up, rows=rows, presets=presets,
                       suggestions=sugg, prices=book.rows(), price_errors=book.errors, swaps=recorded_swaps(store),
-                      notes=notes)
+                      notes=notes, configured_routes=configured_routes, available_bots=available_bots,
+                      default_model=default_spec)

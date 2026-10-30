@@ -1,0 +1,17 @@
+/* Tasks view: grouped specialist assignments. Uses design tokens from brand-tokens.css. */
+.task-plan { margin-block: 1.25rem; }
+.task-plan-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .5rem; }
+.task-plan-head .hint { display: block; }
+.task-assignments { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); }
+.task-assignment header { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; }
+.task-assignment h3 { margin: 0; }
+.task-status { font-size: .85em; font-weight: 600; }
+.task-brief { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 7.5em; overflow: auto; }
+.task-meta { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.task-source { border: 1px solid currentColor; border-radius: 100px; padding: 0 .55em; font-size: .8em; }
+.task-question { margin-block: .5rem; }
+.task-redirect, .task-checkpoints { margin-block: .5rem; }
+.workspace-task-second-fieldset { border: 1px dashed var(--line, rgba(128,128,128,0.3)); border-radius: .5rem; padding: .75rem; margin-top: .75rem; }
+.workspace-task-second-fieldset legend { font-size: .85rem; font-weight: 600; padding: 0 .4rem; }
+.workspace-task-second-toggle { margin-top: .75rem; }
+

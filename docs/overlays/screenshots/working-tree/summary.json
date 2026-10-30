@@ -1,0 +1,244 @@
+{
+  "label": "working-tree",
+  "started": "2026-10-30T08:04:48.871071+00:00",
+  "finished": "2026-10-30T08:05:00.905189+00:00",
+  "git_head": "548a2d6e",
+  "chromium": true,
+  "viewports": {
+    "desktop": [
+      1280,
+      900
+    ],
+    "phone": [
+      390,
+      844
+    ],
+    "compact": [
+      320,
+      740
+    ],
+    "landscape": [
+      844,
+      390
+    ]
+  },
+  "assertions": [
+    {
+      "name": "desktop: dropdown fits the viewport",
+      "ok": true,
+      "detail": "{'x': 964, 'y': 53.5, 'width': 280, 'height': 90}"
+    },
+    {
+      "name": "desktop: menu has menu semantics",
+      "ok": true,
+      "detail": "expected 'menu', got 'menu'"
+    },
+    {
+      "name": "desktop: Escape closes the dropdown",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: focus returns to the trigger",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: destructive dialog is aria-modal",
+      "ok": true,
+      "detail": "expected 'true', got 'true'"
+    },
+    {
+      "name": "desktop: destructive dialog is non-dismissible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: destructive dialog has a description reference",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: destructive initial focus is Cancel",
+      "ok": true,
+      "detail": "expected 'modal-cancel', got 'modal-cancel'"
+    },
+    {
+      "name": "desktop: Escape does not dismiss a destructive dialog",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: backdrop does not dismiss a destructive dialog",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: Tab stays inside the modal",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: focus returns to the menu trigger",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: form dialog title id",
+      "ok": true,
+      "detail": "expected 'modal-title', got 'modal-title'"
+    },
+    {
+      "name": "desktop: form dialog focuses its first field",
+      "ok": true,
+      "detail": "roster-section-name"
+    },
+    {
+      "name": "desktop: page scroll is locked",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: wheel does not scroll the page behind the modal",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: Escape closes a dismissible form dialog (focus returned)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: server-page confirm uses the primitive",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: server-page confirm has a description",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: scroll lock released after close",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "tooltip: native title is themed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "tooltip: native attribute is suppressed while shown",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "tooltip: leaving hides it and restores the title",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "zoom-200: dropdown fits at 200% text",
+      "ok": true,
+      "detail": "{'x': 964, 'y': 53.5, 'width': 280, 'height': 120}"
+    },
+    {
+      "name": "zoom-200: modal fits at 200% text",
+      "ok": true,
+      "detail": "{'x': 430, 'y': 212.8125, 'width': 420, 'height': 474.375}"
+    },
+    {
+      "name": "zoom-200: no horizontal overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "palette: initial focus",
+      "ok": true,
+      "detail": "expected 'palette-input', got 'palette-input'"
+    },
+    {
+      "name": "palette: scroll lock while open",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "palette: Escape closes and unlocks scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "needs-you: initial focus is the close control",
+      "ok": true,
+      "detail": "expected 'needs-you-close', got 'needs-you-close'"
+    },
+    {
+      "name": "needs-you: Escape closes the drawer",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "stacking: palette refuses to open over the review drawer",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "stacking: one Escape closes only the topmost overlay",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: dropdown fits 1280x900",
+      "ok": true,
+      "detail": "{'x': 964, 'y': 53.5, 'width': 280, 'height': 90}"
+    },
+    {
+      "name": "phone: dropdown fits 390x844",
+      "ok": true,
+      "detail": "{'x': 74, 'y': 46.390625, 'width': 280, 'height': 90}"
+    },
+    {
+      "name": "compact: dropdown fits 320x740",
+      "ok": true,
+      "detail": "{'x': 8, 'y': 46.390625, 'width': 280, 'height': 90}"
+    },
+    {
+      "name": "landscape: dropdown fits 844x390",
+      "ok": true,
+      "detail": "{'x': 540, 'y': 48.390625, 'width': 280, 'height': 90}"
+    },
+    {
+      "name": "no page errors while driving overlays",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "light theme: scrim opacity token",
+      "ok": true,
+      "detail": "expected '0.52', got '0.52'"
+    },
+    {
+      "name": "light theme: modal elevation uses ink shadows",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "failures": [],
+  "screenshots": [
+    "desktop-dropdown.png",
+    "desktop-destructive-confirm.png",
+    "desktop-form-dialog.png",
+    "desktop-server-confirm.png",
+    "zoom-200-confirm.png",
+    "palette.png",
+    "needs-you.png",
+    "desktop-dropdown-1280x900.png",
+    "phone-dropdown-390x844.png",
+    "compact-dropdown-320x740.png",
+    "landscape-dropdown-844x390.png",
+    "light-dropdown.png"
+  ],
+  "passed": 40,
+  "total": 40
+}

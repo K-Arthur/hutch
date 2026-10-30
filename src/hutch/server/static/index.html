@@ -6,21 +6,50 @@
   <title>hutch — your personal assistant</title>
   <meta name="theme-color" content="#09090b">
   <meta name="color-scheme" content="dark">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 28 9v14L16 30 4 23V9z' fill='none' stroke='%2334d399' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%2334d399'/%3E%3C/svg%3E">
+  <link rel="icon" href="/static/favicon.svg?v=cada88dd" type="image/svg+xml">
+  <link rel="icon" href="/static/favicon-32x32.png?v=2d2d3d2c" type="image/png" sizes="32x32">
+  <link rel="icon" href="/static/favicon.ico?v=9096fd72" sizes="48x48">
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=2351b1e0" sizes="180x180">
+  <link rel="manifest" href="/static/site.webmanifest?v=187682d3">
   <!-- The interface font is needed for the first paint; preloading it keeps text from shifting when it arrives. -->
   <link rel="preload" href="/static/fonts/geist-latin-var.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/ui.css">
   <link rel="stylesheet" href="/static/style.css">
-  <link rel="stylesheet" href="/static/composer.css">
+  <link rel="stylesheet" href="/static/hutch-composer.css">
+  <link rel="stylesheet" href="/static/hutch-composer-context.css">
   <link rel="stylesheet" href="/static/model-switcher.css">
   <link rel="stylesheet" href="/static/skills.css">
+  <link rel="stylesheet" href="/static/tasks.css">
   <link rel="stylesheet" href="/static/computer.css">
   <link rel="stylesheet" href="/static/vendor/uplot/uPlot.min.css">
   <link rel="stylesheet" href="/static/widgets.css">
   <link rel="stylesheet" href="/static/controls.css">
   <link rel="stylesheet" href="/static/studio.css">
+  <!-- The form system loads last so it supersedes the older field rules in
+       style.css and studio.css without editing either file's layout rules. -->
+  <link rel="stylesheet" href="/static/hutch-forms.css">
+  <link rel="stylesheet" href="/static/hutch-form-controls.css">
+  <script src="/static/hutch-forms.js" defer></script>
+  <!-- The select tier loads last: the form system keeps layout and validation
+       states for every control; the select component owns select appearance,
+       the progressive picker and the chip/compact variants. -->
+  <link rel="stylesheet" href="/static/hutch-select.css">
+  <!-- The message tier loads last so transcripts win ties over the older
+       message rules in style.css and studio.css. -->
+  <link rel="stylesheet" href="/static/hutch-messages.css">
+  <!-- The brand lockup sheet loads last: its Bricolage wordmark must win over
+       surface sheets that set the brand-name font shorthand. -->
+  <link rel="stylesheet" href="/static/brand.css?v=581315bf">
   <!-- Responsive foundation loads last: safe-area tokens and chrome insets. -->
   <link rel="stylesheet" href="/static/responsive.css">
+  <!-- One navigation component for both shells: the server-rendered app shell
+       (templates/base.html) loads the same sheet, so rows and active treatment
+       cannot drift between the SPA sidebar and standalone pages. -->
+  <link rel="stylesheet" href="/static/hutch-nav.css">
+  <!-- Overlay primitives: shared modal/popover/tooltip contract; loads after every surface sheet. -->
+  <link rel="stylesheet" href="/static/hutch-overlays.css">
+  <link rel="stylesheet" href="/static/hutch-popovers.css">
+  <script src="/static/hutch-select.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#view">Skip to content</a>
@@ -31,11 +60,8 @@
     <aside class="workspace" id="workspace" aria-label="Workspace">
       <header class="ws-brand">
         <a class="brand" href="#/chat" aria-label="hutch — open main chat">
-          <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true">
-            <path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="var(--brand)" stroke-width="2.5"/>
-            <circle cx="16" cy="16" r="4" fill="var(--brand)"/>
-          </svg>
-          <span class="brand-name">hutch</span>
+          <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><path d="M 16.00 2.80 C 23.80 2.80 29.00 7.90 29.00 14.80 L 29.00 26.80 A 2.40 2.40 0 0 1 24.20 26.80 L 24.20 25.40 A 2.90 2.90 0 0 0 18.40 25.40 L 18.40 26.80 A 2.40 2.40 0 0 1 13.60 26.80 L 13.60 25.40 A 2.90 2.90 0 0 0 7.80 25.40 L 7.80 26.80 A 2.40 2.40 0 0 1 3.00 26.80 L 3.00 14.80 C 3.00 7.90 8.20 2.80 16.00 2.80 Z M 12.00 7.60 L 20.00 7.60 A 5.80 5.80 0 0 1 25.80 13.40 L 25.80 14.80 A 3.80 3.80 0 0 1 22.00 18.60 L 10.00 18.60 A 3.80 3.80 0 0 1 6.20 14.80 L 6.20 13.40 A 5.80 5.80 0 0 1 12.00 7.60 Z M 11.63 10.63 C 12.81 10.46 13.93 11.50 14.13 12.95 C 14.33 14.40 13.54 15.71 12.37 15.87 C 11.19 16.04 10.07 15.00 9.87 13.55 C 9.67 12.10 10.46 10.79 11.63 10.63 Z M 20.37 10.38 C 21.54 10.54 22.33 11.85 22.13 13.30 C 21.93 14.75 20.81 15.79 19.63 15.62 C 18.46 15.46 17.67 14.15 17.87 12.70 C 18.07 11.25 19.19 10.21 20.37 10.38 Z" fill="var(--brand)" fill-rule="evenodd"/></svg>
+          <span class="brand-name brand-wordmark">hutch</span>
         </a>
         <div class="ws-actions">
           <button class="icon-btn ws-round" id="ws-search" type="button" aria-label="Search assistants, chats and pages" aria-keyshortcuts="Control+K Meta+K" title="Search (Ctrl K)">
@@ -52,6 +78,7 @@
 
       <nav class="ws-nav" aria-label="Primary">
         <a href="#/chat" data-nav="chat"><span class="nav-ico" aria-hidden="true"></span><span>Chat</span></a>
+        <a href="#/tasks" data-nav="tasks"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg><span>Tasks</span></a>
         <button type="button" id="needs-you-open"><span class="nav-ico" aria-hidden="true"></span><span>Needs you</span><span id="approval-badge" class="badge hidden">0</span></button>
         <details id="monitor-nav">
           <summary><span class="nav-ico" aria-hidden="true"></span><span>More</span></summary>
@@ -61,8 +88,8 @@
           <a href="#/runs" data-nav="runs"><span class="nav-ico" aria-hidden="true"></span>Work history</a>
           <a href="#/runtime" data-nav="runtime"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8 9 3 3-3 3m5 0h3"/></svg>Runtime</a>
           <a href="#/skills" data-nav="skills"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h11l5 5v13H4zM14 3v6h6M8 13h8m-8 4h5"/></svg>Skills</a>
-          <a href="/models"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4"/></svg>Models</a>
-          <a href="/usage"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m5 7H2"/></svg>Usage</a>
+          <a href="/models" data-nav="models"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4"/></svg>Models</a>
+          <a href="/usage" data-nav="usage"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m5 7H2"/></svg>Usage</a>
           <a href="#/bots" data-nav="bots" id="fleet-nav" hidden><span class="nav-ico" aria-hidden="true"></span>Manage assistants</a>
         </details>
       </nav>
@@ -154,12 +181,19 @@
   <div id="modal-root"></div>
   <div id="toast-root" class="toast-root" role="status" aria-live="polite"></div>
 
+  <script src="/static/hutch-overlay-core.js"></script>
+  <script src="/static/hutch-overlay-dialog.js"></script>
+  <script src="/static/hutch-overlay-modal.js"></script>
+  <script src="/static/hutch-overlay-popover.js"></script>
+  <script src="/static/hutch-overlay-dismiss.js"></script>
+  <script src="/static/hutch-overlay-tooltip.js"></script>
   <script src="/static/controls.js"></script>
   <script src="/static/markdown.js"></script>
   <script src="/static/palette.js"></script>
   <script src="/static/composer.js"></script>
   <script src="/static/model-switcher.js"></script>
   <script src="/static/skills.js"></script>
+  <script src="/static/tasks.js"></script>
   <script src="/static/persona.js"></script>
   <script src="/static/computer.js"></script>
   <script src="/static/vendor/uplot/uPlot.iife.min.js"></script>
@@ -167,6 +201,7 @@
   <script src="/static/connection-browser.js"></script>
   <script src="/static/channels.js"></script>
   <script src="/static/campaign-report.js"></script>
+  <script src="/static/app-modal-focus.js"></script>
   <script src="/static/app.js"></script>
   <script src="/static/responsive.js"></script>
   <script src="/static/fact-purge.js"></script>

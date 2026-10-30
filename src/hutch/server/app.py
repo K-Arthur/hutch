@@ -525,17 +525,6 @@ class WorkspaceSpecialistsResource(BaseModel):
     bots: list[WorkspaceCoordinatorBotResource]
 
 
-class WorkspaceTaskCreate(BaseModel):
-    parent_conversation_id: str = Field(min_length=1, max_length=100)
-    source_run_id: str = Field(min_length=1, max_length=100)
-    source_user_message_id: str = Field(min_length=1, max_length=128)
-    source_assistant_message_id: str = Field(min_length=1, max_length=128)
-    target_bot_id: str = Field(min_length=1, max_length=100)
-    task_brief: str = Field(min_length=1, max_length=20_000)
-    assumptions: str = Field(default="", max_length=4_000)
-    memory_fact_ids: list[str] = Field(default_factory=list, max_length=8)
-
-
 class CodeHandoffCreate(BaseModel):
     conversation_id: str = Field(min_length=1, max_length=100)
     source_run_id: str = Field(min_length=1, max_length=100)
@@ -610,92 +599,6 @@ def _code_handoff_resource(row: dict[str, Any]) -> dict[str, Any]:
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
-
-
-class WorkspaceTaskCheckpointResource(BaseModel):
-    event_id: int
-    event_seq: int
-    event_type: str
-    run_status: str
-    kind: str
-    recovery_state: str
-    reference_id: str = ""
-    created_at: str
-
-
-class WorkspaceTaskQuestionOptionResource(BaseModel):
-    id: str
-    label: str
-
-
-class WorkspaceTaskQuestionResource(BaseModel):
-    """A pending conversational question from the assigned specialist.
-
-    The question is a needed input, not an accepted result; the owner answers it through the
-    specialist conversation's normal single-resolution question endpoint. ``status`` stays the
-    derived task state: ``needs_input`` while the question waits.
-    """
-    id: str
-    question: str
-    selection_mode: Literal["single", "multiple"]
-    options: list[WorkspaceTaskQuestionOptionResource] = Field(default_factory=list)
-    run_id: str
-    assistant_message_id: str
-    created_at: str
-
-
-class WorkspaceTaskSharedFactResource(BaseModel):
-    fact_id: str
-    source_bot_id: str
-    source_display_name: str
-    source_scope_kind: Literal["bot", "conversation"]
-    source_scope_id: str
-    source_conversation_id: str = ""
-    key: str
-    value: str
-    revision: int
-    content_hash: str
-
-
-class WorkspaceTaskResource(BaseModel):
-    id: str
-    parent_conversation_id: str
-    source_run_id: str
-    source_user_message_id: str
-    source_assistant_message_id: str
-    target_bot_id: str
-    target_display_name: str
-    original_request: str
-    original_request_truncated: bool = False
-    proposed_brief: str
-    proposed_brief_truncated: bool = False
-    task_brief: str
-    assumptions: str
-    child_conversation_id: str
-    child_run_id: str
-    current_run_id: str
-    continuation_of_task_id: Optional[str] = None
-    continuation_checkpoint_event_id: Optional[int] = None
-    status: str
-    reason: str
-    pending_question: Optional[WorkspaceTaskQuestionResource] = None
-    result: str
-    result_truncated: bool = False
-    result_message_id: Optional[str] = None
-    model: str
-    inference_mode: str
-    tools: list[str]
-    risk_tier: str
-    workspace_mode: str
-    created_at: str
-    checkpoint_count: int = 0
-    checkpoints: list[WorkspaceTaskCheckpointResource] = Field(default_factory=list)
-    shared_facts: list[WorkspaceTaskSharedFactResource] = Field(default_factory=list)
-    continuation_available: bool = False
-    continuation_reason: str = ""
-    continuation_checkpoint_kind: str = ""
-    continuation_checkpoint_event_seq: int = 0
-    continuation_checkpoint_preview: str = ""
 
 
 class RunRequest(BaseModel):
@@ -4170,71 +4073,6 @@ def create_app() -> FastAPI:
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
 
-    @app.get("/api/v1/workspace/tasks", response_model=list[WorkspaceTaskResource])
-    def list_workspace_tasks(conversation_id: str, limit: int = 100) -> list[dict]:
-        if store.get_conversation(conversation_id) is None:
-            raise HTTPException(404, "No such coordinator conversation")
-        return store.list_workspace_tasks(conversation_id, limit=max(1, min(limit, 100)))
-
-    @app.post("/api/v1/workspace/tasks", response_model=WorkspaceTaskResource)
-    def create_workspace_task(body: WorkspaceTaskCreate, request: Request, response: Response) -> dict:
-        key = idempotency_key(request)
-        payload = body.model_dump()
-        digest = request_digest(payload)
-        try:
-            replay = store.replay_workspace_task(idem_key=key, request_hash=digest)
-        except IdempotencyConflict as exc:
-            raise HTTPException(409, str(exc)) from None
-        if replay is not None:
-            response.status_code = 200
-            return replay
-        coordinator_conversation = store.get_conversation(body.parent_conversation_id)
-        if coordinator_conversation is None:
-            raise HTTPException(404, "No such coordinator conversation")
-        target = store.get_bot(body.target_bot_id)
-        if target is None:
-            raise HTTPException(404, "No such specialist Bot")
-        store.assert_execution_ready()
-        from ..modelchoices import ModelNotUsable, validate_override
-        try:
-            # Validate the specialist's saved route, without allowing the coordinator to replace it.
-            model = validate_override(config, store, target, target.model)
-        except ModelNotUsable as exc:
-            raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
-        if model != target.model:
-            raise HTTPException(409, "The specialist's configured model changed; review its settings and try again")
-        task_brief = body.task_brief.strip()
-        assumptions = body.assumptions.strip()
-        effective_prompt = (task_brief + "\n\nUser-reviewed assumptions and constraints:\n" + assumptions
-                            if assumptions else task_brief)
-        run = Run(bot_id=target.id, prompt=effective_prompt, origin="workspace_task")
-        task = Task(bot_id=target.id, kind="on_demand", prompt=run.prompt)
-        try:
-            run_id, created = store.submit_workspace_task(
-                parent_conversation_id=body.parent_conversation_id,
-                source_run_id=body.source_run_id,
-                source_user_message_id=body.source_user_message_id,
-                source_assistant_message_id=body.source_assistant_message_id,
-                target_bot_id=target.id, task_brief=task_brief, assumptions=assumptions,
-                run=run, task=task,
-                capability_snapshot=Engine.capability_snapshot(
-                    target, integration_tools=store.integration_tool_names(target.id)),
-                idem_key=key, request_hash=digest, memory_fact_ids=body.memory_fact_ids,
-            )
-        except IdempotencyConflict as exc:
-            raise HTTPException(409, str(exc)) from None
-        except KeyError as exc:
-            raise HTTPException(404, "No such conversation or specialist Bot") from None
-        except PermissionError as exc:
-            raise HTTPException(409, str(exc)) from None
-        except ValueError as exc:
-            raise HTTPException(409, str(exc)) from None
-        response.status_code = 201 if created else 200
-        result = store.replay_workspace_task(idem_key=key, request_hash=digest)
-        if result is None:
-            raise HTTPException(500, "The task was admitted but its durable task record could not be read")
-        return result
-
     @app.get("/api/v1/code-handoffs", response_model=list[CodeHandoffResource])
     def list_code_handoffs(conversation_id: str, limit: int = 100) -> list[dict[str, Any]]:
         if store.get_conversation(conversation_id) is None:
@@ -4295,54 +4133,6 @@ def create_app() -> FastAPI:
         if row is None:
             raise HTTPException(500, "The coding task was prepared but its durable record could not be loaded")
         return _code_handoff_resource(row)
-
-    @app.post("/api/v1/workspace/tasks/{task_id}/continue", response_model=WorkspaceTaskResource)
-    def continue_workspace_task(task_id: str, request: Request, response: Response) -> dict:
-        """Start a fresh attempt from a no-effect committed checkpoint; never resume an old worker."""
-        key = idempotency_key(request)
-        digest = request_digest({"command": "continue-safe-workspace-task", "task_id": task_id})
-        try:
-            replay = store.replay_workspace_task_continuation(idem_key=key, request_hash=digest)
-        except IdempotencyConflict as exc:
-            raise HTTPException(409, str(exc)) from None
-        if replay is not None:
-            response.status_code = 200
-            return replay
-        candidate = store.workspace_task_continuation_candidate(task_id)
-        if not candidate["available"]:
-            if candidate["reason"] == "This task is no longer available.":
-                raise HTTPException(404, candidate["reason"])
-            raise HTTPException(409, candidate["reason"])
-        target = store.get_bot(candidate["target_bot_id"])
-        if target is None:
-            raise HTTPException(404, "The specialist Bot is no longer available")
-        store.assert_execution_ready()
-        from ..modelchoices import ModelNotUsable, validate_override
-        try:
-            model = validate_override(config, store, target, target.model)
-        except ModelNotUsable as exc:
-            raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
-        if model != target.model:
-            raise HTTPException(409, "The specialist's configured model changed; review its settings and try again")
-        run = Run(bot_id=target.id, prompt="", origin="workspace_task")
-        task = Task(bot_id=target.id, kind="on_demand", prompt="")
-        try:
-            continued_id, created = store.continue_workspace_task(
-                task_id, run=run, task=task,
-                capability_snapshot=Engine.capability_snapshot(
-                    target, integration_tools=store.integration_tool_names(target.id)),
-                idem_key=key, request_hash=digest)
-        except IdempotencyConflict as exc:
-            raise HTTPException(409, str(exc)) from None
-        except KeyError:
-            raise HTTPException(404, "The specialist task is no longer available") from None
-        except ValueError as exc:
-            raise HTTPException(409, str(exc)) from None
-        response.status_code = 201 if created else 200
-        result = store.replay_workspace_task_continuation(idem_key=key, request_hash=digest)
-        if result is None:
-            raise HTTPException(500, "The continuation was admitted but its durable task record could not be read")
-        return result
 
     def _checked_workdir(raw: str) -> str:
         from ..workdir import validate_workdir
@@ -7336,7 +7126,13 @@ def create_app() -> FastAPI:
         if action == "test":
             res = check_connection(book, name)
             if not res.ok:
-                raise HTTPException(400, res.detail)
+                # A provider error body can echo request headers. Redact the stored key before the
+                # detail reaches the browser, exactly as the create path does for discovery.
+                detail = res.detail[:500]
+                secret = book.key(name) or ""
+                if secret:
+                    detail = detail.replace(secret, "[redacted]")
+                raise HTTPException(400, detail)
             return {"ok": True, "detail": res.detail}
         if action == "allowance":
             try:
@@ -7445,6 +7241,9 @@ def create_app() -> FastAPI:
     from .skills_api import install_skills_routes
     install_skills_routes(app, store, config)
     from .facts_api import install_fact_purge_routes; install_fact_purge_routes(app, store)
+    from .tasks_api import install_workspace_task_routes
+    install_workspace_task_routes(app, store, engine, config, idempotency_key=idempotency_key,
+                                  request_digest=request_digest)
     from .bot_deletion_api import install_bot_deletion_routes
     install_bot_deletion_routes(app, store)
     from .pages import register_pages

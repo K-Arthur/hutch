@@ -71,6 +71,36 @@ focus and touch sizing, not application-menu roles. The first-run proof image
 contains none of the changed pickers, so it remains the existing genuine empty
 app capture; no synthetic chat screenshot is substituted for marketing proof.
 
+### Overlays (modals and popovers)
+
+One contract now covers every blocking or floating surface: the design spec is
+[`src/hutch/web/docs/overlays.md`](../src/hutch/web/docs/overlays.md) and the
+audit that motivated it is [`docs/overlays/audit.md`](overlays/audit.md). Two
+primitives implement it:
+
+- **Modal** - `src/hutch/server/templates/macros/modal.html`,
+  `static/hutch-overlay-{dialog,modal}.js` and `static/hutch-overlays.css`.
+  Native `<dialog>.showModal()` owns the top layer, focus containment and
+  topmost Escape; the primitive adds initial focus, exact focus return, backdrop
+  policy (`dismissible:false` for destructive confirmations), background scroll
+  lock with scrollbar compensation, busy/error state and enter/exit motion.
+- **Popover** - `src/hutch/server/templates/macros/popover.html`,
+  `static/hutch-overlay-popover.js` / `hutch-overlay-tooltip.js` and
+  `static/hutch-popovers.css`. Native popover top layer when supported; body
+  portal only in the no-Popover-API fallback. Placement flips and shifts inside
+  the visual viewport and re-anchors; menus get Arrow/Home/End/typeahead.
+
+`app.js` `openModal`/`confirmDialog` and `hutchControls.popup` are thin
+adapters over those primitives, so existing call sites keep their contract.
+Overlay token families - `--hutch-z-*`, `--hutch-overlay-scrim-*`,
+`--hutch-elevation-overlay-*`, `--hutch-motion-overlay-*` and the
+`--hutch-focus-ring` shorthand - live in `hutch-tokens.css` plus
+`hutch-overlay-tokens.css` (split to stay inside the 400-line source budget).
+No overlay stylesheet may declare a z-index or colour literal; the shipped
+server pages read the documented token mirror in `static/hutch-overlays.css`.
+Modals are the only scrimmed category; the four scrim literals that predated this
+pass are gone.
+
 Use `hutchControls.popup({trigger, panel, kind, side, onClose})` for floating
 controls. Callers own data and actions; the controller owns placement, bounded
 scrolling, focus entry, menu arrows, dismissal and teardown. Keep the panel
@@ -81,19 +111,19 @@ and marketing disclosures are not popup menus.
 
 | Role | Shared value | Use |
 |---|---|---|
-| Ground | `#05070a` | App frame and site background |
-| Surface | `#080c12` | Studio panels, server cards, marketing proof panels |
-| Panel | `#10161f` | Inputs, raised controls, secondary layers |
-| Raised | `#171f2b` | Optional higher layer and hover surfaces |
-| Main text | `#f0f4f9` | Headings and primary content |
-| Secondary / muted text | `#9daebf` / `#7d8ea4` | Supporting content and metadata; keep contrast readable |
-| Brand | `#34d399` with ink `#052e21` | Primary action and Hutch identity |
+| Ground (`--color-semantic-bg`) | `#09090b` (`ink.950`) | App frame and site background |
+| Surface (`--color-semantic-surface`) | `#0f0f12` (`ink.900`) | Studio panels, server cards, marketing proof panels |
+| Panel (`--color-semantic-panel`) | `#16161a` (`ink.800`) | Inputs, raised controls, secondary layers |
+| Raised (`--color-semantic-raised`) | `#1c1c21` (`ink.750`) | Optional higher layer and hover surfaces |
+| Main text (`--color-semantic-text`) | `#ededf0` (`paper`) | Headings and primary content (`17.03:1` on ground) |
+| Secondary / muted text (`--text-2` / `--text-3`) | `#a3a3ae` / `#8e8e99` | Supporting content (`7.97:1`) and metadata (`6.14:1`); keep contrast readable |
+| Brand (`--color-semantic-brand`) | `#34d399` with ink `#052e21` (light surfaces: `#047857` on `#ededf0`) | Primary action and Hutch identity (`10.35:1` on `#09090b`; `#047857` is `4.69:1` on `#ededf0`) |
 | Focus / information | `#60a5fa` | Focus rings, selection and informational emphasis |
 | Warning / danger | `#fbbf24` / `#f87171` | Human attention and failure/destructive states |
-| Hairline / strong / emphasis border | `rgba(255,255,255,.07)` / `.12` / `.22` | Card boundaries and hovered edges (decorative) |
+| Hairline / strong / emphasis border | `rgba(255,255,255,.07)` / `.14` / `.22` | Card boundaries and hovered edges (decorative) |
 | Control edge | `rgba(255,255,255,.38)` | Boundary of text fields, selects and the composer; ≥3:1 on every surface (WCAG 1.4.11) |
 | Micro / control / panel / chat / pill radius | `4 / 8 / 12 / 20 / 100px` (`50%` for circles) | One shared scale for the dashboard and the site, chosen by role and stepping down when nested; no surface owns a private radius (`tests/e2e/test_radius_scale.py` enforces it) |
-| UI and headings / code and measured data | local Geist / Geist Mono | One family for language; mono for code, commands, paths and machine values |
+| Wordmark / UI and headings / code and measured data | local Bricolage Grotesque 800 (`hutch.` / `hutch` wordmark only) / Geist / Geist Mono | Bricolage Grotesque 800 for the brand wordmark; Geist for UI and prose; Geist Mono for code, commands, paths and machine values |
 | App type roles | `1rem` body / `1.0625rem` reading / `1.5rem` page title | Responsive hierarchy that respects browser text scaling |
 | Product text steps | `12 / 13 / 14 / 16 / 18 / 24px` (17 for long reading, a 28–36 display band) | Caption, small, label, body, section, page title; nothing between them (`tests/e2e/test_type_and_spacing_scale.py`) |
 | Spacing scale | `4 / 8 / 12 / 16 / 24 / 32 / 40 / 56px` | Cards pad 16 (12 dense, 24 hero), stacked cards sit 16 apart, sections 32; 1–2px only for hairlines |
@@ -101,15 +131,22 @@ and marketing disclosures are not popup menus.
 | App icon family | `16 / 20 / 24px`, `24px` view box | Local category vectors in 48px desktop/tablet tiles and compact 40px phone rows; exact service names and states stay visible |
 
 The app and marketing site share locally bundled Geist (and Geist Mono for code and
-measured values). Both are SIL OFL Latin subsets served from `static/fonts/` and
-`website/assets/fonts/` with their licence beside them; neither surface makes a remote
+measured values), plus a locally bundled Bricolage Grotesque 800 subset (`bricolage-grotesque-latin-800.woff2`)
+used strictly for the lowercase `hutch.` / `hutch` brand wordmark alongside the two-tier
+"Visor Hutch" logomark (see [`brand-assets.md`](brand-assets.md)). All three font subsets are SIL OFL 1.1
+files served from `static/fonts/` and `website/assets/fonts/` with their licences (`OFL-geist.txt` and
+`OFL-bricolage-grotesque.txt`) beside them; neither surface makes a remote
 font request. The neutral graphite palette and the control `edge` come from
 `website/tokens.json` like every other shared value. The site keeps the
-locally bundled 3D Hutch mascot. The app uses compact flat 2D assistant characters.
-Each head shape has two balanced, near-round ink eyes directly on its colour;
+locally bundled 3D Hutch mascot. The app uses compact flat 2D assistant characters
+("The Hutch Colony" eight-resident family: Ghost Bell, Gable Hutch, Hopper Hare,
+Lantern Cowl, Transceiver Pod, Bastion Keep, Beacon Spire, and Mecha Chassis; see
+[`.pipeline/brand/2026-10/AVATAR-SYSTEM.md`](../.pipeline/brand/2026-10/AVATAR-SYSTEM.md)).
+Each head shape has two balanced, near-round ink eyes (`#0b1511`) directly on its colour;
 eye size, spacing, height, and subtle inward tilt follow that shape's usable
-face area. The picker previews the same geometry. Do not add a visor or extra
-facial marks. Status is shown separately.
+face area across eight distinct vertical face rows. The picker previews the same geometry. Do not add a visor or extra
+facial marks to the in-app per-assistant avatars (the recessed loft visor belongs
+exclusively to the "Visor Hutch" product logomark). Status is shown separately.
 Brand art, assistant identity, and runtime state never substitute for one another.
 
 ## Surface roles
@@ -232,10 +269,22 @@ review them.
 
 Chats and the in-app Apps & AI, Models, Usage, and other views share one
 workspace sidebar, contextual header, system type, emerald actions, azure focus,
-solid graphite surfaces, and 8px/12px control-panel geometry. Sign-in, pairing,
-and remaining server-rendered pages load the same generated semantic tokens and
-map their components to that contract. Service categories use the same locally
-drawn outline glyphs across the app and marketing site. Apps & AI uses the
+solid graphite surfaces, and 8px/12px control-panel geometry. That is the only
+primary navigation: there is no second top navigation bar. Every full page
+renders the sidebar from one model (`src/hutch/server/nav.py`, item list) and
+one component sheet (`static/hutch-nav.css`, loaded by both the SPA document and
+`templates/base.html`); a parity test fails when the server model and the SPA
+sidebar disagree on label, order or href. The 56px contextual header owns only
+the page's controls (drawer toggle, Stop all, live status) and keeps a constant
+height on every route, so navigating never jumps. Below 900px the sidebar is the
+same labelled drawer on every page; without JavaScript it becomes an inline
+navigation list so every destination stays reachable. Sign-in and pairing are
+chrome-less. The server-rendered sidebar omits the assistant roster, search
+palette and dock control until those pages move inside the live shell - a
+deliberate difference, not a competing navigation model. Destructive settings
+(whole-assistant deletion) stay in the assistant's danger zone and never take a
+primary-navigation row. Service categories use the same locally drawn outline
+glyphs across the app and marketing site. Apps & AI uses the
 unaltered official artwork documented in [brand asset provenance](brand-assets.md)
 for named functional connections. Keep the full service name and connection
 state visible beside every mark, keep the mark subordinate to the name, and do

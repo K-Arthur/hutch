@@ -2,7 +2,7 @@
 
 Each test pins one audit finding: F-1 skip link, F-2 route focus/title,
 F-3 error-toast target, F-4 prose link underline, F-5 workflow pill target,
-M-1 tool-stream summary target, M-2 coarse small-button target,
+M-1 hutch-tool-group summary target, M-2 coarse small-button target,
 M-3 settings descriptions, M-4 unknown-route 404 page shell, and M-5
 responsive form-review rows.
 """
@@ -168,7 +168,7 @@ def test_reminder_review_action_meets_target_minimum(audit_browser, audit_live):
 
 
 def test_tool_stream_summary_meets_target_minimum(audit_browser, audit_live):
-    """M-1: the tool-stream disclosure header is at least 24px tall."""
+    """M-1: the hutch-tool-group disclosure header is at least 24px tall."""
     base, app = audit_live
     store = app.state.store
     bot = store.create_bot(Bot(name="wcag-tools", model="mock/demo", runtime=RuntimeKind.mock, tools=["files"]))
@@ -187,8 +187,8 @@ def test_tool_stream_summary_meets_target_minimum(audit_browser, audit_live):
     page = audit_browser.new_page(viewport={"width": 1440, "height": 960})
     try:
         page.goto(base + f"/#/conversation/{conversation['id']}")
-        page.locator(".tool-stream summary").wait_for()
-        height = page.evaluate("() => document.querySelector('.tool-stream summary').getBoundingClientRect().height")
+        page.locator(".hutch-tool-group summary").wait_for()
+        height = page.evaluate("() => document.querySelector('.hutch-tool-group summary').getBoundingClientRect().height")
         assert height >= 24
     finally:
         page.close()
@@ -251,25 +251,25 @@ def test_bot_settings_hints_are_associated_with_their_controls(audit_browser, au
             "command_rules": "command-rules-hint",
         }
         for name, hint_id in fields.items():
-            control = page.locator(f'.settings [name="{name}"]')
+            control = page.locator(f'form[action$="/update"] [name="{name}"]')
             assert hint_id in (control.get_attribute("aria-describedby") or "").split()
             assert page.locator(f"#{hint_id}").count() == 1
-        broken = page.locator(".settings [aria-describedby]").evaluate_all("""items => items.flatMap(el =>
+        broken = page.locator('form[action$="/update"] [aria-describedby]').evaluate_all("""items => items.flatMap(el =>
           (el.getAttribute('aria-describedby') || '').split(/\\s+/)
             .filter(id => id && !document.getElementById(id)))""")
         assert broken == []
         page.goto(base + "/#/bot/wcag-settings")
-        page.locator(".assistant-settings-page label.field .hint[id]").first.wait_for()
-        unassociated = page.locator(".assistant-settings-page label.field").evaluate_all("""labels => labels.flatMap(label => {
+        page.locator(".assistant-settings-page .hutch-field .hutch-help[id]").first.wait_for()
+        unassociated = page.locator(".assistant-settings-page .hutch-field").evaluate_all("""labels => labels.flatMap(label => {
           const controls = [...label.querySelectorAll('input, select, textarea')];
-          const hints = [...label.querySelectorAll('.hint[id]')];
+          const hints = [...label.querySelectorAll('.hutch-help[id]')];
           return hints.flatMap(hint => controls
             .filter(control => !(control.getAttribute('aria-describedby') || '').split(/\\s+/).includes(hint.id))
             .map(control => ({name: control.name, hint: hint.id})));
         })""")
         assert unassociated == [], unassociated
         habits = page.locator(".assistant-settings-page fieldset.persona-habits")
-        hint = habits.locator(".hint[id]").get_attribute("id")
+        hint = habits.locator(".hutch-help[id]").get_attribute("id")
         assert hint in (habits.get_attribute("aria-describedby") or "").split()
     finally:
         page.close()
@@ -406,13 +406,13 @@ def test_setup_and_settings_hints_are_descriptions_not_field_names(audit_browser
         check_field('#form-risk select[name="local_browser_handoff"]', "combobox", "Local browser handoff", "browser")
 
         page.goto(base + "/bots/access-hints")
-        check_field('.settings input[name="display_name"]', "textbox", "Display name", "Shown in chats")
-        check_field('.settings input[name="model"]', "textbox", "Model route", "configured Ollama")
-        check_field('.settings select[name="workspace_mode"]', "combobox", "Workspace", "Changing modes")
-        check_field('.settings select[name="local_browser_handoff"]', "combobox", "Local browser handoff", "Linux desktop")
-        check_field('.settings input[name="workdir"]', "textbox", "Existing folder (folder mode)", "must already exist")
-        check_field('.settings select[name="risk_tier"]', "combobox", "Risk tier", "blocked at every tier")
-        check_field('.settings textarea[name="command_rules"]', "textbox", "Command rules", "first match wins")
+        check_field('form[action$="/update"] input[name="display_name"]', "textbox", "Display name", "Shown in chats")
+        check_field('form[action$="/update"] input[name="model"]', "textbox", "Model route", "configured Ollama")
+        check_field('form[action$="/update"] select[name="workspace_mode"]', "combobox", "Workspace", "Changing modes")
+        check_field('form[action$="/update"] select[name="local_browser_handoff"]', "combobox", "Local browser handoff", "Linux desktop")
+        check_field('form[action$="/update"] input[name="workdir"]', "textbox", "Existing folder (folder mode)", "must already exist")
+        check_field('form[action$="/update"] select[name="risk_tier"]', "combobox", "Risk tier", "blocked at every tier")
+        check_field('form[action$="/update"] textarea[name="command_rules"]', "textbox", "Command rules", "first match wins")
         assert not errors, errors
     finally:
         page.close()

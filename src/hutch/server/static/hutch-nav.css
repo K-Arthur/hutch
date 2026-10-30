@@ -1,0 +1,178 @@
+/* Hutch navigation component - one definition for both shells.
+
+   Loaded last by the SPA document (static/index.html) and by every
+   server-rendered page (templates/base.html). It owns the sidebar navigation
+   rows, the primary navigation disclosure, the footer links and the active
+   destination treatment, so the two shells cannot drift.
+
+   Tokens only: every value comes from brand-tokens.css (semantic colours,
+   radii, type steps, motion) or the shared primitive alpha steps. No literal
+   palette value lives in this file. */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-semantic-text);
+  text-decoration: none;
+}
+.brand:hover { text-decoration: none; }
+
+/* ── navigation rows ── */
+.ws-nav {
+  display: grid;
+  gap: 2px;
+  padding: 2px var(--space-3) var(--space-2);
+}
+.ws-nav a,
+.ws-nav button,
+.ws-nav summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-semantic-text-2);
+  font: 500 0.875rem/1 var(--font-body);
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color var(--motion-dur-fast) var(--motion-ease-standard),
+    background-color var(--motion-dur-fast) var(--motion-ease-standard);
+}
+.ws-nav summary { list-style: none; }
+.ws-nav summary::-webkit-details-marker { display: none; }
+.ws-nav a:hover,
+.ws-nav button:hover,
+.ws-nav summary:hover {
+  color: var(--color-semantic-text);
+  background: var(--color-primitive-white-a06);
+  text-decoration: none;
+}
+.ws-nav details a {
+  padding-left: 40px;
+  font-size: var(--text-size-xs);
+}
+
+/* The current destination is not colour-only: weight + a 3px brand rail +
+   aria-current. The same rule and the same tokens apply in both shells. */
+.ws-nav a[aria-current="page"] {
+  color: var(--color-semantic-text);
+  background: var(--color-primitive-white-a08);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--color-semantic-brand);
+}
+.ws-nav a[aria-current="page"] .nav-ico,
+.ws-nav a[aria-current="page"] .ico,
+.ws-nav button[aria-current="page"] .nav-ico { color: var(--color-semantic-brand-strong); }
+
+/* The inline icon wrapper inherits the row colour; the explicit size keeps the
+   24px viewBox at the 16px navigation role in both shells. */
+.ws-nav a .ico,
+.ws-nav summary .ico,
+.ws-foot-link .ico { flex: none; width: 16px; height: 16px; }
+
+.nav-ico {
+  display: inline-block;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  opacity: 0.9;
+}
+.ws-nav .ico {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.ws-nav .badge.hidden { display: none; }
+.ws-nav .badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-semantic-border-strong);
+  border-radius: var(--radius-chip);
+  background: var(--color-semantic-surface);
+  color: var(--color-semantic-danger);
+  font: 650 var(--text-size-2xs)/1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── footer destinations (Apps & AI, Settings) ── */
+.ws-foot {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+.ws-foot-link {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-semantic-border-strong);
+  border-radius: var(--radius-chip);
+  background: var(--color-semantic-surface);
+  color: var(--color-semantic-text-2);
+  font: 550 0.8125rem/1 var(--font-body);
+  text-decoration: none;
+  transition:
+    color var(--motion-dur-fast) var(--motion-ease-standard),
+    background-color var(--motion-dur-fast) var(--motion-ease-standard);
+}
+.ws-foot-link:hover {
+  color: var(--color-semantic-text);
+  background: var(--color-semantic-raised);
+  text-decoration: none;
+}
+.ws-foot-link[aria-current="page"] {
+  color: var(--color-semantic-text);
+  background: var(--color-semantic-raised);
+  border-color: var(--color-semantic-border-emphasis);
+  font-weight: 600;
+}
+.ws-foot-link .ico { flex: none; }
+
+/* Focus stays visible in both shells; :focus-visible only. */
+.ws-nav a:focus-visible,
+.ws-nav button:focus-visible,
+.ws-nav summary:focus-visible,
+.ws-foot-link:focus-visible,
+.brand:focus-visible {
+  outline: 2px solid var(--color-semantic-focus-ring);
+  outline-offset: -2px;
+  border-radius: var(--radius-control);
+}
+
+/* Touch sizes: the 44px floor applies to coarse pointers in both shells. */
+@media (pointer: coarse) {
+  .ws-nav a,
+  .ws-nav button,
+  .ws-nav summary { min-height: 44px; }
+  .ws-foot-link { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-nav a,
+  .ws-nav button,
+  .ws-nav summary,
+  .ws-foot-link { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .ws-nav a[aria-current="page"] {
+    border: 2px solid Highlight;
+    box-shadow: none;
+  }
+  .ws-foot-link[aria-current="page"] { border-color: Highlight; }
+}

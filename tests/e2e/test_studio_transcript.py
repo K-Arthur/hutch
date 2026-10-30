@@ -102,7 +102,7 @@ def test_answer_renders_markdown_inertly_and_code_can_be_copied(context, app_ser
     base, app = app_server
     conversation, _ = _seed(app, "markdown", "Plan my week", answer=ANSWER)
     page, errors = _open(context, base, conversation)
-    answer = page.locator("#chat-stream .answer").first
+    answer = page.locator("#chat-stream .hutch-msg__answer").first
     expect(answer.locator("h2")).to_have_text("Findings")
     assert answer.locator("strong").inner_text() == "3 focus blocks"
     assert answer.locator("ol li").count() == 2
@@ -131,9 +131,9 @@ def test_tool_calls_are_step_cards_with_exact_request_result_and_measured_time(c
         ("shell", {"command": "pytest -q tests/test_parser.py"}, "exit=1\nF\n1 failed in 0.31s", False, 3.2),
     ], answer="The nested-group test fails.")
     page, errors = _open(context, base, conversation)
-    summary = page.locator("details.tool-stream > summary")
+    summary = page.locator("details.hutch-tool-group > summary")
     expect(summary).to_contain_text("2 steps")
-    rows = page.locator(".tool-line[data-tool-line]")
+    rows = page.locator(".hutch-tool[data-tool-line]")
     expect(rows).to_have_count(2)
     ok_row, failed_row = rows.nth(0), rows.nth(1)
     assert ok_row.get_attribute("class").split()[1] == "success"
@@ -143,9 +143,9 @@ def test_tool_calls_are_step_cards_with_exact_request_result_and_measured_time(c
     assert failed_row.locator(".tool-fail").inner_text() == "Failed"          # a word, not only a colour
     assert failed_row.locator(".tool-time").inner_text() == "3.2s"            # measured from the two events
     # collapsed by default; expanding shows the exact request and the full output
-    assert page.locator(".tool-line-body").first.is_hidden()
-    failed_row.locator(".tool-line-head").click()
-    body = failed_row.locator(".tool-line-body")
+    assert page.locator(".hutch-tool__body").first.is_hidden()
+    failed_row.locator(".hutch-tool__head").click()
+    body = failed_row.locator(".hutch-tool__body")
     expect(body).to_be_visible()
     assert body.locator(".tcmd").inner_text().strip() == "pytest -q tests/test_parser.py"
     output = body.locator(".tool-res")
@@ -182,7 +182,7 @@ def test_gate_shows_exact_content_up_front_and_keeps_decision_semantics(context,
         assert card.get_by_role("button", name=name).is_visible(), name
     # the header repeats nothing: no status chip, and the thread's own status carries the state
     assert page.locator(".app-top .ctx-meta .status").count() == 0
-    assert "Waiting for you" in page.locator("#chat-stream .mhead .status").first.inner_text()
+    assert "Waiting for you" in page.locator("#chat-stream .hutch-msg__identity .status").first.inner_text()
     expect(page.locator(".app-top .ctx-id > .avatar")).to_have_attribute("data-state", "waiting")
     # denying records the decision and flattens the gate into a ledger row
     card.locator('[data-approve="0"]').click()
@@ -198,7 +198,7 @@ def test_long_request_clamps_and_expands_and_controls_name_their_visible_text(co
     long_prompt = "Please compare the vendors.\n" + "\n".join(f"Point {i}: keep it short and sourced." for i in range(1, 14))
     conversation, _ = _seed(app, "long", long_prompt, answer="Done.")
     page, errors = _open(context, base, conversation)
-    bubble = page.locator("#chat-stream .bubble.is-long")
+    bubble = page.locator("#chat-stream .hutch-msg__body.is-long")
     expect(bubble).to_have_count(1)
     clamped = bubble.bounding_box()["height"]
     toggle = page.locator("#chat-stream [data-bubble-toggle]")
@@ -245,24 +245,24 @@ def test_expanded_bubble_step_and_output_survive_live_updates(context, app_serve
                               status=RunStatus.running, started_s_ago=30)
     page, errors = _open(context, base, conversation)
     page.locator("#chat-stream [data-bubble-toggle]").click()
-    stream = page.locator("details.tool-stream").first
+    stream = page.locator("details.hutch-tool-group").first
     if not stream.evaluate("el => el.open"):
         stream.locator("summary").click()
-    page.locator(".tool-line-head").first.click()
-    out = page.locator(".tool-line .tool-out").first
+    page.locator(".hutch-tool__head").first.click()
+    out = page.locator(".hutch-tool .hutch-tool__out").first
     expect(out).to_have_attribute("data-clipped", "true")
     out.locator("[data-show-more]").click()
     expect(out).to_have_attribute("data-clipped", "false")
-    page.locator('.tool-line [data-raw-toggle]').first.click()
+    page.locator('.hutch-tool [data-raw-toggle]').first.click()
     # a new step arrives: the whole feed re-renders
     app.state.store.append_event(Event(run_id=run.id, type=EventType.tool_call, ts=iso(utcnow()),
                                        data={"tool": "list_files", "args": {"path": "."}}))
     app.state.store.flush_events()
-    expect(page.locator(".tool-line[data-tool-line]")).to_have_count(2, timeout=20_000)
+    expect(page.locator(".hutch-tool[data-tool-line]")).to_have_count(2, timeout=20_000)
     expect(page.locator("#chat-stream [data-bubble-toggle]")).to_have_attribute("aria-expanded", "true")
-    expect(page.locator(".tool-line-head").first).to_have_attribute("aria-expanded", "true")
-    expect(page.locator(".tool-line .tool-out").first).to_have_attribute("data-clipped", "false")
-    expect(page.locator(".tool-line [data-raw-toggle]").first).to_have_attribute("aria-pressed", "true")
+    expect(page.locator(".hutch-tool__head").first).to_have_attribute("aria-expanded", "true")
+    expect(page.locator(".hutch-tool .hutch-tool__out").first).to_have_attribute("data-clipped", "false")
+    expect(page.locator(".hutch-tool [data-raw-toggle]").first).to_have_attribute("aria-pressed", "true")
     assert not errors, errors
 
 
@@ -273,10 +273,10 @@ def test_clipped_output_names_what_it_hides_and_opens_in_place(context, app_serv
     conversation, _ = _seed(app, "clip", "List the lines", [("run_shell", {"command": "seq 20"}, output, True, 0.2)],
                             answer="Done.")
     page, errors = _open(context, base, conversation)
-    stream = page.locator("#chat-stream details.tool-stream").first
+    stream = page.locator("#chat-stream details.hutch-tool-group").first
     if not stream.evaluate("el => el.open"):
         stream.locator("summary").click()
-    page.locator("#chat-stream .tool-line-head").first.click()
+    page.locator("#chat-stream .hutch-tool__head").first.click()
     more = page.locator("#chat-stream .tool-res [data-show-more]").first
     expect(more).to_have_text("Show all 20 lines")
     more.click()

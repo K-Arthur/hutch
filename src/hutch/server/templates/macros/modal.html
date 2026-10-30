@@ -1,0 +1,93 @@
+{#-
+  Hutch modal primitive (Jinja2)
+
+  Pairs with /static/hutch-overlays.css (look), /static/hutch-overlay-*.js
+  (behaviour) and src/hutch/web/docs/overlays.md (the spec).
+
+  Two macros:
+
+    modal(...)          a dialog with a title, optional description, body slot
+                        ({% call %}) and an actions slot (actions_html, or the
+                        actions list of {label, id, variant, type, danger, attrs}).
+    confirm_form(...)   a destructive form that opens a non-dismissible
+                        confirmation dialog. Without JavaScript the form still
+                        submits exactly as before; with JavaScript the dialog
+                        asks first and the confirm button submits the form.
+
+  Rules (see the spec):
+  - the title is required and names what is being decided;
+  - destructive confirmations are not dismissible by backdrop/Escape and never
+    receive initial focus;
+  - action labels are verbs; cancel stays "Cancel";
+  - no colours, radii or spacing literals in markup - every value is a class
+    from the overlay stylesheet.
+-#}
+{% from "_icons.html" import icon %}
+
+{% macro modal(id, title, description=None, size="md", dismissible=True, initial_focus=None, variant="center", body_html=None, actions_html=None, close_label=None) -%}
+<dialog class="hutch-modal" id="{{ id }}"
+        data-hutch-modal
+        aria-labelledby="{{ id }}-title"
+        {%- if description %} aria-describedby="{{ id }}-description"{% endif %}
+        data-size="{{ size }}"
+        data-variant="{{ variant }}"
+        {%- if not dismissible %} data-dismissible="false"{% endif %}
+        {%- if initial_focus %} data-initial-focus="{{ initial_focus }}"{% endif %}>
+  <header class="hutch-modal__header modal-header">
+    <h2 class="hutch-modal__title" id="{{ id }}-title">{{ title }}</h2>
+    {%- if dismissible %}
+    <button class="hutch-modal__close" type="button" data-hutch-modal-cancel aria-label="{{ close_label or ('Close ' ~ (title | striptags | lower)) }}">{{ icon("x", 16) }}</button>
+    {%- endif %}
+  </header>
+  {%- if description %}<p class="hutch-modal__description" id="{{ id }}-description">{{ description }}</p>{% endif %}
+  <div class="hutch-modal__body modal-body">{% if body_html %}{{ body_html | safe }}{% elif caller is defined %}{{ caller() }}{% endif %}</div>
+  {%- if actions_html %}
+  <footer class="hutch-modal__actions modal-footer">{{ actions_html | safe }}</footer>
+  {%- endif %}
+</dialog>
+{%- endmacro %}
+
+{#- actions: list of {label, id=None, type="button", variant="ghost", danger=False, attrs={}} -#}
+{% macro modal_actions(actions) -%}
+{% for action in actions %}
+<button type="{{ action.type | default('button') }}"
+        class="btn {{ action.variant | default('ghost') }}{% if action.danger %} is-danger{% endif %}"
+        {%- if action.id %} id="{{ action.id }}"{% endif %}
+        {%- for key, value in (action.attrs | default({})).items() %} {{ key }}="{{ value }}"{% endfor %}>{{ action.label }}</button>
+{% endfor %}
+{%- endmacro %}
+
+{#-
+  confirm_form: a destructive POST form with a product confirmation dialog.
+
+  form_id/dialog_id must be unique on the page. hidden is a mapping of extra
+  hidden fields (csrf is expected from the caller because the base template owns
+  it). trigger_icon is an icon name from _icons.html; trigger_aria supplies the
+  accessible name when the visible label is short.
+-#}
+{% macro confirm_form(form_id, dialog_id, action, title, description, confirm_label, trigger_label, hidden={}, trigger_class="btn danger", trigger_icon=None, trigger_aria=None, size="sm") -%}
+<form method="post" action="{{ action }}" class="hutch-form hutch-inline" id="{{ form_id }}" data-hutch-confirm-form="{{ dialog_id }}">
+  {%- for name, value in hidden.items() %}
+  <input type="hidden" name="{{ name }}" value="{{ value }}">
+  {%- endfor %}
+  <button class="{{ trigger_class }}" type="submit"{% if trigger_aria %} aria-label="{{ trigger_aria }}"{% endif %}>{% if trigger_icon %}{{ icon(trigger_icon, 14) }} {% endif %}{{ trigger_label }}</button>
+</form>
+<dialog class="hutch-modal" id="{{ dialog_id }}"
+        data-hutch-modal
+        aria-labelledby="{{ dialog_id }}-title"
+        aria-describedby="{{ dialog_id }}-description"
+        data-size="{{ size }}"
+        data-dismissible="false">
+  <header class="hutch-modal__header modal-header">
+    <h2 class="hutch-modal__title" id="{{ dialog_id }}-title">{{ title }}</h2>
+  </header>
+  <p class="hutch-modal__description" id="{{ dialog_id }}-description">{{ description }}</p>
+  <div class="hutch-modal__body modal-body">
+    <p class="hint">This action cannot be undone from this page.</p>
+  </div>
+  <footer class="hutch-modal__actions modal-footer">
+    <button class="btn ghost" type="button" data-hutch-modal-cancel>Cancel</button>
+    <button class="btn danger is-danger" type="submit" form="{{ form_id }}" data-hutch-confirm-submit>{{ confirm_label }}</button>
+  </footer>
+</dialog>
+{%- endmacro %}

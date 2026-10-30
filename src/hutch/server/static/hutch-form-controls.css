@@ -1,0 +1,280 @@
+/* ============================================================================
+   Hutch form system, part 2: choice controls, layout modifiers and states.
+
+   Loaded immediately after hutch-forms.css (part 1: token tier, field stack,
+   labels, text controls, help and error slots) by both document heads -
+   templates/base.html and static/index.html - and before hutch-select.css,
+   so the select component keeps its documented "loads after the form system"
+   contract. Same token tier, same rules as part 1; nothing here redefines a
+   --hutch-form-* value.
+
+   Contents: checkbox and radio restyling (native elements, kept accessible),
+   choice cards, the two-up field grid, the actions row, inline and filter-bar
+   rows, narrow-screen action stacking, coarse-pointer density, the in-form
+   page-note rule and the forced-colours fallback.
+   ========================================================================== */
+
+/* ------------------------------------------------------- checkbox/radio */
+/* The native element is kept and restyled - never replaced by a div - so
+   focus, form participation and assistive tech behaviour are unchanged. */
+.hutch-check,
+.hutch-radio,
+.hutch-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--hutch-form-gap-stack);
+  min-width: 0;
+  padding: 6px 0;
+  font: var(--hutch-form-font-label);
+  font-weight: 400;
+  color: var(--hutch-form-text);
+  cursor: pointer;
+}
+.hutch-check input[type="checkbox"],
+.hutch-radio input[type="radio"],
+.hutch-option input[type="checkbox"],
+.hutch-option input[type="radio"] {
+  appearance: none;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  background: var(--hutch-form-surface);
+  border: 1px solid var(--hutch-form-border-strong);
+  border-radius: var(--hutch-form-radius-sm);
+  cursor: pointer;
+  transition: border-color var(--hutch-form-motion), background-color var(--hutch-form-motion);
+}
+.hutch-option input[type="radio"],
+.hutch-radio input[type="radio"] {
+  border-radius: var(--hutch-radius-round, 50%);
+}
+.hutch-check input[type="checkbox"]:hover:not(:disabled),
+.hutch-radio input[type="radio"]:hover:not(:disabled),
+.hutch-option input[type="checkbox"]:hover:not(:disabled) {
+  border-color: var(--hutch-form-focus-line);
+}
+.hutch-check input[type="checkbox"]:checked,
+.hutch-radio input[type="radio"]:checked,
+.hutch-option input[type="checkbox"]:checked,
+.hutch-option input[type="radio"]:checked {
+  background: var(--hutch-form-brand);
+  border-color: var(--hutch-form-brand);
+}
+/* The tick and the dot are drawn, not typed: no glyph, no emoji. */
+.hutch-check input[type="checkbox"]:checked::after,
+.hutch-option input[type="checkbox"]:checked::after {
+  content: "";
+  display: block;
+  width: 4px;
+  height: 8px;
+  margin: 1px 0 0 5px;
+  border-right: 2px solid var(--hutch-form-brand-ink);
+  border-bottom: 2px solid var(--hutch-form-brand-ink);
+  transform: rotate(45deg);
+}
+.hutch-radio input[type="radio"]:checked::after,
+.hutch-option input[type="radio"]:checked::after {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 6px;
+  margin: 4px auto 0;
+  background: var(--hutch-form-brand-ink);
+  border-radius: var(--hutch-radius-round, 50%);
+}
+.hutch-check input[type="checkbox"]:indeterminate,
+.hutch-option input[type="checkbox"]:indeterminate {
+  background: var(--hutch-form-brand);
+  border-color: var(--hutch-form-brand);
+}
+.hutch-check input[type="checkbox"]:indeterminate::after,
+.hutch-option input[type="checkbox"]:indeterminate::after {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 2px;
+  margin: 6px auto 0;
+  background: var(--hutch-form-brand-ink);
+  border: 0;
+  transform: none;
+}
+.hutch-check input[type="checkbox"]:focus-visible,
+.hutch-radio input[type="radio"]:focus-visible,
+.hutch-option input[type="checkbox"]:focus-visible,
+.hutch-option input[type="radio"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--hutch-form-focus-wash), 0 0 0 1px var(--hutch-form-focus);
+  border-color: var(--hutch-form-focus);
+}
+.hutch-check input[type="checkbox"]:disabled,
+.hutch-radio input[type="radio"]:disabled,
+.hutch-option input[type="checkbox"]:disabled {
+  opacity: var(--hutch-form-disabled-opacity);
+  cursor: not-allowed;
+}
+.hutch-check input[type="checkbox"][aria-invalid="true"],
+.hutch-option input[type="checkbox"][aria-invalid="true"] {
+  border-color: var(--hutch-form-danger);
+}
+.hutch-check:has(input:disabled),
+.hutch-radio:has(input:disabled),
+.hutch-option:has(input:disabled) {
+  color: var(--hutch-form-disabled-ink);
+  opacity: var(--hutch-form-disabled-opacity);
+  cursor: not-allowed;
+}
+.hutch-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.hutch-option-help {
+  font: var(--hutch-form-font-help);
+  color: var(--hutch-form-text-muted);
+}
+/* A choice card is a radio group whose options read as selectable panels. */
+.hutch-choice-list {
+  display: grid;
+  gap: var(--hutch-form-gap-stack);
+}
+.hutch-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--hutch-form-gap-stack);
+  padding: var(--hutch-form-gap-stack) var(--hutch-form-padding-x);
+  border: 1px solid var(--hutch-form-border-quiet);
+  border-radius: var(--hutch-form-radius);
+  background: var(--hutch-form-surface);
+  cursor: pointer;
+  transition: border-color var(--hutch-form-motion), background-color var(--hutch-form-motion);
+}
+/* A card lifts to the control boundary on hover; it never goes past edge. */
+.hutch-choice:hover { border-color: var(--hutch-form-border); }
+.hutch-choice:has(input:checked) {
+  border-color: var(--hutch-form-brand);
+  background: var(--hutch-form-success-wash);
+}
+.hutch-choice:has(input:focus-visible) {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--hutch-form-focus-wash), 0 0 0 1px var(--hutch-form-focus);
+}
+
+/* ------------------------------------------------------------ the grid */
+/* Two-up field grid used by settings forms; .wide spans both columns. */
+.hutch-form.hutch-cols-2 .wide,
+.hutch-form.hutch-cols-2 .hutch-wide {
+  grid-column: 1 / -1;
+}
+/* Matches the breakpoint the incumbent two-up settings grid collapsed at, so
+   a migrated form never becomes denser than the one it replaced. */
+@media (max-width: 1000px) {
+  .hutch-form.hutch-cols-2 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* --------------------------------------------------------------- actions */
+/* Submit/reset reuse the existing Hutch button primitives (.btn and its
+   primary/ghost/danger variants on both surfaces); only the row is new. */
+.hutch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--hutch-form-gap-stack);
+  margin: 0;
+  padding-top: var(--hutch-form-gap-stack);
+}
+.hutch-form.hutch-cols-2 > .hutch-actions {
+  grid-column: 1 / -1;
+}
+.hutch-actions .hutch-spacer { flex: 1 1 auto; }
+.hutch-actions--end { justify-content: flex-end; }
+.hutch-actions--between { justify-content: space-between; }
+/* A primary action reads as the one brand-filled button in the row. Buttons
+   keep DESIGN.md's 40px routine height (44px on coarse pointers), while the
+   fields beside them sit at the 44px field height. */
+.hutch-actions .btn {
+  min-height: var(--hutch-form-height-button);
+}
+.hutch-form :where(button, .btn):disabled,
+.hutch-form :where(button, .btn)[aria-disabled="true"] {
+  opacity: var(--hutch-form-disabled-opacity);
+  cursor: not-allowed;
+}
+
+/* ------------------------------------- inline control rows (filter bars) */
+/* An inline form keeps intrinsic control widths: a select inside a wrapped
+   row must not stretch to the row's full width. Replaces the old
+   `.filters select { width: auto } `. */
+.hutch-form.hutch-inline .hutch-input,
+.hutch-form.hutch-inline .hutch-select,
+.hutch-form.hutch-inline .hutch-textarea {
+  width: auto;
+  min-width: 9rem;
+}
+/* A filter bar sits above the content it filters (replaces the old
+   `.filters { margin-bottom: 16px }`). The .hutch-bar modifier is explicit
+   rather than inferred, so an inline action row never inherits the margin. */
+.hutch-form.hutch-bar {
+  margin-block-end: var(--hutch-form-gap);
+}
+
+/* ------------------------------- narrow screens: stacked action rows */
+/* Replaces the old `.decide`, `.compose-row` and `.filters .field.inline`
+   phone treatments at the same 720px breakpoint the pages used. */
+@media (max-width: 720px) {
+  .approval .hutch-form.hutch-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .approval .hutch-form.hutch-inline .btn { width: 100%; }
+  #compose .hutch-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #compose .hutch-actions .btn { width: 100%; }
+  .hutch-form.hutch-bar { flex-direction: column; align-items: stretch; }
+  .hutch-form.hutch-bar > .hutch-field.hutch-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hutch-form.hutch-bar .hutch-input,
+  .hutch-form.hutch-bar .hutch-select { width: 100%; min-width: 0; }
+}
+
+/* --------------------------------------------------------- density/ touch */
+/* Coarse pointers get the touch control height and a 16px text floor so iOS
+   Safari does not zoom the page on focus (zoom is never disabled). */
+@media (pointer: coarse) {
+  .hutch-input,
+  .hutch-textarea,
+  .hutch-select { font-size: max(1rem, 16px); }
+  .hutch-input,
+  .hutch-select { min-height: var(--hutch-form-height-touch); }
+  .hutch-check,
+  .hutch-radio,
+  .hutch-option,
+  .hutch-choice { min-height: var(--hutch-form-height-touch); align-items: center; }
+  .hutch-actions .btn { min-height: var(--hutch-form-height-touch); }
+}
+
+/* ----------------------------------------------------------- page notes */
+/* A page note (.hint) that sits inside a form takes the form system's muted
+   ink so it reads with the help text beside it; notes outside a form keep
+   the page-level .hint treatment. The .field and .form-actions aliases are
+   gone - every call site has moved to the hutch-* vocabulary. */
+.hutch-form .hint { color: var(--hutch-form-text-muted); }
+
+/* --------------------------------------------------------------- forced */
+@media (forced-colors: active) {
+  .hutch-input,
+  .hutch-textarea,
+  .hutch-select { border-color: ButtonBorder; }
+  .hutch-check input[type="checkbox"],
+  .hutch-radio input[type="radio"],
+  .hutch-option input[type="checkbox"] { border-color: ButtonText; }
+  .hutch-check input[type="checkbox"]:checked::after,
+  .hutch-radio input[type="radio"]:checked::after,
+  .hutch-option input[type="checkbox"]:checked::after { border-color: CanvasText; background: CanvasText; }
+  .hutch-error, .hutch-ok { color: CanvasText; }
+}

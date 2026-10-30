@@ -25,23 +25,9 @@
   --safe-left: env(safe-area-inset-left, 0px);
 }
 
-/* Server-page shell. Base values: hutch.css .topbar (54px, 0 24px) and the
-   <=720px wrapped variant (auto height, 8px 12px). Adding the safe inset keeps
-   the desktop box exactly the same and clears a landscape cutout. */
-.topbar {
-  padding-top: var(--safe-top);
-  padding-left: calc(24px + var(--safe-left));
-  padding-right: calc(24px + var(--safe-right));
-  height: calc(54px + var(--safe-top));
-}
-@media (max-width: 720px) {
-  .topbar {
-    padding-top: calc(8px + var(--safe-top));
-    padding-left: calc(12px + var(--safe-left));
-    padding-right: calc(12px + var(--safe-right));
-    height: auto;
-  }
-}
+/* Server-page shell: the app sidebar replaces the old topbar. The safe-area
+   insets are applied by hutch-shell.css (rail padding and the fixed 56px
+   contextual header); the <=720px wrapped topbar no longer exists. */
 @media (orientation: landscape) and (pointer: coarse) {
   .container {
     padding-left: calc(var(--gutter, 24px) + var(--safe-left));
@@ -56,16 +42,6 @@
   padding-top: var(--safe-top);
   padding-left: calc(24px + var(--safe-left));
   padding-right: calc(24px + var(--safe-right));
-}
-
-/* Server-page navigation model (task 02). Nine destinations need about 1055px at
-   full padding. The overlay now engages only at <=1024px; from 1025px the
-   horizontal nav must fit, so the decorative leading icons are hidden (labels and
-   the approval badge stay) and the side padding tightens. */
-@media (min-width: 1025px) and (max-width: 1439px) {
-  #primary-nav a svg,
-  #primary-nav a .ico { display: none; }
-  #primary-nav a { padding-inline: 10px; }
 }
 
 /* Touch-target floor (task 05). WCAG 2.2 AA 2.5.8 is 24x24; Hutch's own
@@ -170,13 +146,7 @@
   }
 }
 
-/* Sticky chrome offsets (task 04). hutch.css pins the run header at 54px and
-   scrolls focus targets clear of a 72px bar, but below 720px the topbar wraps to
-   an auto height. responsive.js publishes the measured height; the fallbacks
-   keep the no-JS/no-resize case usable instead of pinning under the bar. */
-html { scroll-padding-top: calc(var(--topbar-h, 54px) + 8px); }
-.run-head { top: var(--topbar-h, 54px); }
-@media (max-width: 720px) {
-  html { scroll-padding-top: calc(var(--topbar-h, 96px) + 8px); }
-  .run-head { top: var(--topbar-h, 96px); }
-}
+/* Sticky chrome offsets. Both app shells use the fixed 56px header token
+   (hutch-shell.css defines it for server pages); nothing wraps any more. */
+html { scroll-padding-top: calc(var(--app-top-h, 56px) + 8px); }
+.run-head { top: var(--app-top-h, 56px); }

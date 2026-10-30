@@ -25,6 +25,8 @@ from ..models import ApprovalStatus, Bot, CatchUpPolicy, EventType, RunStatus, S
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
 from .. import views
+from .forms import Form
+from .nav import FOOT, MORE, MORE_KEYS, PRIMARY, normalize as normalize_nav
 from .security import AUTH_COOKIE, auth_digest, check_csrf
 from .sse import FINISHED, live_stream, resume_cursor, run_event_stream
 from ..estimate import estimate_run
@@ -34,19 +36,6 @@ PAGE_WINDOW = 200            # transcript events rendered on first paint (PF-9)
 RUNS_PAGE = 50
 FLASH, FLASH_ERR = "hutch_flash", "hutch_flash_err"
 
-NAV = [
-    ("studio", "/", "Chats", "chat"),
-    ("overview", "/overview", "Activity", "home"),
-    ("bots", "/bots", "Assistants", "bot"),
-    ("runs", "/runs", "Work history", "list"),
-    ("approvals", "/approvals", "Needs you", "shield"),
-    ("models", "/models", "Models", "cpu"),
-    ("usage", "/usage", "Usage", "chart"),
-    ("connections", "/connections", "Apps & AI", "layers"),
-    ("deletion", "/bots/delete", "Delete bot", "trash"),
-]
-
-
 class RV:
     """A Run plus its bot's name, so templates read ``run.bot_name`` like the JSON API does."""
 
@@ -55,24 +44,6 @@ class RV:
 
     def __getattr__(self, item):
         return getattr(self._run, item)
-
-
-class Form:
-    def __init__(self, data: dict[str, list[str]]):
-        self._d = data
-
-    def get(self, key: str, default: str = "") -> str:
-        v = self._d.get(key)
-        return v[-1] if v else default
-
-    def getlist(self, key: str) -> list[str]:
-        return list(self._d.get(key, []))
-
-    def has(self, key: str) -> bool:
-        return key in self._d
-
-    def flag(self, key: str) -> bool:
-        return self.get(key) in ("1", "on", "true", "yes")
 
 
 def safe_next(value: str, default: str) -> str:
@@ -98,8 +69,12 @@ def register_pages(app: FastAPI) -> None:
 
     def page(request: Request, name: str, nav: str = "", status_code: int = 200, **ctx) -> Response:
         flash, flash_err = request.cookies.get(FLASH), request.cookies.get(FLASH_ERR)
+        active = normalize_nav(nav)
         base = {
-            "request": request, "nav": nav, "nav_items": NAV, "csrf": getattr(request.state, "csrf", ""),
+            "request": request, "nav": nav, "nav_active": active,
+            "nav_primary": PRIMARY, "nav_more": MORE, "nav_foot": FOOT,
+            "nav_more_open": active in MORE_KEYS,
+            "csrf": getattr(request.state, "csrf", ""),
             "pending_count": len(store.pending_approvals()), "version": __version__,
             "state_dir": str(config.state_dir),
             "notice": unquote(flash) if flash else None, "error": unquote(flash_err) if flash_err else None,
@@ -712,12 +687,13 @@ def register_pages(app: FastAPI) -> None:
 
     @app.get("/login", response_class=HTMLResponse, include_in_schema=False)
     def login_page(request: Request):
-        return page(request, "login.html")
+        # Pre-auth surface: no rail, no in-app utility controls.
+        return page(request, "login.html", chrome=False)
 
     @app.get("/pair", response_class=HTMLResponse, include_in_schema=False)
     def pair_page(request: Request):
         """Exchange a host-issued one-time code for this browser's revocable device session."""
-        return page(request, "pair.html")
+        return page(request, "pair.html", chrome=False)
 
     @app.post("/login", include_in_schema=False)
     async def login(request: Request):

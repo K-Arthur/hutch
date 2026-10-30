@@ -1,6 +1,6 @@
-/* Shared selection and popup anatomy; aliases consume the existing brand source.
-   Native select is the form/accessibility authority. Customizable select is a
-   progressive enhancement: unsupported engines retain the native system picker. */
+/* Shared popup anatomy; aliases consume the existing brand source. Native
+   select stays the form/accessibility authority; its skin, states and
+   progressive customizable picker now live in hutch-select.css. */
 :root {
   --control-surface: var(--color-semantic-panel);
   --control-hover: var(--color-semantic-raised);
@@ -16,53 +16,19 @@
   --control-selected: var(--color-semantic-brand);
   --control-radius: var(--radius-control, 8px);
   --popup-radius: var(--radius-panel, 12px);
-  --popup-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+  --popup-shadow: var(--hutch-elevation-overlay-popover, 0 12px 32px rgb(0 0 0 / 0.45));
   --popup-row-height: 40px;
 }
-select {
-  min-block-size: 44px; max-inline-size: 100%;
-  border: 1px solid var(--control-edge); border-radius: var(--control-radius);
-  background: var(--color-semantic-bg); color: var(--control-text);
-  padding: 8px 12px; font: 400 1rem/1.5 var(--font-body, system-ui, sans-serif);
-  cursor: pointer; color-scheme: dark;
-}
-select:focus-visible { outline: 2px solid var(--control-focus); outline-offset: 2px; }
-select:disabled { cursor: not-allowed; }
-select option, select optgroup { color: var(--control-text); background: var(--control-surface); }
-@supports (appearance: base-select) {
-  select, select::picker(select) { appearance: base-select; }
-  select { align-items: center; gap: 12px; }
-  select::picker-icon { color: var(--control-muted); flex: none; }
-  select:open { border-color: var(--control-focus); }
-  select::picker(select) {
-    margin-block: 8px; padding: 4px; border: 1px solid var(--control-line);
-    border-radius: var(--popup-radius); background: var(--control-surface);
-    box-shadow: var(--popup-shadow); color: var(--control-text);
-    max-block-size: min(24rem, 65dvh); max-inline-size: calc(100vw - 16px);
-    overflow-y: auto; overscroll-behavior: contain;
-    font: 400 0.875rem/1.5 var(--font-body, system-ui, sans-serif);
-  }
-  select option {
-    min-block-size: var(--popup-row-height); padding: 8px 12px;
-    gap: 12px; border-radius: var(--control-radius);
-    white-space: normal; overflow-wrap: anywhere;
-  }
-  select optgroup { padding: 4px; font-weight: 650; }
-  select optgroup > legend { padding: 8px 12px 4px; color: var(--control-muted); font-size: 0.75rem; }
-  select option:checked { background: var(--control-hover); }
-  select option::checkmark { color: var(--control-selected); }
-  select option:hover, select option:focus { background: var(--control-hover); }
-  select option:focus-visible { outline: 2px solid var(--control-focus); outline-offset: -2px; }
-  select option:disabled { color: var(--control-muted); opacity: 0.6; }
-}
+/* The select skin moved to hutch-select.css (.hutch-select component): the
+   select token slice, field states, the progressive base-select picker and
+   the chip/compact variants live there so both shells share one definition. */
 .hc-popup {
   box-sizing: border-box; position: fixed !important; inset: auto;
   margin: 0; padding: 4px; width: 280px; min-width: 0;
   border: 1px solid var(--control-line); border-radius: var(--popup-radius);
   background: var(--control-surface); color: var(--control-text);
-  box-shadow: var(--popup-shadow); overflow-y: auto; overscroll-behavior: contain;
+  overflow-y: auto; overscroll-behavior: contain;
   font: 400 0.875rem/1.5 var(--font-body, system-ui, sans-serif);
-  z-index: 160;
 }
 .hc-popup[hidden] { display: none !important; }
 .hc-popup :is([role^="menuitem"], .conversation-action-item, .cmenu-files, .quick-prompts button) {
@@ -110,7 +76,6 @@ select option, select optgroup { color: var(--control-text); background: var(--c
 .hc-popup[data-popup-layout="sheet"] { width: calc(100% - 16px); }
 .hc-popup .cmenu-row, .hc-popup .cmenu-role-field { padding: 8px 12px; }
 .hc-popup .cmenu-row { min-height: 44px; }
-.hc-popup .cmenu-role-field select { min-height: 44px; font-size: 1rem; }
 .hc-popup .cmenu-facts { padding: 8px 12px; }
 .hc-popup .quick-prompts { display: grid; padding: 0; }
 .hc-popup :is(.cmenu-suggestions, .cmenu-usage) > summary { display: flex; align-items: center; min-height: var(--popup-row-height); padding: 8px 12px; border-radius: var(--control-radius); cursor: pointer; color: var(--control-muted); }
@@ -120,7 +85,7 @@ select option, select optgroup { color: var(--control-text); background: var(--c
   :root { --popup-row-height: 44px; }
 }
 @media (forced-colors: active) {
-  .hc-popup, select { border-color: ButtonText; box-shadow: none; }
-  .hc-popup :focus-visible, select:focus-visible { outline-color: Highlight; }
+  .hc-popup { border-color: ButtonText; box-shadow: none; }
+  .hc-popup :focus-visible { outline-color: Highlight; }
   .hc-popup [aria-checked="true"] { outline: 1px solid Highlight; }
 }

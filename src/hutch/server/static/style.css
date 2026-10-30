@@ -171,8 +171,8 @@ button, a, summary, select, label, [role="button"], [role="switch"], input[type=
 input, textarea { caret-color: var(--brand-hi); }
 /* Form fields are identified by their boundary, so it meets 3:1 (cards and dividers keep the quiet hairline). */
 input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"]),
-textarea, select { border-color: var(--edge); }
-input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]):hover, textarea:hover, select:hover { border-color: rgb(255 255 255 / 0.55); }
+textarea { border-color: var(--edge); }
+input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]):hover, textarea:hover { border-color: rgb(255 255 255 / 0.55); }
 * { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.16) transparent; }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border: 3px solid transparent; background-clip: content-box; }
@@ -185,7 +185,7 @@ p:last-child { margin-bottom: 0; }
 
 a { color: var(--focus); text-decoration: none; text-underline-offset: 3px; }
 a:hover { text-decoration: underline; }
-.answer a { text-decoration: underline; }
+.hutch-msg__answer a { text-decoration: underline; }
 /* Links inside running text need more than colour to stand out (WCAG 1.4.1);
    class-bearing links are buttons, cards and navigation with their own styling. */
 :is(p, li, dd, td, .hint) a:not([class]) { text-decoration: underline; }
@@ -455,7 +455,7 @@ main#view {
 }
 main#view > .page-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 
-.ws-scrim { position: fixed; inset: 0; z-index: var(--z-sheet); background: rgba(2, 4, 8, 0.6); }
+.ws-scrim { position: fixed; inset: 0; z-index: var(--hutch-z-dropdown); background: var(--hutch-overlay-scrim); }
 .ws-scrim[hidden] { display: none; }
 
 /* ───────────────────────────── type roles ───────────────────────────── */
@@ -692,7 +692,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .coordinator-label-compact { display: none; }
 .ctx-actions { margin-left: auto; display: flex; align-items: center; gap: var(--s-2); flex: none; }
 .ctx-actions-compact .btn { min-height: 44px; }
-.conversation-select { min-width: 115px; max-width: 190px; height: 34px; font-size: var(--fs-xs); }
+.conversation-select { min-width: 115px; max-width: 190px; height: 34px; }
 .ctx-heading { flex: 1 1 auto; }
 .studio-search-button { width: 40px; height: 40px; flex: none; border: 1px solid var(--line); }
 .studio-search-button:hover { border-color: var(--line-strong); }
@@ -700,7 +700,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .conversation-actions > summary { min-width: 40px; min-height: 40px; cursor: pointer; list-style: none; }
 .conversation-actions > summary::-webkit-details-marker { display: none; }
 .conversation-actions-panel {
-  position: absolute; z-index: calc(var(--z-toast) + 5); top: calc(100% + 6px); right: 0;
+  position: absolute; z-index: var(--hutch-z-dropdown); top: calc(100% + 6px); right: 0;
   width: min(252px, calc(100vw - 16px)); max-height: min(64dvh, 520px); overflow-y: auto; overscroll-behavior: contain; padding: 8px;
   border: 1px solid var(--line); border-radius: var(--r-panel);
   background: var(--overlay); box-shadow: var(--sh-pop);
@@ -718,7 +718,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .conversation-action-more-panel { margin: 2px 0 4px 8px; padding-left: 8px; border-left: 1px solid var(--line); }
 .conversation-workflow-policy { display: grid; gap: 8px; margin: 8px 4px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--sunken); }
 .conversation-workflow-policy label { font-size: var(--fs-xs); font-weight: 650; }
-.conversation-workflow-policy select { width: 100%; min-height: 40px; }
+.conversation-workflow-policy select { width: 100%; }
 .conversation-workflow-policy .hint { margin: 0; font-size: var(--fs-2xs); line-height: 1.45; overflow-wrap: anywhere; }
 .saved-request-list { display: grid; gap: var(--s-2); max-block-size: min(52vh, 30rem); overflow: auto; overscroll-behavior: contain; }
 .saved-request-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s-3); min-width: 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--panel); }
@@ -755,7 +755,8 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .workflow-question { display: grid; gap: var(--s-2); padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-ctl); background: var(--sunken); }
 .workflow-question p { margin: 0; overflow-wrap: anywhere; }
 .workflow-question label { font-size: var(--fs-xs); font-weight: 650; }
-.workflow-question textarea { box-sizing: border-box; width: 100%; min-height: 64px; resize: vertical; }
+.workflow-question textarea { box-sizing: border-box; width: 100%; min-height: 64px; }
+.workflow-question textarea:not(.hutch-composer__textarea) { resize: vertical; }
 .workflow-question-error, .workflow-panel-error, .workflow-queue-reason { color: var(--warn); overflow-wrap: anywhere; }
 .workflow-panel-error { margin: 0; }
 .workflow-amendment-label { display: block; margin: var(--s-3) 0 var(--s-1); font-size: var(--fs-xs); font-weight: 650; }
@@ -797,7 +798,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .code-handoff-summary { margin: var(--s-3) 0; overflow-wrap: anywhere; }
 .code-handoff-card details { margin: var(--s-3) 0; }
 .code-handoff-card details p { white-space: pre-wrap; overflow-wrap: anywhere; }
-.code-handoff-card .run-notice { overflow-wrap: anywhere; }
+.code-handoff-card .hutch-msg__notice { overflow-wrap: anywhere; }
 @media (max-width: 520px) {
   .workflow-panel { max-height: min(58dvh, 30rem); }
   .workflow-panel-head { flex-direction: column; }
@@ -878,7 +879,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .answer-feedback [aria-pressed="true"] { border-color: var(--brand); color: var(--text); background: color-mix(in srgb, var(--brand) 10%, var(--panel)); }
 .answer-feedback-reason { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); min-width: min(100%, 220px); }
 .answer-feedback-reason > span { color: var(--text-2); font-size: var(--fs-xs); }
-.answer-feedback-reason select { min-width: 150px; max-width: 100%; min-height: 40px; }
+.answer-feedback-reason select { min-width: 150px; max-width: 100%; }
 .answer-feedback-note { flex-basis: 100%; color: var(--text-3); font-size: var(--fs-xs); overflow-wrap: anywhere; }
 .choice-card {
   width: min(100%, 560px); margin: var(--s-3) 0 var(--s-4); padding: var(--s-4);
@@ -928,21 +929,11 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 }
 .jump-latest:hover { border-color: var(--line-hi); }
 
-/* ── composer ── the shared box/textarea/toolbar/send family now lives in
-   composer.css (one module for chat and every other request surface). Kept
-   here: the studio footer wrapper, the reference rows, and the popover skin. */
-.composer { flex: none; padding: 0 var(--s-5) var(--s-5); background: linear-gradient(transparent, var(--bg) 26%); }
-.reply-composer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 12px 8px; border-bottom: 1px solid var(--line); }
-.reply-composer[hidden] { display: none; }
-.reply-composer-preview { display: grid; gap: 2px; min-width: 0; }
-.reply-composer-text { color: var(--text-2); font-size: var(--fs-sm); line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.reply-composer-note { color: var(--text-3); font-size: var(--fs-xs); line-height: 1.35; }
-.reply-composer .btn { flex: none; }
-
 /* the "+" popover skin: only real capabilities live here; the panel itself is
-   anchored by the shared popup controller, and the trigger lives in composer.css */
+   anchored by the shared popup controller, and the trigger lives in
+   hutch-composer.css */
 .cmenu {
-  position: absolute; left: 0; bottom: calc(100% + 10px); z-index: 30;
+  position: absolute; left: 0; bottom: calc(100% + 10px); z-index: var(--hutch-z-popover);
   width: 320px; max-width: calc(100vw - 32px);
   background: var(--overlay); border: 1px solid var(--line-strong);
   border-radius: var(--r-panel);   /* menus/popovers are panels, like .ms-menu */
@@ -956,9 +947,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .cmenu-row input { accent-color: var(--brand-deep); width: 14px; height: 14px; margin: 4px 0 0; flex: none; }
 .cmenu-sub { display: block; margin-top: 2px; font-size: var(--fs-2xs); color: var(--text-3); }
 .cmenu-role-field { display: grid; gap: 4px; padding: 8px 12px; font-size: var(--fs-sm); color: var(--text-2); }
-.cmenu-role-field select { width: 100%; min-height: 36px; padding: 8px 8px; border: 1px solid var(--line-strong);
-  border-radius: var(--r-ctl); background: var(--panel); color: var(--text); font: inherit; }
-.cmenu-role-field select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.cmenu-role-field select { width: 100%; }
 .cmenu-facts { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px 2px; font: 400 var(--fs-2xs)/1.5 var(--mono); color: var(--text-3); }
 
 .cmenu-files {
@@ -1014,16 +1003,6 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
   .conversation-file-grant { align-items: flex-start; }
   .artifact-share-actions > button { flex: 1 1 auto; }
 }
-
-/* rehearsal banner: appears inside the box only when armed */
-.composer-strip {
-  display: flex; gap: 8px; align-items: center;
-  border-top: 1px solid var(--line); padding: 8px 16px;
-  font-size: var(--fs-xs); color: var(--brand-hi);
-}
-.composer-strip b { color: var(--text); font-weight: 650; }
-.composer-strip[hidden] { display: none; }
-.task-role-strip { overflow-wrap: anywhere; font: 500 var(--fs-2xs)/1.5 var(--mono); color: var(--text-2); }
 
 /* budget meter */
 .budget-meter { display: inline-flex; align-items: center; gap: var(--s-2); font: 400 var(--fs-2xs)/1 var(--mono); color: var(--text-3); }
@@ -1204,7 +1183,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .fleet-card-menu > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .fleet-card-menu[open] > summary { color: var(--text); background: var(--raised); }
 .fleet-card-menu-panel {
-  position: absolute; z-index: calc(var(--z-toast) + 5); right: 0; bottom: calc(100% + 6px);
+  position: absolute; z-index: var(--hutch-z-dropdown); right: 0; bottom: calc(100% + 6px);
   width: min(220px, calc(100vw - 32px)); padding: 8px;
   border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--overlay); box-shadow: var(--sh-pop);
 }
@@ -1335,7 +1314,7 @@ button.inline-link:hover { color: var(--text); }
 
 /* run detail */
 .run-technical-details { width: min(100%, 880px); margin: 0 auto var(--s-4); border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--panel); overflow: hidden; }
-.run-detail-page .mrun { display: none; }
+.run-detail-page .hutch-msg__open { display: none; }
 .run-technical-details > summary { display: flex; align-items: center; gap: var(--s-3); min-height: 48px; padding: 0 var(--s-4); color: var(--text); cursor: pointer; list-style: none; }
 .run-technical-details > summary::-webkit-details-marker { display: none; }
 .run-technical-details > summary span:first-child { font-weight: 600; }
@@ -1374,36 +1353,14 @@ button.inline-link:hover { color: var(--text); }
 
 /* ───────────────────────────── overlays ───────────────────────────── */
 
-.modal-backdrop {
-  position: fixed; inset: 0; z-index: var(--z-modal);
-  background: rgba(2, 4, 7, 0.72);
-  color: inherit;   /* daisyUI's own .modal-backdrop sets color:#0000 (layered); ours must win or modal text inherits transparent */
-  display: grid; place-items: center; padding: var(--s-4);
-}
-.modal-card {
-  width: min(640px, 100%);
-  max-height: min(90dvh, 880px);
-  display: flex; flex-direction: column;
-  background: var(--overlay);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-panel);
-  box-shadow: var(--sh-pop);
-  overflow: hidden;
-  animation: modal-in var(--dur) var(--ease);   /* 0ms under reduced motion */
-}
-.modal-card.modal-wide { width: min(780px, 100%); }
-@keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } }
-.modal-header { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--line); flex: none; }
-.modal-header :is(h2, h3) { font-size: var(--fs-lg); }
-.modal-header .icon-btn { margin-left: auto; }
-.modal-body { padding: var(--s-5); flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-.modal-footer { display: flex; justify-content: flex-end; gap: var(--s-2); padding: var(--s-4) var(--s-5); border-top: 1px solid var(--line); flex: none; }
+/* Modal surfaces moved to static/hutch-overlays.css (the modal primitive).
+   This file keeps only document-level helpers that are not overlays. */
 .confirm-body { font-size: var(--fs-md); color: var(--text-2); }
 .confirm-body b { color: var(--text); }
 
 .message-search { display: grid; gap: var(--s-3); }
 .message-search-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 220px); gap: var(--s-3); align-items: end; }
-.message-search-controls input, .message-search-controls select { min-height: 44px; }
+.message-search-controls input { min-height: 44px; }
 .message-search-scope { margin: 0; }
 .message-search-status { min-height: 1.5em; margin: 0; color: var(--text-2); font-size: var(--fs-sm); }
 .message-search-results { display: grid; gap: var(--s-2); }
@@ -1518,8 +1475,6 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
 @keyframes spin { to { transform: rotate(360deg); } }
 :root.reduce-effects .spinner { animation-duration: 2.4s; }
 
-.run-error { margin-top: var(--s-3); }
-
 /* ───────────────────────────── settings / detail forms ───────────────────────────── */
 
 .detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s-4); align-items: start; }
@@ -1537,7 +1492,7 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
 .tool-option-copy b { font-size: var(--fs-sm); line-height: 1.4; }
 .tool-option-copy small { color: var(--text-2); font-size: var(--fs-xs); font-weight: 400; line-height: 1.45; }
 .tool-options-actions { margin-top: var(--s-3); }
-.workspace-mode-field select, .workspace-folder-field input, .browser-handoff-field select { min-height: 44px; }
+.workspace-folder-field input { min-height: 44px; }
 .workspace-folder-field[hidden] { display: none !important; }
 .form-grid .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
 .bot-setup { min-height: 100%; }
@@ -1637,7 +1592,7 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
 .schedule-summary .tag { grid-column: 2; grid-row: 1 / span 2; justify-self: end; }
 .schedule-entry[open] .schedule-summary { border-bottom: 1px solid var(--line); }
 .schedule-editor { padding: var(--s-4); }
-.schedule-editor input, .schedule-editor select { min-height: 44px; }
+.schedule-editor input { min-height: 44px; }
 .schedule-editor textarea { min-height: 88px; }
 .schedule-actions { justify-content: flex-start; }
 .schedule-actions .btn { min-height: 44px; }
@@ -1704,7 +1659,7 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
   .app-shell { grid-template-columns: minmax(0, 1fr); }
   .workspace {
     position: fixed; left: 0; top: 0; bottom: 0;
-    z-index: calc(var(--z-sheet) + 1);
+    z-index: var(--hutch-z-popover);
     width: min(300px, 86vw);
     transform: translateX(-102%);
     transition: transform var(--dur-slow) var(--ease-out);
@@ -1737,7 +1692,6 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
   .run-technical-details > summary { gap: var(--s-2); padding-inline: var(--s-3); }
   .run-technical-details > summary span:nth-child(2) { max-width: 16ch; text-align: right; }
   .run-technical-content { padding-inline: var(--s-3); }
-  .composer { padding: 0 var(--s-3) calc(var(--s-4) + env(safe-area-inset-bottom, 0px)); }
   .chat-head-pad { padding: 0 var(--s-3) !important; }
   .cell-truncate { max-width: 200px; }
   #runs-table-wrap.runs-has-results .run-card-list { gap: var(--s-2); }
@@ -1777,14 +1731,7 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
   .tool-time { display: none; }
   .app-top { height: auto; }
   .approval-card-chat { padding: var(--s-3); }
-  /* phone modals arrive as bottom sheets — thumb-reachable, full width */
-  .modal-backdrop { place-items: end stretch; padding: 0; }
-  .modal-card { width: 100%; max-height: 93dvh; border-radius: var(--r-panel) var(--r-panel) 0 0; border-bottom: 0; }
-  .modal-card.modal-tall { max-height: 100dvh; }
-  .modal-body { padding: var(--s-4); }
-  .modal-footer { padding: var(--s-3) var(--s-4); }
-  .modal-card.modal-tall .modal-footer { padding-bottom: calc(var(--s-3) + env(safe-area-inset-bottom, 0px)); }
-  .turn-meta { flex-wrap: wrap; }
+  /* Modal layout lives in static/hutch-overlays.css (the primitive). */
 }
 
 @media (max-width: 480px) {
@@ -1825,27 +1772,26 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
   .icon-btn { width: 40px; height: 40px; }
   .chip-del { width: 36px; height: 36px; }
   .toast-close { width: 44px; height: 44px; margin: -10px -12px -10px 0; }
-  .tool-line-head { padding: 12px 0; }
-  .tool-stream > summary { padding: 12px 0; }
+  .hutch-tool__head { padding: 12px 0; }
+  .hutch-tool-group > summary { padding: 12px 0; }
   .ws-nav a { padding: 12px var(--s-3); }
   .quick-prompt { padding: 12px var(--s-3); }
   .feed-pill { padding: 12px var(--s-3); }
   .workspace-file-attachments { margin-left: 12px; }
   .workspace-file-attachment .btn { min-height: 44px; }
   .cmenu-files { min-height: 44px; }
-  .answer-actions .btn, .answer-feedback .btn, .answer-feedback-reason select,
+  .answer-actions .btn, .answer-feedback .btn,
   .request-actions .btn, .reply-composer .btn { min-height: 44px; }
 }
 
 /* forced colors: system paints what matters; state never rides on color alone */
 @media (forced-colors: active) {
   .card, .panel, .modal-card, .toast, .approval-card-chat, .approval-card,
-  .bot-card, .ov-col, .table-wrap, .run-error, .feed-pill,
+  .bot-card, .ov-col, .table-wrap, .hutch-msg__error, .feed-pill,
   .chip, .status, .tag, .pill, .roster-search { border: 1px solid CanvasText; forced-color-adjust: none; }
   .status { color: CanvasText; background-color: Canvas; forced-color-adjust: auto; }
   .btn.primary, button.primary { background: ButtonFace; color: ButtonText; border-color: ButtonText; }
-  .thread .bubble, .answer, .typing { border: 1px solid CanvasText; }
-  .tool-group-items { background: transparent; }
+  .thread .hutch-msg__body, .hutch-msg__answer, .typing { border: 1px solid CanvasText; }
   :focus-visible { outline: 2px solid Highlight; }
   .status::before, .chip::before { forced-color-adjust: none; }
 }
@@ -1868,7 +1814,7 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
 .roster-options { color: var(--text-3); opacity: .62; pointer-events: auto; transition: opacity var(--dur) var(--ease); }
 .roster-entry .roster-options { justify-self: stretch; width: 100%; height: 100%; }
 .roster-options[aria-expanded="true"] { color: var(--text); background: rgba(255, 255, 255, 0.07); }
-.roster-action-menu { position: fixed; z-index: calc(var(--z-toast) + 5); min-width: 188px; max-width: calc(100vw - 16px); padding: 4px; color: var(--text); background: var(--overlay); border: 1px solid var(--line-strong); border-radius: var(--r-panel); box-shadow: var(--sh-pop); }
+.roster-action-menu { position: fixed; z-index: var(--hutch-z-dropdown); min-width: 188px; max-width: calc(100vw - 16px); padding: 4px; color: var(--text); background: var(--overlay); border: 1px solid var(--line-strong); border-radius: var(--r-panel); box-shadow: var(--sh-pop); }
 .roster-action-menu [role="menuitem"] { display: flex; align-items: center; gap: var(--s-2); width: 100%; min-height: 40px; padding: 8px 12px; color: var(--text-2); background: transparent; border: 0; border-radius: var(--r-ctl); font: 500 var(--fs-sm)/1.4 var(--sans); text-align: left; text-decoration: none; cursor: pointer; }
 .roster-action-menu [role="menuitem"]:hover,
 .roster-action-menu [role="menuitem"]:focus-visible { color: var(--text); background: var(--raised); outline: 2px solid var(--focus); outline-offset: -2px; }
@@ -1886,7 +1832,7 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
   overflow-y: auto; box-sizing: border-box;
   scroll-padding-top: var(--needs-you-sticky, 128px);
 }
-.needs-you::backdrop { background: rgba(0,0,0,.55); }
+.needs-you::backdrop { background: var(--hutch-overlay-scrim); }
 .needs-you-sticky {
   position: sticky; top: 0; z-index: 1;
   margin: 0 calc(-1 * var(--needs-you-pad)) 0;
@@ -1956,7 +1902,7 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
   /* iOS Safari zooms the page when a focused field's text is under 16px; touch
      devices get a 16px floor instead (zoom itself is never disabled). The
      composer is already larger, so it keeps its own size. */
-  :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea:not(.composer-textarea)) {
+  :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea:not(.hutch-composer__textarea)) {
     font-size: max(1rem, 16px);
   }
 }
@@ -2052,12 +1998,12 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
   .device-row { align-items: stretch; flex-direction: column; }
   .device-row .btn { width: 100%; }
   .modal-footer .btn, .modal-header .icon-btn { min-height: 44px; min-width: 44px; }
-  .mhead { flex-wrap: wrap; }
-  .mhead .status { flex-shrink: 0; max-width: 100%; white-space: normal; }
-  .mrun { width: 44px; height: 44px; }
+  .hutch-msg__identity { flex-wrap: wrap; }
+  .hutch-msg__identity .status { flex-shrink: 0; max-width: 100%; white-space: normal; }
+  .hutch-msg__open { width: 44px; height: 44px; }
   .quick-prompts button, .cmenu-row { min-height: 44px; }
-  .mhead [data-stop-run], #studio-stop-run, #studio-review-run { min-height: 44px; }
-  .composer-strip { align-items: flex-start; flex-wrap: wrap; line-height: 1.5; }
+  .hutch-msg__identity [data-stop-run], #studio-stop-run, #studio-review-run { min-height: 44px; }
+  .hutch-composer__notice { align-items: flex-start; flex-wrap: wrap; line-height: 1.5; }
 }
 
 /* Paired phones get a small supervision surface. The full owner workspace is
@@ -2108,10 +2054,10 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
   padding: 12px; background: var(--sunken); border-radius: var(--r-ctl); font: 12px/1.5 var(--mono); }
 .phone-transcript .phone-prose { max-width: 72ch; padding: 0; background: transparent; font: var(--fs-base)/var(--leading-reading) var(--font-ui); }
 .phone-start-form { display: grid; gap: 12px; }
-.phone-start-form label { display: grid; gap: 8px; font-weight: 600; }
-.phone-start-form select, .phone-start-form textarea { width: 100%; min-height: 48px; padding: 12px 12px; color: var(--text);
+.phone-start-form label:not(.hutch-composer__target-label, .visually-hidden) { display: grid; gap: 8px; font-weight: 600; }
+.phone-start-form textarea:not(.hutch-composer__textarea) { width: 100%; min-height: 48px; padding: 12px 12px; color: var(--text);
   background: var(--sunken); border: 1px solid var(--line-strong); border-radius: var(--r-ctl); font: inherit; }
-.phone-start-form textarea { min-height: 112px; resize: vertical; }
+.phone-start-form textarea:not(.hutch-composer__textarea) { min-height: 112px; resize: vertical; }
 .phone-start-form button { min-height: 48px; }
 .phone-run-card { width: 100%; display: grid; gap: 8px; text-align: left; color: var(--text); font: inherit; cursor: pointer; }
 .phone-workflow-card { width: 100%; display: grid; gap: 8px; text-align: left; color: var(--text); font: inherit; cursor: pointer; }
@@ -2133,9 +2079,9 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
 .phone-question-prompt { overflow-wrap: anywhere; }
 .phone-workflow-answer-form { display: grid; gap: 8px; margin-top: 12px; }
 .phone-workflow-answer-form label { display: grid; gap: 8px; font-weight: 600; }
-.phone-workflow-answer-form select, .phone-workflow-answer-form textarea { width: 100%; min-height: 48px; padding: 12px 12px; color: var(--text);
+.phone-workflow-answer-form textarea:not(.hutch-composer__textarea) { width: 100%; min-height: 48px; padding: 12px 12px; color: var(--text);
   background: var(--sunken); border: 1px solid var(--line-strong); border-radius: var(--r-ctl); font: inherit; }
-.phone-workflow-answer-form textarea { min-height: 96px; resize: vertical; }
+.phone-workflow-answer-form textarea:not(.hutch-composer__textarea) { min-height: 96px; resize: vertical; }
 .phone-workflow-answer-form button { min-height: 48px; }
 .phone-empty { padding: 16px; color: var(--text-2); background: var(--panel); border: 1px dashed var(--line-strong); border-radius: var(--r-panel); }
 .phone-transcript { list-style: none; display: grid; gap: 12px; padding: 0; margin: 0; }
@@ -2426,7 +2372,7 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 .chat-library-meta .icon { width: 16px; height: 16px; color: var(--brand-hi); }
 .chat-library-pagination { margin-top: var(--s-4); }
 .workspace-settings-form { max-width: 760px; }
-.workspace-settings-form input, .workspace-settings-form select { min-height: 44px; }
+.workspace-settings-form input { min-height: 44px; }
 .workspace-settings-form .panel-title:not(:first-child) { padding-top: var(--s-4); border-top: 1px solid var(--line); }
 
 @media (max-width: 640px) {
@@ -2583,12 +2529,11 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 .persona-options-panel { display: grid; gap: var(--s-2); }
 .persona-fields { display: grid; gap: var(--s-2); }
 .persona-fields .persona-field { margin: 0; }
-.persona-options-panel .persona-field select { width: 100%; min-height: 44px; }
-.persona-form .persona-field select { min-height: 44px; }
+.persona-options-panel .persona-field select { width: 100%; }
 .persona-customize { display: grid; gap: var(--s-2); border-top: 1px solid var(--line); padding-top: var(--s-2); }
 .persona-customize h3 { margin: 0; font-size: var(--fs-md); line-height: 1.35; }
 .persona-range-row { display: grid; grid-template-columns: minmax(0, 1fr) max-content; align-items: center; gap: var(--s-2); }
-.persona-range-row select { grid-column: 1 / -1; width: 100% !important; min-height: 44px; }
+.persona-range-row select { grid-column: 1 / -1; width: 100% !important; }
 .persona-range-row input[type="range"] { width: 100%; min-width: 0; accent-color: var(--brand); }
 .persona-range-row output { min-width: 44px; color: var(--text-2); font-size: var(--fs-xs); text-align: right; font-variant-numeric: tabular-nums; }
 .persona-habits { min-width: 0; margin: 0; border: 1px solid var(--line); border-radius: var(--r-panel); padding: var(--s-2); }
@@ -2672,22 +2617,6 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 .runtime-job .runtime-source-head { flex-wrap: wrap; align-items: center; }
 .runtime-job-message { max-width: 78ch; margin: var(--s-2) 0 0; color: var(--text-2); white-space: pre-wrap; }
 
-/* Files attached to the active conversation; chips describe draft state only. */
-.composer-attachments { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: var(--s-1); padding: var(--s-1) var(--s-2) 0; }
-.composer-attachments-chips { display: flex; flex-wrap: wrap; min-width: 0; gap: var(--s-1); }
-.upload-chip { display: inline-flex; align-items: center; gap: var(--s-1); min-width: 0; max-width: 100%;
-  padding: 4px var(--s-2); border: 1px solid var(--line); border-radius: var(--r-ctl);
-  background: var(--sunken); font-size: var(--fs-sm); }
-.upload-chip-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.upload-chip-size { flex: none; color: var(--text-3); white-space: nowrap; }
-.upload-chip-remove { display: inline-flex; align-items: center; justify-content: center;
-  flex: none; inline-size: 32px; block-size: 32px; padding: 0; border: 0; border-radius: var(--r-chip);
-  background: transparent; color: var(--text-2); cursor: pointer; }
-.upload-chip-remove svg { inline-size: 14px; block-size: 14px; }
-.upload-chip-remove:hover { background: var(--line); color: var(--text); }
-.composer-attachments-hint { min-width: 0; margin: 0; overflow-wrap: anywhere; color: var(--text-3); font-size: var(--fs-xs); }
-.composer-attachments-status { display: block; }
-@media (pointer: coarse), (max-width: 640px) { .upload-chip-remove { inline-size: 44px; block-size: 44px; } }
 /* ───────────────────────── grounded evidence panel ─────────────────────────
    Reads stored evidence only: claimed/observation split, source independence,
    acquisition outcomes and gaps, inspected media frames with exact timecodes,

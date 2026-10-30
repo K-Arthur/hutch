@@ -1,191 +1,46 @@
-/* Shared popup lifecycle. Data and authority stay with each caller; this module
-   owns placement, keyboard movement and dismissal, never application actions.
-   Keep panels in their owner's DOM (including native dialogs); top-layer popovers
-   avoid clipping without a body portal or a second modal focus trap. */
+/* Shared popup adapter.
+
+   Data and authority stay with each caller; this module wires the shared
+   overlay primitives (window.HutchOverlay) to the product's existing popup
+   callers. The controller - placement, collision flip/shift, re-anchoring,
+   Escape/outside-click dismissal, focus entry/return and teardown - now lives
+   in static/hutch-overlay-popover.js. This file keeps three product-specific
+   layers on top:
+
+     1. hutchControls.popup({...}) - the stable API every caller already uses;
+     2. disclosure enhancement for the three authored <details> menus;
+     3. the datalist -> combobox progressive enhancement.
+
+   Load order: overlay core/dialog/modal/popover before this file. */
 (function () {
   "use strict";
-  const live = new Set();
-  let layoutFrame = 0;
-  const resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(() => {
-    if (!layoutFrame) layoutFrame = requestAnimationFrame(() => { layoutFrame = 0; reposition(); });
-  }) : null;
-  let serial = 0;
-  const visible = node => node?.isConnected && node.getClientRects().length && !node.closest("[hidden]");
-  const focusables = root => [...root.querySelectorAll("button, a[href], input, select, textarea, summary, [tabindex]")]
-    .filter(node => visible(node) && !node.disabled && node.getAttribute("aria-disabled") !== "true");
+
+  const $ = (sel, el = document) => el.querySelector(sel);
+  const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
+  const primitives = () => window.HutchOverlay;
 
   function popup({ trigger, panel, kind = "dialog", side = "bottom", triggerKeys = true, matchWidth = false, onOpen = null, onClose = null }) {
-    if (!trigger || !panel) return null;
-    const abort = new AbortController();
-    const options = { signal: abort.signal };
-    const topLayer = typeof panel.showPopover === "function";
-    let opened = false;
-    let typed = "", typedAt = 0;
-    panel.id ||= `hutch-popup-${++serial}`;
-    panel.classList.add("hc-popup");
+    if (!trigger || !panel || !primitives()) return null;
+    const control = primitives().popover({
+      trigger,
+      panel,
+      kind,
+      side,
+      menu: kind === "menu",
+      triggerKeys,
+      matchWidth,
+      toggle: false,
+      align: "end",
+      onOpen,
+      onClose,
+    });
+    if (!control) return null;
     panel.dataset.popupKind = kind;
-    panel.setAttribute("role", kind);
-    panel.hidden = true;
-    if (topLayer) panel.setAttribute("popover", "manual");
-    trigger.setAttribute("aria-haspopup", kind);
-    trigger.setAttribute("aria-controls", panel.id);
-    trigger.setAttribute("aria-expanded", "false");
-    if (kind === "dialog") {
-      const header = document.createElement("div");
-      header.className = "hc-popup-header";
-      const title = document.createElement("span");
-      title.textContent = panel.getAttribute("aria-label") || trigger.getAttribute("aria-label") || "Options";
-      const dismiss = document.createElement("button");
-      dismiss.type = "button";
-      dismiss.className = "hc-popup-close";
-      dismiss.textContent = "Done";
-      dismiss.setAttribute("aria-label", `Done, close ${title.textContent.toLowerCase()}`);   // begins with the visible word (WCAG 2.5.3)
-      dismiss.addEventListener("click", () => close(true), options);
-      header.append(title, dismiss);
-      panel.prepend(header);
-    }
-
-    function place() {
-      if (!opened) return;
-      const viewport = window.visualViewport;
-      const x = viewport?.offsetLeft || 0, y = viewport?.offsetTop || 0;
-      const width = viewport?.width || innerWidth, height = viewport?.height || innerHeight;
-      const gap = 8, inset = 8;
-      const anchor = trigger.getBoundingClientRect();
-      if (matchWidth) panel.style.width = `${Math.min(anchor.width, width - inset * 2)}px`;
-      panel.style.maxWidth = `${Math.max(0, width - inset * 2)}px`;
-      panel.style.maxHeight = `${Math.max(0, height - inset * 2)}px`;
-      // Measure the panel at its natural size. A sheet is capped to stay clear of its trigger, so measuring one that is
-      // already a sheet would read it as shorter, pick anchored, grow, and flip back on the next resize notification.
-      panel.dataset.popupLayout = "anchored";
-      const bounds = panel.getBoundingClientRect();
-      const below = y + height - anchor.bottom - gap - inset;
-      const above = anchor.top - y - gap - inset;
-      const upwards = side === "top" ? above >= Math.min(bounds.height, below) : below < Math.min(bounds.height, above);
-      const room = Math.max(above, below);
-      // Rich panels become a bounded sheet only when anchoring cannot provide a
-      // usable viewport. Short action menus stay attached to their trigger.
-      const sheet = kind === "dialog" && width <= 560 && (bounds.height > room || height < 480);
-      panel.dataset.popupLayout = sheet ? "sheet" : "anchored";
-      panel.style.maxHeight = `${Math.max(96, sheet ? height - inset * 2 : (upwards ? above : below))}px`;
-      const final = panel.getBoundingClientRect();
-      panel.style.left = `${sheet ? x + inset : Math.max(x + inset, Math.min(anchor.right - final.width, x + width - final.width - inset))}px`;
-      panel.style.top = `${sheet ? y + height - final.height - inset : Math.max(y + inset, upwards ? anchor.top - final.height - gap : anchor.bottom + gap)}px`;
-    }
-    function close(restoreFocus = false) {
-      if (!opened) return;
-      opened = false;
-      live.delete(api);
-      resizeObserver?.unobserve(panel);
-      if (topLayer && panel.matches(":popover-open")) panel.hidePopover();
-      panel.hidden = true;
-      trigger.setAttribute("aria-expanded", "false");
-      onClose?.();
-      if (restoreFocus && visible(trigger)) trigger.focus({ preventScroll: true });
-    }
-    function open({ focus = true } = {}) {
-      for (const other of [...live]) {
-        if (other !== api && !other.panel.contains(trigger)) other.close(false);
-      }
-      if (!opened) onOpen?.();
-      opened = true;
-      if (trigger.parentElement instanceof HTMLDetailsElement) trigger.parentElement.open = true;
-      panel.hidden = false;
-      trigger.setAttribute("aria-expanded", "true");
-      if (topLayer && !panel.matches(":popover-open")) panel.showPopover();
-      live.add(api);
-      resizeObserver?.observe(panel);
-      place();
-      if (focus) {
-        const selected = focusables(panel).find(node => node.matches('[aria-checked="true"], [aria-selected="true"]'));
-        (selected || focusables(panel).find(node => !node.closest(".hc-popup-header")) || panel).focus({ preventScroll: true });
-      }
-    }
-    function navigate(event) {
-      if (kind !== "menu" || event.target.closest("input, select, textarea")) return;
-      const items = focusables(panel).filter(node => node.matches('[role^="menuitem"]'));
-      const index = items.indexOf(document.activeElement);
-      let next = -1;
-      if (event.key === "ArrowDown") next = (index + 1) % items.length;
-      if (event.key === "ArrowUp") next = (index + items.length - 1) % items.length;
-      if (event.key === "Home") next = 0;
-      if (event.key === "End") next = items.length - 1;
-      if (event.key.length === 1 && event.key !== " " && !event.ctrlKey && !event.altKey && !event.metaKey) {
-        const now = performance.now();
-        typed = now - typedAt > 700 ? event.key : typed + event.key;
-        typedAt = now;
-        const query = typed.toLocaleLowerCase();
-        const ordered = [...items.slice(index + 1), ...items.slice(0, index + 1)];
-        const match = ordered.find(node => node.textContent.trim().toLocaleLowerCase().startsWith(query));
-        if (match) next = items.indexOf(match);
-      }
-      if (next >= 0 && items[next]) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        items[next].focus();
-      }
-    }
-    panel.addEventListener("keydown", navigate, options);
-    trigger.addEventListener("keydown", event => {
-      if (!triggerKeys) return;
-      if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
-      event.preventDefault();
-      open();
-      if (event.key === "ArrowUp" && kind === "menu") focusables(panel).at(-1)?.focus();
-    }, options);
-    const api = { panel, trigger, open, close, place, get opened() { return opened; },
-      destroy() { close(); abort.abort(); panel.removeAttribute("popover"); } };
-    return api;
+    return control;
   }
 
-  // One set of document listeners, independent of how often a chat is rendered.
-  document.addEventListener("pointerdown", event => {
-    for (const item of [...live].reverse()) {
-      if (!item.panel.contains(event.target) && !item.trigger.contains(event.target)) item.close(false);
-    }
-  }, true);
-  document.addEventListener("focusin", event => {
-    for (const item of [...live].reverse()) {
-      if (!item.panel.contains(event.target) && !item.trigger.contains(event.target)) item.close(false);
-    }
-  });
-  document.addEventListener("keydown", event => {
-    const item = [...live].at(-1);
-    if (!item) return;
-    if (event.key === "Escape") {
-      // Let the browser dismiss its own select picker, but do not let an outer
-      // app/modal handler consume that same Escape and cancel the form layer.
-      if (CSS.supports("selector(select:open)") && document.querySelector("select:open")) {
-        event.stopImmediatePropagation();
-        return;
-      }
-      // An inline details section consumes its own first Escape, before its
-      // enclosing form popover. Native select pickers retain browser handling.
-      const nested = event.target.closest("details[open]");
-      if (nested && item.panel.contains(nested)) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        nested.open = false;
-        nested.querySelector(":scope > summary")?.focus({ preventScroll: true });
-        return;
-      }
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      item.close(true);
-    } else if (event.key === "Tab" && item.panel.getAttribute("role") === "menu") {
-      item.close(true); // default Tab continues from the trigger, not a hidden row
-    }
-  }, true);
-  function reposition(event) {
-    for (const item of live) {
-      if (event?.type === "scroll" && item.panel.contains(event.target)) continue;
-      item.place();
-    }
-  }
-  window.addEventListener("resize", reposition, { passive: true });
-  document.addEventListener("scroll", reposition, { capture: true, passive: true });
-  window.visualViewport?.addEventListener("resize", reposition, { passive: true });
-  window.visualViewport?.addEventListener("scroll", reposition, { passive: true });
+  // One set of document listeners lives in the primitive; nothing here adds
+  // duplicate global handlers.
 
   // Pure action disclosures get menu semantics; mixed controls get a dialog
   // popover with normal Tab order. Ordinary inline <details> are not menus.
@@ -201,22 +56,26 @@
     panel.className = "hc-suggestions";
     panel.setAttribute("aria-label", "Available model routes");
     // A sibling of the label, not interactive options inside a <label>. This
-    // stays in the owning page/dialog; there is no body portal.
+    // stays in the owning page/dialog; the primitive decides whether the
+    // browser can lift it into the top layer.
     (input.closest("label") || input).after(panel);
     input.removeAttribute("list");
     input.classList.add("hc-autocomplete-input");
     input.setAttribute("role", "combobox");
     input.setAttribute("aria-autocomplete", "list");
     let rows = [], active = -1;
-    const control = popup({ trigger: input, panel, kind: "listbox", triggerKeys: false, matchWidth: true,
-      onClose: () => { input.removeAttribute("aria-activedescendant"); active = -1; } });
+    const control = popup({
+      trigger: input, panel, kind: "listbox", triggerKeys: false, matchWidth: true,
+      onClose: () => { input.removeAttribute("aria-activedescendant"); active = -1; },
+    });
+    if (!control) return;
     suggestions.set(input, control);
     // Keep the persistent result announcement outside the listbox's owned
     // options. Recreating a live region on every keystroke is not reliable.
     panel.removeAttribute("role");
     panel.removeAttribute("aria-label");
     const list = document.createElement("div");
-    list.id = `${panel.id}-list`;
+    list.id = panel.id + "-list";
     list.setAttribute("role", "listbox");
     list.setAttribute("aria-label", "Available model routes");
     const status = document.createElement("p");
@@ -304,6 +163,7 @@
       const control = popup({ trigger, panel, kind,
         side: details.matches(".fleet-card-menu") ? "top" : "bottom",
         onClose: () => { details.open = false; } });
+      if (!control) continue;
       disclosures.set(details, control);
       details.addEventListener("toggle", () => {
         if (details.open && !control.opened) control.open();
@@ -318,12 +178,17 @@
     inputs.forEach(autocomplete);
   }
   const observer = new MutationObserver(records => {
-    for (const item of [...live]) if (!item.trigger.isConnected || !item.panel.isConnected) item.destroy();
+    for (const item of [...$$(".hc-popup")]) {
+      if (item.__hutchPopover && (!item.__hutchPopover.trigger.isConnected || !item.isConnected)) item.__hutchPopover.destroy();
+    }
     for (const record of records) for (const node of record.addedNodes) {
       if (node.nodeType === Node.ELEMENT_NODE) enhance(node);
     }
   });
   enhance(document);
   observer.observe(document.body, { childList: true, subtree: true });
-  window.hutchControls = { popup, closeAll: () => { for (const item of [...live]) item.close(); } };
+  window.hutchControls = {
+    popup,
+    closeAll: () => primitives() && primitives().closeAll(),
+  };
 })();

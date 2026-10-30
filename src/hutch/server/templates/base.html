@@ -1,4 +1,6 @@
 {%- from "_icons.html" import icon -%}
+{% from "macros/modal.html" import confirm_form -%}
+{% from "macros/sidebar.html" import app_sidebar -%}
 <!doctype html>
 <html lang="en">
 <head>
@@ -6,54 +8,93 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}hutch{% endblock %} - hutch</title>
   <meta name="csrf" content="{{ csrf }}">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 28 9v14L16 30 4 23V9z' fill='none' stroke='%2334d399' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%2334d399'/%3E%3C/svg%3E">
+  <link rel="icon" href="/static/favicon.svg?v=cada88dd" type="image/svg+xml">
+  <link rel="icon" href="/static/favicon-32x32.png?v=2d2d3d2c" type="image/png" sizes="32x32">
+  <link rel="icon" href="/static/favicon.ico?v=9096fd72" sizes="48x48">
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=2351b1e0" sizes="180x180">
+  <link rel="manifest" href="/static/site.webmanifest?v=187682d3">
   <link rel="stylesheet" href="/static/brand-tokens.css">
   <link rel="stylesheet" href="/static/hutch.css">
+  <link rel="stylesheet" href="/static/brand.css?v=581315bf">
   <link rel="stylesheet" href="/static/hutch-pages.css">
   <link rel="stylesheet" href="/static/controls.css">
+  <link rel="stylesheet" href="/static/hutch-forms.css">
+  <link rel="stylesheet" href="/static/hutch-form-controls.css">
+  <!-- The select tier loads after the form system: selects keep the form
+       system's layout and validation states (higher-specificity rules), while
+       the select component owns select appearance, states and the picker. -->
+  <link rel="stylesheet" href="/static/hutch-select.css">
+  <!-- The composer sheet owns every composer box on server pages. -->
+  <link rel="stylesheet" href="/static/hutch-composer.css">
+  <link rel="stylesheet" href="/static/hutch-composer-context.css">
+  <!-- The message tier loads last so transcripts win ties over the older
+       per-surface message rules in hutch.css. -->
+  <link rel="stylesheet" href="/static/hutch-messages.css">
   <!-- Responsive foundation loads last: safe-area tokens and chrome insets. -->
   <link rel="stylesheet" href="/static/responsive.css">
-  <!-- Without JavaScript the overlay cannot open; keep the nav visible instead. -->
+  <!-- One navigation component and one application shell for both surfaces:
+       the SPA document loads hutch-nav.css too, so rows, active treatment and
+       footer links cannot drift between the two shells. -->
+  <link rel="stylesheet" href="/static/hutch-nav.css">
+  <link rel="stylesheet" href="/static/hutch-shell.css">
+  <!-- Overlay primitives: shared modal/popover/tooltip contract; loads after every surface sheet. -->
+  <link rel="stylesheet" href="/static/hutch-overlays.css">
+  <link rel="stylesheet" href="/static/hutch-popovers.css">
+  <!-- Without JavaScript the drawer cannot open; keep every destination visible instead. -->
   <noscript><link rel="stylesheet" href="/static/no-js-nav.css"></noscript>
   <script src="/static/vendor/htmx.min.js" defer></script>
+  <script src="/static/hutch-overlay-core.js" defer></script>
+  <script src="/static/hutch-overlay-dialog.js" defer></script>
+  <script src="/static/hutch-overlay-modal.js" defer></script>
+  <script src="/static/hutch-overlay-popover.js" defer></script>
+  <script src="/static/hutch-overlay-dismiss.js" defer></script>
+  <script src="/static/hutch-overlay-tooltip.js" defer></script>
   <script src="/static/hutch.js" defer></script>
+  <script src="/static/hutch-shell.js" defer></script>
   <script src="/static/responsive.js" defer></script>
   <script src="/static/controls.js" defer></script>
+  <script src="/static/hutch-forms.js" defer></script>
+  <script src="/static/hutch-select.js" defer></script>
+  <script src="/static/composer.js" defer></script>
   {% block head %}{% endblock %}
 </head>
 <body hx-headers='{"X-CSRF-Token": "{{ csrf }}"}'>
   <a class="skip" href="#main">Skip to content</a>
   {% if chrome|default(true) %}
-  <header class="topbar">
-    <a class="brand" href="/" aria-label="hutch home">
-      <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="var(--accent)" stroke-width="2.5"/><circle cx="16" cy="16" r="4" fill="var(--accent)"/></svg>
-      <span>hutch</span>
-    </a>
-    {% if nav %}<nav class="nav" id="primary-nav" aria-label="Primary">
-      {%- for key, href, label, ic in nav_items %}
-      <a href="{{ href }}" class="{{ 'active' if nav == key else '' }}"{% if nav == key %} aria-current="page"{% endif %}>{{ icon(ic, 15) }}<span>{{ label }}</span>
-        {%- if key == 'approvals' %}<span id="approval-badge" class="badge {{ '' if pending_count else 'hidden' }}" data-live="/_badge" data-live-swap="inner" aria-label="{{ pending_count }} pending approval{{ '' if pending_count == 1 else 's' }}">{{ pending_count }}</span>{% endif -%}
-      </a>
-      {%- endfor %}
-    </nav>
-    <button class="nav-toggle" id="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="primary-nav">{{ icon("menu", 18) }}</button>
-    <div class="topbar-right">
-      <form method="post" action="/stop-all" data-confirm="Stop every running job and kill their child processes?">
-        <input type="hidden" name="csrf" value="{{ csrf }}">
-        <input type="hidden" name="next" value="{{ request.url.path }}">
-        <button class="btn danger small" type="submit" title="Stop all runs now. Kills child processes, not just the agent loop.">{{ icon("stop", 14) }}<span>Stop all</span></button>
-      </form>
-      <span id="live-pill" class="pill" role="status" aria-live="polite" title="Live updates connected">live</span>
-    </div>{% endif %}
-  </header>
+  <div class="hutch-shell">
+    {{ app_sidebar(nav_active, nav_primary, nav_more, nav_foot, nav_more_open, pending_count) }}
+    <div class="ws-scrim" id="ws-scrim" hidden></div>
+    <div class="hutch-workspace">
+      <!-- Contextual header: the page's own controls only. Primary navigation
+           is the rail beside it, so no route grows a second navigation model. -->
+      <header class="app-top">
+        <button class="icon-btn nav-toggle" id="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="workspace">{{ icon("menu", 20) }}</button>
+        <div class="app-top-context"></div>
+        <div class="app-top-status">
+          {{ confirm_form("stop-all-form", "stop-all-confirm", "/stop-all",
+               "Stop every running job?",
+               "This kills child processes, not just the agent loop. Nothing else is changed.",
+               "Stop all runs", "Stop all",
+               hidden={"csrf": csrf, "next": request.url.path},
+               trigger_class="btn danger small", trigger_icon="stop",
+               trigger_aria="Stop all runs now. Kills child processes, not just the agent loop.") }}
+          <span id="live-pill" class="pill" role="status" aria-live="polite" title="Live updates connected">live</span>
+        </div>
+      </header>
   {% endif %}
 
+  {% block flash %}
   {% if notice %}<div class="flash notice" role="status">{{ icon("check", 16) }}<span>{{ notice }}</span></div>{% endif %}
   {% if error %}<div class="flash error" role="alert">{{ icon("alert", 16) }}<span>{{ error }}</span></div>{% endif %}
+  {% endblock %}
 
-  <main id="main" class="container">
+  <main id="main" class="container" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
-  {% if chrome|default(true) %}{% if nav %}<footer class="foot">hutch {{ version }} - local-first - <span class="mono">{{ state_dir }}</span></footer>{% endif %}{% endif %}
+  {% if chrome|default(true) %}
+      <footer class="foot">hutch {{ version }} - local-first - <span class="mono">{{ state_dir }}</span></footer>
+    </div>
+  </div>
+  {% endif %}
 </body>
 </html>

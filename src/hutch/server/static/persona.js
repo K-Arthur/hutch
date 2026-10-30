@@ -105,26 +105,19 @@
   function fieldsHtml(prefix, keys = CHAT_FIELDS) {
     const hintId = field => `${prefix}-hint-${field.key}`;
     return FIELDS.filter(field => keys.includes(field.key) && field.type !== "habits").map(field => `
-      <label class="field persona-field">${esc(field.label)}
-        ${field.type === "range"
-          ? `<span class="persona-range-row"><select aria-label="${esc(field.label)} inheritance" data-persona-field="${field.key}" aria-describedby="${hintId(field)}"><option value="${INHERIT}">Inherited</option><option value="custom">Custom</option></select><input id="${prefix}-${field.key}" type="range" min="${field.min}" max="${field.max}" step="${field.step}" data-persona-range="${field.key}" aria-label="${esc(field.label)} value" aria-describedby="${hintId(field)}"><output data-persona-value="${field.key}" for="${prefix}-${field.key}" aria-hidden="true"></output></span>`
-          : `<select id="${prefix}-${field.key}" data-persona-field="${field.key}" aria-describedby="${hintId(field)}">
-              <option value="${INHERIT}">Inherited</option>
-              ${field.options.map(([value, label]) =>
-                `<option value="${esc(value)}">${esc(label)}</option>`).join("")}
-            </select>`}
-        <span class="hint" id="${hintId(field)}" data-persona-origin="${field.key}">${esc(field.hint)}</span>
-      </label>`).join("");
+      <div class="hutch-field persona-field"><label class="hutch-label" for="${prefix}-${field.key}">${esc(field.label)}</label>${field.type === "range"
+        ? `<span class="persona-range-row"><select class="hutch-select" aria-label="${esc(field.label)} inheritance" data-persona-field="${field.key}" aria-describedby="${hintId(field)}"><option value="${INHERIT}">Inherited</option><option value="custom">Custom</option></select><input id="${prefix}-${field.key}" type="range" min="${field.min}" max="${field.max}" step="${field.step}" data-persona-range="${field.key}" aria-label="${esc(field.label)} value" aria-describedby="${hintId(field)}"><output data-persona-value="${field.key}" for="${prefix}-${field.key}" aria-hidden="true"></output></span>`
+        : `<select class="hutch-select" id="${prefix}-${field.key}" data-persona-field="${field.key}" aria-describedby="${hintId(field)}"><option value="${INHERIT}">Inherited</option>${field.options.map(([value, label]) => `<option value="${esc(value)}">${esc(label)}</option>`).join("")}</select>`}<span class="hutch-help" id="${hintId(field)}" data-persona-origin="${field.key}">${esc(field.hint)}</span></div>`).join("");
   }
 
   function habitsHtml(prefix) {
     const hintId = `${prefix}-hint-avoid_habits`;
-    return `<fieldset class="persona-habits" data-persona-habits aria-describedby="${hintId}">
-      <legend>${esc(FIELDS.find(field => field.key === "avoid_habits").label)}</legend>
-      <label class="persona-habit-inherit"><input type="checkbox" data-persona-habits-inherit> Use inherited preferences</label>
+    return `<fieldset class="hutch-fieldset hutch-boxed persona-habits" data-persona-habits aria-describedby="${hintId}">
+      <legend class="hutch-legend">${esc(FIELDS.find(field => field.key === "avoid_habits").label)}</legend>
+      <label class="hutch-check persona-habit-inherit"><input type="checkbox" data-persona-habits-inherit> Use inherited preferences</label>
       <div class="persona-habit-options">${HABITS.map(([value, label]) => `
-        <label><input type="checkbox" value="${esc(value)}" data-persona-habit> ${esc(label)}</label>`).join("")}</div>
-      <span class="hint" id="${hintId}" data-persona-origin="avoid_habits">${esc(FIELDS.find(field => field.key === "avoid_habits").hint)}</span>
+        <label class="hutch-option"><input type="checkbox" value="${esc(value)}" data-persona-habit> ${esc(label)}</label>`).join("")}</div>
+      <span class="hutch-help" id="${hintId}" data-persona-origin="avoid_habits">${esc(FIELDS.find(field => field.key === "avoid_habits").hint)}</span>
     </fieldset>`;
   }
 
@@ -325,13 +318,13 @@
     let saved = state.override || {};
     const adaptiveEnabled = state.enabled !== false;
     container.innerHTML = `
-      <form class="panel form-grid persona-form" aria-labelledby="persona-form-title">
+      <form class="panel hutch-form persona-form" aria-labelledby="persona-form-title">
         <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${GLYPH}</span>
           <span id="persona-form-title">Response style</span></div>
         <p class="hint">Choose a voice, answer depth, and humor independently. Style changes wording only; tools,
         permissions, evidence, and requested formats stay unchanged.</p>
         <p class="hint persona-disabled-notice" data-persona-disabled role="status" ${adaptiveEnabled ? "hidden" : ""}>Adaptive response style is disabled by local configuration. Saved preferences are preserved.</p>
-        <div class="form-grid row2 persona-fields">${fieldsHtml("persona", CHAT_FIELDS)}</div>
+        <div class="hutch-form hutch-cols-2 persona-fields">${fieldsHtml("persona", CHAT_FIELDS)}</div>
         <details class="persona-examples" data-persona-examples>
           <summary>See written examples</summary>
           <p class="hint">These are fixed examples, not generated previews. Opening them and changing settings makes no model request.</p>
@@ -350,23 +343,16 @@
         <section class="persona-customize" aria-labelledby="persona-customize-title">
           <h3 id="persona-customize-title">Optional customization</h3>
           <p class="hint">These bounded preferences refine wording. Inherited values follow the assistant, conversation, and Hutch defaults.</p>
-          <div class="form-grid row2 persona-fields">${fieldsHtml("persona-custom", CUSTOM_FIELDS)}</div>
+          <div class="hutch-form hutch-cols-2 persona-fields">${fieldsHtml("persona-custom", CUSTOM_FIELDS)}</div>
           ${habitsHtml("persona-custom")}
         </section>
-        <div class="btn-row">
-          <button class="btn ghost small" type="button" data-persona-reset>Reset all to inherited</button>
-          <button class="btn primary small" type="submit" data-persona-save disabled>Save style</button>
-          <span class="hint" data-persona-status role="status" aria-live="polite"></span>
-        </div>
+        <div class="hutch-actions"><button class="btn ghost small" type="button" data-persona-reset>Reset all to inherited</button><button class="btn primary small" type="submit" data-persona-save disabled>Save style</button><span class="hint" data-persona-status role="status" aria-live="polite"></span></div>
         <section class="persona-live-preview" aria-labelledby="persona-preview-title">
           <h3 id="persona-preview-title">Live preview</h3>
           <p class="hint">An explicit preview sends one fixed sample and this draft’s style to the assistant’s configured model. It does not send conversation history or standing directions, and it does not save your changes. Editing these controls alone makes no model request.</p>
           <p class="persona-preview-prompt"><strong>Fixed sample:</strong> “Give me a funny, low-effort way to make peace with my houseplants after their tiny protest.”</p>
           <p class="hint persona-preview-budget" data-persona-preview-budget role="status" aria-live="polite">Checking the configured model and limits…</p>
-          <div class="btn-row">
-            <button class="btn ghost small" type="button" data-persona-preview-run disabled>Preview saved style</button>
-            <button class="btn ghost small" type="button" data-persona-preview-stop hidden>Stop preview</button>
-          </div>
+          <div class="hutch-actions"><button class="btn ghost small" type="button" data-persona-preview-run disabled>Preview saved style</button><button class="btn ghost small" type="button" data-persona-preview-stop hidden>Stop preview</button></div>
           <p class="hint" data-persona-preview-status role="status" aria-live="polite"></p>
           <pre class="persona-preview-result" data-persona-preview-result role="region" aria-label="Live preview response" tabindex="0" hidden></pre>
           <details class="persona-preview-inspector" data-persona-preview-inspector hidden>
@@ -759,10 +745,7 @@
           <p class="cmenu-h">This conversation</p>
           <span data-persona-conversation-status class="hint" role="status" aria-live="polite"></span>
           <div class="persona-fields persona-fields-conversation" data-persona-scope="conversation">${fieldsHtml("persona-conv", CHAT_FIELDS)}</div>
-          <div class="btn-row persona-chat-save-row">
-            <button class="btn primary small" type="button" data-persona-conversation-save disabled>Save conversation style</button>
-            <button class="btn ghost small" type="button" data-persona-conversation-reset>Use inherited</button>
-          </div>
+          <div class="hutch-actions persona-chat-save-row"><button class="btn primary small" type="button" data-persona-conversation-save disabled>Save conversation style</button><button class="btn ghost small" type="button" data-persona-conversation-reset>Use inherited</button></div>
           <p class="cmenu-h">Next reply only</p>
           <div class="persona-fields persona-fields-turn" data-persona-scope="turn">${fieldsHtml("persona-turn", CHAT_FIELDS)}</div>
           <p class="hint">Next-reply choices apply once, stay on this device, and make no inference request while you change them.</p>

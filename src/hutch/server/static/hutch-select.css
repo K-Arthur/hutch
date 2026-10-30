@@ -1,0 +1,284 @@
+/* ==========================================================================
+   Hutch select component - the one <select> skin for the whole product.
+
+   Sibling, not a copy: the hierarchy, spacing and state set follow the DeepSeek
+   Harness select anatomy (field boundary -> quiet hover fill -> azure keyboard
+   ring -> raised picker), but every value comes from Hutch's own token layer and
+   palette (DESIGN.md: graphite surfaces, azure interaction, emerald selection,
+   the 4px spacing grid, rounded.control 8px / rounded.panel 12px, the six-step
+   type scale, the control height ladder 32/36/40/44). No DeepSeek colour or
+   class name is reused.
+
+   Load path: linked LAST by both document heads - templates/base.html (server
+   pages: bot, runs, connections, ...) and static/index.html (the SPA) - after
+   controls.css and the legacy skins, so this file owns every select's
+   appearance. The runtime wrapper static/hutch-select.js applies the
+   .hutch-select class to any select that renders without it (SPA views, HTMX
+   swaps); templates carry the class in static markup so server pages stay
+   correct with JavaScript disabled.
+
+   Tokens - the select slice of the --hutch-alias-* layer. The full layer
+   compiles into static/ui.css (SPA only, via app/src/input.css); server pages
+   load neither, so each alias below resolves to the shared layer when it is
+   present and falls back to the checked brand source (brand-tokens.css
+   --color-semantic-*) that both surfaces load. Same jobs, same names:
+
+     --hutch-alias-select-bg          field surface (dark ground)
+     --hutch-alias-select-bg-hover    hover surface - a lift, never a hue change
+     --hutch-alias-select-border      3:1 control edge (WCAG 1.4.11)
+     --hutch-alias-select-text        value, option and icon ink
+     --hutch-alias-select-text-muted  picker icon / secondary ink
+     --hutch-alias-select-disabled    disabled ink (paired with opacity)
+     --hutch-alias-select-focus-ring  keyboard focus ring (azure, interaction)
+     --hutch-alias-select-radius      rounded.control (8px)
+     --hutch-alias-select-popup       raised picker surface (rounded.panel)
+     --hutch-alias-select-chevron     the closed-state chevron glyph
+
+   Variants share the same tokens: hutch-select--compact is the 32px dense row
+   (dashboard widgets), hutch-select--chip is the 36px header title chip
+   (conversation switcher). Both step up to 44px on coarse pointers.
+
+   Layering: hutch-forms.css (the shared form system for inputs, textareas and
+   selects) also targets .hutch-select so selects inherit the form recipe's
+   layout, required/invalid/valid states and legacy .field handling. This file
+   loads after it and owns the select-specific stack - surface, hover, focus
+   ring, disabled, picker, variants - so equal-specificity conflicts resolve
+   here while the form system's higher-specificity state rules
+   (aria-invalid, data-hutch-state, .hutch-form .field) keep applying.
+   ========================================================================== */
+
+:root {
+  --hutch-alias-select-bg: var(--hutch-alias-bg-base, var(--color-semantic-bg));
+  --hutch-alias-select-bg-hover: var(--hutch-alias-bg-layer-1, var(--color-semantic-raised));
+  --hutch-alias-select-border: var(--hutch-alias-border-edge, var(--color-semantic-border-edge));
+  --hutch-alias-select-text: var(--hutch-alias-label-primary, var(--color-semantic-text));
+  --hutch-alias-select-text-muted: var(--hutch-alias-label-secondary, var(--color-semantic-text-2));
+  --hutch-alias-select-disabled: var(--hutch-alias-label-tertiary, var(--color-semantic-text-2));
+  --hutch-alias-select-focus-ring: var(--hutch-alias-focus-ring, var(--color-semantic-focus-ring));
+  --hutch-alias-select-radius: var(--hutch-radius-control, var(--radius-control, 8px));
+  --hutch-alias-select-popup: var(--hutch-alias-bg-layer-2, var(--color-semantic-panel));
+  /* Chevron stroke is secondary label ink (#a3a3ae), drawn at the shared
+     1.75 icon stroke weight; base-select engines replace it with ::picker-icon. */
+  --hutch-alias-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%23a3a3ae' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6.25 8 10.25 12 6.25'/%3E%3C/svg%3E");
+}
+
+/* -- base field ------------------------------------------------------------ */
+.hutch-select {
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  /* The engine's own select display (inline-block), not the form system's
+     display:block: under base-select the picker icon is laid out by the
+     engine and a block container makes it wrap under the value. */
+  display: revert;
+  min-block-size: var(--hutch-size-control-touch, 44px);
+  margin: 0;
+  border: 1px solid var(--hutch-alias-select-border);
+  border-radius: var(--hutch-alias-select-radius);
+  background-color: var(--hutch-alias-select-bg);
+  background-image: var(--hutch-alias-select-chevron);
+  background-repeat: no-repeat;
+  background-position: right var(--hutch-space-3, 12px) center;
+  background-size: 16px 16px;
+  padding: var(--hutch-space-2, 8px) var(--hutch-space-3, 12px);
+  padding-inline-end: calc(var(--hutch-space-3, 12px) + 22px);
+  color: var(--hutch-alias-select-text);
+  font: var(--hutch-font-body, 400 1rem/1.5 var(--sans, ui-sans-serif, system-ui, sans-serif));
+  cursor: pointer;
+  color-scheme: inherit;
+}
+/* Width keeps the incumbent default (fields fill their slot) at the lowest
+   possible precedence, so contextual layout rules - .filters select,
+   .conversation-select, .inline-form select - keep winning without fighting
+   the component. */
+:where(.hutch-select) {
+  inline-size: 100%;
+  max-inline-size: 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hutch-select {
+    transition:
+      background-color var(--hutch-motion-duration-fast, 120ms) var(--hutch-motion-ease-standard, cubic-bezier(0.2, 0.8, 0.2, 1)),
+      border-color var(--hutch-motion-duration-fast, 120ms) var(--hutch-motion-ease-standard, cubic-bezier(0.2, 0.8, 0.2, 1));
+  }
+}
+
+/* Hover is a subtle fill shift on the same surface, never a colour change:
+   the fill lifts, the boundary is held (the form system's hover border would
+   otherwise recolour it, and a field must not fade on hover). */
+.hutch-select:hover:not(:disabled) {
+  background-color: var(--hutch-alias-select-bg-hover);
+  border-color: var(--hutch-alias-select-border);
+}
+
+/* The browser default ring is replaced: keyboard focus wears the Hutch focus
+   token, and the field edge stays visible underneath it. */
+.hutch-select:focus {
+  outline: none;
+}
+.hutch-select:focus-visible {
+  outline: var(--hutch-focus-ring-width, 2px) var(--hutch-focus-ring-style, solid)
+    var(--hutch-focus-ring-color, var(--hutch-alias-select-focus-ring));
+  outline-offset: var(--hutch-focus-ring-offset, 2px);
+  border-color: var(--hutch-alias-select-border);
+  /* The form system's focus box-shadow would double this ring; one ring only. */
+  box-shadow: none;
+}
+
+/* Disabled: muted ink plus reduced opacity, and a refused cursor. */
+.hutch-select:disabled,
+.hutch-select[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.6;
+  color: var(--hutch-alias-select-disabled);
+  background-color: var(--hutch-alias-select-bg);
+}
+
+/* Native popup options (engines that style them from the page). */
+.hutch-select option,
+.hutch-select optgroup {
+  color: var(--hutch-alias-select-text);
+  background-color: var(--hutch-alias-select-bg);
+}
+.hutch-select option:disabled {
+  color: var(--hutch-alias-select-disabled);
+}
+
+/* -- variants -------------------------------------------------------------- */
+
+/* Dense rows: the 32px control-ladder step (dashboard widget fields). */
+.hutch-select--compact {
+  min-block-size: var(--hutch-size-control-sm, 32px);
+  padding: var(--hutch-space-1, 4px) var(--hutch-space-2, 8px);
+  padding-inline-end: calc(var(--hutch-space-2, 8px) + 20px);
+  background-position: right var(--hutch-space-2, 8px) center;
+  font: var(--hutch-font-small, 400 0.8125rem/1.5 var(--sans, ui-sans-serif, system-ui, sans-serif));
+}
+
+/* Header title chip: same edge, focus and disabled jobs as the field, but
+   compact, transparent and single-line so a long title truncates. */
+.hutch-select--chip {
+  min-block-size: var(--hutch-size-control-md, 36px);
+  height: var(--hutch-size-control-md, 36px);
+  padding: 0 var(--hutch-space-3, 12px);
+  padding-inline-end: calc(var(--hutch-space-3, 12px) + 18px);
+  background-color: transparent;
+  background-position: right var(--hutch-space-2, 8px) center;
+  font: 500 0.8125rem/1.4 var(--hutch-font-family, var(--sans, ui-sans-serif, system-ui, sans-serif));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hutch-select--chip:hover:not(:disabled) {
+  background-color: var(--hutch-alias-interactive-bg-hover, rgb(255 255 255 / 0.05));
+}
+
+/* -- open state ------------------------------------------------------------ */
+@supports selector(select:open) {
+  .hutch-select:open {
+    border-color: var(--hutch-alias-select-focus-ring);
+  }
+}
+
+/* -- progressive enhancement: styled browser picker ------------------------- */
+/* Engines without base-select keep the native system picker; everything above
+   already gives them the field, ring, hover and disabled treatment. */
+@supports (appearance: base-select) {
+  .hutch-select,
+  .hutch-select::picker(select) {
+    appearance: base-select;
+  }
+  .hutch-select {
+    align-items: center;
+    background-image: none; /* ::picker-icon owns the chevron lane here */
+    padding-inline-end: var(--hutch-space-3, 12px);
+  }
+  .hutch-select--compact { padding-inline-end: var(--hutch-space-2, 8px); }
+  /* The conversation chip keeps its author <button> row as a flex line (the
+     form system's display:block would stack the button under the icon). */
+  .hutch-select--chip {
+    display: flex;
+    padding-inline-end: var(--hutch-space-3, 12px);
+  }
+
+  .hutch-select::picker-icon {
+    flex: none;
+    color: var(--hutch-alias-select-text-muted);
+  }
+  .hutch-select::picker(select) {
+    margin-block: var(--hutch-space-2, 8px);
+    padding: var(--hutch-space-1, 4px);
+    border: 1px solid var(--hutch-alias-border-l3, var(--color-semantic-border-strong));
+    border-radius: var(--hutch-radius-panel, 12px);
+    background-color: var(--hutch-alias-select-popup);
+    color: var(--hutch-alias-select-text);
+    box-shadow: var(--hutch-elevation-overlay, 0 24px 64px rgb(0 0 0 / 0.7));
+    max-block-size: min(24rem, 65dvh);
+    max-inline-size: calc(100vw - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    font: var(--hutch-font-label, 500 0.875rem/1.4 var(--sans, ui-sans-serif, system-ui, sans-serif));
+  }
+  .hutch-select option {
+    min-block-size: var(--hutch-size-control-lg, 40px);
+    padding: var(--hutch-space-2, 8px) var(--hutch-space-3, 12px);
+    border-radius: var(--hutch-alias-select-radius);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .hutch-select optgroup {
+    padding: var(--hutch-space-1, 4px);
+    font-weight: var(--hutch-font-weight-strong, 650);
+  }
+  .hutch-select optgroup > legend {
+    padding: var(--hutch-space-2, 8px) var(--hutch-space-3, 12px) var(--hutch-space-1, 4px);
+    color: var(--hutch-alias-select-text-muted);
+    font: var(--hutch-font-caption, 400 0.75rem/1.45 var(--sans, ui-sans-serif, system-ui, sans-serif));
+  }
+  /* Selection reserves a check lane: emerald check on a lifted row, azure stays
+     on focus so the two never read as the same signal. */
+  .hutch-select option:checked {
+    background-color: var(--hutch-alias-select-bg-hover);
+  }
+  .hutch-select option::checkmark {
+    color: var(--hutch-alias-brand-primary, var(--color-semantic-brand));
+  }
+  .hutch-select option:hover,
+  .hutch-select option:focus {
+    background-color: var(--hutch-alias-select-bg-hover);
+  }
+  .hutch-select option:focus-visible {
+    outline: 2px solid var(--hutch-alias-select-focus-ring);
+    outline-offset: -2px;
+  }
+  .hutch-select option:disabled {
+    color: var(--hutch-alias-select-disabled);
+    opacity: 0.6;
+  }
+}
+
+/* -- coarse pointers: the 44px touch step everywhere ----------------------- */
+@media (pointer: coarse) {
+  .hutch-select,
+  .hutch-select--compact,
+  .hutch-select--chip {
+    min-block-size: var(--hutch-size-control-touch, 44px);
+  }
+  .hutch-select--chip {
+    height: var(--hutch-size-control-touch, 44px);
+  }
+}
+
+/* -- forced colors --------------------------------------------------------- */
+@media (forced-colors: active) {
+  .hutch-select,
+  .hutch-select::picker(select) {
+    border-color: ButtonText;
+    box-shadow: none;
+  }
+  .hutch-select:focus-visible,
+  .hutch-select option:focus-visible {
+    outline-color: Highlight;
+  }
+}

@@ -1,0 +1,351 @@
+/* ============================================================================
+   Hutch overlay system - modal and popover primitives
+
+   Load path
+   ---------
+   Linked by BOTH shipped shells, after every surface sheet:
+     SPA            src/hutch/server/static/index.html  (after studio/old skins)
+     server pages   src/hutch/server/templates/base.html
+   The design-system tree imports the same contract through
+   src/hutch/web/styles/hutch-tokens.css; this file is the shipped mirror.
+
+   Token mirror
+   ------------
+   Server pages do not load the compiled token sheet (ui.css), so the
+   --hutch-* overlay tokens are declared here with the same values the token
+   layer defines in src/hutch/web/styles/hutch-tokens.css. This is a documented
+   mirror, not a second palette: if a token value changes in the token layer,
+   change it here too. Component rules below read tokens only - no colour
+   literal, no z-index literal, no duration literal.
+
+   Browser support assumed for the shipping product
+   ------------------------------------------------
+   - <dialog> + showModal(): Chrome 37+, Safari 15.4+, Firefox 98+ (2022).
+     Modal focus containment, the top layer and Escape-on-topmost come from the
+     native element; the JS layer adds initial focus, focus return, backdrop
+     policy, scroll lock with scrollbar compensation, busy/error states and the
+     enter/exit state machine.
+   - popover/popovertarget: Chrome 114+, Safari 17+, Firefox 125+. Used
+     progressively: when available the panel stays in its owner DOM and moves
+     to the top layer (the approved dropdown direction in
+     docs/design-system.md); when it is not, the controller portals the panel to
+     document.body so overflow clipping cannot hide it.
+   - inert: Chrome 102+, Safari 15.5+, Firefox 112+. Native showModal gives
+     the same blocking without a polyfill.
+
+   Ordering and depth (see the design spec in src/hutch/web/docs/overlays.md):
+     modal strongest elevation > popover > dropdown > tooltip lightest,
+     while the z contract is tooltip 42 < dropdown 44 < popover 46 <
+     modal 50 < toast 60. Tooltips sit lowest in the z scale because they are
+     descriptive; a tooltip inside a modal lives inside that modal's layer and
+     still paints above its own content.
+   ========================================================================== */
+
+:root {
+  /* -- z-index: mirror of hutch-tokens.css --------------------------------- */
+  --hutch-z-base: 0;
+  --hutch-z-local: 1;
+  --hutch-z-tooltip: 42;
+  --hutch-z-dropdown: 44;
+  --hutch-z-popover: 46;
+  --hutch-z-modal: 50;
+  --hutch-z-toast: 60;
+  --hutch-z-skip: 70;
+
+  /* -- scrim (modals only) ------------------------------------------------- */
+  --hutch-overlay-scrim-color: #060608;
+  --hutch-overlay-scrim-opacity: 0.72;
+  --hutch-overlay-scrim-strong-opacity: 0.84;
+  --hutch-overlay-scrim-blur: 0px;
+  --hutch-overlay-scrim: color-mix(in oklab, var(--hutch-overlay-scrim-color) calc(var(--hutch-overlay-scrim-opacity) * 100%), transparent);
+
+  /* -- elevation per category --------------------------------------------- */
+  --hutch-elevation-overlay-tooltip: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 2px 10px rgb(0 0 0 / 0.35);
+  --hutch-elevation-overlay-dropdown: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 2px 4px rgb(0 0 0 / 0.45), 0 14px 34px -10px rgb(0 0 0 / 0.65);
+  --hutch-elevation-overlay-popover: 0 0 0 1px rgb(255 255 255 / 0.07), 0 8px 16px rgb(0 0 0 / 0.45), 0 28px 64px -12px rgb(0 0 0 / 0.8);
+  --hutch-elevation-overlay-modal: 0 0 0 1px rgb(255 255 255 / 0.07), 0 12px 28px rgb(0 0 0 / 0.55), 0 44px 96px -16px rgb(0 0 0 / 0.85);
+  --hutch-elevation-overlay-toast: var(--hutch-elevation-overlay-popover);
+
+  /* -- motion: enter and exit for every category --------------------------- */
+  --hutch-motion-overlay-enter-duration: 180ms;
+  --hutch-motion-overlay-exit-duration: 120ms;
+  --hutch-motion-overlay-enter-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --hutch-motion-overlay-exit-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --hutch-motion-overlay-shift: 10px;
+  --hutch-motion-overlay-scale-enter: 0.985;
+  --hutch-motion-overlay-scale-exit: 0.99;
+
+  /* -- focus ring: one ring for every overlay control ---------------------- */
+  --hutch-focus-ring-width: 2px;
+  --hutch-focus-ring-offset: 2px;
+  --hutch-focus-ring-style: solid;
+  --hutch-focus-ring-color: var(--hutch-alias-focus-ring, var(--focus, #60a5fa));
+  --hutch-focus-ring: var(--hutch-focus-ring-width) var(--hutch-focus-ring-style) var(--hutch-focus-ring-color);
+
+  /* -- surface aliases used by overlays ------------------------------------ */
+  /* Popups keep the approved dropdown surface: the semantic panel fill and the
+     strong hairline both shells already use for menus (docs/design-system.md
+     "Dropdowns and selection"). The modal uses the same fill for consistency. */
+  --hutch-overlay-surface: var(--control-surface, var(--color-semantic-panel, var(--hutch-alias-overlay-bg, var(--overlay, #141418))));
+  --hutch-overlay-label: var(--hutch-alias-label-primary, var(--text, #ededf0));
+  --hutch-overlay-label-secondary: var(--hutch-alias-label-secondary, var(--text-2, #a3a3ae));
+  --hutch-overlay-label-tertiary: var(--hutch-alias-label-tertiary, var(--text-3, #8e8e99));
+  --hutch-overlay-line: var(--control-line, var(--color-semantic-border-strong, var(--hutch-alias-border-l3, var(--line-strong, rgb(255 255 255 / 0.12)))));
+  --hutch-overlay-line-strong: var(--hutch-alias-border-l4, var(--line-hi, rgb(255 255 255 / 0.22)));
+  --hutch-overlay-radius: var(--hutch-radius-panel, 12px);
+  --hutch-overlay-radius-control: var(--hutch-radius-control, 8px);
+  --hutch-overlay-space-1: var(--hutch-space-1, 4px);
+  --hutch-overlay-space-2: var(--hutch-space-2, 8px);
+  --hutch-overlay-space-3: var(--hutch-space-3, 12px);
+  --hutch-overlay-space-4: var(--hutch-space-4, 16px);
+  --hutch-overlay-space-5: var(--hutch-space-5, 24px);
+  --hutch-overlay-space-6: var(--hutch-space-6, 32px);
+  --hutch-overlay-space-7: var(--hutch-space-7, 40px);
+  --hutch-overlay-font-title: var(--hutch-font-section, 650 1.125rem/1.25 "Geist", ui-sans-serif, system-ui, sans-serif);
+  --hutch-overlay-font-body: var(--hutch-font-body, 400 1rem/1.55 "Geist", ui-sans-serif, system-ui, sans-serif);
+  --hutch-overlay-font-small: var(--hutch-font-small, 400 0.8125rem/1.5 "Geist", ui-sans-serif, system-ui, sans-serif);
+  --hutch-overlay-font-caption: var(--hutch-font-caption, 400 0.75rem/1.45 "Geist", ui-sans-serif, system-ui, sans-serif);
+  --hutch-overlay-danger: var(--hutch-alias-state-error-primary, var(--danger, #f87171));
+  --hutch-overlay-danger-line: var(--hutch-alias-state-error-line, rgb(248 113 113 / 0.4));
+  --hutch-overlay-attention: var(--hutch-alias-state-warn-primary, var(--warn, #fbbf24));
+  --hutch-overlay-attention-line: var(--hutch-alias-state-warn-line, rgb(251 191 36 / 0.38));
+}
+
+/* Derived light counterpart. The scrim stays an ink material in both modes;
+   only its opacity moves. Elevation swaps black ambient shadows for ink
+   alphas. No attribute means the shipped dark theme, unchanged. */
+:root[data-hutch-theme="light"] {
+  color-scheme: light;
+  --hutch-overlay-scrim-opacity: 0.52;
+  --hutch-overlay-scrim-strong-opacity: 0.66;
+  --hutch-elevation-overlay-tooltip: 0 0 0 1px rgb(6 6 8 / 0.06), 0 2px 6px rgb(6 6 8 / 0.08);
+  --hutch-elevation-overlay-dropdown: 0 0 0 1px rgb(6 6 8 / 0.07), 0 2px 4px rgb(6 6 8 / 0.06), 0 14px 34px -10px rgb(6 6 8 / 0.1);
+  --hutch-elevation-overlay-popover: 0 0 0 1px rgb(6 6 8 / 0.08), 0 8px 16px rgb(6 6 8 / 0.08), 0 28px 64px -12px rgb(6 6 8 / 0.12);
+  --hutch-elevation-overlay-modal: 0 0 0 1px rgb(6 6 8 / 0.08), 0 12px 28px rgb(6 6 8 / 0.1), 0 44px 96px -16px rgb(6 6 8 / 0.14);
+  --hutch-overlay-surface: var(--hutch-alias-bg-layer-3, #f2f2f4);
+  --hutch-overlay-label: var(--hutch-alias-label-primary, #09090b);
+  --hutch-overlay-label-secondary: var(--hutch-alias-label-secondary, #404046);
+  --hutch-overlay-label-tertiary: var(--hutch-alias-label-tertiary, #55555d);
+  --hutch-focus-ring-color: var(--hutch-alias-focus-ring, color-mix(in oklab, #60a5fa 60%, black));
+  --hutch-overlay-line: var(--hutch-alias-border-l3, rgb(6 6 8 / 0.12));
+  --hutch-overlay-line-strong: var(--hutch-alias-border-l4, rgb(6 6 8 / 0.22));
+  --hutch-overlay-danger: var(--hutch-alias-state-error-primary, #b91c1c);
+  --hutch-overlay-attention: var(--hutch-alias-state-warn-primary, #92400e);
+}
+
+/* Scroll lock: the JS sets data-hutch-scroll-locked and compensates the missing
+   scrollbar with inline padding so the page cannot shift sideways. */
+html[data-hutch-scroll-locked] { overflow: hidden; }
+html[data-hutch-scroll-locked] body { overscroll-behavior: contain; }
+
+/* -- shared focus ring ---------------------------------------------------- */
+dialog.hutch-modal :focus-visible,
+.hutch-popover :focus-visible,
+.hc-popup :focus-visible,
+dialog.palette :focus-visible,
+dialog.needs-you :focus-visible {
+  outline: var(--hutch-focus-ring);
+  outline-offset: var(--hutch-focus-ring-offset);
+}
+
+/* ==========================================================================
+   Modal primitive
+
+   Markup contract (also emitted by templates/macros/modal.html):
+     <dialog class="hutch-modal" role="dialog" aria-modal="true"
+             aria-labelledby="...-title" [aria-describedby="...-description"]
+             data-size="sm|md|lg|xl" data-variant="center|sheet">
+       <header class="hutch-modal__header">
+         <h2 class="hutch-modal__title" id="...-title">...</h2>
+         <button class="hutch-modal__close" aria-label="Close ...">...</button>
+       </header>
+       <p class="hutch-modal__description" id="...-description">...</p>
+       <div class="hutch-modal__body">...</div>
+       <p class="hutch-modal__error" role="alert" hidden>...</p>
+       <footer class="hutch-modal__actions">
+         <button ...>Cancel</button><button class="is-danger">Delete ...</button>
+       </footer>
+     </dialog>
+   ========================================================================== */
+
+dialog.hutch-modal {
+  box-sizing: border-box;
+  inline-size: var(--hutch-modal-size, min(640px, calc(100vw - 2 * var(--hutch-overlay-space-4))));
+  max-inline-size: min(100% - 2 * var(--hutch-overlay-space-4), var(--hutch-modal-size, 640px));
+  max-block-size: min(calc(100dvh - 2 * var(--hutch-overlay-space-6)), 880px);
+  margin: auto;
+  padding: 0;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--hutch-overlay-label);
+  background: var(--hutch-overlay-surface);
+  border: 1px solid var(--hutch-overlay-line);
+  border-radius: var(--hutch-overlay-radius);
+  box-shadow: var(--hutch-elevation-overlay-modal);
+  font: var(--hutch-overlay-font-body);
+  z-index: var(--hutch-z-modal);
+  opacity: 0;
+  transform: translateY(var(--hutch-motion-overlay-shift)) scale(var(--hutch-motion-overlay-scale-enter));
+}
+dialog.hutch-modal:not([open]) { display: none; }
+dialog.hutch-modal[open] {
+  display: flex;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--hutch-motion-overlay-enter-duration) var(--hutch-motion-overlay-enter-ease),
+    transform var(--hutch-motion-overlay-enter-duration) var(--hutch-motion-overlay-enter-ease);
+}
+dialog.hutch-modal[data-state="closing"] {
+  opacity: 0;
+  transform: translateY(calc(var(--hutch-motion-overlay-shift) * 0.5)) scale(var(--hutch-motion-overlay-scale-exit));
+  pointer-events: none;
+  transition:
+    opacity var(--hutch-motion-overlay-exit-duration) var(--hutch-motion-overlay-exit-ease),
+    transform var(--hutch-motion-overlay-exit-duration) var(--hutch-motion-overlay-exit-ease);
+}
+dialog.hutch-modal::backdrop {
+  background: var(--hutch-overlay-scrim);
+  -webkit-backdrop-filter: blur(var(--hutch-overlay-scrim-blur));
+  backdrop-filter: blur(var(--hutch-overlay-scrim-blur));
+}
+dialog.hutch-modal[data-variant="sheet"] {
+  inline-size: min(580px, 100vw);
+  max-inline-size: 100vw;
+  block-size: 100dvh;
+  max-block-size: 100dvh;
+  margin: 0 0 0 auto;
+  border-radius: 0;
+  border: 0;
+  border-inline-start: 1px solid var(--hutch-overlay-line);
+  box-shadow: var(--hutch-elevation-overlay-modal);
+}
+dialog.hutch-modal[data-size="sm"] { --hutch-modal-size: 420px; }
+dialog.hutch-modal[data-size="md"] { --hutch-modal-size: 640px; }
+dialog.hutch-modal[data-size="lg"] { --hutch-modal-size: 780px; }
+dialog.hutch-modal[data-size="xl"] { --hutch-modal-size: 960px; }
+
+/* Compatibility classes keep pinned product tests and older call sites working
+   while every dialog now renders as the primitive. */
+dialog.hutch-modal.modal-card { width: auto; }
+dialog.hutch-modal .modal-card { display: contents; }
+
+.hutch-modal__header,
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--hutch-overlay-space-3);
+  justify-content: space-between;
+  padding: var(--hutch-overlay-space-5) var(--hutch-overlay-space-5) var(--hutch-overlay-space-3);
+  border-bottom: 1px solid var(--hutch-overlay-line);
+  flex: none;
+}
+.hutch-modal__title,
+.modal-header h2,
+.modal-header h3 {
+  margin: 0;
+  font: var(--hutch-overlay-font-title);
+  overflow-wrap: anywhere;
+}
+.hutch-modal__description {
+  margin: 0;
+  padding: var(--hutch-overlay-space-3) var(--hutch-overlay-space-5) 0;
+  color: var(--hutch-overlay-label-secondary);
+  font: var(--hutch-overlay-font-small);
+  overflow-wrap: anywhere;
+}
+.hutch-modal__body,
+.modal-body {
+  padding: var(--hutch-overlay-space-4) var(--hutch-overlay-space-5);
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: var(--hutch-overlay-space-4);
+}
+.hutch-modal__body > :first-child { margin-block-start: 0; }
+.hutch-modal__body > :last-child { margin-block-end: 0; }
+.hutch-modal__actions,
+.modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--hutch-overlay-space-2);
+  padding: var(--hutch-overlay-space-3) var(--hutch-overlay-space-5) var(--hutch-overlay-space-4);
+  border-top: 1px solid var(--hutch-overlay-line);
+  flex: none;
+}
+.hutch-modal__actions > .is-danger,
+.hutch-modal__actions > .danger,
+.modal-footer > .danger {
+  margin-inline-start: auto;
+}
+.hutch-modal__actions button[hidden] { display: none; }
+.hutch-modal__actions .btn,
+.hutch-modal__actions button { min-block-size: 40px; }
+.hutch-modal__close {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 40px;
+  block-size: 40px;
+  margin: calc(-1 * var(--hutch-overlay-space-1)) calc(-1 * var(--hutch-overlay-space-2)) 0 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--hutch-overlay-radius-control);
+  background: transparent;
+  color: var(--hutch-overlay-label-secondary);
+  cursor: pointer;
+}
+.hutch-modal__close:hover { color: var(--hutch-overlay-label); background: var(--hutch-alias-interactive-bg-hover, rgb(255 255 255 / 0.06)); }
+.hutch-modal__error {
+  margin: 0 var(--hutch-overlay-space-5) var(--hutch-overlay-space-3);
+  padding: var(--hutch-overlay-space-3) var(--hutch-overlay-space-4);
+  border: 1px solid var(--hutch-overlay-danger-line);
+  border-radius: var(--hutch-overlay-radius-control);
+  background: color-mix(in oklab, var(--hutch-overlay-danger) 10%, transparent);
+  color: var(--hutch-overlay-label);
+  font: var(--hutch-overlay-font-small);
+}
+.hutch-modal__error[hidden] { display: none; }
+.hutch-modal__error strong { color: var(--hutch-overlay-danger); }
+.hutch-modal [aria-busy="true"] { cursor: progress; }
+.hutch-modal [aria-busy="true"]::after {
+  content: "";
+  display: inline-block;
+  inline-size: 0.75em;
+  block-size: 0.75em;
+  margin-inline-start: 0.5em;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  vertical-align: -0.1em;
+  animation: hutch-overlay-spin 700ms linear infinite;
+}
+@keyframes hutch-overlay-spin { to { transform: rotate(1turn); } }
+
+/* Keep the dialog legible at 320px and when browser text is enlarged: actions
+   stack full width, the title shares the row with the close control. */
+@media (max-width: 480px) {
+  dialog.hutch-modal {
+    max-block-size: calc(100dvh - 2 * var(--hutch-overlay-space-3));
+    max-inline-size: calc(100vw - 2 * var(--hutch-overlay-space-3));
+  }
+  dialog.hutch-modal[data-variant="sheet"] { max-inline-size: 100vw; max-block-size: 100dvh; }
+  .hutch-modal__header,
+  .modal-header { padding-block-start: var(--hutch-overlay-space-4); }
+  .hutch-modal__body,
+  .modal-body { padding-inline: var(--hutch-overlay-space-4); }
+  .hutch-modal__description { padding-inline: var(--hutch-overlay-space-4); }
+  .hutch-modal__actions,
+  .modal-footer { padding-inline: var(--hutch-overlay-space-4); }
+  .hutch-modal__actions > button { flex: 1 1 auto; justify-content: center; }
+}
+@media (max-height: 480px) {
+  dialog.hutch-modal:not([data-variant="sheet"]) {
+    max-block-size: calc(100dvh - 2 * var(--hutch-overlay-space-2));
+    margin: var(--hutch-overlay-space-2) auto;
+  }
+}
+

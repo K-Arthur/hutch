@@ -470,7 +470,7 @@
     return `<div class="widget-timeline" data-widget-timeline>
     <div class="widget-tl-tools">
       <label class="widget-field">State
-        <select data-widget-tl-state>
+        <select class="hutch-select hutch-select--compact" data-widget-tl-state>
           <option value="all"${stateFilter === "all" ? " selected" : ""}>All states</option>
           ${TL_ORDER.map(s => `<option value="${s}"${stateFilter === s ? " selected" : ""}>${esc(TL_STATES[s].label)}</option>`).join("")}
         </select>

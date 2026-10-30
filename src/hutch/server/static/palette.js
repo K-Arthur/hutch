@@ -22,7 +22,7 @@
   }
 
   function init(ctx) {
-    let dialog = null, input = null, list = null, status = null;
+    let dialog = null, input = null, list = null, status = null, control = null;
     let entries = [], visible = [], active = 0, trigger = null, loadToken = 0;
 
     function build() {
@@ -44,6 +44,15 @@
       input = dialog.querySelector("#palette-input");
       list = dialog.querySelector("#palette-list");
       status = dialog.querySelector("#palette-status");
+      // The palette is a modal by contract; the shared primitive adds scroll
+      // lock, topmost Escape ownership and exact focus return around the
+      // palette's own combobox. It closes instantly because callers run the
+      // destination immediately after close().
+      control = window.HutchOverlay.enhance(dialog, {
+        instant: true,
+        initialFocus: "#palette-input",
+        onClose: restoreFocus,
+      });
 
       input.addEventListener("input", () => { active = 0; render(); });   // a new query starts at its best match
       input.addEventListener("keydown", event => {
@@ -170,9 +179,8 @@
       trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       input.value = "";
       active = 0;
-      dialog.showModal();
+      control.open({ returnFocus: trigger });
       void load();
-      input.focus();
     }
     // Focus returns to where the person was, synchronously, so keyboard users never land on <body>.
     function restoreFocus() {
@@ -182,8 +190,7 @@
     }
     function close() {
       if (!dialog?.open) return;
-      dialog.close();
-      restoreFocus();
+      control.close("dismiss");
     }
 
     document.addEventListener("keydown", event => {

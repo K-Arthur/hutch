@@ -1,0 +1,396 @@
+/* ============================================================================
+   Hutch composer primitive — hutch-composer.css
+
+   One sheet owns every composer box in the product: the chat composer, the
+   server-rendered "Give it a task" run form, the paired-phone start form, the
+   first-run request card and the inline answer surfaces. It replaces the old
+   composer.css + the composer blocks that lived in style.css and studio.css.
+
+   It supersedes composer.css entirely and the composer blocks that used to sit
+   in style.css and studio.css. Loaded after those sheets in static/index.html
+   and after the form system in templates/base.html, so it wins every tie.
+
+   Structure (DeepSeek Harness' InputBar as a structural reference only — no
+   class name, colour, spacing literal or border shape is carried over):
+
+     .composer                       the seat: pinned under the transcript,
+                                     fades the page background in behind it
+       form                          one request = one form (action untouched)
+         .hutch-composer             the shell: bounded, not a floating card
+           __target                  routing row: identity accent + bot name,
+                                     or the select when the target can change
+           context strips            reply / specialist-result / persona chips
+           __attachments             staged-file tray (existing component)
+           __body > __textarea       full-width writing area, auto-grown
+           __actions                 toolbar: __tools left, __trailing right
+             __util                  ghost icon seat (+, skills)
+             __send                  primary seat, bottom-right of the shell
+           __notice                  rehearsal / task-role status strips
+         __meta                      keyboard hint + limit counter (below shell)
+         __error                     plain danger line (below the shell)
+
+   Auto-grow, IME safety and Enter semantics live in composer.js
+   (window.hutchComposer); this sheet only states how it looks. The context
+   region — staged-file tray and reply / specialist-result / persona strips —
+   is the companion sheet hutch-composer-context.css, linked immediately after
+   this one in both document heads.
+
+   ── Token map ───────────────────────────────────────────────────────────────
+   The shared layer is src/hutch/web/styles/hutch-tokens.css, compiled into
+   static/ui.css for the SPA. Server pages never load ui.css, so every value is
+   written var(--hutch-alias-<role>, <mirror literal>) exactly as
+   templates/_message.html requires. The mirror literals are the shipped dark
+   values from hutch-tokens.css; they are fallbacks, never the source of truth.
+
+   Roles this sheet needs but the shared layer does not name, declared once on
+   :root (composer-scoped, --hutch-composer-*):
+
+     surface          shell fill            -> --hutch-alias-bg-layer-2   (#101013)
+     surface-raised   chip / menu fill      -> --hutch-alias-bg-layer-3   (#17171b)
+     surface-muted    tray, notice, disabled shell -> --hutch-alias-bg-well (#0b0b0e)
+     border           identifying shell edge (Edge Rule, >=3:1)
+                                             -> --hutch-alias-border-edge (white / 38%)
+     border-strong    inner dividers        -> --hutch-alias-border-l3    (white / 12%)
+     text             body ink              -> --hutch-alias-label-primary (#ededf0)
+     text-muted       meta and hint ink     -> --hutch-alias-label-secondary (#a3a3ae)
+     placeholder      placeholder ink       -> --hutch-alias-label-tertiary (#8e8e99)
+     focus-ring       shell focus ring      -> --hutch-alias-focus-ring   (azure)
+     danger           error line            -> --hutch-alias-state-error-primary (rose)
+     disabled-surface disabled shell        -> --hutch-alias-bg-layer-1   (#0f0f12)
+     disabled-text    disabled ink          -> --hutch-alias-label-tertiary (#8e8e99)
+
+   Routing identity reuses the chat-bubbles pass: --hutch-bot-identity-1..6,
+   painted onto the target dot by the shared FNV-1a rule in hutch.js.
+
+   Seats the composer does not own a private shape for: __send and __util carry
+   the Button primitive (.hutch-button + --primary / --ghost + --lg / --md).
+   Hover, active, focus and disabled for those classes are owned by
+   hutch-surfaces.css, which is compiled into ui.css and never loaded on a
+   server page; their resting fill, ink, edge and height are inline styles in
+   ui/Button.tsx, so this sheet restates exactly that resting seat, scoped to
+   .hutch-composer, and nothing else. No button is styled anywhere else here.
+   ============================================================================ */
+
+:root {
+  --hutch-composer-surface: var(--hutch-alias-bg-layer-2, #101013);
+  --hutch-composer-surface-raised: var(--hutch-alias-bg-layer-3, #17171b);
+  --hutch-composer-surface-muted: var(--hutch-alias-bg-well, #0b0b0e);
+  --hutch-composer-border: var(--hutch-alias-border-edge, rgb(255 255 255 / 0.38));
+  --hutch-composer-border-strong: var(--hutch-alias-border-l3, rgb(255 255 255 / 0.12));
+  --hutch-composer-text: var(--hutch-alias-label-primary, #ededf0);
+  --hutch-composer-text-muted: var(--hutch-alias-label-secondary, #a3a3ae);
+  --hutch-composer-placeholder: var(--hutch-alias-label-tertiary, #8e8e99);
+  --hutch-composer-focus-ring: var(--hutch-alias-focus-ring, #60a5fa);
+  --hutch-composer-danger: var(--hutch-alias-state-error-primary, #f87171);
+  --hutch-composer-disabled-surface: var(--hutch-alias-bg-layer-1, #0f0f12);
+  --hutch-composer-disabled-text: var(--hutch-alias-label-tertiary, #8e8e99);
+
+  /* Writing cap: ~8 lines at body leading, then the textarea scrolls inside the
+     shell instead of growing it. composer.js uses the same 220px ceiling, so
+     the CSS and the script never disagree. */
+  --hutch-composer-max-height: 220px;
+}
+
+/* ── seat: attaches to the bottom of the transcript ───────────────────────── */
+.composer {
+  flex: none;
+  padding: 0 var(--s-5, 24px) var(--s-5, 24px);
+  background: linear-gradient(transparent, var(--bg, #09090b) 26%);
+}
+/* Narrow layouts pull the seat in and clear the phone's home indicator. This
+   used to live in style.css; the seat is owned here now, and the safe-area
+   inset must survive every cascade order. */
+@media (max-width: 900px) {
+  .composer { padding: 0 var(--hutch-space-3, 12px) calc(var(--hutch-space-4, 16px) + env(safe-area-inset-bottom, 0px)); }
+}
+.composer form { max-width: 780px; margin: 0 auto; }
+
+/* ── shell ────────────────────────────────────────────────────────────────── */
+.hutch-composer {
+  position: relative;
+  background: var(--hutch-composer-surface);
+  border: 1px solid var(--hutch-composer-border);
+  border-radius: var(--hutch-radius-chat, 20px);
+  box-shadow: var(--hutch-elevation-panel, 0 10px 28px rgb(0 0 0 / 0.55));
+  transition:
+    border-color var(--hutch-motion-duration-base, 0.18s) var(--hutch-motion-ease-standard, cubic-bezier(0.2, 0.8, 0.2, 1)),
+    box-shadow var(--hutch-motion-duration-base, 0.18s) var(--hutch-motion-ease-standard, cubic-bezier(0.2, 0.8, 0.2, 1));
+}
+
+/* The ring belongs to the shell, so it encloses the textarea, the routing row,
+   every chip and the send seat together. Azure is interaction only. */
+.hutch-composer:focus-within {
+  border-color: var(--hutch-composer-focus-ring);
+  outline: var(--hutch-focus-ring-width, 2px) var(--hutch-focus-ring-style, solid) var(--hutch-composer-focus-ring);
+  outline-offset: var(--hutch-focus-ring-offset, 2px);
+}
+
+/* Drop target: a wash and a ring, never a recoloured shell. */
+.hutch-composer.is-dragover {
+  border-color: var(--hutch-alias-brand-line, rgb(52 211 153 / 0.32));
+  box-shadow: 0 0 0 3px var(--hutch-alias-brand-wash, rgb(52 211 153 / 0.09)),
+              var(--hutch-elevation-panel, 0 10px 28px rgb(0 0 0 / 0.55));
+}
+
+/* Disabled (archived conversation, locked surface): a flatter shell and muted
+   ink. The textarea goes read-only through its own [disabled] attribute; this
+   is the state the rest of the shell reads from it. */
+.hutch-composer:has(.hutch-composer__textarea:disabled) {
+  background: var(--hutch-composer-disabled-surface);
+  border-color: var(--hutch-composer-border-strong);
+  box-shadow: none;
+}
+.hutch-composer:has(.hutch-composer__textarea:disabled) :is(.hutch-composer__target, .hutch-composer__meta) {
+  color: var(--hutch-composer-disabled-text);
+}
+
+/* ── routing row: one line, never a toolbar ──────────────────────────────── */
+.hutch-composer__target {
+  display: flex;
+  align-items: center;
+  gap: var(--hutch-space-2, 8px);
+  min-width: 0;
+  padding: var(--hutch-space-3, 12px) var(--hutch-space-4, 16px) 0;
+  color: var(--hutch-composer-text-muted);
+  font: var(--hutch-font-label, 500 0.875rem/1.4 var(--hutch-font-family, sans-serif));
+}
+.hutch-composer__target-dot {
+  flex: none;
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: var(--hutch-radius-round, 50%);
+  /* The chat-bubbles pass paints --hutch-msg-identity with botIdentityAccent()
+     from the shared FNV-1a rule; surfaces that paint their own accent set
+     --hutch-composer-target-accent instead. No accent -> the neutral token. */
+  background: var(--hutch-composer-target-accent,
+              var(--hutch-msg-identity,
+              var(--hutch-bot-identity-neutral, rgb(255 255 255 / 0.12))));
+}
+.hutch-composer__target-label { color: var(--hutch-composer-placeholder); }
+.hutch-composer__target-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--hutch-composer-text);
+  font-weight: var(--hutch-font-weight-semibold, 600);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The switchable variant keeps the select on the same single line. */
+.hutch-composer__target-select { flex: none; min-width: 0; margin-inline-start: auto; }
+
+/* ── writing area ─────────────────────────────────────────────────────────── */
+.hutch-composer__body { padding: var(--hutch-space-3, 12px) var(--hutch-space-4, 16px) var(--hutch-space-1, 4px); }
+.hutch-composer__textarea {
+  all: unset;
+  box-sizing: border-box;
+  display: block;
+  inline-size: 100%;
+  min-width: 0;
+  max-height: var(--hutch-composer-max-height);
+  overflow-x: hidden;
+  overflow-y: auto;
+  resize: none;
+  padding: var(--hutch-space-1, 4px) 0;
+  color: var(--hutch-composer-text);
+  font: var(--hutch-font-body, 400 1rem/1.55 var(--hutch-font-family, sans-serif));
+  /* 18px is the type-scale step the measured WCAG audit floors the composer at;
+     DESIGN keeps composer text at 1rem or above, so both agree here. */
+  font-size: var(--hutch-font-section-font-size, 1.125rem);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.hutch-composer__textarea::placeholder { color: var(--hutch-composer-placeholder); }
+.hutch-composer__textarea:disabled {
+  color: var(--hutch-composer-disabled-text);
+  cursor: not-allowed;
+}
+.hutch-composer__textarea:disabled::placeholder { color: var(--hutch-composer-disabled-text); }
+@media (pointer: coarse) {
+  /* The touch floor must not shrink the larger composer. */
+  .hutch-composer__textarea { font-size: var(--hutch-font-section-font-size, 1.125rem); }
+}
+
+/* ── toolbar: utilities left, message actions right ──────────────────────── */
+.hutch-composer__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--hutch-space-2, 8px);
+  padding: var(--hutch-space-1, 4px) var(--hutch-space-3, 12px) var(--hutch-space-3, 12px);
+}
+.hutch-composer__tools { display: flex; align-items: center; gap: var(--hutch-space-1, 4px); flex: none; min-width: 0; }
+.hutch-composer__trailing { display: flex; align-items: center; gap: var(--hutch-space-2, 8px); flex: none; margin-inline-start: auto; }
+
+/* ── Button primitive seats ──────────────────────────────────────────────── */
+/* Resting appearance only — see the header. Hover / active / focus / disabled
+   come from hutch-surfaces.css wherever ui.css is loaded, and from the
+   :disabled and :hover rules further down where it is not. */
+.hutch-composer .hutch-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--hutch-space-2, 8px);
+  border: 1px solid transparent;
+  border-radius: var(--hutch-radius-control, 8px);
+  font: var(--hutch-font-label-strong, 600 0.875rem/1.4 var(--hutch-font-family, sans-serif));
+  cursor: pointer;
+}
+.hutch-composer__send {
+  min-height: var(--hutch-size-control-lg, 40px);
+  padding-inline: var(--hutch-space-4, 16px);
+  background: var(--hutch-alias-button-primary-fill, #34d399);
+  color: var(--hutch-alias-button-primary-ink, #052e21);
+}
+/* Icon-only send (chat): a square on the same 40px control rung. */
+.hutch-composer__send--icon {
+  inline-size: var(--hutch-size-control-lg, 40px);
+  padding-inline: 0;
+}
+.hutch-composer__util {
+  min-height: var(--hutch-size-control-md, 36px);
+  inline-size: var(--hutch-size-control-md, 36px);
+  padding-inline: 0;
+  background: transparent;
+  border-color: var(--hutch-alias-button-ghost-line, rgb(255 255 255 / 0.12));
+  color: var(--hutch-composer-text-muted);
+}
+.hutch-composer__util[aria-expanded="true"] {
+  background: var(--hutch-alias-brand-wash, rgb(52 211 153 / 0.09));
+  color: var(--hutch-composer-text);
+}
+.hutch-composer__util svg { inline-size: 18px; block-size: 18px; }
+
+/* Fallbacks for the server pages that never load ui.css. */
+.hutch-composer__send:hover:not(:disabled) { background: var(--hutch-alias-button-primary-hover, #6ee7b7); }
+.hutch-composer__util:hover:not(:disabled) {
+  background: var(--hutch-alias-interactive-bg-hover, rgb(255 255 255 / 0.06));
+  border-color: var(--hutch-alias-border-l4, rgb(255 255 255 / 0.22));
+  color: var(--hutch-composer-text);
+}
+.hutch-composer .hutch-button:active:not(:disabled) { transform: translateY(1px); }
+.hutch-composer .hutch-button:focus-visible {
+  outline: var(--hutch-focus-ring-width, 2px) var(--hutch-focus-ring-style, solid) var(--hutch-composer-focus-ring);
+  outline-offset: var(--hutch-focus-ring-offset, 2px);
+}
+/* The primitive's inert ink (--hutch-alias-label-dimmed) is darker than this
+   shell, so the composer states its own disabled ink and surface: the seat keeps
+   a legible glyph on the muted fill instead of disappearing. !important on the
+   colour only, because hutch-surfaces.css states it that way. */
+.hutch-composer .hutch-button:disabled,
+.hutch-composer .hutch-button[aria-disabled="true"] {
+  background: var(--hutch-composer-surface-muted);
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--hutch-composer-disabled-text) !important;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+/* Loading: the seat keeps its size and swaps its glyph for the shared spinner. */
+.hutch-composer__send.sending,
+.hutch-composer__send[aria-busy="true"] {
+  background: var(--hutch-composer-surface-muted);
+  color: var(--hutch-composer-text-muted);
+}
+.hutch-composer__send.sending .spinner,
+.hutch-composer__send[aria-busy="true"] .spinner {
+  border-color: var(--hutch-composer-border-strong);
+  border-top-color: currentColor;
+}
+.hutch-composer__send[hidden] { display: none; }
+
+/* The "+" trigger's owner; the popup controller anchors the panel itself. */
+.hutch-composer .cmenu-wrap { position: relative; flex: none; }
+
+/* ── inline variant: an answer composer nested inside a panel ────────────── */
+/* Nesting steps down, never up, so the inner shell takes the panel radius
+   instead of the chat radius. The writing area stays at body size (form-field
+   territory; the 18px floor belongs to the chat composer alone). */
+.hutch-composer--inline { border-radius: var(--hutch-radius-panel, 12px); }
+.hutch-composer--inline .hutch-composer__target { padding-top: var(--hutch-space-2, 8px); }
+.hutch-composer--inline .hutch-composer__body { padding: var(--hutch-space-2, 8px) var(--hutch-space-3, 12px) 0; }
+.hutch-composer--inline .hutch-composer__textarea { font-size: var(--hutch-font-body-font-size, 1rem); }
+.hutch-composer--inline .hutch-composer__actions {
+  padding: var(--hutch-space-1, 4px) var(--hutch-space-2, 8px) var(--hutch-space-2, 8px);
+}
+@media (pointer: coarse) {
+  .hutch-composer--inline .hutch-composer__textarea { font-size: max(var(--hutch-font-body-font-size, 1rem), 16px); }
+}
+
+/* ── status strips inside the shell ──────────────────────────────────────── */
+.hutch-composer__notice {
+  display: flex;
+  align-items: center;
+  gap: var(--hutch-space-2, 8px);
+  border-top: 1px solid var(--hutch-composer-border-strong);
+  padding: var(--hutch-space-2, 8px) var(--hutch-space-4, 16px);
+  color: var(--hutch-composer-text-muted);
+  font: var(--hutch-font-caption, 400 0.75rem/1.45 var(--hutch-font-family, sans-serif));
+}
+.hutch-composer__notice b { color: var(--hutch-composer-text); font-weight: var(--hutch-font-weight-semibold, 600); }
+.hutch-composer__notice[hidden] { display: none; }
+.hutch-composer__notice--task-role {
+  overflow-wrap: anywhere;
+  color: var(--hutch-composer-text-muted);
+  font-family: var(--hutch-font-family-mono, monospace);
+}
+
+/* ── meta row: error line, keyboard hint and limit counter, below the shell ─ */
+/* Width follows the shell it sits under (the chat seat already caps its form at
+   780px); no independent cap, so a server-page foot stays flush with its shell. */
+.hutch-composer__foot {
+  display: grid;
+  gap: var(--hutch-space-1, 4px);
+  margin-top: var(--hutch-space-2, 8px);
+}
+.hutch-composer__meta {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  color: var(--hutch-composer-placeholder);
+  font: var(--hutch-font-caption, 400 0.75rem/1.45 var(--hutch-font-family, sans-serif));
+}
+.hutch-composer__meta kbd {
+  padding: 1px var(--hutch-space-2, 8px);
+  border: 1px solid var(--hutch-composer-border-strong);
+  border-radius: var(--hutch-radius-micro, 4px);
+  background: var(--hutch-composer-surface-raised);
+  color: var(--hutch-composer-text-muted);
+  font: inherit;
+}
+.hutch-composer__counter {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: 0;
+  font-variant-numeric: tabular-nums;
+}
+.hutch-composer__counter[data-state="over"] { color: var(--hutch-composer-danger); }
+
+/* The hint is a pointer-device affordance and disappears where space is tight. */
+@media (max-width: 640px), (pointer: coarse) {
+  .hutch-composer__meta { display: none; }
+}
+
+/* ── error line: below the shell, never a red border on it ───────────────── */
+.hutch-composer__error {
+  margin: 0;
+  color: var(--hutch-composer-danger);
+  font: var(--hutch-font-caption, 400 0.75rem/1.45 var(--hutch-font-family, sans-serif));
+}
+.hutch-composer__error[hidden] { display: none; }
+
+/* The composer's context region — the staged-file tray and the reply /
+   specialist-result / persona strips — lives in hutch-composer-context.css. */
+
+/* ── responsive: the seat tightens, the shell never moves off-screen ─────── */
+@media (max-width: 640px), (pointer: coarse) {
+  .hutch-composer__actions { flex-wrap: wrap; row-gap: var(--hutch-space-2, 8px); }
+  .hutch-composer__trailing { flex-wrap: wrap; justify-content: flex-end; }
+  .hutch-composer__send { min-height: var(--hutch-size-control-touch, 44px); }
+  .hutch-composer__send--icon { inline-size: var(--hutch-size-control-touch, 44px); }
+  .hutch-composer__util { min-height: var(--hutch-size-control-touch, 44px); inline-size: var(--hutch-size-control-touch, 44px); }
+}
+
+@media (forced-colors: active) {
+  .hutch-composer { border: 1px solid CanvasText; forced-color-adjust: none; }
+}

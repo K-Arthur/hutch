@@ -37,7 +37,8 @@ def test_models_page_renders_every_section(client):
     for needle in ("Runtimes and connections", "Installed models", "Task presets on this machine",
                    "Swap cost between models", "Hosted prices", "fake:8b", "Router", "hutch models swap-test"):
         assert needle in r.text, needle
-    assert 'class="active"' in r.text and "Models" in r.text      # nav entry present and active
+    # The shared sidebar marks the current destination with aria-current only.
+    assert re.search(r'<a href="/models"[^>]*aria-current="page"', r.text), "Models entry is current"
 
 
 def test_page_flags_what_wont_fit_and_shows_real_context(client):
@@ -95,3 +96,39 @@ def test_reset_restores_the_bundled_row(client):
 
 def test_price_edits_require_the_csrf_token(client):
     assert client.post("/models/prices/save", data={"model": "a/b", "input": "1", "output": "1"}).status_code == 403
+
+
+def test_missing_model_or_keys_rejected_safely_without_crash(client):
+    tok = csrf(client)
+    r = client.post("/models/prices/save", data={"csrf": tok, "input": "1.0", "output": "2.0"}, follow_redirects=True)
+    assert "model is required" in r.text
+    r2 = client.post("/models/prices/save", data={"csrf": tok, "model": "test/model", "output": "2.0"}, follow_redirects=True)
+    assert "input is required" in r2.text
+    r3 = client.post("/models/prices/reset", data={"csrf": tok}, follow_redirects=True)
+    assert "model is required" in r3.text
+
+
+def test_reset_button_has_accessible_name_and_confirmation(client):
+    tok = csrf(client)
+    client.post("/models/prices/save", data={"csrf": tok, "model": "opencode-go/glm-5.3", "input": "0.5", "output": "1.5"})
+    page_html = client.get("/models").text
+    assert 'data-hutch-confirm-form="reset-price-confirm-' in page_html
+    assert "Reset this price override?" in page_html
+    assert 'aria-label="Reset price for opencode-go/glm-5.3"' in page_html
+    assert "data-confirm=" not in page_html
+
+
+def test_malformed_url_source_does_not_crash(client):
+    tok = csrf(client)
+    r = client.post("/models/prices/save", data={"csrf": tok, "model": "custom/test", "input": "1.0", "output": "2.0", "source": "http://"}, follow_redirects=False)
+    assert r.status_code == 303
+    page_html = client.get("/models").text
+    assert "custom/test" in page_html
+
+
+def test_bot_model_assignment_without_prefix_resolves(client):
+    from hutch.models import Bot
+    client.app.state.store.create_bot(Bot(name="bot-unprefixed", model="fake:8b", tools=[]))
+    page_html = client.get("/models").text
+    assert 'href="/bots/bot-unprefixed"' in page_html
+

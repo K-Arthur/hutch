@@ -1,65 +1,66 @@
 {#- Transcript rendering. One <li> per event, tagged with its per-run seq so the client can detect gaps (UI-3). -#}
 {%- from "_icons.html" import icon -%}
 {%- from "_approval_card.html" import approval_card, approval_resolved with context -%}
+{%- from "_message.html" import message_user, message_agent, message_system, tool_call_block, inline_approval -%}
 
 {% macro event(ev, approvals, run) %}
 {%- set d = ev.data -%}
 <li class="tx tx-{{ ev.type }}" id="ev-{{ ev.seq }}" data-seq="{{ ev.seq }}">
   {%- if ev.type == "message" %}
-    <div class="turn {{ 'user' if d.role == 'user' else 'agent' }}">
-      <div class="turn-role">{{ d.role or "agent" }} <time>{{ ev.ts[11:19] }}</time></div>
-      <div class="turn-body">{{ d.content }}</div>
-    </div>
+    {%- if d.role == "user" %}
+    {{ message_user(d.content, ev.ts[11:19]) }}
+    {%- else %}
+    {{ message_agent(d.content, run.bot_name if run else "", run.bot_id if run else "", ev.ts[11:19]) }}
+    {%- endif %}
   {%- elif ev.type == "tool_call" %}
     {% set ic = "terminal" if d.tool == "shell" else ("file" if "file" in d.tool else ("globe" if d.tool in ("web_fetch", "browser") else "zap")) %}
-    <details class="toolline call">
-      <summary>{{ icon(ic, 14) }}<strong>{{ d.tool }}</strong><span class="argsum">{{ d.tool | argsum_for(d.args) }}</span><time>{{ ev.ts[11:19] }}</time></summary>
-      <pre class="args">{{ d.args | jsonish }}</pre>
-    </details>
+    {{ tool_call_block("running", ic, d.tool, d.tool | argsum_for(d.args), ev.ts[11:19], body=d.args | jsonish) }}
   {%- elif ev.type == "tool_result" %}
-    <details class="toolline result {{ 'ok' if d.ok else 'bad' }}">
-      <summary>{{ icon("check" if d.ok else "x", 14) }}{% if d.simulated %}<span class="tag" title="Rehearse mode: nothing actually ran">simulated</span> {% endif %}<span class="argsum">{{ d.output | outsum }}</span>{% if d.output and d.output | length > 140 %}<span class="more">{{ d.output | length }} chars</span>{% endif %}</summary>
-      <pre>{{ d.output }}</pre>
-    </details>
+    {{ tool_call_block("ok" if d.ok else "bad", "check" if d.ok else "x", summary=d.output | outsum, stamp=ev.ts[11:19],
+                       simulated=d.simulated, char_count=((d.output | length) if d.output else 0), body=d.output, out=true) }}
   {%- elif ev.type == "approval_request" %}
     {% set a = approvals.get(d.approval_id) %}
     {% if a and a.status.value == "pending" %}
-      {{ approval_card(a, run.bot_name if run else "", "/runs/" ~ ev.run_id) }}
+      {{ inline_approval(approval_card(a, run.bot_name if run else "", "/runs/" ~ ev.run_id)) }}
     {% else %}
-      <div class="line">{{ icon("shield", 15) }}<span>Approval requested: <strong>{{ d.action }}</strong>
-        {% if a %}- <span class="chip st-{{ a.status.value }}">{{ a.status.value }}</span>{% if a.decided_by %} by {{ a.decided_by }}{% endif %}{% endif %}</span></div>
+      {% call message_system(icon_name="shield") %}Approval requested: <strong>{{ d.action }}</strong>
+        {% if a %}- <span class="chip st-{{ a.status.value }}">{{ a.status.value }}</span>{% if a.decided_by %} by {{ a.decided_by }}{% endif %}{% endif %}{% endcall %}
     {% endif %}
   {%- elif ev.type == "approval_resolved" %}
-    <div class="line muted">{{ icon("shield", 15) }}<span>Approval {{ d.result }}{% if d.by %} ({{ d.by }}){% endif %}</span></div>
+    {% call message_system(icon_name="shield") %}Approval {{ d.result }}{% if d.by %} ({{ d.by }}){% endif %}{% endcall %}
   {%- elif ev.type == "human_needed" %}
-    <div class="banner action">{{ icon("user", 18) }}<div><strong>A person is needed</strong><p>{{ d.reason }}</p>
-      {% if run and run.status.value == "waiting_human" %}
-      <form method="post" action="/runs/{{ ev.run_id }}/resume" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}">
-        <button class="btn primary small">{{ icon("play", 14) }} I have cleared it - resume</button></form>{% endif %}</div></div>
+    {% call message_system(icon_name="user", icon_size=18, tone="attention") -%}
+    <strong>A person is needed</strong>
+    <p>{{ d.reason }}</p>
+    {% if run and run.status.value == "waiting_human" %}
+    <form method="post" action="/runs/{{ ev.run_id }}/resume" class="hutch-form hutch-inline"><input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn primary small">{{ icon("play", 14) }} I have cleared it - resume</button></form>{% endif %}
+    {%- endcall %}
   {%- elif ev.type == "human_resumed" %}
-    <div class="line muted">{{ icon("play", 15) }}<span>Resumed by a person</span></div>
+    {% call message_system(icon_name="play") %}Resumed by a person{% endcall %}
   {%- elif ev.type == "error" %}
-    <div class="toolcard result bad"><div class="toolcard-head">{{ icon("alert", 15) }}<strong>Error</strong></div><pre>{{ d.error }}</pre></div>
+    {% call message_system(icon_name="alert", tone="danger", state="error") %}<div class="hutch-msg__error"><strong>Error</strong><pre>{{ d.error }}</pre></div>{% endcall %}
   {%- elif ev.type == "step" %}
-    <div class="stepline" title="Wall time split: model wait / tool time / Hutch overhead">
+    {% call message_system(title="Wall time split: model wait / tool time / Hutch overhead") -%}
       <span>step {{ d.n }}</span>
       <span>{{ (d.prompt_tokens or 0) + (d.completion_tokens or 0) }} tok</span>
       {% if d.cost_usd %}<span>${{ '%.4f' | format(d.cost_usd) }}</span>{% endif %}
       <span>model {{ d.model_ms | round(0) | int }}ms</span><span>tools {{ d.tool_ms | round(0) | int }}ms</span><span>hutch {{ d.overhead_ms | round(1) }}ms</span>
       {% if d.cached_tokens %}<span>{{ d.cached_tokens }} cached</span>{% endif %}
-    </div>
+    {%- endcall %}
   {%- elif ev.type == "status" %}
-    <div class="line status-line">{{ icon("clock", 14) }}<span>{{ d.status | replace("_", " ") }}{% if d.reason and d.reason != d.status %} - {{ d.reason }}{% endif %}{% if d.origin %} <span class="muted">(started by {{ d.origin }})</span>{% endif %}</span></div>
+    {% call message_system(icon_name="clock", icon_size=14) %}<span>{{ d.status | replace("_", " ") }}{% if d.reason and d.reason != d.status %} - {{ d.reason }}{% endif %}{% if d.origin %} <span class="muted">(started by {{ d.origin }})</span>{% endif %}</span>{% endcall %}
   {%- else %}
     {# log #}
-    <div class="line muted logline">{{ icon("list", 14) }}
+    {% call message_system(icon_name="list", icon_size=14) %}
       <span>
         {%- if d.note %}{{ d.note }}
         {%- elif d.denied %}<strong>Denied by policy:</strong> {{ d.denied }} <span class="muted">- {{ d.reason }}</span>
         {%- elif d.runtime %}runtime {{ d.runtime }}, model {{ d.model }}, {{ d.tools | length }} tool{{ '' if d.tools | length == 1 else 's' }}{% if d.rehearsal %} - <strong>rehearsal</strong>{% endif %}
         {%- elif d.final_chars is defined %}finished: {{ d.steps }} steps, ~{{ d.tokens }} tokens
         {%- else %}{{ d | jsonish(None) }}{% endif -%}
-      </span></div>
+      </span>
+    {%- endcall %}
   {%- endif %}
 </li>
 {%- endmacro %}

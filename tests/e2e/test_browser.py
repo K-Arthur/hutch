@@ -1522,7 +1522,7 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
                    "question": "Which findings should be included?", "options": ["All", "Only verified"],
                    "timeout_seconds": 600},
                   {"kind": "transform", "id": "carry_answer", "op": "constant",
-                   "args": {"value": {"ref": "review.answer"}}}],
+                   "args": {"value": {"ref": "review.hutch-msg__answer"}}}],
     }
     artifacts = artifact_path("workflow-studio/policy-steps-2026-10-11")
     artifacts.mkdir(parents=True, exist_ok=True)
@@ -1774,7 +1774,7 @@ def test_workflow_question_draft_survives_tcp_disconnect_and_reconnect(browser, 
                    "question": "Which findings should be included?", "options": ["All", "Only verified"],
                    "timeout_seconds": 600},
                   {"kind": "transform", "id": "carry_answer", "op": "constant",
-                   "args": {"value": {"ref": "review.answer"}}}],
+                   "args": {"value": {"ref": "review.hutch-msg__answer"}}}],
     }
     artifacts = artifact_path("workflow-studio/workflow-reconnect-2026-10-11")
     artifacts.mkdir(parents=True, exist_ok=True)
@@ -2658,8 +2658,8 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
         technical_details = page.locator("#run-technical-details")
         assert technical_details.get_attribute("open") is None
         assert not page.locator("[data-run-integrity-run]").is_visible()
-        assert page.locator("#chat-stream .mrun").count() == 1
-        assert not page.locator("#chat-stream .mrun").is_visible()
+        assert page.locator("#chat-stream .hutch-msg__open").count() == 1
+        assert not page.locator("#chat-stream .hutch-msg__open").is_visible()
         expected_verified = (f"{initial_verification['checked']} chained event"
                              f"{'s' if initial_verification['checked'] != 1 else ''} verified")
         viewport_results = []
@@ -2981,7 +2981,7 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
             page.set_viewport_size({"width": width, "height": height})
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
             page.wait_for_function("""() => {
-              const headers = document.querySelectorAll('#chat-stream .msg.agent .mhead');
+              const headers = document.querySelectorAll('#chat-stream .hutch-msg--agent .hutch-msg__identity');
               const current = headers[headers.length - 1];
               if (!current || !current.isConnected) return false;
               current.scrollIntoView({block: 'nearest'});
@@ -2993,7 +2993,7 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
         page.locator("#chat-prompt").wait_for()
         specialist_request = page.locator("#chat-stream").get_by_text("Compare two launch approaches", exact=False).first
         specialist_request.wait_for(state="attached", timeout=10000)
-        page.locator(".mhead").get_by_text("Research Partner", exact=True).wait_for(timeout=10000)
+        page.locator(".hutch-msg__identity").get_by_text("Research Partner", exact=True).wait_for(timeout=10000)
         context.tracing.stop(path=str(output / "workspace-task-trace.zip"))
         trace_stopped = True
         (output / "validation.json").write_text(json.dumps({
@@ -5947,7 +5947,7 @@ def test_spa_transcript_renders_a_live_run(browser, live, monkeypatch):
     errors: list[str] = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(f"{base}/#/run/{run.id}")
-    pw.expect(page.locator("#chat-stream .msg.agent .answer")).to_have_text("done", timeout=30_000)
+    pw.expect(page.locator("#chat-stream .hutch-msg--agent .hutch-msg__answer")).to_have_text("done", timeout=30_000)
     assert not errors, errors
     ctx.close()
 
@@ -5997,8 +5997,8 @@ def test_saved_tool_output_is_downloadable_and_verified_at_all_viewports(browser
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
         page.goto(f"{base}/#/run/{run.id}")
-        page.wait_for_selector(".tool-line-head", timeout=20_000)
-        page.locator(".tool-line-head").first.click()
+        page.wait_for_selector(".hutch-tool__head", timeout=20_000)
+        page.locator(".hutch-tool__head").first.click()
         link = page.locator(".artifact-download a").first
         link.wait_for(state="visible")
         href = link.get_attribute("href")
@@ -6085,9 +6085,9 @@ def test_truncated_tool_source_card_opens_verified_plain_text_at_all_viewports(b
             page.goto(f"{base}/#/chat/{bot.name}")
             page.locator("#chat-prompt").wait_for()
             page.locator(".tool-src-flag").wait_for()
-            row = page.locator(".tool-line[data-tool-line]").first
+            row = page.locator(".hutch-tool[data-tool-line]").first
             assert row.locator(".tool-src-flag").inner_text() == "source"
-            row.locator(".tool-line-head").click()
+            row.locator(".hutch-tool__head").click()
             card = row.locator(".tool-source")
             card.wait_for(state="visible")
             assert card.locator("xpath=..").get_attribute("class") == "tool-artifact-actions"
@@ -6199,8 +6199,8 @@ def test_generated_workspace_file_is_downloadable_from_its_chat(browser, live, m
             if name != "desktop":
                 page.goto(f"{base}/#/chat/{bot.name}")
                 page.locator("#chat-prompt").wait_for()
-            page.locator(".tool-line[data-tool-line]").wait_for()
-            assert page.locator(".tool-line[data-tool-line] .tool-line-body").is_hidden(), "tool details should remain collapsed"
+            page.locator(".hutch-tool[data-tool-line]").wait_for()
+            assert page.locator(".hutch-tool[data-tool-line] .hutch-tool__body").is_hidden(), "tool details should remain collapsed"
             link = page.locator(".workspace-file-attachments a")
             link.wait_for(state="visible")
             assert "Download monthly.csv" in link.inner_text()
@@ -6551,12 +6551,12 @@ def test_studio_conversation_survives_reload_and_archive(browser, live):
         assert first_run["conversation_id"] == conversation_id
         wait_for(lambda: app.state.store.get_run(first_run["id"]).status.value == "succeeded")
         page.locator("#chat-stream").get_by_text("First durable conversation", exact=True).wait_for()
-        page.locator(".msg.agent .answer").filter(has_text="First durable conversation").wait_for()
+        page.locator(".hutch-msg--agent .hutch-msg__answer").filter(has_text="First durable conversation").wait_for()
 
         page.reload()
         page.locator("#chat-prompt").wait_for()
         page.locator("#chat-stream").get_by_text("First durable conversation", exact=True).wait_for()
-        page.locator(".msg.agent .answer").filter(has_text="First durable conversation").wait_for()
+        page.locator(".hutch-msg--agent .hutch-msg__answer").filter(has_text="First durable conversation").wait_for()
 
         page.locator("#chat-prompt").fill("Continue this conversation")
         with page.expect_response(lambda r: "/api/v1/conversations/" in r.url and r.url.endswith("/messages")
@@ -7110,67 +7110,67 @@ def test_usage_budget_table_uses_labelled_phone_cards(browser, live):
     page.close()
 
 
-def test_server_page_navigation_uses_accessible_tablet_menu(browser, live, tmp_path):
+def test_server_page_navigation_uses_the_shared_sidebar(browser, live, tmp_path):
+    """Standalone pages render the same app sidebar, one drawer strategy."""
     base, _app = live
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(base + "/usage", wait_until="domcontentloaded")
-    page.locator("#primary-nav a[aria-current='page']").wait_for()
+    page.locator("#workspace #primary-nav a[aria-current='page']").wait_for()
+    rail = page.locator("#workspace")
     nav = page.locator("#primary-nav")
     toggle = page.locator("#nav-toggle")
-    captures = []
+    expected_links = {
+        "/#/chat", "/#/tasks", "/#/approvals", "/#/chats", "/#/overview", "/#/schedules",
+        "/#/runs", "/#/runtime", "/#/skills", "/models", "/usage", "/#/bots"}
     try:
         for label, width, height in (("desktop", 1440, 960), ("narrow-desktop", 1366, 900),
                                      ("tablet", 900, 1024), ("phone", 390, 844),
                                      ("compact-phone", 320, 720)):
             page.set_viewport_size({"width": width, "height": height})
-            if width > 1400:
-                assert nav.is_visible() and not nav.evaluate("el => el.inert")
-                assert not nav.get_attribute("aria-hidden")
-                links = nav.locator("a")
-                assert links.count() >= 8
-                assert {links.nth(i).get_attribute("href") for i in range(links.count())} == {
-                    "/", "/overview", "/bots", "/runs", "/approvals", "/models", "/usage", "/connections"}
+            header = page.evaluate("() => document.querySelector('.app-top').getBoundingClientRect().height")
+            assert header == 56, (label, header)      # stable height on every route/viewport
+            links = nav.locator("a")
+            assert links.count() == 12
+            assert {links.nth(i).get_attribute("href") for i in range(links.count())} == expected_links
+            if width > 900:
+                assert rail.is_visible() and not rail.evaluate("el => el.inert")
+                assert not toggle.is_visible()
+                assert nav.locator("a[aria-current='page']").inner_text().strip() == "Usage"
                 nav_box = nav.bounding_box()
                 assert all((box := links.nth(i).bounding_box()) is not None
                            and box["x"] + box["width"] <= nav_box["x"] + nav_box["width"] + 1
                            for i in range(links.count()))
             else:
                 assert toggle.is_visible()
-                pw.expect(nav).to_have_attribute('aria-hidden', 'true')
-                assert nav.evaluate("el => el.inert")
-                assert nav.get_attribute("aria-hidden") == "true"
+                assert rail.evaluate("el => el.inert")
                 assert toggle.get_attribute("aria-expanded") == "false"
                 toggle.click()
                 assert toggle.get_attribute("aria-expanded") == "true"
-                assert not nav.evaluate("el => el.inert")
-                assert nav.get_attribute("aria-hidden") is None
-                assert page.evaluate("document.activeElement.closest('#primary-nav') !== null")
+                assert not rail.evaluate("el => el.inert")
+                assert page.evaluate("document.activeElement.closest('#workspace') !== null")
                 assert nav.locator("a[aria-current='page']").inner_text().strip() == "Usage"
-                links = nav.locator("a")
-                assert links.count() >= 8
                 assert all(links.nth(i).is_visible() for i in range(links.count()))
-                assert {links.nth(i).get_attribute("href") for i in range(links.count())} == {
-                    "/", "/overview", "/bots", "/runs", "/approvals", "/models", "/usage", "/connections"}
                 page.screenshot(path=str(tmp_path / f"server-nav-{label}-open.png"), animations="disabled")
+                # Tab is contained inside the open drawer; Escape returns focus to its trigger.
                 links.last.focus()
                 page.keyboard.press("Tab")
-                assert page.evaluate("document.activeElement.id") == "nav-toggle"
+                assert page.evaluate("document.activeElement.closest('#workspace') !== null")
                 page.keyboard.press("Shift+Tab")
-                assert page.evaluate("document.activeElement.closest('#primary-nav') !== null")
+                assert page.evaluate("document.activeElement.closest('#workspace') !== null")
                 page.keyboard.press("Escape")
                 assert toggle.get_attribute("aria-expanded") == "false"
                 assert page.evaluate("document.activeElement.id") == "nav-toggle"
-                assert nav.evaluate("el => el.inert")
+                assert rail.evaluate("el => el.inert")
             metrics = page.evaluate("""() => ({viewport: innerWidth,
               document: document.documentElement.scrollWidth,
-              nav: document.querySelector('#primary-nav').getBoundingClientRect().toJSON()})""")
+              header: document.querySelector('.app-top').getBoundingClientRect().height,
+              rail: document.querySelector('#workspace').getBoundingClientRect().toJSON()})""")
             assert metrics["document"] <= width + 1, (label, metrics)
             page.screenshot(path=str(tmp_path / f"server-nav-{label}.png"), animations="disabled")
-            captures.append({"size": label, "viewport": [width, height], "metrics": metrics})
         page.set_viewport_size({"width": 900, "height": 1024})
-        assert page.evaluate("getComputedStyle(document.querySelector('#primary-nav')).transitionDuration") == "0s"
+        assert page.evaluate("getComputedStyle(document.querySelector('#workspace')).transitionDuration") == "0s"
         page.set_viewport_size({"width": 320, "height": 720})
         page.add_style_tag(content="* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; } p { margin-bottom: 2em !important; }")
         toggle.click()
@@ -7185,21 +7185,20 @@ def test_server_page_navigation_uses_accessible_tablet_menu(browser, live, tmp_p
         page.screenshot(path=str(tmp_path / "server-nav-tablet-forced-colors.png"), animations="disabled")
         page.emulate_media(forced_colors="none")
         assert not errors, errors
-        (tmp_path / "server-nav-validation.json").write_text(json.dumps({
-            "browser": browser.browser_type.name, "version": browser.version,
-            "page": "/usage", "captures": captures, "page_errors": errors,
-            "keyboard": "compact menu traps Tab, Shift+Tab, and Escape restores menu-button focus",
-            "reduced_motion": "primary navigation transition duration is 0s",
-            "forced_colors": "active mode kept the current Usage destination visible",
-            "text_spacing": "WCAG text-spacing overrides retained all 320px menu destinations without horizontal overflow",
-            "inspected_screenshots": ["server-nav-desktop.png", "server-nav-narrow-desktop-open.png",
-                                      "server-nav-tablet-open.png", "server-nav-phone-open.png",
-                                      "server-nav-compact-phone-open.png", "server-nav-compact-phone-text-spacing.png",
-                                      "server-nav-tablet-forced-colors.png"],
-            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
-                              for relative in ("src/hutch/server/static/hutch.js", "src/hutch/server/static/hutch.css",
-                                               "src/hutch/server/templates/base.html", "tests/e2e/test_browser.py")},
-        }, indent=2) + "\n")
+        # Without JavaScript every destination stays visible (closed More included) and nothing overflows.
+        nojs_context = browser.new_context(viewport={"width": 390, "height": 844}, java_script_enabled=False)
+        nojs = nojs_context.new_page()
+        try:
+            for path in ("/usage", "/legacy/connections"):
+                nojs.goto(base + path, wait_until="domcontentloaded")
+                visible = nojs.evaluate("() => [...document.querySelectorAll('#primary-nav a')]"
+                                        ".filter(a => { const r = a.getBoundingClientRect(); return r.width && r.height; }).length")
+                assert visible == 12, (path, visible)
+                assert nojs.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, path
+            assert not nojs.locator("#nav-toggle").is_visible()
+        finally:
+            nojs_context.close()
+        assert not errors, errors
     finally:
         page.close()
 
@@ -11174,15 +11173,15 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
             "button", name=name, description=re.compile(r"write report.*" + re.escape(approval_id)),
         ).is_visible()
     thread = card.locator("xpath=ancestor::article[@data-run-id]")
-    assert thread.locator(".msg.you").count() == 1
-    assert thread.locator(".msg.you .bubble").inner_text() == "write a report"
+    assert thread.locator(".hutch-msg--user").count() == 1
+    assert thread.locator(".hutch-msg--user .hutch-msg__body").inner_text() == "write a report"
     assert thread.evaluate("""article => {
-      const user = article.querySelector('.msg.you');
-      const agent = article.querySelector('.msg.agent');
+      const user = article.querySelector('.hutch-msg--user');
+      const agent = article.querySelector('.hutch-msg--agent');
       return !!user && !!agent && !!(user.compareDocumentPosition(agent) & Node.DOCUMENT_POSITION_FOLLOWING)
         && agent.querySelectorAll('[data-approval-card]').length === 1;
     }""")
-    assert not thread.locator(".answer").count(), "a waiting run must not echo the user's prompt as an assistant answer"
+    assert not thread.locator(".hutch-msg__answer").count(), "a waiting run must not echo the user's prompt as an assistant answer"
     card.get_by_text("Review details", exact=True).click()
     assert card.locator(".review-rows").get_by_text(approval_id, exact=True).is_visible()
     assert "Changing a file needs your okay." in card.inner_text()
@@ -11848,13 +11847,13 @@ def test_queued_chat_keeps_earlier_approval_and_live_status_fresh(browser, live)
     wait_for_page(page, "document.querySelectorAll('#chat-stream [data-run-id]').length === 2")
     assert "Queued" in second.inner_text()
     assert page.locator("#studio-stop-run").get_attribute("data-stop-target") == first_run
-    assert "Waiting for you" in page.locator(f'#chat-stream [data-run-id="{first_run}"] .mhead .status').inner_text()
+    assert "Waiting for you" in page.locator(f'#chat-stream [data-run-id="{first_run}"] .hutch-msg__identity .status').inner_text()
     assert not page.locator("#typing-slot .typing").count()
     # The older active run must not enter the terminal HTML cache when currentRunId changes.
     page.locator(f'[data-approval-card="{first_approval}"] [data-approve="1"]').click()
     first = page.locator(f'[data-run-id="{first_run}"]')
     # The turn header states the outcome once; each step also carries a visually hidden "Done" for screen readers.
-    first.locator(".mhead .status").get_by_text("Done", exact=True).wait_for()
+    first.locator(".hutch-msg__identity .status").get_by_text("Done", exact=True).wait_for()
     second.locator("[data-approval-card] [data-approve='0']").wait_for()
     second.locator("[data-approval-card] [data-approve='0']").click()
     page.close()
@@ -11896,10 +11895,10 @@ def test_transcript_mirror_error_preserves_done_and_recovers_without_losing_draf
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + "/#/conversation/" + conv["id"])
-        warning = page.locator(".run-notice").filter(has_text="Transcript file needs attention")
+        warning = page.locator(".hutch-msg__notice").filter(has_text="Transcript file needs attention")
         warning.wait_for()
         assert "Database history remains available" in warning.inner_text()
-        assert page.locator(".mhead").get_by_text("Done", exact=True).count() == 1
+        assert page.locator(".hutch-msg__identity").get_by_text("Done", exact=True).count() == 1
         assert page.get_by_text("This answer is committed in database history.", exact=True).count() == 1
         page.locator("#chat-prompt").fill("Keep this unsent draft during audit recovery")
         page.locator("#chat-prompt").focus()
@@ -11910,7 +11909,7 @@ def test_transcript_mirror_error_preserves_done_and_recovers_without_losing_draf
         store._mirror.wake.set()
         store.flush_transcripts()
         warning.wait_for(state="detached", timeout=15000)
-        assert page.locator(".mhead").get_by_text("Done", exact=True).count() == 1
+        assert page.locator(".hutch-msg__identity").get_by_text("Done", exact=True).count() == 1
         assert page.locator("#chat-prompt").input_value() == "Keep this unsent draft during audit recovery"
         assert page.locator("#chat-prompt").evaluate("e => e === document.activeElement")
         (out / f"{size}.json").write_text(json.dumps({
@@ -11958,21 +11957,21 @@ def test_untrusted_run_content_is_text_not_executable_html(browser, live, monkey
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + "/#/conversation/" + conversation["id"])
-        page.locator(f'[data-run-id="{run.id}"] .answer').wait_for()
-        answer = page.locator(f'[data-run-id="{run.id}"] .answer')
+        page.locator(f'[data-run-id="{run.id}"] .hutch-msg__answer').wait_for()
+        answer = page.locator(f'[data-run-id="{run.id}"] .hutch-msg__answer')
         assert answer.text_content() == payload
-        assert page.locator(f'[data-run-id="{run.id}"] .bubble').text_content() == payload
-        page.locator(f'[data-run-id="{run.id}"] .tool-line-head').click()
-        tool = page.locator(f'[data-run-id="{run.id}"] .tool-line-section').filter(has_text="Output")
+        assert page.locator(f'[data-run-id="{run.id}"] .hutch-msg__body').text_content() == payload
+        page.locator(f'[data-run-id="{run.id}"] .hutch-tool__head').click()
+        tool = page.locator(f'[data-run-id="{run.id}"] .hutch-tool__section').filter(has_text="Output")
         assert payload in tool.text_content()
         # Answers render as safe Markdown, so a plain paragraph wrapper is expected; nothing the payload says may become an element.
         assert answer.locator("*:not(p)").count() == 0
         assert answer.locator("p").count() == 1
-        assert page.locator(f'[data-run-id="{run.id}"] .tool-line-section img, [data-run-id="{run.id}"] .tool-line-section svg[onload]').count() == 0
+        assert page.locator(f'[data-run-id="{run.id}"] .hutch-tool__section img, [data-run-id="{run.id}"] .hutch-tool__section svg[onload]').count() == 0
         assert page.locator(f'[data-run-id="{run.id}"] a[href^="javascript:"]').count() == 0
         page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")
         page.locator(f'[data-run-id="{run.id}"] [data-show-more]').click()
-        assert page.locator(f'[data-run-id="{run.id}"] .tool-line-section img').count() == 0
+        assert page.locator(f'[data-run-id="{run.id}"] .hutch-tool__section img').count() == 0
         page.wait_for_timeout(100)
         assert page.evaluate("window.__hutchXss") == 0
         overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
@@ -12037,7 +12036,7 @@ def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(br
     request = store.pending_approvals()[0]
     card = page.locator(f'#chat-stream [data-approval-card="{request.id}"]')
     card.locator('[data-approve="1"]').wait_for(timeout=15000)
-    assert "Waiting for you" in page.locator(f'#chat-stream [data-run-id="{run.id}"] .mhead .status').inner_text()
+    assert "Waiting for you" in page.locator(f'#chat-stream [data-run-id="{run.id}"] .hutch-msg__identity .status').inner_text()
     assert page.locator("#chat-prompt").input_value() == "My unsent draft stays here"
     assert page.locator("#chat-prompt").evaluate("e => e === document.activeElement")
     assert gap_count, "exercise explicit reconciliation before live replay"
@@ -12128,7 +12127,7 @@ def test_old_active_approval_survives_chat_window_and_header_stop_targets_it(bro
     card = page.locator(f'#chat-stream [data-approval-card="{request.id}"]')
     card.locator("[data-approve='1']").wait_for()
     assert page.locator("#studio-stop-run").get_attribute("data-stop-target") == runs[0].id
-    assert "Waiting for you" in page.locator(f'#chat-stream [data-run-id="{runs[0].id}"] .mhead .status').inner_text()
+    assert "Waiting for you" in page.locator(f'#chat-stream [data-run-id="{runs[0].id}"] .hutch-msg__identity .status').inner_text()
     assert not page.locator("#typing-slot .typing").count()
     assert page.locator("#chat-stream [data-run-id]").count() == 6
     page.route(f"**/api/runs/{runs[0].id}", lambda route: route.abort())
@@ -12145,7 +12144,7 @@ def test_old_active_approval_survives_chat_window_and_header_stop_targets_it(bro
     assert box["y"] >= feed["y"] - 1 and box["y"] + box["height"] <= feed["y"] + feed["height"] + 1
     if size == "phone":
         assert page.locator("#studio-review-run").bounding_box()["height"] >= 44
-        assert card.locator("xpath=ancestor::article").locator(".mhead .status").evaluate(
+        assert card.locator("xpath=ancestor::article").locator(".hutch-msg__identity .status").evaluate(
             "e => e.scrollWidth <= e.clientWidth + 1"), "keep the complete waiting label visible"
     out = artifact_path("conversation-authority")
     out.mkdir(parents=True, exist_ok=True)
@@ -12269,10 +12268,10 @@ def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, h
     assert app.state.store.get_run(cancelled.id).queue_ms == 1250
     assert page.request.get(f"{base}/api/runs/{cancelled.id}").json()["queue_ms"] == 1250
     page.goto(base + f"/#/run/{cancelled.id}")
-    notice = page.locator(".run-error")
+    notice = page.locator(".hutch-msg__error")
     notice.wait_for()
     assert notice.inner_text().startswith("Cancelled:") and "Failed:" not in notice.inner_text()
-    assert "run-notice" in notice.get_attribute("class")
+    assert "hutch-msg__notice" in notice.get_attribute("class")
     technical_details = page.locator("#run-technical-details")
     if not technical_details.evaluate("element => element.open"):
         technical_details.locator(":scope > summary").click()
@@ -13180,7 +13179,7 @@ def test_chat_choice_question_is_selectable_and_readable_at_all_viewports(browse
         form = run_card.locator("[data-choice-form]")
         form.wait_for(state="visible")
         assert form.locator("legend").inner_text() == "Which sections should the note include?"
-        assert run_card.locator(".mhead .status").inner_text() == "Waiting for your choice"
+        assert run_card.locator(".hutch-msg__identity .status").inner_text() == "Waiting for your choice"
         options = form.locator("[data-choice-option]")
         assert options.count() == 3
         assert options.nth(0).evaluate("el => el.closest('.choice-option').getBoundingClientRect().height") >= 44
@@ -13212,11 +13211,11 @@ def test_chat_choice_question_is_selectable_and_readable_at_all_viewports(browse
         assert answered.locator(".choice-selection span").all_inner_texts() == ["Risks", "Timeline"]
         answer_run = response.json()
         answer_card = page.locator(f'#chat-stream [data-run-id="{answer_run["id"]}"]')
-        answer_bubble = answer_card.locator(".msg.you .bubble")
+        answer_bubble = answer_card.locator(".hutch-msg--user .hutch-msg__body")
         answer_bubble.wait_for(state="visible")
         wait_for_page(page, """() => {
           const scroll = document.querySelector('#chat-scroll');
-          const bubble = [...document.querySelectorAll('#chat-stream .thread')].at(-1)?.querySelector('.msg.you .bubble');
+          const bubble = [...document.querySelectorAll('#chat-stream .thread')].at(-1)?.querySelector('.hutch-msg--user .hutch-msg__body');
           const composer = document.querySelector('.composer');
           if (!scroll || !bubble || !composer) return false;
           const bubbleRect = bubble.getBoundingClientRect();
@@ -13226,7 +13225,7 @@ def test_chat_choice_question_is_selectable_and_readable_at_all_viewports(browse
         }""")
         answer_scroll = page.evaluate("""() => {
           const scroll = document.querySelector('#chat-scroll');
-          const bubble = [...document.querySelectorAll('#chat-stream .thread')].at(-1)?.querySelector('.msg.you .bubble');
+          const bubble = [...document.querySelectorAll('#chat-stream .thread')].at(-1)?.querySelector('.hutch-msg--user .hutch-msg__body');
           const composer = document.querySelector('.composer');
           return {
             at_latest: scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 2,

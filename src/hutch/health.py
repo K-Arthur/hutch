@@ -27,6 +27,7 @@ class ProviderHealth:
     fix: str = ""
     version: str = ""
     loaded: list[str] = field(default_factory=list)
+    used_by: list[str] = field(default_factory=list)   # bot names whose saved route names this provider
     latency_ms: float = 0.0
     consecutive_failures: int = 0
     last_error: str = ""
@@ -59,17 +60,19 @@ def _state_from(fails: int, base: str = "healthy") -> str:
 # ------------------------------------------------------------------ the picture
 
 def runtime_health(config: Any, store: Any, hw: Any = None, bot_models: Optional[list[str]] = None,
-                   ollama: Any = None) -> list[ProviderHealth]:
+                   ollama: Any = None, used_by: Optional[dict[str, list[str]]] = None) -> list[ProviderHealth]:
     from .connections import ConnectionBook
     from .hardware import probe
     hw = hw or probe()
     used = {m.partition("/")[0] for m in (bot_models or [])}
+    assigned = used_by or {}
     out: list[ProviderHealth] = []
 
     for rt in hw.runtimes:
         fails, last, at = failures(store, {"llama.cpp": "llamacpp"}.get(rt.name, rt.name))
         h = ProviderHealth(rt.name, "local-runtime", "idle", rt.detail, version=rt.version,
-                           consecutive_failures=fails, last_error=last, last_error_at=at)
+                           consecutive_failures=fails, last_error=last, last_error_at=at,
+                           used_by=list(assigned.get(rt.name) or assigned.get(rt.name.replace(".", "")) or []))
         if rt.reachable:
             h.state = _state_from(fails, "healthy")
             h.detail = f"running{(' ' + rt.version) if rt.version else ''} at {rt.url}"
@@ -99,7 +102,8 @@ def runtime_health(config: Any, store: Any, hw: Any = None, bot_models: Optional
         ack = book.ack_status(store, name)
         has_key = book.has_key(name)
         h = ProviderHealth(name, "connection", _state_from(fails, "healthy"), c.title,
-                           consecutive_failures=fails, last_error=last, last_error_at=at)
+                           consecutive_failures=fails, last_error=last, last_error_at=at,
+                           used_by=list(assigned.get(name) or []))
         if not has_key:
             h.state = "needs_setup"
             h.fix = ("sign in with ChatGPT and authorize plan use on Connections" if c.auth_type == "chatgpt-siws"
@@ -119,5 +123,6 @@ def runtime_health(config: Any, store: Any, hw: Any = None, bot_models: Optional
             out.append(ProviderHealth(name, "hosted", _state_from(fails, "healthy") if has else "needs_setup",
                                       "API key present" if has else "no API key",
                                       fix="" if has else f"set {env} in the environment that starts hutch",
-                                      consecutive_failures=fails, last_error=last, last_error_at=at))
+                                      consecutive_failures=fails, last_error=last, last_error_at=at,
+                                      used_by=list(assigned.get(name) or [])))
     return out

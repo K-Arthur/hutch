@@ -1,0 +1,337 @@
+
+/* ==========================================================================
+   Popover / dropdown primitive
+
+   Markup contract (also emitted by templates/macros/popover.html):
+     <div class="hutch-popover" id="..." role="menu|dialog|listbox"
+          data-state="open|closing" data-placement="top|bottom|left|right">
+       ...
+     </div>
+   The controller sets left/top and transform-origin; CSS never positions an
+   anchored panel. The same styles apply to the legacy .hc-popup class so every
+   existing popup consumer inherits the contract without rewriting its markup.
+   ========================================================================== */
+
+.hutch-popover,
+.hc-popup {
+  box-sizing: border-box;
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: var(--hutch-overlay-space-1);
+  min-inline-size: 0;
+  max-inline-size: calc(100vw - 2 * var(--hutch-overlay-space-2));
+  max-block-size: calc(100dvh - 2 * var(--hutch-overlay-space-2));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color: var(--hutch-overlay-label);
+  background: var(--hutch-overlay-surface);
+  border: 1px solid var(--hutch-overlay-line);
+  border-radius: var(--hutch-overlay-radius);
+  box-shadow: var(--hutch-elevation-overlay-popover);
+  font: var(--hutch-overlay-font-body);
+  z-index: var(--hutch-z-popover);
+  transform-origin: var(--hutch-popover-origin, center top);
+}
+.hutch-popover[hidden],
+.hc-popup[hidden] { display: none !important; }
+.hutch-popover[data-state="open"],
+.hc-popup[data-state="open"] {
+  transition:
+    opacity var(--hutch-motion-overlay-enter-duration) var(--hutch-motion-overlay-enter-ease),
+    transform var(--hutch-motion-overlay-enter-duration) var(--hutch-motion-overlay-enter-ease);
+}
+.hutch-popover[data-state="closing"],
+.hc-popup[data-state="closing"] {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(calc(var(--hutch-motion-overlay-shift) * -0.3)) scale(var(--hutch-motion-overlay-scale-exit));
+  transition:
+    opacity var(--hutch-motion-overlay-exit-duration) var(--hutch-motion-overlay-exit-ease),
+    transform var(--hutch-motion-overlay-exit-duration) var(--hutch-motion-overlay-exit-ease);
+}
+
+/* Category depth: dropdown menus sit one step below rich popovers. */
+.hutch-popover[data-category="dropdown"],
+.hc-popup[data-popup-kind="menu"] {
+  box-shadow: var(--hutch-elevation-overlay-dropdown);
+  z-index: var(--hutch-z-dropdown);
+  min-inline-size: 200px;
+}
+.hutch-popover[data-category="tooltip"] {
+  box-shadow: var(--hutch-elevation-overlay-tooltip);
+  z-index: var(--hutch-z-tooltip);
+  padding: var(--hutch-overlay-space-2) var(--hutch-overlay-space-3);
+  color: var(--hutch-alias-tooltip-label, var(--hutch-overlay-label));
+  background: var(--hutch-alias-tooltip-bg, var(--hutch-overlay-surface));
+  font: var(--hutch-overlay-font-caption);
+  pointer-events: none;
+}
+.hutch-popover[data-menu="true"] { padding: var(--hutch-overlay-space-1); }
+
+/* Menu rows. Any row role the caller sets still gets the same geometry, and
+   the primitive sets menuitem roles when menu:true. */
+.hutch-popover :is([role^="menuitem"], [role="option"]),
+.hc-popup :is([role^="menuitem"], .conversation-action-item, .cmenu-files, .quick-prompts button) {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--hutch-overlay-space-3);
+  inline-size: 100%;
+  min-block-size: 40px;
+  padding: var(--hutch-overlay-space-2) var(--hutch-overlay-space-3);
+  border: 0;
+  border-radius: var(--hutch-overlay-radius-control);
+  background: transparent;
+  color: var(--hutch-overlay-label);
+  text-align: start;
+  text-decoration: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  font: var(--hutch-overlay-font-small);
+}
+.hutch-popover :is([role^="menuitem"], [role="option"]):is(:hover, :focus-visible),
+.hc-popup :is([role^="menuitem"], .conversation-action-item, .cmenu-files, .quick-prompts button):is(:hover, :focus-visible) {
+  background: var(--hutch-alias-interactive-bg-hover, rgb(255 255 255 / 0.06));
+}
+.hutch-popover :is([role^="menuitem"], [role="option"])[aria-disabled="true"],
+.hutch-popover :is([role^="menuitem"], [role="option"]):disabled { opacity: 0.55; cursor: not-allowed; }
+.hutch-popover [role="separator"],
+.hc-popup :is(.ms-sep, .cmenu-sep, .conversation-action-divider) {
+  block-size: 1px;
+  margin: var(--hutch-overlay-space-1) var(--hutch-overlay-space-2);
+  background: var(--hutch-overlay-line);
+  border: 0;
+}
+.hutch-popover .hutch-popover__group-label,
+.hc-popup .cmenu-h {
+  margin: var(--hutch-overlay-space-2) var(--hutch-overlay-space-3) var(--hutch-overlay-space-1);
+  color: var(--hutch-overlay-label-tertiary);
+  font: var(--hutch-overlay-font-caption);
+  font-weight: 600;
+}
+.hutch-popover .hutch-popover__note,
+.hc-popup :is(.ms-item-note, .cmenu-sub, .skill-picker-item small) {
+  color: var(--hutch-overlay-label-tertiary);
+  font: var(--hutch-overlay-font-caption);
+}
+.hutch-popover .is-danger,
+.hc-popup :is(.is-danger, [data-variant="danger"]) { color: var(--hutch-overlay-danger); }
+
+/* Rich dialog popovers (form + picker) are wider than action menus. */
+.hutch-popover[data-category="dialog"],
+.hc-popup[data-popup-kind="dialog"] {
+  inline-size: min(360px, calc(100vw - 2 * var(--hutch-overlay-space-2)));
+  padding: var(--hutch-overlay-space-2);
+}
+.hc-popup-header {
+  position: sticky;
+  inset-block-start: calc(-1 * var(--hutch-overlay-space-1));
+  z-index: var(--hutch-z-local);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hutch-overlay-space-3);
+  padding: var(--hutch-overlay-space-1) var(--hutch-overlay-space-3) var(--hutch-overlay-space-2);
+  margin-block-end: var(--hutch-overlay-space-1);
+  border-bottom: 1px solid var(--hutch-overlay-line);
+  background: var(--hutch-overlay-surface);
+  color: var(--hutch-overlay-label);
+  font: var(--hutch-overlay-font-caption);
+  font-weight: 650;
+}
+.hc-popup-close {
+  flex: none;
+  min-inline-size: 44px;
+  min-block-size: 40px;
+  border: 0;
+  border-radius: var(--hutch-overlay-radius-control);
+  padding: var(--hutch-overlay-space-2);
+  color: var(--hutch-overlay-label);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.hc-popup-close:hover { background: var(--hutch-alias-interactive-bg-hover, rgb(255 255 255 / 0.06)); }
+.hc-popup-search {
+  box-sizing: border-box;
+  inline-size: calc(100% - 2 * var(--hutch-overlay-space-2));
+  min-block-size: 44px;
+  margin: var(--hutch-overlay-space-2);
+  padding: var(--hutch-overlay-space-2) var(--hutch-overlay-space-3);
+  border: 1px solid var(--hutch-alias-border-edge, var(--edge, rgb(255 255 255 / 0.38)));
+  border-radius: var(--hutch-overlay-radius-control);
+  color: var(--hutch-overlay-label);
+  background: var(--hutch-alias-bg-well, var(--sunken, #0b0b0e));
+  font: var(--hutch-overlay-font-body);
+}
+.hc-popup-empty { margin: var(--hutch-overlay-space-2) var(--hutch-overlay-space-3); color: var(--hutch-overlay-label-tertiary); }
+.hutch-popover[data-state="closing"] *,
+.hc-popup[data-state="closing"] * { pointer-events: none; }
+
+/* The mobile rich panel keeps the approved sheet presentation. */
+.hutch-popover[data-layout="sheet"],
+.hc-popup[data-popup-layout="sheet"] {
+  inline-size: calc(100vw - 2 * var(--hutch-overlay-space-2));
+  max-block-size: calc(100dvh - 2 * var(--hutch-overlay-space-2));
+}
+
+/* -- floating surfaces that still own their layout ----------------------- */
+.workspace { z-index: var(--hutch-z-popover); }
+.ws-scrim { z-index: var(--hutch-z-dropdown); background: var(--hutch-overlay-scrim); }
+/* #primary-nav is the in-flow sidebar navigation now; the old full-screen
+   overlay no longer exists, so it owns no stacking layer. */
+.roster-action-menu,
+.fleet-card-menu-panel,
+.conversation-actions-panel,
+.assistant-settings-menu-panel,
+.skill-picker-menu,
+.cmenu,
+.ms-menu {
+  color: var(--hutch-overlay-label);
+  background: var(--hutch-overlay-surface);
+  border: 1px solid var(--hutch-overlay-line);
+  border-radius: var(--hutch-overlay-radius);
+  box-shadow: var(--hutch-elevation-overlay-dropdown);
+}
+.roster-action-menu { z-index: var(--hutch-z-dropdown); }
+.skill-picker-menu { z-index: var(--hutch-z-popover); }
+.cmenu,
+.ms-menu { z-index: var(--hutch-z-popover); }
+.conversation-actions-panel,
+.fleet-card-menu-panel { z-index: var(--hutch-z-dropdown); }
+.ms-menu { box-shadow: var(--hutch-elevation-overlay-dropdown); }
+
+/* -- native reviews that stay native dialogs -----------------------------
+   These two keep their bespoke anatomy (right-side review sheet and the
+   command palette). They are modal by contract, so the primitive enhances them,
+   but the shared dialog box model must not resize or re-margin them. */
+dialog.needs-you,
+dialog.palette {
+  font: var(--hutch-overlay-font-body);
+}
+dialog.needs-you:not([open]),
+dialog.palette:not([open]) { display: none; }
+dialog.needs-you {
+  inline-size: min(580px, 100vw);
+  max-inline-size: 100vw;
+  block-size: 100dvh;
+  max-block-size: 100dvh;
+  margin: 0 0 0 auto;
+  padding: 0 var(--needs-you-pad, var(--hutch-overlay-space-5)) var(--needs-you-pad, var(--hutch-overlay-space-5));
+  display: block;
+  overflow-y: auto;
+  border: 0;
+  border-inline-start: 1px solid var(--hutch-overlay-line);
+  border-radius: 0;
+}
+dialog.needs-you[open] { display: block; }
+dialog.palette {
+  inline-size: min(640px, calc(100vw - 24px));
+  max-inline-size: calc(100vw - 24px);
+  block-size: auto;
+  max-block-size: min(70dvh, 560px);
+  margin: 12vh auto 0;
+  padding: 0;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--hutch-overlay-radius);
+}
+dialog.palette[open] { display: flex; }
+
+dialog.needs-you::backdrop,
+dialog.palette::backdrop {
+  background: var(--hutch-overlay-scrim);
+  -webkit-backdrop-filter: blur(var(--hutch-overlay-scrim-blur));
+  backdrop-filter: blur(var(--hutch-overlay-scrim-blur));
+}
+dialog.palette {
+  z-index: var(--hutch-z-modal);
+  color: var(--hutch-overlay-label);
+  background: var(--hutch-overlay-surface);
+  border: 1px solid var(--hutch-overlay-line);
+  border-radius: var(--hutch-overlay-radius);
+  box-shadow: var(--hutch-elevation-overlay-modal);
+}
+dialog.needs-you {
+  z-index: var(--hutch-z-modal);
+  box-shadow: var(--hutch-elevation-overlay-modal);
+}
+
+/* -- toast and attention stay above the modal layer ---------------------- */
+.toast-root { z-index: var(--hutch-z-toast); }
+.attention-bar { z-index: var(--hutch-z-toast); }
+.toast { box-shadow: var(--hutch-elevation-overlay-toast); border-color: var(--hutch-overlay-line-strong); }
+
+/* ==========================================================================
+   Tooltip primitive (descriptive only; never interactive)
+   ========================================================================== */
+
+.hutch-tooltip {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  max-inline-size: min(320px, calc(100vw - 2 * var(--hutch-overlay-space-4)));
+  padding: var(--hutch-overlay-space-2) var(--hutch-overlay-space-3);
+  color: var(--hutch-alias-tooltip-label, var(--hutch-overlay-label));
+  background: var(--hutch-alias-tooltip-bg, var(--hutch-overlay-surface));
+  border: 1px solid var(--hutch-overlay-line);
+  border-radius: var(--hutch-overlay-radius-control);
+  box-shadow: var(--hutch-elevation-overlay-tooltip);
+  font: var(--hutch-overlay-font-caption);
+  pointer-events: none;
+  z-index: var(--hutch-z-tooltip);
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Forced colors and reduced motion
+   ========================================================================== */
+
+@media (forced-colors: active) {
+  dialog.hutch-modal,
+  .hutch-popover,
+  .hc-popup,
+  .hutch-tooltip,
+  dialog.palette,
+  dialog.needs-you {
+    border: 1px solid CanvasText;
+    box-shadow: none;
+    background: Canvas;
+    color: CanvasText;
+  }
+  dialog.hutch-modal::backdrop,
+  dialog.palette::backdrop,
+  dialog.needs-you::backdrop { background: Canvas; opacity: 0.75; }
+  dialog.hutch-modal :focus-visible,
+  .hutch-popover :focus-visible,
+  .hc-popup :focus-visible,
+  dialog.palette :focus-visible,
+  dialog.needs-you :focus-visible { outline-color: Highlight; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog.hutch-modal,
+  dialog.hutch-modal[data-state="closing"],
+  .hutch-popover,
+  .hutch-popover[data-state="closing"],
+  .hc-popup,
+  .hc-popup[data-state="closing"] {
+    transition-duration: 1ms;
+    transform: none;
+  }
+  .hutch-modal [aria-busy="true"]::after { animation: none; }
+}
+
+/* Respect the product's explicit Reduce effects switch as well as the OS. */
+:root.reduce-effects dialog.hutch-modal,
+:root.reduce-effects dialog.hutch-modal[data-state="closing"],
+:root.reduce-effects .hutch-popover,
+:root.reduce-effects .hutch-popover[data-state="closing"],
+:root.reduce-effects .hc-popup,
+:root.reduce-effects .hc-popup[data-state="closing"] {
+  transition-duration: 1ms;
+  transform: none;
+}

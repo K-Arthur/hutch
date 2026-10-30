@@ -1,0 +1,39 @@
+{#-
+  Hutch popover primitive (Jinja2)
+
+  Server-rendered shell for an anchored, non-blocking panel. Pairs with
+  /static/hutch-overlays.css + /static/hutch-popovers.css and the popover
+  controller in /static/hutch-overlay-popover.js.
+
+  The trigger carries data-hutch-popover-open="<id>" and data-popover-side;
+  the controller owns placement (flip + shift), outside-click/Escape dismissal,
+  focus return and, when role="menu", arrow/Home/End navigation. Panels are
+  rendered next to their trigger in the owning page (never portalled by the
+  server): the controller moves them to the top layer when the browser supports
+  the Popover API and only portals in the no-Popover-API fallback outside a
+  modal.
+
+  Slots: the {% call %} body is the panel content. Use role="menu" only when
+  every row is an action (<button role="menuitem"> / <a role="menuitem">);
+  use role="dialog" for searchable pickers or panels with form controls.
+-#}
+{% from "_icons.html" import icon %}
+
+{% macro popover(id, label, role="dialog", side="bottom", trigger_label=None, trigger_id=None, trigger_class="btn ghost", trigger_html=None, align="end") -%}
+{%- if trigger_label or trigger_html %}
+<button type="button" class="{{ trigger_class }}"
+        {%- if trigger_id %} id="{{ trigger_id }}"{% endif %}
+        data-hutch-popover-open="{{ id }}"
+        data-popover-side="{{ side }}"
+        aria-haspopup="{{ 'menu' if role == 'menu' else 'dialog' }}"
+        aria-expanded="false">{% if trigger_html %}{{ trigger_html | safe }}{% else %}{{ trigger_label }}{% endif %}</button>
+{%- endif %}
+<div class="hutch-popover" id="{{ id }}" role="{{ role }}" aria-label="{{ label }}" data-align="{{ align }}" hidden>
+  {{ caller() }}
+</div>
+{%- endmacro %}
+
+{% macro menu_item(label, icon_name=None, danger=False, attrs={}) -%}
+<button type="button" role="menuitem"{% if danger %} class="is-danger"{% endif %}
+        {%- for key, value in attrs.items() %} {{ key }}="{{ value }}"{% endfor %}>{% if icon_name %}{{ icon(icon_name, 16) }} {% endif %}{{ label }}</button>
+{%- endmacro %}

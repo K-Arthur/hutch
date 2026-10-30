@@ -1,0 +1,122 @@
+{#-
+  Hutch composer primitive (Jinja2).
+
+  One macro for every server-rendered composer / prompt box in the product,
+  mirroring the client-side primitive (.hutch-composer) and styled by
+  /static/hutch-composer.css.
+
+  Tokens:
+    surface:          --hutch-alias-bg-layer-2 (#101013)
+    surface-raised:   --hutch-alias-bg-layer-3 (#17171b)
+    surface-muted:    --hutch-alias-bg-well (#0b0b0e)
+    border:           --hutch-alias-border-edge (white / 38%)
+    border-strong:    --hutch-alias-border-l3 (white / 12%)
+    text:             --hutch-alias-label-primary (#ededf0)
+    text-muted:       --hutch-alias-label-secondary (#a3a3ae)
+    placeholder:      --hutch-alias-label-tertiary (#8e8e99)
+    focus-ring:       --hutch-alias-focus-ring (#60a5fa)
+    danger:           --hutch-alias-state-error-primary (#f87171)
+    disabled-surface: --hutch-alias-bg-layer-1 (#0f0f12)
+    disabled-text:    --hutch-alias-label-tertiary (#8e8e99)
+-#}
+{% from "_icons.html" import icon %}
+
+{% macro composer(
+    name="prompt",
+    placeholder="Message…",
+    value="",
+    bot_id=None,
+    bot_name=None,
+    bots=None,
+    disabled=False,
+    streaming=False,
+    actions=None,
+    id=None,
+    rows=3,
+    maxlength=None,
+    required=False,
+    inline=False,
+    send_label="Send",
+    send_icon=None,
+    send_aria_label=None,
+    tools_html="",
+    trailing_html="",
+    help="",
+    error=""
+) -%}
+{%- set fid = id or name -%}
+<div class="hutch-composer{% if inline %} hutch-composer--inline{% endif %}">
+  {%- if bots -%}
+  <div class="hutch-composer__target">
+    <span class="hutch-composer__target-dot" aria-hidden="true"></span>
+    <label class="hutch-composer__target-label" for="{{ fid }}-bot">To</label>
+    <select class="hutch-select hutch-composer__target-select" id="{{ fid }}-bot" name="bot"{% if disabled or streaming %} disabled{% endif %}>
+      {%- for b in bots -%}
+      {%- set b_val = b.name if (b is mapping or b.name is defined) else b[0] -%}
+      {%- set b_disp = (b.display_name or b.name) if (b is mapping or b.name is defined) else b[1] -%}
+      <option value="{{ b_val }}"{% if bot_id == b_val %} selected{% endif %}>{{ b_disp }}</option>
+      {%- endfor -%}
+    </select>
+  </div>
+  {%- elif bot_name or bot_id -%}
+  <div class="hutch-composer__target"{% if bot_id %} data-bot="{{ bot_id }}" data-hutch-composer-target{% endif %}>
+    <span class="hutch-composer__target-dot" aria-hidden="true"></span>
+    <span class="hutch-composer__target-label">To</span>
+    <b class="hutch-composer__target-name">{{ bot_name or bot_id }}</b>
+  </div>
+  {%- endif -%}
+
+  <div class="hutch-composer__body">
+    {%- if not (bot_name or bot_id or bots) -%}
+    <label class="visually-hidden" for="{{ fid }}">{{ placeholder }}</label>
+    {%- endif -%}
+    <textarea class="hutch-composer__textarea" id="{{ fid }}" name="{{ name }}" rows="{{ rows }}"
+              {%- if required %} required{% endif -%}
+              {%- if placeholder %} placeholder="{{ placeholder }}"{% endif -%}
+              {%- if maxlength %} maxlength="{{ maxlength }}"{% endif -%}
+              {%- if disabled %} disabled{% endif -%}
+              {%- if streaming %} readonly aria-busy="true"{% endif -%}
+              {%- if help and error %} aria-describedby="{{ fid }}-help {{ fid }}-error"{% elif help %} aria-describedby="{{ fid }}-help"{% elif error %} aria-describedby="{{ fid }}-error"{% endif -%}
+              {%- if error %} aria-invalid="true"{% endif -%}>{{ value if value is not none else '' }}</textarea>
+  </div>
+
+  <div class="hutch-composer__actions">
+    <div class="hutch-composer__tools">
+      {%- if actions -%}
+        {%- for act in actions -%}
+        <button class="hutch-button hutch-button--ghost hutch-composer__util" type="button"
+                {%- if act.id %} id="{{ act.id }}"{% endif %}
+                {%- if act.label %} aria-label="{{ act.label }}" title="{{ act.label }}"{% endif %}
+                {%- if act.disabled or disabled %} disabled{% endif %}>
+          {%- if act.icon %}{{ icon(act.icon, 16) }}{% else %}{{ act.text }}{% endif -%}
+        </button>
+        {%- endfor -%}
+      {%- endif -%}
+      {%- if tools_html -%}{{ tools_html | safe }}{%- endif -%}
+      {%- if caller is defined and caller -%}{{ caller() }}{%- endif -%}
+    </div>
+    <div class="hutch-composer__trailing">
+      {%- if trailing_html -%}{{ trailing_html | safe }}{%- endif -%}
+      <button class="hutch-button hutch-button--primary hutch-composer__send{% if not send_label and send_icon %} hutch-composer__send--icon{% endif %}{% if streaming %} sending{% endif %}"
+              type="submit"
+              {%- if send_aria_label %} aria-label="{{ send_aria_label }}"{% endif %}
+              {%- if disabled %} disabled{% endif %}
+              {%- if streaming %} aria-busy="true" disabled{% endif %}>
+        {%- if streaming -%}
+          <span class="spinner" aria-hidden="true"></span>
+        {%- elif send_icon -%}
+          {{ icon(send_icon, 15) }}
+        {%- endif -%}
+        {%- if send_label %} {{ send_label }}{% endif -%}
+      </button>
+    </div>
+  </div>
+</div>
+{%- if error or help -%}
+<div class="hutch-composer__foot">
+  {%- if error -%}<p class="hutch-composer__error" id="{{ fid }}-error">{{ error }}</p>{%- endif -%}
+  {%- if help -%}<p class="hutch-help" id="{{ fid }}-help">{{ help }}</p>{%- endif -%}
+</div>
+{%- endif -%}
+{%- endmacro %}
+

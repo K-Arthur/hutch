@@ -1,0 +1,114 @@
+/* ============================================================================
+   Hutch composer primitive — context sheet (hutch-composer-context.css)
+
+   Companion to hutch-composer.css, which holds the shell, routing row, writing
+   area, toolbar, seats and states. This sheet holds what sits INSIDE the shell
+   that is context rather than writing:
+
+     __attachments   the staged-file tray (chips, thumbnails, remove seat, hint)
+     .reply-composer the reply / specialist-result / persona context strips
+
+   Same split the composer has always had, one file now instead of one block in
+   style.css plus another in composer.css. Every value is a token or a
+   --hutch-composer-* role alias; the token map and the mirror-fallback rule are
+   documented at the top of hutch-composer.css. Load order: after
+   hutch-composer.css (linked immediately before this file in both document
+   heads), so these rules win any tie with the shell.
+   ============================================================================ */
+
+/* ── staged-file tray ────────────────────────────────────────────────────── */
+.hutch-composer__attachments {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: var(--hutch-space-1, 4px);
+  padding: var(--hutch-space-2, 8px) var(--hutch-space-3, 12px) 0;
+}
+.hutch-composer__attachments-chips { display: flex; flex-wrap: wrap; min-width: 0; gap: var(--hutch-space-1, 4px); }
+.upload-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hutch-space-1, 4px);
+  min-width: 0;
+  max-width: 100%;
+  padding: var(--hutch-space-1, 4px) var(--hutch-space-2, 8px);
+  border: 1px solid var(--hutch-composer-border-strong);
+  border-radius: var(--hutch-radius-control, 8px);
+  background: var(--hutch-composer-surface-muted);
+  color: var(--hutch-composer-text);
+  font-size: var(--hutch-font-small-font-size, 0.8125rem);
+}
+.upload-chip.is-uploading { border-style: dashed; color: var(--hutch-composer-text-muted); }
+.upload-chip.is-uploading .upload-chip-size { color: var(--hutch-composer-placeholder); }
+.upload-chip-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-chip-size { flex: none; color: var(--hutch-composer-placeholder); white-space: nowrap; }
+.upload-chip-thumb {
+  inline-size: 24px;
+  block-size: 24px;
+  flex: none;
+  border-radius: var(--hutch-radius-control, 8px);
+  border: 1px solid var(--hutch-composer-border-strong);
+  object-fit: cover;
+  background: var(--hutch-composer-surface-muted);
+}
+/* Remove is the ghost icon seat of the Button primitive: 32px square, 8px
+   radius, no circle. */
+.upload-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: var(--hutch-size-control-sm, 32px);
+  block-size: var(--hutch-size-control-sm, 32px);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--hutch-radius-control, 8px);
+  background: transparent;
+  color: var(--hutch-composer-text-muted);
+  cursor: pointer;
+}
+.upload-chip-remove svg { inline-size: 14px; block-size: 14px; }
+.upload-chip-remove:hover {
+  background: var(--hutch-alias-interactive-bg-hover, rgb(255 255 255 / 0.06));
+  border-color: var(--hutch-alias-border-l4, rgb(255 255 255 / 0.22));
+  color: var(--hutch-composer-text);
+}
+.upload-chip-remove:focus-visible {
+  outline: var(--hutch-focus-ring-width, 2px) var(--hutch-focus-ring-style, solid) var(--hutch-composer-focus-ring);
+  outline-offset: var(--hutch-focus-ring-offset, 2px);
+}
+.hutch-composer__attachments-hint {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--hutch-composer-placeholder);
+  font-size: var(--hutch-font-small-font-size, 0.8125rem);
+}
+.hutch-composer__attachments-status { display: block; }
+
+/* ── context chips (reply / specialist result / persona) ─────────────────── */
+.reply-composer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hutch-space-3, 12px);
+  padding: var(--hutch-space-3, 12px) var(--hutch-space-3, 12px) var(--hutch-space-2, 8px);
+  border-bottom: 1px solid var(--hutch-composer-border-strong);
+}
+.reply-composer[hidden] { display: none; }
+.reply-composer-preview { display: grid; gap: 2px; min-width: 0; }
+.reply-composer-by { color: var(--hutch-composer-text); font-weight: var(--hutch-font-weight-semibold, 600); }
+.reply-composer-text {
+  color: var(--hutch-composer-text-muted);
+  font-size: var(--hutch-font-small-font-size, 0.8125rem);
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reply-composer-note { color: var(--hutch-composer-placeholder); font-size: var(--hutch-font-caption-font-size, 0.75rem); line-height: 1.35; }
+.reply-composer .btn { flex: none; }
+
+@media (max-width: 640px), (pointer: coarse) {
+  .upload-chip-remove { inline-size: var(--hutch-size-control-touch, 44px); block-size: var(--hutch-size-control-touch, 44px); }
+}

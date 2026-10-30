@@ -4,14 +4,18 @@
 {% block content %}
 <div class="page-head"><div><h1>Runs</h1><p class="sub">Every run on this machine, with its full transcript. Each shows who or what started it.</p></div></div>
 
-<form class="filters" method="get" action="/runs">
-  <label class="field inline"><span>Bot</span>
-    <select name="bot" onchange="this.form.submit()"><option value="">all bots</option>
-      {% for b in bots %}<option value="{{ b.name }}" {{ 'selected' if b.name == f_bot else '' }}>{{ b.display_name }}</option>{% endfor %}</select></label>
-  <label class="field inline"><span>Status</span>
-    <select name="status" onchange="this.form.submit()">
+<form class="hutch-form hutch-inline hutch-bar" method="get" action="/runs">
+  <div class="hutch-field hutch-inline">
+    <label class="hutch-label" for="bot">Bot</label>
+    <select class="hutch-select" id="bot" name="bot" onchange="this.form.submit()"><option value="">all bots</option>
+      {% for b in bots %}<option value="{{ b.name }}" {{ 'selected' if b.name == f_bot else '' }}>{{ b.display_name }}</option>{% endfor %}</select>
+  </div>
+  <div class="hutch-field hutch-inline">
+    <label class="hutch-label" for="status">Status</label>
+    <select class="hutch-select" id="status" name="status" onchange="this.form.submit()">
       {% for key, label in [("", "all"), ("active", "active"), ("succeeded", "succeeded"), ("failed", "failed"), ("stopped", "stopped")] %}
-      <option value="{{ key }}" {{ 'selected' if key == f_status else '' }}>{{ label }}</option>{% endfor %}</select></label>
+      <option value="{{ key }}" {{ 'selected' if key == f_status else '' }}>{{ label }}</option>{% endfor %}</select>
+  </div>
   <noscript><button class="btn small">Filter</button></noscript>
 </form>
 

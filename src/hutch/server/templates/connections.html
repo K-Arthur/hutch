@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
+{% from "_form.html" import form_actions %}
+{% from "macros/modal.html" import confirm_form %}
 {% block title %}Connections{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>Connections</h1>
@@ -15,7 +17,7 @@
     <p class="hint">This asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.</p></div></header>
   <p class="hint">The current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the <a href="https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations" rel="noopener noreferrer" target="_blank">preview limits</a> before connecting.</p>
   {% if chatgpt_enabled %}
-  <form method="post" action="/connections/chatgpt/sign-in" class="inline-form">
+  <form method="post" action="/connections/chatgpt/sign-in" class="hutch-form hutch-inline">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <button class="btn primary small">Continue with ChatGPT</button>
   </form>
@@ -33,10 +35,14 @@
         {% elif account.connected %}Sign-in succeeded, but model access was not granted. Reauthorize plan use to add a model route.
         {% else %}Local credentials are cleared. The saved registration can be reauthorized.{% endif %}</p></div>
       <div class="card-actions">
-        {% if chatgpt_enabled %}<form method="post" action="/connections/chatgpt/sign-in"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="account_id" value="{{ account.account_id }}">
+        {% if chatgpt_enabled %}<form method="post" action="/connections/chatgpt/sign-in" class="hutch-form hutch-inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="account_id" value="{{ account.account_id }}">
           <button class="btn small ghost">{% if account.plan_usage %}Reconnect{% else %}Authorize plan use{% endif %}</button></form>{% endif %}
-        <form method="post" action="/connections/chatgpt/disconnect" data-confirm="Clear this ChatGPT account from Hutch and request remote revocation?"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="account_id" value="{{ account.account_id }}">
-          <button class="btn small danger">Disconnect</button></form>
+        {{ confirm_form("chatgpt-disconnect-form-" ~ loop.index, "chatgpt-disconnect-confirm-" ~ loop.index, "/connections/chatgpt/disconnect",
+               "Disconnect this ChatGPT account?",
+               "Hutch clears the local credentials and asks the provider to revoke the account. Bots using it lose the route.",
+               "Disconnect account", "Disconnect",
+               hidden={"csrf": csrf, "account_id": account.account_id},
+               trigger_class="btn small danger") }}
       </div></div>
     {% endfor %}
   </div>{% endif %}
@@ -50,8 +56,12 @@
     <div><h2>{{ icon("layers", 18) }} {{ c.title }}</h2>
       <div class="tags"><span class="tag mono">{{ c.name }}</span><span class="tag">{{ c.billing | replace("_", " ") }}</span>
         <span class="tag">{{ c.protocol }}</span><span class="tag">account {{ c.account_id }}</span><span class="tag mono">{{ c.base_url }}</span></div></div>
-    <form method="post" action="/connections/{{ c.name }}/remove" data-confirm="Remove {{ c.name }} and its stored key? Bots that use it will fall back or fail.">
-      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn ghost small">{{ icon("trash", 14) }} Remove</button></form>
+    {{ confirm_form("remove-conn-" ~ c.name, "remove-conn-confirm-" ~ c.name, "/connections/" ~ c.name ~ "/remove",
+        "Remove this connection?",
+        c.name ~ " and its stored key are removed. Bots that use it fall back or fail.",
+        "Remove connection", "Remove",
+        hidden={"csrf": csrf},
+        trigger_class="btn ghost small", trigger_icon="trash") }}
   </header>
 
   <div class="conn-grid">
@@ -64,14 +74,14 @@
       {% else %}
         <h3>API key</h3>
         <p>{% if v.has_key %}<span class="chip st-succeeded">present</span> from the {{ v.key }}{% else %}<span class="chip st-failed">missing</span> set <span class="mono">${{ c.api_key_env }}</span> where hutch starts, or store one below{% endif %}</p>
-        <form method="post" action="/connections/{{ c.name }}/key" class="inline-form" autocomplete="off">
+        <form method="post" action="/connections/{{ c.name }}/key" class="hutch-form hutch-inline" autocomplete="off">
           <input type="hidden" name="csrf" value="{{ csrf }}">
-          <input type="password" name="key" placeholder="paste a key to store it (not shown again)" autocomplete="off" aria-label="API key for {{ c.name }}">
+          <div class="hutch-field"><input class="hutch-input" type="password" name="key" placeholder="paste a key to store it (not shown again)" autocomplete="off" aria-label="API key for {{ c.name }}"></div>
           <button class="btn small">Store</button></form>
         {% if c.get_key_url %}<p class="hint"><a href="{{ c.get_key_url }}" rel="noopener noreferrer" target="_blank">{% if c.signin_guidance %}Continue to OpenCode{% else %}Where to get a key{% endif %}</a></p>
           {% if c.signin_guidance %}<p class="hint">{{ c.signin_guidance }}</p>{% endif %}{% endif %}
       {% endif %}
-      <form method="post" action="/connections/{{ c.name }}/test" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}">
+      <form method="post" action="/connections/{{ c.name }}/test" class="hutch-form hutch-inline"><input type="hidden" name="csrf" value="{{ csrf }}">
         <button class="btn small ghost">{{ icon("refresh", 14) }} Test (spends no tokens)</button></form>
     </div>
 
@@ -85,17 +95,17 @@
       {% else %}
         <p class="muted">No allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.</p>
       {% endif %}
-      <form method="post" action="/connections/{{ c.name }}/allowance" class="inline-form">
+      <form method="post" action="/connections/{{ c.name }}/allowance" class="hutch-form hutch-inline">
         <input type="hidden" name="csrf" value="{{ csrf }}">
-        <input type="text" name="tokens" inputmode="numeric" placeholder="tokens (0 = none)" value="{{ c.quota.tokens or '' }}" aria-label="Allowance in tokens">
-        <select name="window" aria-label="Window">{% for w in windows %}<option value="{{ w }}" {{ 'selected' if w == c.quota.window }}>per {{ w }}</option>{% endfor %}</select>
+        <div class="hutch-field"><input class="hutch-input" type="text" name="tokens" inputmode="numeric" placeholder="tokens (0 = none)" value="{{ c.quota.tokens or '' }}" aria-label="Allowance in tokens"></div>
+        <div class="hutch-field"><select class="hutch-select" name="window" aria-label="Window">{% for w in windows %}<option value="{{ w }}" {{ 'selected' if w == c.quota.window }}>per {{ w }}</option>{% endfor %}</select></div>
         <button class="btn small">Save</button></form>
       {% if c.quota_hint %}<p class="hint">{{ c.quota_hint }}</p>{% endif %}
       <h3>Shared daily currency cap</h3>
       {% if v.account_cost_cap %}<p class="hint">${{ '%.4f'|format(v.cost_used) }} measured + ${{ '%.4f'|format(v.cost_reserved) }} held of the shared ${{ '%.2f'|format(v.account_cost_cap) }} daily cap today.</p>{% else %}<p class="hint">No currency cap is set for this account.</p>{% endif %}
-      <form method="post" action="/connections/{{ c.name }}/account-cap" class="inline-form">
+      <form method="post" action="/connections/{{ c.name }}/account-cap" class="hutch-form hutch-inline">
         <input type="hidden" name="csrf" value="{{ csrf }}">
-        <input type="number" name="daily_usd" inputmode="decimal" min="0" step="0.01" value="{{ c.account_daily_cost_cap_usd or '' }}" placeholder="USD per local day (0 = none)" aria-label="Shared daily currency cap in USD for {{ c.name }}">
+        <div class="hutch-field"><input class="hutch-input" type="number" name="daily_usd" inputmode="decimal" min="0" step="0.01" value="{{ c.account_daily_cost_cap_usd or '' }}" placeholder="USD per local day (0 = none)" aria-label="Shared daily currency cap in USD for {{ c.name }}"></div>
         <button class="btn small">Save cap</button></form>
       <p class="hint">This value applies to {{ c.account_id }}; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use <span class="mono">hutch connections set-account-cap</span> with <span class="mono">--account-id</span> to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.</p>
     </div>
@@ -107,8 +117,8 @@
     <p>{{ c.terms.notice }}</p>
     {% if c.terms.url %}<p class="hint"><a href="{{ c.terms.url }}" rel="noopener noreferrer" target="_blank">Read the vendor's terms</a></p>{% endif %}
     {% if v.ack in ('required', 'stale') %}
-    <form method="post" action="/connections/{{ c.name }}/ack" class="ack-form"><input type="hidden" name="csrf" value="{{ csrf }}">
-      <label class="check"><input type="checkbox" name="agree" value="1"> I have read this and take responsibility for how my bots use this plan.</label>
+    <form method="post" action="/connections/{{ c.name }}/ack" class="hutch-form hutch-inline"><input type="hidden" name="csrf" value="{{ csrf }}">
+      <label class="hutch-check"><input type="checkbox" name="agree" value="1"><span class="hutch-option-text"><span>I have read this and take responsibility for how my bots use this plan.</span></span></label>
       <button class="btn primary small">Acknowledge</button></form>
     {% endif %}
   </div>
@@ -117,9 +127,9 @@
   <details class="conn-more"><summary>Per-model protocol</summary>
     <p class="hint">{{ c.model_protocol_hint or "Some plans serve different models over different wire formats. Hutch speaks openai-chat and anthropic; the Responses protocol is reserved for the official Sign in with ChatGPT route." }}</p>
     {% if c.model_protocols %}<ul class="plain">{% for m, pr in c.model_protocols.items() %}<li><span class="mono">{{ m }}</span> uses <strong>{{ pr }}</strong></li>{% endfor %}</ul>{% endif %}
-    <form method="post" action="/connections/{{ c.name }}/protocol" class="inline-form"><input type="hidden" name="csrf" value="{{ csrf }}">
-      <input type="text" name="model" placeholder="model id" aria-label="Model id" required>
-      <select name="protocol" aria-label="Protocol"><option>openai-chat</option><option>anthropic</option></select>
+    <form method="post" action="/connections/{{ c.name }}/protocol" class="hutch-form hutch-inline"><input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="hutch-field"><input class="hutch-input" type="text" name="model" placeholder="model id" aria-label="Model id" required></div>
+      <div class="hutch-field"><select class="hutch-select" name="protocol" aria-label="Protocol"><option>openai-chat</option><option>anthropic</option></select></div>
       <button class="btn small">Set</button></form>
   </details>
 </section>
@@ -135,12 +145,12 @@
     <div class="tags"><span class="tag">{{ t.billing | replace("_", " ") }}</span><span class="tag">{{ t.protocol }}</span></div>
     <p class="hint mono">{{ t.base_url }}</p>
     {% if t.terms and t.terms.requires_ack %}<p class="hint">{{ icon("alert", 13) }} Has a terms notice you must acknowledge.</p>{% endif %}
-    <form method="post" action="/connections/add" class="stack-form"><input type="hidden" name="csrf" value="{{ csrf }}">
+    <form method="post" action="/connections/add" class="hutch-form"><input type="hidden" name="csrf" value="{{ csrf }}">
       <input type="hidden" name="template" value="{{ key }}">
-      <input type="text" name="name" value="{{ key if key not in have else '' }}" placeholder="name (used in model specs)" aria-label="Connection name" pattern="[a-z0-9][a-z0-9-]{1,40}">
-      {% if key.startswith('custom') %}<input type="text" name="base_url" placeholder="https://your-endpoint/v1" aria-label="Base URL">
-      <input type="text" name="api_key_env" placeholder="ENV_VAR_WITH_KEY" aria-label="Environment variable">{% endif %}
-      <button class="btn small primary">{{ icon("plus", 14) }} Add</button></form>
+      <div class="hutch-field"><input class="hutch-input" type="text" name="name" value="{{ key if key not in have else '' }}" placeholder="name (used in model specs)" aria-label="Connection name" pattern="[a-z0-9][a-z0-9-]{1,40}"></div>
+      {% if key.startswith('custom') %}<div class="hutch-field"><input class="hutch-input" type="text" name="base_url" placeholder="https://your-endpoint/v1" aria-label="Base URL"></div>
+      <div class="hutch-field"><input class="hutch-input" type="text" name="api_key_env" placeholder="ENV_VAR_WITH_KEY" aria-label="Environment variable"></div>{% endif %}
+      {% call form_actions() %}<button class="btn small primary">{{ icon("plus", 14) }} Add</button>{% endcall %}</form>
   </article>
   {% endfor %}
 </div>

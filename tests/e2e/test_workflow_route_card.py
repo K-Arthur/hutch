@@ -319,9 +319,9 @@ def test_chat_suggestion_card_reflows_and_requires_review(browser, live_studio):
             color:s.color, backgroundColor:s.backgroundColor, borderColor:s.borderColor,
             forcedColorAdjust:s.forcedColorAdjust}; }""")
         answer_colors = wait_for_page_value(page, """() => {
-          const el = [...document.querySelectorAll('.answer')].find(node =>
+          const el = [...document.querySelectorAll('.hutch-msg__answer')].find(node =>
             node.textContent.includes('Transcript refreshed while review is open.'));
-          const bubble = [...document.querySelectorAll('.msg.you .bubble')].find(node =>
+          const bubble = [...document.querySelectorAll('.hutch-msg--user .hutch-msg__body')].find(node =>
             node.textContent.includes('Review independent projects and verify the report'));
           if (!el?.isConnected || !el.getClientRects().length || !bubble?.isConnected) return null;
           const probe = document.createElement('span');

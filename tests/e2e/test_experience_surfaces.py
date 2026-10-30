@@ -40,7 +40,7 @@ def test_typed_output_widgets_fit_the_run_transcript_at_responsive_sizes(browser
             # Grouped tool output stays an explicit disclosure in the product.
             cards = page.locator(".widget-card")
             expect(cards).to_have_count(len(kinds))
-            stream = page.locator(".tool-stream:not([open]) > summary")
+            stream = page.locator(".hutch-tool-group:not([open]) > summary")
             if stream.count():
                 stream.first.click()
             for group in page.locator('[data-group-toggle][aria-expanded="false"]').all():
@@ -159,11 +159,11 @@ def test_run_transcript_uses_the_same_saved_identity_as_the_assistant_roster(bro
         for width, height in ((1440, 960), (390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.goto(f"{base}/#/run/{run.id}")
-            avatar = page.locator(".mhead .avatar svg")
+            avatar = page.locator(".hutch-msg__identity .avatar svg")
             expect(avatar).to_be_visible()
             roster = page.locator('[data-switch-bot="design-system-review"] .avatar svg')
             assert avatar.inner_html() == roster.inner_html()
-            assert page.locator(".mhead b").inner_text() == "Design Partner"
+            assert page.locator(".hutch-msg__identity b").inner_text() == "Design Partner"
             page.screenshot(path=str(out / f"run-identity-{width}.png"), animations="disabled")
     finally:
         context.close()

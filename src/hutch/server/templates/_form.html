@@ -1,0 +1,139 @@
+{#-
+  Hutch form primitives (Jinja2).
+
+  One macro set for every server-rendered form, paired with
+  /static/hutch-forms.css (which owns the look) and /static/hutch-forms.js
+  (which wires aria-describedby, aria-invalid and the required marker).
+
+  Structure each macro emits - and the shape to keep when hand-writing a field:
+
+    <div class="hutch-field">
+      <label class="hutch-label" for="ID">Label <span class="hutch-req" aria-hidden="true">*</span></label>
+      <input class="hutch-input" id="ID" name="NAME" ...>
+      <p class="hutch-help" id="ID-help">...</p>
+      <p class="hutch-error" id="ID-error">...</p>
+    </div>
+
+  Tokens: every colour, radius, spacing and type value comes from the Hutch
+  token layer (src/hutch/web/styles/hutch-tokens.css) through the
+  --hutch-form-* tier declared in static/hutch-forms.css. Do not put raw
+  colours or px values in a template.
+
+  Rules: never drop a name, id or server wiring - this is presentation only.
+  Help and error slots are siblings of the control, never inside the label
+  (a <p> is not phrasing content and cannot live in a <label>).
+-#}
+
+{#- The required marker. Decorative: the control keeps its native required
+    attribute, which is what assistive tech announces. -#}
+{% macro req_marker() %}<span class="hutch-req" aria-hidden="true">*</span>{% endmacro %}
+
+{#- Label text with its optional required marker and for= association. -#}
+{% macro field_label(text, for=None, required=False, optional=False) -%}
+<label class="hutch-label"{% if for %} for="{{ for }}"{% endif %}>{{ text }}{% if required %} {{ req_marker() }}{% elif optional %} <span class="hutch-optional">(optional)</span>{% endif %}</label>
+{%- endmacro %}
+
+{#- Standalone help, error and success slots for fields written by hand. -#}
+{% macro help_text(id, text) -%}<p class="hutch-help" id="{{ id }}">{{ text }}</p>{%- endmacro %}
+{% macro field_error(id, text) -%}<p class="hutch-error" id="{{ id }}">{{ text }}</p>{%- endmacro %}
+{% macro field_ok(id, text) -%}<p class="hutch-ok" id="{{ id }}">{{ text }}</p>{%- endmacro %}
+
+{#- Text, password and other single-line inputs.
+    attrs: dict of extra attributes (pattern, maxlength, inputmode, ...). -#}
+{% macro text_input(name, label, value='', type='text', required=False, help='', error='', placeholder='', id=None, wide=False, autocomplete=None, attrs={}) -%}
+{%- set fid = id or name -%}
+<div class="hutch-field{% if wide %} wide{% endif %}">
+  {{ field_label(label, for=fid, required=required) }}
+  <input class="hutch-input" type="{{ type }}" id="{{ fid }}" name="{{ name }}"
+         value="{{ value if value is not none else '' }}"
+         {%- if required %} required{% endif -%}
+         {%- if placeholder %} placeholder="{{ placeholder }}"{% endif -%}
+         {%- if autocomplete %} autocomplete="{{ autocomplete }}"{% endif -%}
+         {%- if help and error %} aria-describedby="{{ fid }}-help {{ fid }}-error"{% elif help %} aria-describedby="{{ fid }}-help"{% elif error %} aria-describedby="{{ fid }}-error"{% endif -%}
+         {%- if error %} aria-invalid="true"{% endif -%}
+         {%- for k, v in attrs.items() %} {{ k }}="{{ v }}"{% endfor %}>
+  {% if help %}<p class="hutch-help" id="{{ fid }}-help">{{ help }}</p>{% endif %}
+  {% if error %}<p class="hutch-error" id="{{ fid }}-error">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{#- Multi-line text. -#}
+{% macro textarea(name, label, value='', rows=4, required=False, help='', error='', placeholder='', id=None, wide=False, attrs={}) -%}
+{%- set fid = id or name -%}
+<div class="hutch-field{% if wide %} wide{% endif %}">
+  {{ field_label(label, for=fid, required=required) }}
+  <textarea class="hutch-textarea" id="{{ fid }}" name="{{ name }}" rows="{{ rows }}"
+            {%- if required %} required{% endif -%}
+            {%- if placeholder %} placeholder="{{ placeholder }}"{% endif -%}
+            {%- if help and error %} aria-describedby="{{ fid }}-help {{ fid }}-error"{% elif help %} aria-describedby="{{ fid }}-help"{% elif error %} aria-describedby="{{ fid }}-error"{% endif -%}
+            {%- if error %} aria-invalid="true"{% endif -%}
+            {%- for k, v in attrs.items() %} {{ k }}="{{ v }}"{% endfor %}>{{ value if value is not none else '' }}</textarea>
+  {% if help %}<p class="hutch-help" id="{{ fid }}-help">{{ help }}</p>{% endif %}
+  {% if error %}<p class="hutch-error" id="{{ fid }}-error">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{#- Select. options: list of (value, label) pairs, or dicts with value/label/selected. -#}
+{% macro select_input(name, label, options, value='', required=False, help='', error='', id=None, wide=False, attrs={}) -%}
+{%- set fid = id or name -%}
+<div class="hutch-field{% if wide %} wide{% endif %}">
+  {{ field_label(label, for=fid, required=required) }}
+  <select class="hutch-select" id="{{ fid }}" name="{{ name }}"
+          {%- if required %} required{% endif -%}
+          {%- if help and error %} aria-describedby="{{ fid }}-help {{ fid }}-error"{% elif help %} aria-describedby="{{ fid }}-help"{% elif error %} aria-describedby="{{ fid }}-error"{% endif -%}
+          {%- if error %} aria-invalid="true"{% endif -%}
+          {%- for k, v in attrs.items() %} {{ k }}="{{ v }}"{% endfor %}>
+    {%- for opt in options -%}
+    {%- if opt is mapping -%}
+    <option value="{{ opt.value }}"{% if opt.get('selected', value == opt.value) %} selected{% endif %}>{{ opt.label }}</option>
+    {%- else -%}
+    <option value="{{ opt[0] }}"{% if value == opt[0] %} selected{% endif %}>{{ opt[1] }}</option>
+    {%- endif -%}
+    {%- endfor -%}
+  </select>
+  {% if help %}<p class="hutch-help" id="{{ fid }}-help">{{ help }}</p>{% endif %}
+  {% if error %}<p class="hutch-error" id="{{ fid }}-error">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{#- Checkbox. The native input is kept and restyled by the stylesheet. -#}
+{% macro checkbox(name, label, checked=False, help='', required=False, id=None) -%}
+{%- set fid = id or name -%}
+<label class="hutch-check" for="{{ fid }}">
+  <input type="checkbox" id="{{ fid }}" name="{{ name }}"{% if checked %} checked{% endif %}{% if required %} required{% endif %}{% if help %} aria-describedby="{{ fid }}-help"{% endif %}>
+  <span class="hutch-option-text"><span>{{ label }}</span>{% if help %}<span class="hutch-option-help" id="{{ fid }}-help">{{ help }}</span>{% endif %}</span>
+</label>
+{%- endmacro %}
+
+{#- Radio group. options: list of (value, label[, help]) pairs or dicts with
+    value/label/help/selected. -#}
+{% macro radio_group(name, legend, options, value=None, help='', required=False, boxed=False, wide=False, id=None) -%}
+{%- set fid = id or name -%}
+<fieldset class="hutch-fieldset{% if boxed %} hutch-boxed{% endif %}{% if wide %} wide{% endif %}">
+  <legend class="hutch-legend">{{ legend }}{% if required %} {{ req_marker() }}{% endif %}</legend>
+  {%- for opt in options -%}
+  {%- set is_map = opt is mapping -%}
+  {%- set oval = opt.value if is_map else opt[0] -%}
+  {%- set olabel = opt.label if is_map else opt[1] -%}
+  {%- set ohelp = opt.get('help', '') if is_map else (opt[2] if opt | length > 2 else '') -%}
+  {%- set oselected = opt.get('selected', value == oval) if is_map else value == oval -%}
+  <label class="hutch-option">
+    <input type="radio" name="{{ name }}" value="{{ oval }}"{% if oselected %} checked{% endif %}{% if required %} required{% endif %}>
+    <span class="hutch-option-text"><span>{{ olabel }}</span>{% if ohelp %}<span class="hutch-option-help">{{ ohelp }}</span>{% endif %}</span>
+  </label>
+  {%- endfor -%}
+  {% if help %}<p class="hutch-help" id="{{ fid }}-help">{{ help }}</p>{% endif %}
+</fieldset>
+{%- endmacro %}
+
+{#- Submit/reset row. Reuses the existing button primitives (.btn primary /
+    .btn ghost); only the row is new. Usage:
+
+      {% call form_actions() %}
+        <button class="btn primary" type="submit">Save</button>
+        <button class="btn ghost" type="reset">Reset</button>
+      {% endcall %}
+-#}
+{% macro form_actions(modifier='') -%}
+<div class="hutch-actions{% if modifier %} {{ modifier }}{% endif %}">{{ caller() }}</div>
+{%- endmacro %}

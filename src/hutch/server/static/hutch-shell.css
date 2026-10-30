@@ -1,0 +1,178 @@
+/* Server-page application shell.
+
+   One chrome for every full server-rendered page: the same 304px navigation
+   rail, 56px contextual header and <=900px labelled drawer the SPA app shell
+   uses. Primary navigation lives in the rail (templates/macros/sidebar.html);
+   this header owns only the page's own controls (drawer toggle, Stop all, live
+   status), so no route can grow a second navigation model.
+
+   Loaded only by templates/base.html, after the shared nav component and the
+   responsive foundation. Tokens only - every value is a brand-tokens.css token
+   or one of the overlay tokens loaded later on the same page. */
+
+:root {
+  --app-top-h: 56px;
+  --shell-rail: 304px;
+  --shell-drawer: min(300px, 86vw);
+}
+
+.hutch-shell {
+  display: grid;
+  grid-template-columns: var(--shell-rail) minmax(0, 1fr);
+  min-height: 100dvh;
+  background: var(--color-semantic-bg);
+}
+
+/* ── the rail ── */
+.hutch-shell > .workspace {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow-y: auto;
+  /* DESIGN.md surface-sidebar (#070709): one step below the canvas. Derived
+     from the ground token instead of a second palette literal. */
+  background: color-mix(in srgb, var(--color-semantic-bg) 82%, black);
+  border-right: 1px solid var(--color-semantic-border);
+  padding-top: var(--safe-top);
+  padding-right: var(--safe-right);
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+}
+
+.ws-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  height: var(--app-top-h);
+  padding: 0 var(--space-3) 0 var(--space-4);
+}
+
+.hutch-shell .ws-nav { flex: none; }
+.hutch-shell .ws-foot { margin-top: auto; }
+
+/* ── main column ── */
+.hutch-workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100dvh;
+}
+
+/* Contextual header: same height on every route, so navigating never jumps.
+   Safe-area padding keeps the first row clear of a cutout. */
+.app-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;      /* above the page, below every overlay layer (z 42-70) */
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: calc(var(--app-top-h) + var(--safe-top));
+  padding-block: var(--safe-top) 0;
+  padding-inline: calc(var(--space-6) + var(--safe-left)) calc(var(--space-6) + var(--safe-right));
+  background: var(--color-semantic-bg);
+  border-bottom: 1px solid var(--color-semantic-border);
+}
+.app-top-context {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+}
+.app-top-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+}
+.app-top-status form { margin: 0; }
+
+/* Shared icon-button control for the drawer toggle and close action. Icon-only
+   controls always carry an accessible name in the markup. */
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-semantic-border);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-semantic-text-2);
+  cursor: pointer;
+}
+.icon-btn:hover {
+  color: var(--color-semantic-text);
+  background: var(--color-primitive-white-a06);
+}
+.icon-btn:focus-visible {
+  outline: 2px solid var(--color-semantic-focus-ring);
+  outline-offset: 2px;
+}
+
+.nav-toggle { display: none; }
+.ws-close { display: none; margin-left: auto; }
+
+.hutch-workspace > .container { flex: 1; }
+.hutch-workspace > .foot { margin-top: auto; }
+
+/* Drawer scrim: same layer order as the SPA shell (z set at the breakpoint). */
+.hutch-shell .ws-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--hutch-overlay-scrim);
+}
+.hutch-shell .ws-scrim[hidden] { display: none; }
+
+/* Drawer toggle buttons are plain controls, not navigation, so they are
+   excluded from the shared nav styles. */
+.hutch-shell .nav-toggle .ico { display: block; }
+
+@media (max-width: 900px) {
+  .hutch-shell { grid-template-columns: minmax(0, 1fr); }
+  .hutch-shell > .workspace {
+    position: fixed;
+    inset: 0 auto 0 0;
+    height: var(--vvh, 100dvh);
+    width: var(--shell-drawer);
+    z-index: var(--hutch-z-modal, 50);      /* the drawer is the topmost surface */
+    transform: translateX(-102%);
+    transition: transform var(--motion-dur-slow) var(--motion-ease-standard);
+    box-shadow: var(--hutch-elevation-overlay-modal);
+  }
+  .hutch-shell.nav-open > .workspace { transform: none; }
+  /* The scrim covers the header while the drawer is open (the SPA convention):
+     Stop all / live status must not stay clickable behind a modal surface. */
+  .hutch-shell .ws-scrim { z-index: var(--hutch-z-popover, 46); }
+  .app-top {
+    z-index: 1;
+    padding-inline: calc(var(--space-3) + var(--safe-left)) calc(var(--space-3) + var(--safe-right));
+  }
+  .nav-toggle { display: inline-grid; }
+  .ws-close { display: inline-grid; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hutch-shell > .workspace { transition: none; }
+}
+
+/* Keyboard focus and skip-link targets land below the sticky header. The
+   server header never wraps, so the offset is one constant instead of a
+   measured value. */
+html { scroll-padding-top: calc(var(--app-top-h) + var(--space-2)); }
+.run-head { top: var(--app-top-h); }
+
+/* The skip link target must be focusable so the link actually moves focus past
+   the rail (the SPA marks main#view the same way). */
+main#main:focus { outline: none; }
+
+/* [hidden] must beat the responsive display rules above. */
+.hutch-shell .ws-close[hidden],
+.hutch-shell .ws-scrim[hidden] { display: none; }

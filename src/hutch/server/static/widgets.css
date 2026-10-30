@@ -188,7 +188,7 @@ th[aria-sort="descending"] .widget-sort svg { color: var(--brand-hi); }
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.widget-field select, .widget-field input {
+.widget-field input {
   min-height: 32px;
   padding: 4px 8px;
   background: var(--raised);
@@ -416,7 +416,7 @@ th[aria-sort="descending"] .widget-sort svg { color: var(--brand-hi); }
 
 /* ── a11y / motion / touch ──────────────────────────────────────────── */
 
-.widget-card :is(button, [tabindex="0"], select, input, summary):focus-visible {
+.widget-card :is(button, [tabindex="0"], input, summary):focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
@@ -439,7 +439,7 @@ th[aria-sort="descending"] .widget-sort svg { color: var(--brand-hi); }
 /* 44px+ touch targets on coarse pointers (DESIGN.md layout rules). */
 @media (pointer: coarse) {
   .widget-card button, .widget-datatable > summary, .widget-sort,
-  .widget-field select, .widget-field input, .widget-check {
+  .widget-field input, .widget-check {
     min-height: 44px;
   }
   .widget-card button, .widget-sort { min-width: 44px; }

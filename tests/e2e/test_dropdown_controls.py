@@ -292,7 +292,7 @@ def test_public_image_workspace_journey_without_provider_calls(browser, live):
         page.keyboard.press("Escape")
         assert image.name in page.locator(".upload-chip-name").inner_text()
         assert_fits(page, page.locator(".upload-chip-remove"))
-        assert page.locator(".composer-attachments").evaluate("el => el.scrollWidth <= el.clientWidth + 1")
+        assert page.locator(".hutch-composer__attachments").evaluate("el => el.scrollWidth <= el.clientWidth + 1")
         page.locator(".ms-btn").click()
         assert_fits(page, page.locator(".ms-menu"))
         page.screenshot(path=str(out / "uploaded-with-model-picker-phone.png"))
@@ -372,7 +372,7 @@ def test_server_select_form_remains_usable_without_javascript(browser, live):
         page.goto(base + "/legacy/connections")
         window = page.get_by_label("Window", exact=True).first
         window.select_option("week")
-        form = window.locator("xpath=..")
+        form = window.locator("xpath=ancestor::form[1]")
         data = form.evaluate("form => Object.fromEntries(new FormData(form))")
         assert data["window"] == "week" and "csrf" in data
         assert window.evaluate("el => getComputedStyle(el).fontSize") == "16px"

@@ -27,6 +27,12 @@ The matrix, surface catalogue and thresholds live in one place:
 scripts/responsive/config.py. The runner is scripts/validate_responsive.py;
 scripts/validate-responsive.sh is a thin wrapper for the documented command.
 
+Note (2026-10-30): the server-page top navigation bar was removed in the navbar
+consolidation - every full page now renders the shared app sidebar, a fixed
+56px `.app-top` header, and the SPA's <=900px drawer. The pages-* navigation
+states and `--topbar-h` assertions in this harness still describe the removed
+topbar; update them before treating a harness run as current evidence.
+
     # fast loop: three surfaces x three viewports, assertions only
     .venv/bin/python scripts/validate_responsive.py --quick --no-screenshots --fail-on none
 

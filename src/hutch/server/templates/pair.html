@@ -1,16 +1,20 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
+{% from "_form.html" import text_input, form_actions %}
 {% block title %}Pair this device{% endblock %}
 {% block content %}
 <section class="panel narrow pair-panel auth-panel" aria-labelledby="pair-title">
   <span class="auth-mark" aria-hidden="true">{{ icon("shield", 20) }}</span>
   <h1 id="pair-title">Pair this device</h1>
   <p id="pair-instructions" class="sub">On your Hutch host, run <code>hutch pairing create</code>. Enter its one-time code, then save a passkey on this device.</p>
-  <form id="pair-form" class="stack" novalidate>
-    <label class="field"><span>Device name</span><input name="label" type="text" maxlength="80" autocomplete="off" value="Phone" required></label>
-    <label class="field"><span>One-time code</span><input name="code" type="text" minlength="14" maxlength="24" inputmode="text" autocapitalize="characters" autocomplete="one-time-code" spellcheck="false" required aria-describedby="pair-code-help"></label>
-    <p id="pair-code-help" class="hint">The code works once and expires after one minute. Pair over private HTTPS. You can revoke this passkey from Hutch on your host.</p>
-    <button id="pair-submit" class="btn primary" type="submit">Pair device</button>
+  <form id="pair-form" class="hutch-form" novalidate>
+    {{ text_input("label", "Device name", value="Phone", required=True, autocomplete="off", attrs={"maxlength": "80"}) }}
+    <div class="hutch-field">
+      <label class="hutch-label" for="code">One-time code <span class="hutch-req" aria-hidden="true">*</span></label>
+      <input class="hutch-input" type="text" id="code" name="code" minlength="14" maxlength="24" inputmode="text" autocapitalize="characters" autocomplete="one-time-code" spellcheck="false" required aria-describedby="pair-code-help">
+      <p class="hutch-help" id="pair-code-help">The code works once and expires after one minute. Pair over private HTTPS. You can revoke this passkey from Hutch on your host.</p>
+    </div>
+    {% call form_actions() %}<button id="pair-submit" class="btn primary" type="submit">Pair device</button>{% endcall %}
   </form>
   <p id="pair-error" class="pair-message bad" role="alert" hidden></p>
   <section id="pair-success" class="pair-success" role="status" hidden>

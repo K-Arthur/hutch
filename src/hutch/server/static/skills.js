@@ -89,15 +89,13 @@
       <section class="panel" aria-labelledby="skills-import-title">
         <div class="panel-title" id="skills-import-title">Add a skill</div>
         <div class="skill-import-grid">
-          <form id="skills-import-path" class="skill-import-form">
-            <label class="field">From a local folder
-              <input type="text" name="path" placeholder="~/my-skills/meeting-notes" autocomplete="off" spellcheck="false">
-            </label>
-            <button class="btn small" type="submit">Install from folder</button>
+          <form id="skills-import-path" class="skill-import-form hutch-form hutch-inline">
+            <div class="hutch-field"><label class="hutch-label" for="skills-import-path-input">From a local folder</label><input class="hutch-input" type="text" id="skills-import-path-input" name="path" placeholder="~/my-skills/meeting-notes" autocomplete="off" spellcheck="false"></div>
+            <div class="hutch-actions"><button class="btn small" type="submit">Install from folder</button></div>
           </form>
           <div class="skill-import-bundled">
             <p class="hint">Or install one of Hutch's reviewed samples:</p>
-            <div class="btn-row" id="skills-bundled"></div>
+            <div class="hutch-actions" id="skills-bundled"></div>
           </div>
         </div>
         <p class="hint">Import reads a folder on this machine only; Hutch never fetches skills from the network.
@@ -220,7 +218,7 @@
           apply it after reviewing, or discard it. The reviewed version stays active until then.</p>` : ""}
         ${item.status === "modified" ? `<p class="hint tone-danger">The files changed after review. It is withheld from runs;
           inspect the new content and trust it again if the change is yours.</p>` : ""}
-        <div class="btn-row skill-actions">${actions.join("")}</div>
+        <div class="hutch-actions skill-actions">${actions.join("")}</div>
       </article>`;
     }
 
@@ -384,12 +382,7 @@
         const reason = !selectable ? (item.status === "review_required" ? "review it on the Skills page first"
           : item.status === "modified" ? "changed on disk; review it again"
           : item.status === "disabled" ? "disabled" : item.status.replace(/_/g, " ")) : "";
-        return `<label class="tool-option skill-option ${selectable ? "" : "is-blocked"}">
-          <input type="checkbox" name="skills" value="${esc(item.name)}" ${checked ? "checked" : ""} ${selectable ? "" : "disabled"}>
-          <span class="tool-option-copy"><b>${esc(item.name)}</b>
-            <small>${esc(item.description || "")}${reason ? ` — ${esc(reason)}` : ""}</small></span>
-          ${statusChip(item.status)}
-        </label>`;
+        return `<label class="hutch-check skill-option ${selectable ? "" : "is-blocked"}"><input type="checkbox" name="skills" value="${esc(item.name)}" ${checked ? "checked" : ""} ${selectable ? "" : "disabled"}><span class="tool-option-copy"><b>${esc(item.name)}</b><small>${esc(item.description || "")}${reason ? ` — ${esc(reason)}` : ""}</small></span>${statusChip(item.status)}</label>`;
       }).join("") : `<div class="empty-state"><p>No skills are installed yet.</p>
         <p class="hint">Install and review one from the <a href="#/skills">Skills page</a>.</p></div>`;
       const skillArea = readiness.areas.find(area => area.id === "skills");
@@ -397,9 +390,9 @@
         <p class="hint">Skills are reviewed instruction packages this assistant may load. They never grant tools or
           permissions; each action still follows this assistant's approval settings. A skill also needs the tools or
           connected account it declares.</p>
-        <form id="bot-skills-form">
+        <form id="bot-skills-form" class="hutch-form">
           <div class="tool-options" role="group" aria-label="Assigned skills">${options}</div>
-          <div class="btn-row"><button class="btn primary small" type="submit" ${installed.length ? "" : "disabled"}>Save skills</button></div>
+          <div class="hutch-actions"><button class="btn primary small" type="submit" ${installed.length ? "" : "disabled"}>Save skills</button></div>
         </form>
         <div class="readiness" aria-label="Readiness">
           <div class="readiness-head">${readiness.ready
@@ -440,7 +433,7 @@
     let selected = new Set();
 
     slot.innerHTML = `<div class="skill-picker" hidden>
-      <button type="button" class="composer-util skill-picker-btn" aria-haspopup="dialog" aria-expanded="false">
+      <button type="button" class="hutch-button hutch-button--ghost hutch-composer__util skill-picker-btn" aria-haspopup="dialog" aria-expanded="false">
         ${glyph("skill", 14)}<span class="skill-picker-label">Skills</span>
       </button>
       <div class="skill-picker-menu" role="dialog" aria-label="Skills for the next message" hidden>

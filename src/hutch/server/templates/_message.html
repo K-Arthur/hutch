@@ -1,0 +1,92 @@
+{#-
+  Message primitives for server-rendered transcripts (message-system contract v1).
+
+  Markup only: no inline styles, no colour literals. Everything is styled by
+  static/hutch-messages.css (linked last in base.html). Server pages never load
+  ui.css, so that sheet writes every value as var(--hutch-alias-<role>, <literal>)
+  - the mirror fallback is mandatory and this file must not declare tokens.
+
+  Token -> primitive map (--hutch-msg-* declared in hutch-messages.css :root):
+    --hutch-msg-surface / -raised / -muted   shells: agent prose, user plate, system note
+    --hutch-msg-text / -muted / -faint       body ink, meta ink, stamp ink
+    --hutch-msg-border / -strong             plates and dividers
+    --hutch-msg-focus                        :focus-visible outline on summaries, toggles, approve/deny
+    --hutch-msg-danger / -success / -warn    data-state="error" line, tool ok/bad state, attention tone
+    --hutch-msg-radius                       --hutch-radius-control for inner plates
+    --hutch-msg-identity                     agent rail + monogram; hutch.js paints it from
+                                             --hutch-bot-identity-<n> chosen by the shared FNV-1a rule
+                                             index = (fnv1a32(bot_id || bot_name) >>> 0) % 6 + 1, keyed on
+                                             [data-bot]; no key -> neutral.
+
+  Primitive -> class (exact names from the contract):
+    message_user(content, timestamp)   .hutch-msg.hutch-msg--user[data-state] >
+                                        .hutch-msg__body + .hutch-msg__meta > time.hutch-msg__stamp
+    message_agent(content, bot_name, bot_id, timestamp, status)
+                                       .hutch-msg.hutch-msg--agent[data-bot][data-state] >
+                                        .hutch-msg__identity (.hutch-msg__avatar + <b>name</b> +
+                                        .hutch-msg__live status word + <time>) + .hutch-msg__body
+    message_system(content, icon_name, tone, ...)
+                                       .hutch-msg.hutch-msg--system[data-tone] > icon + .hutch-msg__body;
+                                       pass content for plain text, or wrap the call in {% call %} when the
+                                       body holds markup (tone is note | attention | danger)
+    tool_call_block(state, icon_name, ...)
+                                       details.hutch-tool[data-state=ok|bad|running|waiting] >
+                                        summary.hutch-tool__head (icon + monospace name + argsum summary +
+                                        .hutch-tool__state word + time) + pre.hutch-tool__body / __out
+    inline_approval(content)            .hutch-approval frames approval_card() output unchanged;
+                                        approval card internals and [data-approve] wiring are not touched
+-#}
+{%- from "_icons.html" import icon -%}
+
+{% macro message_user(content, timestamp="") %}
+<div class="hutch-msg hutch-msg--user" data-state="done">
+  <div class="hutch-msg__body">{{ content }}</div>
+  {%- if timestamp %}
+  <div class="hutch-msg__meta"><time class="hutch-msg__stamp">{{ timestamp }}</time></div>
+  {%- endif %}
+</div>
+{% endmacro %}
+
+{% macro message_agent(content, bot_name="", bot_id="", timestamp="", status="done") %}
+<div class="hutch-msg hutch-msg--agent" data-state="{{ status or 'done' }}"{% if bot_id or bot_name %} data-bot="{{ bot_id or bot_name }}"{% endif %}>
+  <div class="hutch-msg__identity">
+    {%- if bot_name %}<span class="hutch-msg__avatar" aria-hidden="true">{{ bot_name[:1] | upper }}</span><b>{{ bot_name }}</b>{% endif -%}
+    {%- if status and status != 'done' %}<span class="hutch-msg__live">{{ status }}</span>{% endif -%}
+    {%- if timestamp %}<time>{{ timestamp }}</time>{% endif %}
+  </div>
+  <div class="hutch-msg__body">{{ content }}</div>
+</div>
+{% endmacro %}
+
+{% macro message_system(content="", icon_name="", tone="note", icon_size=15, id="", extra_class="", state="", role="", live="", title="") %}
+<div class="hutch-msg hutch-msg--system{% if extra_class %} {{ extra_class }}{% endif %}" data-tone="{{ tone }}"
+  {%- if id %} id="{{ id }}"{% endif %}
+  {%- if state %} data-state="{{ state }}"{% endif %}
+  {%- if role %} role="{{ role }}"{% endif %}
+  {%- if live %} aria-live="{{ live }}"{% endif %}
+  {%- if title %} title="{{ title }}"{% endif %}>
+  {%- if icon_name %}{{ icon(icon_name, icon_size) }}{% endif %}
+  <div class="hutch-msg__body">{{ content if content else (caller() if caller is defined else none) }}</div>
+</div>
+{% endmacro %}
+
+{% macro tool_call_block(state, icon_name, name="", summary="", stamp="", simulated=false, char_count=0, body="", out=false) %}
+<details class="hutch-tool" data-state="{{ state }}">
+  <summary class="hutch-tool__head">
+    {{ icon(icon_name, 14) }}
+    {%- if name %}<strong>{{ name }}</strong>{% endif %}
+    {%- if simulated %}<span class="tag" title="Rehearse mode: nothing actually ran">simulated</span>{% endif %}
+    <span class="argsum">{{ summary }}</span>
+    {%- if char_count > 140 %}<span class="more">{{ char_count }} chars</span>{% endif %}
+    <span class="hutch-tool__state">{{ {'ok': 'done', 'bad': 'failed'}.get(state, state) }}</span>
+    {%- if stamp %}<time>{{ stamp }}</time>{% endif %}
+  </summary>
+  {%- if body %}
+  <pre class="{{ 'hutch-tool__out' if out else 'hutch-tool__body' }}">{{ body }}</pre>
+  {%- endif %}
+</details>
+{% endmacro %}
+
+{% macro inline_approval(content) %}
+<div class="hutch-approval">{{ content }}</div>
+{% endmacro %}

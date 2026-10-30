@@ -2,10 +2,9 @@
 
 Covers the server-rendered picker, the danger-zone two-step control, the typed address guard,
 the injected-API-error retry and the responsive layout, then writes PNG evidence plus capture.json
-with the exact Chromium build under docs/realignment/artifacts/completion-2026-10-29/deletion/.
-
-Run (focused, browser):
-    .venv/bin/python -m pytest -q --no-header --tb=line tests/e2e/test_bot_deletion_ui.py
+with the exact Chromium build to the isolated test-artifact root (set HUTCH_DELETION_EVIDENCE_DIR to
+refresh docs/realignment/artifacts/completion-2026-10-29/deletion/ deliberately). The focused command is
+COMMAND below.
 """
 from __future__ import annotations
 
@@ -26,10 +25,11 @@ import uvicorn  # noqa: E402
 
 from hutch.models import Bot  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
+from tests.support.artifacts import artifact_path  # noqa: E402
 from tests.support.browser import launch_browser  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-ARTIFACTS = ROOT / "docs/realignment/artifacts/completion-2026-10-29/deletion"
+ARTIFACTS = Path(os.environ.get("HUTCH_DELETION_EVIDENCE_DIR", str(artifact_path("deletion-ui"))))
 COMMAND = ".venv/bin/python -m pytest -q --no-header --tb=line tests/e2e/test_bot_deletion_ui.py"
 VIEWPORTS = (("desktop", 1440, 900), ("tablet", 900, 900), ("phone", 360, 800))
 CLEANUP_TEXT = {"none": "No post-commit cleanup was requested.", "pending": "has not started yet",
@@ -134,9 +134,9 @@ def evidence(browser):
         "note": "Chromium revision/build derived from the launched Playwright executable, as in "
                 "docs/realignment/capture_marketing_head.py.",
         "honest_limits": [
-            "SPA home (/ and /overview) has no danger-zone link in this tree; the shared server-page NAV "
-            "entry is the discovery surface until the parked session's static/templates commit lands.",
-            "Discovery is verified at 1440px; the shared nav collapses behind #nav-toggle on narrow views.",
+            "Deletion is a settings action: the assistant danger zone links to the picker; the shared "
+            "sidebar deliberately has no destructive primary-navigation row.",
+            "Discovery is verified at 1440px; the shared sidebar collapses behind #nav-toggle on narrow views.",
             "History is not reloaded after deletion (GET history 404s once the Bot is gone); the panel "
             "says the content-free evidence remains rather than inventing a list.",
         ],
@@ -173,7 +173,7 @@ def capture(evidence, name: str, page, *, extra: dict | None = None) -> dict:
         "case": name,
         "route_url": page.url,
         "viewport": [viewport["width"], viewport["height"]],
-        "path": path.relative_to(ROOT).as_posix(),
+        "path": (path.relative_to(ROOT) if path.is_relative_to(ROOT) else path.relative_to(ARTIFACTS)).as_posix(),
         "path_bytes": path.stat().st_size,
         "horizontal_overflow": page.evaluate("() => document.documentElement.scrollWidth - innerWidth"),
         "page_error_count": len(log["page_errors"]),
@@ -232,18 +232,21 @@ def test_picker_lists_bots_and_each_link_opens_its_danger_zone(browser, live, ev
         context.close()
 
 
-def test_primary_nav_links_to_the_danger_zone_picker(browser, live, evidence):
+def test_assistant_danger_zone_links_to_the_deletion_picker(browser, live, evidence):
+    """Deletion is a settings action: it lives in the assistant's danger zone,
+    not in the primary navigation (the shared sidebar has no destructive row)."""
     base, app = live
     app.state.store.create_bot(Bot(name="nav-bot", display_name="Nav Bot"))
     context, page, log = open_page(browser, evidence, 1440, 900)
     try:
         response = page.goto(base + "/bots/nav-bot", wait_until="networkidle")
         assert response is not None and response.status == 200
-        link = page.locator('nav.nav a[href="/bots/delete"]')
-        assert link.count() == 1
+        assert page.locator('nav.nav a[href="/bots/delete"]').count() == 0
+        page.locator("details.danger-zone > summary").click()
+        link = page.locator('a[href="/bots/delete"]').first
         link.wait_for(state="visible", timeout=10_000)
-        assert link.inner_text().strip() == "Delete bot"
-        capture(evidence, "nav-discovery", page)
+        assert "deletion picker" in link.inner_text()
+        capture(evidence, "danger-zone-picker-link", page)
         link.click()
         page.wait_for_url("**/bots/delete", timeout=10_000)
         page.get_by_role("heading", name="Permanently delete a bot").wait_for(timeout=10_000)

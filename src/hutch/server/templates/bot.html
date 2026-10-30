@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
+{% from "_form.html" import text_input, select_input, textarea, form_actions %}
+{% from "_composer.html" import composer %}
+{% from "macros/modal.html" import confirm_form %}
 {% block title %}{{ bot.display_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -15,22 +18,33 @@
       {% if bot.paused %}<span class="chip st-paused">paused</span>{% endif %}</div>
   </div>
   <div class="actions">
-    <form method="post" action="/bots/{{ bot.name }}/{{ 'resume' if bot.paused else 'pause' }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/bots/{{ bot.name }}">
+    <form method="post" action="/bots/{{ bot.name }}/{{ 'resume' if bot.paused else 'pause' }}" class="hutch-form hutch-inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/bots/{{ bot.name }}">
       <button class="btn">{{ icon("play" if bot.paused else "pause", 15) }} {{ "Resume schedule" if bot.paused else "Pause schedule" }}</button></form>
   </div>
 </div>
 
 <section class="panel" id="compose">
   <h2>{{ icon("play", 18) }} Give it a task</h2>
-  <form method="post" action="/bots/{{ bot.name }}/run" class="compose">
+  <form method="post" action="/bots/{{ bot.name }}/run" class="hutch-form">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <textarea name="prompt" rows="3" required placeholder="What should {{ bot.display_name }} do? e.g. summarize this week's AI news"></textarea>
-    <div class="compose-row">
-      <label class="check" title="Mutating actions are simulated and logged. Model calls and reads still happen; reads from remote services can have service-side effects."><input type="checkbox" name="rehearse" value="1"> Rehearse (simulate changes)</label>
-      <button class="btn primary" type="submit">{{ icon("play", 15) }} Start run</button>
+    {% set rehearse_tool %}
+      <label class="hutch-check" for="rehearse" title="Mutating actions are simulated and logged. Model calls and reads still happen; reads from remote services can have service-side effects."><input type="checkbox" id="rehearse" name="rehearse" value="1"><span class="hutch-option-text"><span>Rehearse (simulate changes)</span></span></label>
+    {% endset %}
+    {{ composer(
+        name="prompt",
+        placeholder="What should " ~ (bot.display_name or bot.name) ~ " do? e.g. summarize this week's AI news",
+        bot_name=bot.display_name or bot.name,
+        bot_id=bot.name,
+        inline=True,
+        required=True,
+        send_label="Start run",
+        send_icon="play",
+        tools_html=rehearse_tool
+    ) }}
+    <div class="hutch-composer__foot">
+      <p class="hutch-help estimate" id="estimate">{{ icon("chart", 13) }} <strong>{{ estimate.spec }}:</strong> {{ estimate.summary }}</p>
+      <p class="hutch-help">Limits for this bot: {{ bot.limits.max_steps }} steps and {{ bot.limits.timeout_seconds }}s wall clock. Token budget today: {{ (tokens_today - estimate.reserved_tokens_today) | tokens }} measured + {{ estimate.reserved_tokens_today | tokens }} held estimate of {{ bot.limits.daily_token_cap | tokens }}.</p>
     </div>
-    <p class="hint estimate" id="estimate">{{ icon("chart", 13) }} <strong>{{ estimate.spec }}:</strong> {{ estimate.summary }}</p>
-    <p class="hint">Limits for this bot: {{ bot.limits.max_steps }} steps and {{ bot.limits.timeout_seconds }}s wall clock. Token budget today: {{ (tokens_today - estimate.reserved_tokens_today) | tokens }} measured + {{ estimate.reserved_tokens_today | tokens }} held estimate of {{ bot.limits.daily_token_cap | tokens }}.</p>
   </form>
 </section>
 
@@ -48,14 +62,14 @@
     {% for m in memory %}
     <div class="memrow"><div><strong>{{ m.key }}</strong><p>{{ m.value }}</p>
       <span class="muted">{% if m.run_id %}written in <a href="/runs/{{ m.run_id }}">{{ m.run_id[4:16] }}</a>{% else %}{{ m.source }}{% endif %} - {{ m.updated_at | ago }}</span></div>
-      <form method="post" action="/bots/{{ bot.name }}/memory/delete" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="key" value="{{ m.key }}"><input type="hidden" name="next" value="/bots/{{ bot.name }}">
+      <form method="post" action="/bots/{{ bot.name }}/memory/delete" class="hutch-form hutch-inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="key" value="{{ m.key }}"><input type="hidden" name="next" value="/bots/{{ bot.name }}">
         <button class="btn ghost small" aria-label="Forget {{ m.key }}">{{ icon("trash", 14) }}</button></form></div>
     {% else %}<p class="hint">Nothing remembered yet.</p>{% endfor %}
 
     <h2 class="section">{{ icon("shield", 18) }} Always-allowed actions <span class="count">{{ allows | length }}</span></h2>
     {% for s in allows %}
     <div class="memrow"><code>{{ s }}</code>
-      <form method="post" action="/bots/{{ bot.name }}/allows/revoke" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="key" value="{{ s }}"><input type="hidden" name="next" value="/bots/{{ bot.name }}">
+      <form method="post" action="/bots/{{ bot.name }}/allows/revoke" class="hutch-form hutch-inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="key" value="{{ s }}"><input type="hidden" name="next" value="/bots/{{ bot.name }}">
         <button class="btn ghost small">Revoke</button></form></div>
     {% else %}<p class="hint">None - every risky action asks first.</p>{% endfor %}
   </section>
@@ -64,39 +78,66 @@
 {% include "_fact_purge.html" %}
 <section class="panel">
   <h2>{{ icon("cpu", 18) }} Settings</h2>
-  <form method="post" action="/bots/{{ bot.name }}/update" class="settings">
+  <form method="post" action="/bots/{{ bot.name }}/update" class="hutch-form hutch-cols-2">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label class="field"><span id="display-name-label">Display name</span><input type="text" name="display_name" value="{{ bot.display_name }}" maxlength="80" required aria-labelledby="display-name-label" aria-describedby="display-name-hint">
-      <small id="display-name-hint">Shown in chats and lists. Existing links keep the same Bot address.</small></label>
-    <label class="field"><span>Description</span><input type="text" name="description" value="{{ bot.description }}"></label>
-    <label class="field"><span id="model-label">Model route</span><input type="text" name="model" value="{{ bot.model }}" required aria-labelledby="model-label" aria-describedby="model-hint"><small id="model-hint">Choose a configured Ollama, OpenAI, Anthropic, or compatible route.</small></label>
-    <label class="field"><span>Schedule (cron, blank = on demand)</span><input type="text" name="cron" value="{{ bot.schedule.cron if bot.schedule else '' }}" placeholder="0 9 * * 1"></label>
-    <label class="field"><span>Schedule time zone</span><input type="text" name="timezone" value="{{ bot.schedule.timezone if bot.schedule else 'UTC' }}"></label>
-    <label class="field"><span>Approvals</span><select name="approval_mode"><option value="ask" {{ 'selected' if bot.approval_mode.value == 'ask' }}>ask - pause for risky actions</option><option value="auto" {{ 'selected' if bot.approval_mode.value == 'auto' }}>auto - only the deny-list stops it</option></select></label>
-    <label class="field"><span id="workspace-mode-label">Workspace</span><select name="workspace_mode" aria-labelledby="workspace-mode-label" aria-describedby="workspace-mode-hint">
-      <option value="fresh" {{ 'selected' if not bot.workdir and bot.workspace_mode == 'fresh' }}>Fresh each run</option>
-      <option value="managed" {{ 'selected' if not bot.workdir and bot.workspace_mode == 'managed' }}>Hutch-managed</option>
-      <option value="folder" {{ 'selected' if bot.workdir }}>Existing folder</option></select>
-      <small id="workspace-mode-hint">Fresh starts with a clean folder. Managed shares one private folder across this bot's runs and chats; deleting the bot keeps its files. Changing modes does not move or delete files.</small></label>
-    <label class="field browser-handoff-field"><span id="browser-handoff-label">Local browser handoff</span><select name="local_browser_handoff" aria-labelledby="browser-handoff-label" aria-describedby="browser-handoff-help">
-      <option value="false" {{ 'selected' if not bot.local_browser_handoff }}>Off - browser stays headless</option>
-      <option value="true" {{ 'selected' if bot.local_browser_handoff }}>On - open a visible browser on this Linux desktop</option></select>
-      <small id="browser-handoff-help">Requires a Linux desktop display and the optional browser extra. When a login or CAPTCHA needs you, the same browser window stays open while automation pauses. Only one Hutch run can hold the handoff at a time. This does not enable phone control.</small></label>
-    <label class="field wide"><span id="workdir-label">Existing folder (folder mode)</span><input type="text" name="workdir" value="{{ bot.workdir or '' }}" placeholder="absolute path, for example ~/Projects/report" class="mono" aria-labelledby="workdir-label" aria-describedby="workdir-hint">
-      <small id="workdir-hint">Used only in folder mode. The folder must already exist; Hutch will not create, move, or delete it. System folders, your whole home and Hutch's own state are refused.</small></label>
-    <label class="field"><span id="risk-tier-label">Risk tier</span><select name="risk_tier" aria-labelledby="risk-tier-label" aria-describedby="risk-tier-hint">
-      <option value="readonly" {{ 'selected' if bot.risk_tier.value == 'readonly' }}>read-only - anything that would ask is blocked</option>
-      <option value="supervised" {{ 'selected' if bot.risk_tier.value == 'supervised' }}>supervised - medium-risk actions ask (default)</option>
-      <option value="trusted" {{ 'selected' if bot.risk_tier.value == 'trusted' }}>trusted - medium-risk actions run; sending anything out still asks</option></select>
-      <small id="risk-tier-hint">Secrets, exfiltration, sudo and leaving the workspace stay blocked at every tier.</small></label>
-    <label class="field wide"><span id="command-rules-label">Command rules</span><textarea name="command_rules" rows="4" class="mono" placeholder="deny: git push*&#10;allow: npm test&#10;ask: pip install*" aria-labelledby="command-rules-label" aria-describedby="command-rules-hint">{% for r in bot.command_rules %}{{ r.verdict }}: {{ r.match }}
+    <div class="hutch-field">
+      <label class="hutch-label" for="display_name"><span id="display-name-label">Display name</span> <span class="hutch-req" aria-hidden="true">*</span></label>
+      <input class="hutch-input" type="text" id="display_name" name="display_name" value="{{ bot.display_name }}" maxlength="80" required aria-labelledby="display-name-label" aria-describedby="display-name-hint">
+      <p class="hutch-help" id="display-name-hint">Shown in chats and lists. Existing links keep the same Bot address.</p>
+    </div>
+    {{ text_input("description", "Description", value=bot.description) }}
+    <div class="hutch-field">
+      <label class="hutch-label" for="model"><span id="model-label">Model route</span> <span class="hutch-req" aria-hidden="true">*</span></label>
+      <input class="hutch-input" type="text" id="model" name="model" value="{{ bot.model }}" required aria-labelledby="model-label" aria-describedby="model-hint">
+      <p class="hutch-help" id="model-hint">Choose a configured Ollama, OpenAI, Anthropic, or compatible route.</p>
+    </div>
+    {{ text_input("cron", "Schedule (cron, blank = on demand)", value=bot.schedule.cron if bot.schedule else '', placeholder="0 9 * * 1") }}
+    {{ text_input("timezone", "Schedule time zone", value=bot.schedule.timezone if bot.schedule else 'UTC') }}
+    {{ select_input("approval_mode", "Approvals", [("ask", "ask - pause for risky actions"), ("auto", "auto - only the deny-list stops it")], value=bot.approval_mode.value) }}
+    <div class="hutch-field">
+      <label class="hutch-label" for="workspace_mode"><span id="workspace-mode-label">Workspace</span></label>
+      <select class="hutch-select" id="workspace_mode" name="workspace_mode" aria-labelledby="workspace-mode-label" aria-describedby="workspace-mode-hint">
+        <option value="fresh" {{ 'selected' if not bot.workdir and bot.workspace_mode == 'fresh' }}>Fresh each run</option>
+        <option value="managed" {{ 'selected' if not bot.workdir and bot.workspace_mode == 'managed' }}>Hutch-managed</option>
+        <option value="folder" {{ 'selected' if bot.workdir }}>Existing folder</option></select>
+      <p class="hutch-help" id="workspace-mode-hint">Fresh starts with a clean folder. Managed shares one private folder across this bot's runs and chats; deleting the bot keeps its files. Changing modes does not move or delete files.</p>
+    </div>
+    <div class="hutch-field browser-handoff-field">
+      <label class="hutch-label" for="local_browser_handoff"><span id="browser-handoff-label">Local browser handoff</span></label>
+      <select class="hutch-select" id="local_browser_handoff" name="local_browser_handoff" aria-labelledby="browser-handoff-label" aria-describedby="browser-handoff-help">
+        <option value="false" {{ 'selected' if not bot.local_browser_handoff }}>Off - browser stays headless</option>
+        <option value="true" {{ 'selected' if bot.local_browser_handoff }}>On - open a visible browser on this Linux desktop</option></select>
+      <p class="hutch-help" id="browser-handoff-help">Requires a Linux desktop display and the optional browser extra. When a login or CAPTCHA needs you, the same browser window stays open while automation pauses. Only one Hutch run can hold the handoff at a time. This does not enable phone control.</p>
+    </div>
+    <div class="hutch-field wide">
+      <label class="hutch-label" for="workdir"><span id="workdir-label">Existing folder (folder mode)</span></label>
+      <input class="hutch-input mono" type="text" id="workdir" name="workdir" value="{{ bot.workdir or '' }}" placeholder="absolute path, for example ~/Projects/report" aria-labelledby="workdir-label" aria-describedby="workdir-hint">
+      <p class="hutch-help" id="workdir-hint">Used only in folder mode. The folder must already exist; Hutch will not create, move, or delete it. System folders, your whole home and Hutch's own state are refused.</p>
+    </div>
+    <div class="hutch-field">
+      <label class="hutch-label" for="risk_tier"><span id="risk-tier-label">Risk tier</span></label>
+      <select class="hutch-select" id="risk_tier" name="risk_tier" aria-labelledby="risk-tier-label" aria-describedby="risk-tier-hint">
+        <option value="readonly" {{ 'selected' if bot.risk_tier.value == 'readonly' }}>read-only - anything that would ask is blocked</option>
+        <option value="supervised" {{ 'selected' if bot.risk_tier.value == 'supervised' }}>supervised - medium-risk actions ask (default)</option>
+        <option value="trusted" {{ 'selected' if bot.risk_tier.value == 'trusted' }}>trusted - medium-risk actions run; sending anything out still asks</option></select>
+      <p class="hutch-help" id="risk-tier-hint">Secrets, exfiltration, sudo and leaving the workspace stay blocked at every tier.</p>
+    </div>
+    <div class="hutch-field wide">
+      <label class="hutch-label" for="command_rules"><span id="command-rules-label">Command rules</span></label>
+      <textarea class="hutch-textarea mono" id="command_rules" name="command_rules" rows="4" placeholder="deny: git push*&#10;allow: npm test&#10;ask: pip install*" aria-labelledby="command-rules-label" aria-describedby="command-rules-hint">{% for r in bot.command_rules %}{{ r.verdict }}: {{ r.match }}
 {% endfor %}</textarea>
-      <small id="command-rules-hint">One per line, first match wins, matched against each command in a pipeline or chain. A rule can tighten any decision or let a medium-risk command run, but can never allow what is blocked or stop an outward send from asking.</small></label>
-    <label class="field wide"><span>Instructions</span><textarea name="instructions" rows="6">{{ bot.instructions }}</textarea></label>
-    <div class="form-actions"><button class="btn primary">Save</button></div>
+      <p class="hutch-help" id="command-rules-hint">One per line, first match wins, matched against each command in a pipeline or chain. A rule can tighten any decision or let a medium-risk command run, but can never allow what is blocked or stop an outward send from asking.</p>
+    </div>
+    {{ textarea("instructions", "Instructions", value=bot.instructions, rows=6) }}
+    {% call form_actions() %}<button class="btn primary">Save</button>{% endcall %}
   </form>
   <details class="danger-zone"><summary>Delete this bot</summary>
-    <form method="post" action="/bots/{{ bot.name }}/delete" data-confirm="Delete {{ bot.display_name }}? Its memory and always-allowed actions go too; run history stays on disk.">
-      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn danger">{{ icon("trash", 15) }} Delete {{ bot.display_name }}</button></form></details>
+    {{ confirm_form("delete-bot-form", "delete-bot-confirm", "/bots/" ~ bot.name ~ "/delete",
+        "Delete this assistant?",
+        "Its memory and always-allowed actions go too; run history stays on disk.",
+        "Delete assistant", "Delete " ~ (bot.display_name or bot.name),
+        hidden={"csrf": csrf},
+        trigger_class="btn danger", trigger_icon="trash") }}
+    <p class="hint">Reviewing several assistants first? <a href="/bots/delete">Open the deletion picker</a>.</p></details>
 </section>
 {% endblock %}

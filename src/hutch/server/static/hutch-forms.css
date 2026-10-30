@@ -1,0 +1,391 @@
+/* ============================================================================
+   Hutch form system - one vocabulary for every form in the product.
+
+   Load path
+   ---------
+   Linked last by BOTH shells, so it supersedes the older per-surface field
+   rules (static/hutch.css forms block, static/style.css global input rules):
+
+     server-rendered pages   templates/base.html  -> /static/hutch-forms.css
+     the hash-routed SPA     static/index.html    -> /static/hutch-forms.css
+
+   No build step: this is hand-written CSS like the rest of static/.
+
+   Token layer
+   -----------
+   Every value comes from the Hutch token layer
+   (src/hutch/web/styles/hutch-tokens.css, compiled into static/ui.css and
+   therefore present on the SPA and the redesign preview). Server-rendered
+   pages do not load ui.css - they load static/brand-tokens.css - so the
+   form tier below resolves each token as
+
+       var(--hutch-alias-<role>, <same value the token layer defines>)
+
+   The fallbacks are a documented mirror of the token layer, not a second
+   palette: with hutch-tokens.css present the alias wins and the literal is
+   never used, so both surfaces render identical fields. Derived colours
+   (lines, washes) are mixed from the tier itself with color-mix() rather
+   than restated.
+
+   The tier is named --hutch-form-* on purpose. Declaring --hutch-alias-*
+   here would shadow the canonical alias tier at equal specificity.
+
+   Nothing in this file copies a DeepSeek value, class name or spacing
+   literal: the scale is Hutch's own 4px grid, its radius roles and its
+   safety palette (emerald brand, azure interaction, amber attention,
+   rose failure).
+   ========================================================================== */
+
+:root {
+  /* Surfaces: a field sits below the panel it is drawn on, so it reads as
+     recessed (DESIGN.md: ground -> panel -> raised). */
+  --hutch-form-surface: var(--hutch-alias-bg-base, #09090b);
+  --hutch-form-surface-hover: var(--hutch-alias-bg-layer-1, #0f0f12);
+  --hutch-form-well: var(--hutch-alias-bg-well, #0b0b0e);
+
+  /* Boundary: The Edge Rule (DESIGN.md) - a control identified by its
+     boundary (text field, select, checkbox, radio) uses edge, the >=3:1
+     WCAG 1.4.11 line. Containers that only hold controls - choice cards and
+     fieldsets - are decoration and keep the quiet hairline. Hover never
+     brightens past edge; it lifts the surface instead. */
+  --hutch-form-border: var(--hutch-alias-border-edge, rgb(255 255 255 / 0.38));
+  --hutch-form-border-quiet: var(--hutch-alias-border-l2, rgb(255 255 255 / 0.07));
+  --hutch-form-border-strong: var(--hutch-alias-border-edge, rgb(255 255 255 / 0.38));
+
+  /* Ink. */
+  --hutch-form-text: var(--hutch-alias-label-primary, #ededf0);
+  --hutch-form-text-muted: var(--hutch-alias-label-secondary, #a3a3ae);
+  --hutch-form-placeholder: var(--hutch-alias-label-tertiary, #8e8e99);
+
+  /* Interaction: azure is focus only, never a status or brand statement. */
+  --hutch-form-focus: var(--hutch-alias-focus-ring, #60a5fa);
+  --hutch-form-focus-line: var(--hutch-alias-focus-line, rgb(96 165 250 / 0.45));
+  --hutch-form-focus-wash: var(--hutch-alias-focus-wash, rgb(96 165 250 / 0.14));
+
+  /* Status: always paired with a text marker, never colour alone. */
+  --hutch-form-danger: var(--hutch-alias-state-error-primary, #f87171);
+  --hutch-form-danger-line: var(--hutch-alias-state-error-line, rgb(248 113 113 / 0.4));
+  --hutch-form-danger-wash: var(--hutch-alias-state-error-wash, rgb(248 113 113 / 0.09));
+  --hutch-form-success: var(--hutch-alias-state-success-primary, #34d399);
+  --hutch-form-success-line: var(--hutch-alias-state-success-line, rgb(52 211 153 / 0.4));
+  --hutch-form-success-wash: var(--hutch-alias-state-success-wash, rgb(52 211 153 / 0.09));
+  --hutch-form-attention: var(--hutch-alias-state-warn-primary, #fbbf24);
+
+  /* Brand: the one primary action in a form. */
+  --hutch-form-brand: var(--hutch-alias-brand-primary, #34d399);
+  --hutch-form-brand-ink: var(--hutch-alias-brand-ink, #052e21);
+
+  /* Disabled: the label keeps its wording and drops to the muted ink. */
+  --hutch-form-disabled-ink: var(--hutch-alias-label-tertiary, #8e8e99);
+  --hutch-form-disabled-surface: var(--hutch-alias-bg-well, #0b0b0e);
+  --hutch-form-disabled-opacity: 0.55;
+
+  /* Geometry: Hutch's role-named radius and 4px spacing grid. */
+  --hutch-form-radius: var(--hutch-radius-control, 8px);
+  --hutch-form-radius-sm: var(--hutch-radius-micro, 4px);
+  --hutch-form-gap: var(--hutch-space-4, 16px);
+  --hutch-form-gap-stack: var(--hutch-space-2, 8px);
+  --hutch-form-padding-x: var(--hutch-space-3, 12px);
+  --hutch-form-padding-y: var(--hutch-space-2, 8px);
+  /* DESIGN.md: form fields and selects are 44px with 16px text so phone
+     browsers do not zoom; routine buttons are 40px and 44px when coarse. */
+  --hutch-form-height: var(--hutch-size-control-touch, 44px);
+  --hutch-form-height-button: var(--hutch-size-control-lg, 40px);
+  --hutch-form-height-touch: var(--hutch-size-control-touch, 44px);
+
+  /* Type: the label role and the small helper role from the token layer. */
+  --hutch-form-font-label: var(--hutch-font-label, 500 0.875rem / 1.4 var(--hutch-font-family, sans-serif));
+  --hutch-form-font-control: var(--hutch-font-body, 400 1rem / 1.55 var(--hutch-font-family, sans-serif));
+  --hutch-form-font-help: var(--hutch-font-small, 400 0.8125rem / 1.5 var(--hutch-font-family, sans-serif));
+
+  /* Motion: short and interruptible; compositor properties only. */
+  --hutch-form-motion: var(--hutch-motion-duration-fast, 120ms) var(--hutch-motion-ease-standard, ease);
+}
+
+/* ------------------------------------------------------------------ root */
+/* The form root scopes the whole system. Layout stays explicit: a bare form
+   stacks its fields, .hutch-cols-2 opens two columns, .hutch-inline keeps a
+   control row (filters, approval decisions) on one wrapped line. */
+.hutch-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hutch-form-gap);
+  min-width: 0;
+}
+.hutch-form.hutch-cols-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--hutch-form-gap);
+}
+.hutch-form.hutch-inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--hutch-form-gap);
+}
+.hutch-form > * { min-width: 0; }
+
+/* ------------------------------------------------------- field container */
+/* Vertical stack: label -> control -> help/error, on the spacing tokens. */
+.hutch-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+.hutch-form.hutch-cols-2 > .hutch-field.wide,
+.hutch-form.hutch-cols-2 > .hutch-field.hutch-wide {
+  grid-column: 1 / -1;
+}
+.hutch-field.hutch-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--hutch-form-gap-stack);
+}
+
+/* A fieldset is a group of related controls: it gets the legend as its
+   heading and hairlines only where the group needs a boundary. */
+.hutch-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hutch-form-gap-stack);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.hutch-fieldset.hutch-boxed {
+  padding: var(--hutch-form-gap);
+  border: 1px solid var(--hutch-form-border-quiet);
+  border-radius: var(--hutch-form-radius);
+  background: var(--hutch-form-well);
+}
+.hutch-legend {
+  padding: 0;
+  font: var(--hutch-form-font-label);
+  font-weight: var(--hutch-font-weight-strong, 650);
+  color: var(--hutch-form-text);
+}
+.hutch-fieldset.hutch-boxed > .hutch-legend {
+  padding: 0 var(--hutch-form-gap-stack);
+  margin-inline: calc(var(--hutch-form-gap-stack) * -1);
+}
+.hutch-fieldset > .hutch-field + .hutch-field,
+.hutch-fieldset > .hutch-option + .hutch-option {
+  margin-top: 2px;
+}
+
+/* ----------------------------------------------------------------- label */
+.hutch-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font: var(--hutch-form-font-label);
+  color: var(--hutch-form-text);
+}
+/* The required marker is a small danger-coloured glyph, not a loud chip. It
+   is decorative: the control keeps its native required attribute, and the
+   .hutch-sr text below spells the state out for screen readers. */
+.hutch-req {
+  color: var(--hutch-form-danger);
+  font-weight: var(--hutch-font-weight-semibold, 600);
+  line-height: 1;
+}
+.hutch-optional {
+  font: var(--hutch-form-font-help);
+  font-weight: 400;
+  color: var(--hutch-form-placeholder);
+}
+.hutch-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --------------------------------------------------------------- control */
+/* One control recipe for text inputs, textareas and selects. */
+.hutch-input,
+.hutch-textarea,
+.hutch-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--hutch-form-height);
+  margin: 0;
+  padding: var(--hutch-form-padding-y) var(--hutch-form-padding-x);
+  font: var(--hutch-form-font-control);
+  color: var(--hutch-form-text);
+  caret-color: var(--hutch-form-brand);
+  background: var(--hutch-form-surface);
+  border: 1px solid var(--hutch-form-border);
+  border-radius: var(--hutch-form-radius);
+  transition: border-color var(--hutch-form-motion), background-color var(--hutch-form-motion), box-shadow var(--hutch-form-motion);
+}
+.hutch-textarea {
+  min-height: auto;
+  padding-block: var(--hutch-form-gap-stack);
+  line-height: 1.55;
+  resize: vertical;
+}
+.hutch-select {
+  appearance: none;
+  padding-inline-end: var(--hutch-form-gap);
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right var(--hutch-form-gap-stack) center, right calc(var(--hutch-form-gap-stack) - 5px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+.hutch-input::placeholder,
+.hutch-textarea::placeholder {
+  color: var(--hutch-form-placeholder);
+  opacity: 1;
+}
+.hutch-input:hover:not(:disabled),
+.hutch-textarea:hover:not(:disabled),
+.hutch-select:hover:not(:disabled) {
+  border-color: var(--hutch-form-border-strong);
+  background-color: var(--hutch-form-surface-hover);
+}
+
+/* Focus-visible: the Hutch focus-ring tokens replace the browser default, one
+   ring only - the same outline the select component draws, so a field and the
+   select inside it focus identically. */
+.hutch-input:focus-visible,
+.hutch-textarea:focus-visible,
+.hutch-select:focus-visible {
+  outline: var(--hutch-focus-ring-width, 2px) var(--hutch-focus-ring-style, solid)
+    var(--hutch-focus-ring-color, #60a5fa);
+  outline-offset: var(--hutch-focus-ring-offset, 2px);
+  border-color: var(--hutch-form-focus);
+  box-shadow: none;
+}
+/* Pointer focus keeps a lighter cue so the ring never appears on click. */
+.hutch-input:focus:not(:focus-visible),
+.hutch-textarea:focus:not(:focus-visible),
+.hutch-select:focus:not(:focus-visible) {
+  outline: none;
+  border-color: var(--hutch-form-focus-line);
+  box-shadow: none;
+}
+
+/* Disabled: muted ink, recessed surface, no interaction. */
+.hutch-input:disabled,
+.hutch-textarea:disabled,
+.hutch-select:disabled {
+  color: var(--hutch-form-disabled-ink);
+  background: var(--hutch-form-disabled-surface);
+  border-color: var(--hutch-form-border);
+  opacity: var(--hutch-form-disabled-opacity);
+  cursor: not-allowed;
+}
+.hutch-input:read-only:not(:disabled),
+.hutch-textarea:read-only:not(:disabled) {
+  background: var(--hutch-form-disabled-surface);
+}
+.hutch-select:disabled {
+  background-image: none;
+  cursor: not-allowed;
+}
+
+/* Invalid: danger on the boundary plus an error slot that carries a text
+   marker, so the state never depends on red alone. */
+.hutch-input[aria-invalid="true"],
+.hutch-textarea[aria-invalid="true"],
+.hutch-select[aria-invalid="true"] {
+  border-color: var(--hutch-form-danger);
+  background-color: var(--hutch-form-danger-wash);
+}
+.hutch-input[aria-invalid="true"]:focus-visible,
+.hutch-textarea[aria-invalid="true"]:focus-visible,
+.hutch-select[aria-invalid="true"]:focus-visible {
+  outline-color: var(--hutch-form-danger);
+  border-color: var(--hutch-form-danger);
+  box-shadow: none;
+}
+
+/* Valid: the success boundary plus optional helper text. */
+.hutch-field[data-hutch-state="valid"] .hutch-input,
+.hutch-field[data-hutch-state="valid"] .hutch-textarea,
+.hutch-field[data-hutch-state="valid"] .hutch-select {
+  border-color: var(--hutch-form-success);
+}
+.hutch-field[data-hutch-state="valid"] .hutch-input:focus-visible,
+.hutch-field[data-hutch-state="valid"] .hutch-textarea:focus-visible,
+.hutch-field[data-hutch-state="valid"] .hutch-select:focus-visible {
+  outline-color: var(--hutch-form-success);
+  border-color: var(--hutch-form-success);
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------- help and errors */
+.hutch-help {
+  margin: 0 0 var(--hutch-space-3, 12px);
+  font: var(--hutch-form-font-help);
+  color: var(--hutch-form-text-muted);
+}
+.hutch-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 var(--hutch-space-3, 12px);
+  font: var(--hutch-form-font-help);
+  color: var(--hutch-form-danger);
+}
+/* A drawn glyph (no icon font, no emoji) so the marker survives forced
+   colours and reads as a shape before it reads as a colour. */
+.hutch-error::before {
+  content: "!";
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+  font-size: 10px;
+  font-weight: var(--hutch-font-weight-bold, 700);
+  line-height: 1;
+  color: var(--hutch-form-danger);
+  border: 1px solid currentColor;
+  border-radius: var(--hutch-radius-round, 50%);
+}
+.hutch-ok {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 var(--hutch-space-3, 12px);
+  font: var(--hutch-form-font-help);
+  color: var(--hutch-form-success);
+}
+.hutch-ok::before {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 8px;
+  margin-top: 4px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+.hutch-help[hidden],
+.hutch-error[hidden],
+.hutch-ok[hidden] {
+  display: none;
+}
+/* Inside a field the stack's gap owns the spacing. Outside one - a standalone
+   note in a dialog or panel - these keep paragraph spacing so a converted
+   note does not collapse into the block above it. */
+.hutch-field .hutch-help,
+.hutch-field .hutch-error,
+.hutch-field .hutch-ok,
+.hutch-fieldset .hutch-help {
+  margin-bottom: 0;
+}
+

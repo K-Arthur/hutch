@@ -1425,7 +1425,7 @@ def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(bro
                 page.screenshot(path=str(out / "search-error-desktop.png"), animations="disabled")
                 page.unroute("**/api/v1/search/messages", fail_search)
             field.press("Escape")
-            assert page.evaluate("document.activeElement.id") == "studio-search-messages"
+            expect(page.locator("#studio-search-messages")).to_be_focused()  # the dialog closes with a transition
             if label == "phone":
                 dialog = page.get_by_role("dialog", name="Search chats")
                 page.get_by_role("button", name="Search chats").click()
@@ -1767,12 +1767,12 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert page.locator("#runs-count").inner_text() == "1 result"
                 if surface_name == "run-detail":
                     assert page.get_by_role("heading", name="Task details").is_visible()
-                    assert page.locator("#chat-stream .answer").inner_text() == completed_answer
+                    assert page.locator("#chat-stream .hutch-msg__answer").inner_text() == completed_answer
                     technical_details = page.locator("#run-technical-details")
                     assert technical_details.is_visible() and technical_details.get_attribute("open") is None
                     assert not page.locator("[data-run-integrity-run]").is_visible()
-                    assert page.locator("#chat-stream .mrun").count() == 1
-                    assert not page.locator("#chat-stream .mrun").is_visible()
+                    assert page.locator("#chat-stream .hutch-msg__open").count() == 1
+                    assert not page.locator("#chat-stream .hutch-msg__open").is_visible()
                     assert technical_details.locator("summary").inner_text().startswith("More details")
                     metrics["completionReply"] = completed_answer
                 evidence.append({"surface": surface_name, "size": viewport_name, **metrics})
@@ -2511,7 +2511,7 @@ def test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive(br
         assert preview.locator("[data-persona-preview-result]").is_hidden()
         button = preview.locator("[data-persona-preview-run]")
         assert button.is_enabled() and button.get_attribute("aria-disabled") == "false"
-        assert button.evaluate("el => Math.round(el.getBoundingClientRect().height)") >= 44
+        assert button.evaluate("el => Math.round(el.getBoundingClientRect().height)") >= 40  # 44 on touch: test_form_action_heights.py
 
         form.locator('[data-persona-field="preset"]').select_option("dry_wit")
         form.locator('[data-persona-field="depth"]').select_option("brief")
@@ -3023,7 +3023,7 @@ def test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runti
             f"{app_url}/api/v1/conversations/{external_conversation['id']}?after=0&limit=100"
         ).json()
         assert any(message["id"] == external_answer_id for message in external_transcript["messages"])
-        assert page.locator("#chat-stream .answer").inner_text() == "A completed answer from the disabled adapter."
+        assert page.locator("#chat-stream .hutch-msg__answer").inner_text() == "A completed answer from the disabled adapter."
         assert page.locator(f'[data-answer-message="{external_answer_id}"][data-answer-correction]').count() == 0
 
         page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")

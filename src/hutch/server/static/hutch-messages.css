@@ -1,0 +1,318 @@
+/* ===========================================================================
+   Hutch message system - the transcript vocabulary shared by both shells.
+
+   Load path
+   ---------
+   Linked LAST by both shells, after hutch-select.css, so message rules win
+   ties against the older per-surface sheets:
+
+     server-rendered pages   templates/base.html  -> /static/hutch-messages.css
+     the hash-routed SPA    static/index.html    -> /static/hutch-messages.css
+
+   No build step: hand-written CSS like the rest of static/.
+
+   Token layer (mirror policy)
+   ---------------------------
+   Server pages do not load ui.css; they load static/brand-tokens.css, which
+   defines no --hutch-alias-* names. Every value below is therefore written as
+
+       var(--hutch-alias-<role>, <the same literal the token layer defines>)
+
+   exactly as hutch-forms.css does (its header, lines 14-37): with
+   src/hutch/web/styles/hutch-tokens.css present (the SPA) the alias wins and
+   the literal is never used; without it (server pages) the mirrored literal
+   renders the same colour, so both surfaces draw one system. The fallbacks
+   are a documented mirror of the token layer, not a second palette - every
+   var() in this file carries one. The sheet never redeclares --hutch-alias-*
+   (that would shadow the canonical tier at equal specificity) and never
+   copies a DeepSeek value: spacing is Hutch's 4px grid, inner corners are
+   --hutch-radius-control, hues are the shipped emerald/azure/amber/rose set.
+
+   Bot identity assignment rule (shared with static/hutch.js and app.js)
+   --------------------------------------------------------------------
+   index = (fnv1a32(bot_id || bot_name) >>> 0) % 6 + 1; no key -> neutral.
+   FNV-1a 32-bit: h = 0x811c9dc5; per UTF-16 code unit c:
+       h ^= c; h = Math.imul(h, 0x01000193).
+   hutch.js applies it on server pages to .hutch-msg--agent[data-bot];
+   app.js applies it inline where it builds an agent message. Both set
+   --hutch-msg-identity from --hutch-bot-identity-1..6, so the rail, the
+   monogram and the process node dots agree. The accents mix the static
+   identity palette 45% over the message surface: sized for a 2px rail or a
+   small dot, never a bubble fill.
+
+   Division of labour with static/studio.css (SPA): the process spine and the
+   tool-group summary geometry are the renamed .work / .tool-stream rules and
+   stay there. This sheet owns the tokens, the shell and its three roles, the
+   identity and meta rows, in-turn lines, the server-side tool primitives,
+   every data-state tint, focus rings and touch targets.
+   ========================================================================== */
+
+:root {
+  /* Message tier: surfaces, ink, boundary, state and geometry. */
+  --hutch-msg-surface:        var(--hutch-alias-bg-layer-1, #0f0f12);
+  --hutch-msg-surface-raised: var(--hutch-alias-bg-layer-2, #101013);
+  --hutch-msg-surface-muted:  var(--hutch-alias-bg-well, #0b0b0e);
+  --hutch-msg-text:           var(--hutch-alias-label-primary, #ededf0);
+  --hutch-msg-text-muted:     var(--hutch-alias-label-secondary, #a3a3ae);
+  --hutch-msg-text-faint:     var(--hutch-alias-label-tertiary, #8e8e99);
+  --hutch-msg-border:         var(--hutch-alias-border-l2, rgb(255 255 255 / 0.07));
+  --hutch-msg-border-strong:  var(--hutch-alias-border-l3, rgb(255 255 255 / 0.12));
+  --hutch-msg-focus:          var(--hutch-alias-focus-ring, #60a5fa);
+  --hutch-msg-danger:         var(--hutch-alias-state-error-primary, #f87171);
+  --hutch-msg-success:        var(--hutch-alias-state-success-primary, #34d399);
+  --hutch-msg-warn:           var(--hutch-alias-state-warn-primary, #fbbf24);
+  --hutch-msg-radius:         var(--hutch-radius-control, 8px);
+
+  /* Bot identity: neutral is the no-key accent; 1..6 are the static identity
+     palette mixed 45% over the message surface (assignment rule above). */
+  --hutch-msg-identity:       var(--hutch-bot-identity-neutral, rgb(255 255 255 / 0.12));
+  --hutch-bot-identity-neutral: var(--hutch-alias-border-l3, rgb(255 255 255 / 0.12));
+  --hutch-bot-identity-1: color-mix(in oklab, var(--hutch-static-identity-1, #3de8c5) 45%, var(--hutch-msg-surface, #0f0f12));
+  --hutch-bot-identity-2: color-mix(in oklab, var(--hutch-static-identity-2, #35c3f0) 45%, var(--hutch-msg-surface, #0f0f12));
+  --hutch-bot-identity-3: color-mix(in oklab, var(--hutch-static-identity-3, #5b9bff) 45%, var(--hutch-msg-surface, #0f0f12));
+  --hutch-bot-identity-4: color-mix(in oklab, var(--hutch-static-identity-4, #9b7cff) 45%, var(--hutch-msg-surface, #0f0f12));
+  --hutch-bot-identity-5: color-mix(in oklab, var(--hutch-static-identity-5, #c77dff) 45%, var(--hutch-msg-surface, #0f0f12));
+  --hutch-bot-identity-6: color-mix(in oklab, var(--hutch-static-identity-6, #ff6fa5) 45%, var(--hutch-msg-surface, #0f0f12));
+}
+
+/* ------------------------------------------------------------------ shell */
+
+.hutch-msg { display: flex; flex-direction: column; gap: 4px; min-width: 0; color: var(--hutch-msg-text, #ededf0); }
+
+/* User: a right-aligned raised plate. The ink stays primary so long prompts
+   read as well as short ones. */
+.hutch-msg--user { align-self: flex-end; align-items: flex-end; margin-left: auto; max-width: min(640px, 86%); }
+.hutch-msg--user .hutch-msg__body {
+  padding: 12px 16px;
+  border: 1px solid var(--hutch-msg-border, rgb(255 255 255 / 0.07));
+  border-radius: var(--hutch-msg-radius, 8px);
+  background: var(--hutch-msg-surface-raised, #101013);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+/* Clamped prompt: .is-long fades out until .hutch-msg__toggle expands it. */
+.hutch-msg--user .hutch-msg__body.is-long { position: relative; max-height: 14.5rem; overflow: hidden; }
+.hutch-msg--user .hutch-msg__body.is-long::after { content: ""; position: absolute; inset: auto 0 0 0; height: 4rem; pointer-events: none; background: linear-gradient(to bottom, transparent, var(--hutch-msg-surface-raised, #101013) 85%); }
+.hutch-msg--user[data-expanded="true"] .hutch-msg__body.is-long { max-height: none; overflow: visible; }
+.hutch-msg--user[data-expanded="true"] .hutch-msg__body.is-long::after { display: none; }
+
+/* Agent: full-width prose with no bubble. The 2px border-left rail carries
+   the bot accent; padding keeps content clear of it (rail centre = x1). */
+.hutch-msg--agent { position: relative; max-width: min(68ch, 100%); border-left: 2px solid color-mix(in oklab, var(--hutch-msg-identity, rgb(255 255 255 / 0.12)) 60%, transparent); padding-left: 12px; }
+
+/* System: an inline note - no avatar, no bubble, muted surface, icon plus
+   muted text. data-tone (note | attention | danger) adds a rail accent. */
+.hutch-msg--system {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--hutch-msg-border, rgb(255 255 255 / 0.07));
+  border-radius: var(--hutch-msg-radius, 8px);
+  background: var(--hutch-msg-surface-muted, #0b0b0e);
+  color: var(--hutch-msg-text-faint, #8e8e99);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.hutch-msg--system > svg { flex: none; }
+/* Step metrics and chips sit on one line with the old stepline rhythm. */
+.hutch-msg--system .hutch-msg__body > span + span { margin-left: 12px; }
+.hutch-msg--system[data-tone="attention"] { border-left: 2px solid var(--hutch-msg-warn, #fbbf24); color: var(--hutch-msg-text-muted, #a3a3ae); align-items: baseline; }
+.hutch-msg--system[data-tone="danger"] { border-left: 2px solid var(--hutch-msg-danger, #f87171); color: var(--hutch-msg-text-muted, #a3a3ae); align-items: baseline; }
+
+/* -------------------------------------------------------- identity + meta */
+
+.hutch-msg__identity { display: flex; align-items: center; gap: 8px; min-height: 28px; min-width: 0; color: var(--hutch-msg-text-muted, #a3a3ae); font-size: 0.75rem; line-height: 1.4; }
+/* Monogram stand-in for the avatar, tinted by the bot accent (server pages). */
+.hutch-msg__avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 1px solid color-mix(in oklab, var(--hutch-msg-identity, rgb(255 255 255 / 0.12)) 45%, transparent);
+  border-radius: var(--hutch-msg-radius, 8px);
+  background: color-mix(in oklab, var(--hutch-msg-identity, rgb(255 255 255 / 0.12)) 24%, var(--hutch-msg-surface, #0f0f12));
+  color: var(--hutch-msg-text, #ededf0);
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1;
+}
+.hutch-msg__identity .avatar { flex: none; }
+.hutch-msg__identity b { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--hutch-msg-text, #ededf0); font-size: 0.875rem; font-weight: 600; }
+.hutch-msg__identity time { flex: none; margin-left: auto; color: var(--hutch-msg-text-faint, #8e8e99); font-variant-numeric: tabular-nums; }
+/* Compact stop/review button in the identity row (the old .mhead rule). */
+.hutch-msg__identity .btn.small { min-height: 32px; padding: 0 12px; }
+
+.hutch-msg__body { min-width: 0; overflow-wrap: anywhere; }
+/* The answer keeps its markdown typography (studio.css renames .answer in
+   place); this sheet only owns layout. */
+.hutch-msg__answer { min-width: 0; overflow-wrap: anywhere; }
+
+.hutch-msg__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-height: 32px; min-width: 0; color: var(--hutch-msg-text-faint, #8e8e99); font-size: 0.75rem; }
+.hutch-msg--user .hutch-msg__meta { justify-content: flex-end; }
+.hutch-msg__stamp { padding: 0 8px; color: inherit; font-variant-numeric: tabular-nums; }
+.hutch-msg__action { min-height: 32px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--hutch-msg-radius, 8px); background: transparent; color: inherit; font-size: 0.75rem; line-height: 1.4; cursor: pointer; touch-action: manipulation; }
+.hutch-msg__action:hover { border-color: var(--hutch-msg-border, rgb(255 255 255 / 0.07)); background: var(--hutch-alias-interactive-bg-hover, rgb(255 255 255 / 0.05)); color: var(--hutch-msg-text, #ededf0); }
+.hutch-msg__toggle { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 32px; margin-right: 8px; padding: 0 8px; border-radius: var(--hutch-msg-radius, 8px); color: var(--hutch-msg-text-muted, #a3a3ae); font-size: 0.75rem; font-weight: 500; cursor: pointer; touch-action: manipulation; }
+.hutch-msg__toggle:hover { background: var(--hutch-alias-interactive-bg-hover, rgb(255 255 255 / 0.05)); color: var(--hutch-msg-text, #ededf0); }
+.hutch-msg__images { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+.hutch-msg__image { border: 1px solid var(--hutch-msg-border, rgb(255 255 255 / 0.07)); border-radius: var(--hutch-msg-radius, 8px); background: var(--hutch-msg-surface-muted, #0b0b0e); overflow: hidden; line-height: 0; }
+.hutch-msg__image img { display: block; max-width: min(240px, 100%); max-height: 160px; object-fit: cover; }
+.hutch-msg__image:hover { border-color: var(--hutch-msg-border-strong, rgb(255 255 255 / 0.12)); }
+.hutch-msg__live { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--hutch-msg-text-muted, #a3a3ae); font-size: 0.75rem; }
+.hutch-msg__live::before { content: "\00b7"; margin-right: 8px; color: var(--hutch-msg-text-faint, #8e8e99); }
+.hutch-msg__open { display: inline-grid; place-items: center; flex: none; width: 28px; height: 28px; margin-left: auto; border: 1px solid transparent; border-radius: var(--hutch-msg-radius, 8px); background: transparent; color: var(--hutch-msg-text-faint, #8e8e99); }
+.hutch-msg__open:hover { background: var(--hutch-alias-interactive-bg-hover, rgb(255 255 255 / 0.05)); color: var(--hutch-msg-text, #ededf0); text-decoration: none; }
+.hutch-msg__open svg { width: 15px; height: 15px; }
+
+/* ------------------------------------------------------- in-turn lines */
+
+/* Block flow, not flex: this line is sometimes a <details> (execution report)
+   and sometimes icon + text, so the icon rides the inline baseline. */
+.hutch-msg__notice { display: block; min-width: 0; margin-top: 4px; color: var(--hutch-msg-text-muted, #a3a3ae); font-size: 0.8125rem; line-height: 1.5; }
+.hutch-msg__notice > svg, .hutch-msg__error > svg { margin-right: 6px; vertical-align: -2px; }
+.hutch-msg__error { min-width: 0; margin-top: 4px; color: var(--hutch-msg-danger, #f87171); font-size: 0.8125rem; line-height: 1.5; overflow-wrap: anywhere; }
+/* Two modifiers app.js adds to the error line: stopped/skipped speaks in the
+   neutral notice voice, and an outcome-unknown report is a review prompt, so it
+   wears the warn token instead of danger. The more specific selector wins. */
+.hutch-msg__error.hutch-msg__notice { color: var(--hutch-msg-text-muted, #a3a3ae); }
+.hutch-msg__error.run-review { color: var(--hutch-msg-warn, #fbbf24); }
+/* The stream status line carries the system shell plus its own data-state
+   vocabulary (connecting | live | reconnecting | error | done); these three
+   colours move here from static/hutch.css so every status ink is a token. */
+.hutch-msg--system.stream-state[data-state="live"] { color: var(--hutch-msg-success, #34d399); }
+.hutch-msg--system.stream-state[data-state="reconnecting"] { color: var(--hutch-msg-warn, #fbbf24); }
+.hutch-msg--system.stream-state[data-state="error"] { color: var(--hutch-msg-danger, #f87171); }
+
+/* ----------------------------------------------------------- tool work */
+
+/* Group summary geometry lives in studio.css (renamed .tool-stream); only the
+   shared, value-identical row traits and the touch target live here. */
+.hutch-tool-group { min-width: 0; }
+.hutch-tool-group > summary { display: flex; align-items: center; gap: 8px; min-height: 32px; min-width: 0; list-style: none; cursor: pointer; color: var(--hutch-msg-text-muted, #a3a3ae); font-size: 0.8125rem; }
+.hutch-tool-group > summary::-webkit-details-marker { display: none; }
+
+/* One tool row: server emits <details class="hutch-tool"> as a bare sibling
+   in the event list, so it indents under the agent body; inside the SPA
+   process region the wrapper owns the indent instead. */
+.hutch-tool { position: relative; min-width: 0; margin-left: 14px; }
+.hutch-msg__process .hutch-tool { margin-left: 0; }
+.hutch-tool__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  min-width: 0;
+  padding: 0 12px 0 8px;
+  border: 0;
+  border-radius: var(--hutch-msg-radius, 8px);
+  background: transparent;
+  color: var(--hutch-msg-text-muted, #a3a3ae);
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  list-style: none;
+}
+.hutch-tool__head::-webkit-details-marker { display: none; }
+.hutch-tool__head:hover { background: var(--hutch-alias-interactive-bg-hover, rgb(255 255 255 / 0.05)); }
+.hutch-tool__head > svg { flex: none; }
+.hutch-tool__head > .tool-grid { flex: 1 1 auto; min-width: 0; }
+.hutch-tool__head strong { flex: none; color: var(--hutch-msg-text, #ededf0); font: 600 0.78rem/1.3 var(--hutch-font-family-mono, ui-monospace, "Cascadia Code", Menlo, Consolas, monospace); }
+.hutch-tool__head .argsum { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--hutch-msg-text-faint, #8e8e99); font-family: var(--hutch-font-family-mono, ui-monospace, "Cascadia Code", Menlo, Consolas, monospace); font-size: 0.75rem; }
+.hutch-tool__head .more, .hutch-tool__head time { flex: none; margin-left: auto; color: var(--hutch-msg-text-faint, #8e8e99); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.hutch-tool__state { flex: none; color: var(--hutch-msg-text-faint, #8e8e99); font-size: 0.75rem; font-weight: 500; }
+.hutch-tool__body { display: grid; gap: 16px; min-width: 0; padding: 8px 12px 16px 12px; }
+.hutch-tool__body[hidden] { display: none; }
+.hutch-tool__section { position: relative; min-width: 0; }
+.hutch-tool__out { min-width: 0; max-width: 100%; }
+/* Server output wells: a capped monospace pre that scrolls in place (tool
+   rows and the error event). The SPA wraps the same pre in .md-code and
+   keeps its clip button (higher specificity), so only the frameless cap is
+   shared here. */
+.hutch-tool > pre, .hutch-msg__error > pre { display: block; max-height: 320px; overflow: auto; margin: 0; padding: 8px 12px; border: 1px solid var(--hutch-msg-border, rgb(255 255 255 / 0.07)); border-radius: var(--hutch-msg-radius, 8px); background: var(--hutch-alias-code-bg, #0b0b0e); color: var(--hutch-msg-text-muted, #a3a3ae); font: 400 0.75rem/1.6 var(--hutch-font-family-mono, ui-monospace, "Cascadia Code", Menlo, Consolas, monospace); }
+
+/* data-state = icon + word in the markup; colour only re-states it. */
+.hutch-tool[data-state="bad"] .hutch-tool__state,
+.hutch-tool[data-state="bad"] .hutch-tool__head strong { color: var(--hutch-msg-danger, #f87171); }
+.hutch-tool[data-state="running"] .hutch-tool__state { color: var(--hutch-msg-success, #34d399); }
+.hutch-tool[data-state="waiting"] .hutch-tool__state { color: var(--hutch-msg-warn, #fbbf24); }
+
+/* Node dots on the process spine: geometry stays in studio.css, the state
+   tints are new and therefore live here. */
+.hutch-msg__process .hutch-tool[data-state="ok"]::before { background: var(--hutch-msg-text-faint, #8e8e99); border-color: var(--hutch-msg-text-faint, #8e8e99); }
+.hutch-msg__process .hutch-tool[data-state="bad"]::before { background: var(--hutch-msg-danger, #f87171); border-color: var(--hutch-msg-danger, #f87171); }
+.hutch-msg__process .hutch-tool[data-state="running"]::before { background: var(--hutch-msg-identity, rgb(255 255 255 / 0.12)); border-color: var(--hutch-msg-identity, rgb(255 255 255 / 0.12)); }
+.hutch-msg__process .hutch-tool[data-state="waiting"]::before { background: var(--hutch-msg-warn, #fbbf24); border-color: var(--hutch-msg-warn, #fbbf24); }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not(.reduce-effects) .hutch-msg__process .hutch-tool[data-state="running"]::before { animation: hutch-msg-node-pulse 1.6s ease-in-out infinite; }
+}
+@keyframes hutch-msg-node-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* ------------------------------------------------------------- approval */
+
+/* An inline approval reads as part of the turn: same rail, same indent, a
+   quiet well around the card. Card internals (.approval*, .approval-card-chat,
+   gate/risk, buttons, ids) keep their own vocabulary and are untouched. */
+.hutch-approval { position: relative; min-width: 0; margin-top: 8px; padding: 8px; border: 1px solid var(--hutch-msg-border, rgb(255 255 255 / 0.07)); border-radius: var(--hutch-msg-radius, 8px); background: var(--hutch-msg-surface-muted, #0b0b0e); }
+
+/* ----------------------------------------------------------- msg states */
+
+/* data-state rides the shell: streaming adds one quiet dot in the identity
+   row (never a full-colour pulse), error tints the identity/meta rows beside
+   a plain .hutch-msg__error line, done carries no marker. */
+.hutch-msg[data-state="streaming"] .hutch-msg__identity::after { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--hutch-msg-success, #34d399); }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not(.reduce-effects) .hutch-msg[data-state="streaming"] .hutch-msg__identity::after { animation: hutch-msg-node-pulse 1.6s ease-in-out infinite; }
+}
+.hutch-msg--agent[data-state="error"] .hutch-msg__identity,
+.hutch-msg--agent[data-state="error"] .hutch-msg__meta { color: var(--hutch-msg-danger, #f87171); }
+.hutch-msg--agent[data-state="error"] .hutch-msg__identity b { color: inherit; }
+/* The user's own request never wears the run's failure: its stamp stays muted. */
+
+/* ---------------------------------------------------------------- focus */
+
+/* Keyboard focus only, on every interactive element inside a message
+   (summary, toggle, approve/deny, copy, links). Tab order is DOM order;
+   no positive tabindex anywhere. */
+.hutch-msg :focus-visible,
+.hutch-msg:focus-visible,
+.hutch-tool-group :focus-visible,
+.hutch-tool :focus-visible,
+.hutch-approval :focus-visible {
+  outline: var(--hutch-focus-ring-width, 2px) solid var(--hutch-msg-focus, #60a5fa);
+  outline-offset: var(--hutch-focus-ring-offset, 2px);
+}
+
+/* ----------------------------------------------------------- responsive */
+
+/* Coarse pointers get 44px targets; everything else keeps the 32px minimum
+   (WCAG 2.5.8) and the 4px-grid density of the rest of the product. */
+@media (pointer: coarse) {
+  .hutch-tool-group > summary,
+  .hutch-tool__head,
+  .hutch-msg__toggle,
+  .hutch-msg__action,
+  .hutch-msg__meta,
+  .hutch-msg__identity .btn.small { min-height: 44px; }
+  .hutch-msg__toggle,
+  .hutch-msg__action { padding-inline: 12px; }
+  .hutch-msg__open { width: 44px; height: 44px; }
+}
+@media (max-width: 640px) {
+  /* Phones drop the live activity label first; name, status and time stay. */
+  .hutch-msg__identity .hutch-msg__live { display: none; }
+}
+@media (max-width: 560px) {
+  .hutch-msg--user .hutch-msg__body { padding: 10px 12px; }
+  .hutch-msg__images { gap: 6px; }
+  .hutch-msg__image img { max-width: 100%; }
+}

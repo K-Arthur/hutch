@@ -3,7 +3,7 @@ and editable hosted prices. Registered from ``pages.py`` with the shared page he
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Any, Callable
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -15,9 +15,55 @@ from ..providers.pricing import PriceBook
 def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: Callable) -> None:
     config, store = app.state.config, app.state.store
 
+    def workspace_default() -> str:
+        """The route used to seed new bots, read from the same key Settings writes."""
+        import json
+        raw = store.kv_get("workspace:model-defaults")
+        if raw:
+            try:
+                return str((json.loads(raw) or {}).get("model") or "")
+            except (ValueError, TypeError):
+                return ""
+        return store.kv_get("default_model") or ""
+
+    def workspace_mode() -> str:
+        """The inference mode paired with the workspace default; never silently reset it."""
+        import json
+        raw = store.kv_get("workspace:model-defaults")
+        if raw:
+            try:
+                mode = str((json.loads(raw) or {}).get("inference_mode") or "hybrid")
+                return mode if mode in ("hybrid", "local", "offline") else "hybrid"
+            except (ValueError, TypeError):
+                return "hybrid"
+        return "hybrid"
+
+    def set_workspace_default(model: str) -> None:
+        import json
+        store.kv_set("workspace:model-defaults", json.dumps(
+            {"model": model, "inference_mode": workspace_mode(), "configured": bool(model)},
+            sort_keys=True, separators=(",", ":")))
+
+    def validated_route(spec: str, bot: Any = None, mode: str = "hybrid", owner: str = "this route") -> tuple[bool, str]:
+        """Reuse the same route validation as a Bot save, under the mode that will govern it."""
+        from ..modelchoices import ModelNotUsable, validate_override
+        from ..models import Bot, InferenceMode
+        if bot is None:
+            bot = Bot(name=owner, model=spec, tools=[], inference_mode=InferenceMode(mode))
+        try:
+            validate_override(config, store, bot, spec)
+        except ModelNotUsable as exc:
+            fix = str(getattr(exc, "fix", "") or "")
+            return False, f"{exc} - {fix}" if fix else str(exc)
+        except ValueError as exc:
+            return False, str(exc)
+        return True, spec
+
     @app.get("/models", response_class=HTMLResponse, include_in_schema=False)
     def models_page(request: Request):
         view = build_models_view(config, store)
+        # Price errors belong beside the price form, not above the page head;
+        # the template overrides the base flash and renders it inside #prices.
         return page(request, "models.html", nav="models", v=view)
 
     @app.post("/models/prices/save", include_in_schema=False)
@@ -25,7 +71,7 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
         f = await read_form(request)
 
         def num(key: str, required: bool = False):
-            raw = f.get(key).strip()
+            raw = (f.get(key) or "").strip()
             if not raw:
                 if required:
                     raise ValueError(f"{key.replace('_', ' ')} is required")
@@ -36,16 +82,165 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
                 raise ValueError(f"{key.replace('_', ' ')} must be a number (USD per 1M tokens), got '{raw}'") from None
 
         try:
+            model = (f.get("model") or "").strip()
+            if not model:
+                raise ValueError("model is required")
             book = PriceBook(config.state_dir / "prices.json")
-            p = book.set_price(f.get("model").strip(), num("input", True), num("output", True), num("cache_read"),
-                               num("cache_write"), source=f.get("source"))
+            source = (f.get("source") or "").strip()
+            p = book.set_price(model, num("input", True), num("output", True), num("cache_read"),
+                               num("cache_write"), source=source)
         except ValueError as exc:
-            return go("/models#prices", error=str(exc))
-        return go("/models#prices", notice=f"Saved a price for {p.model}, stamped {p.verified_on}.")
+            return go("/models?price=1#prices", error=str(exc))
+        return go("/models?price=1#prices", notice=f"Saved a price for {p.model}, stamped {p.verified_on}.")
 
     @app.post("/models/prices/reset", include_in_schema=False)
     async def price_reset(request: Request):
         f = await read_form(request)
-        model = f.get("model").strip()
+        model = (f.get("model") or "").strip()
+        if not model:
+            return go("/models?price=1#prices", error="model is required")
         PriceBook(config.state_dir / "prices.json").remove_override(model)
-        return go("/models#prices", notice=f"Your override for {model} was removed.")
+        return go("/models?price=1#prices", notice=f"Your override for {model} was removed.")
+
+    @app.post("/models/set-default", include_in_schema=False)
+    async def model_set_default(request: Request):
+        f = await read_form(request)
+        model = (f.get("model") or "").strip()
+        if not model:
+            return go("/models", error="Model spec is required to set default.")
+        ok, detail = validated_route(model, mode=workspace_mode(), owner="the workspace default")
+        if not ok:
+            return go("/models", error=f"Could not set {model} as the default: {detail}")
+        set_workspace_default(model)
+        return go("/models", notice=f"Set {model} as the default for new bots.")
+
+    @app.post("/models/test", include_in_schema=False)
+    async def model_test(request: Request):
+        f = await read_form(request)
+        model = (f.get("model") or "").strip()
+        provider = (f.get("provider") or "").strip() or model.partition("/")[0]
+        if not provider:
+            return go("/models", error="Provider or model spec is required for testing.")
+        from ..connections import ConnectionBook
+        book = ConnectionBook(config.state_dir)
+        if provider == "ollama":
+            from ..runtime.ladder import get_provider
+            p = get_provider("ollama", None)
+            health = p.health()
+            if health.ok:
+                return go("/models", notice=f"Ollama connection verified: {health.detail or 'ready'}.")
+            return go("/models", error=f"Ollama connection test failed: {health.detail}")
+        if provider in book.names():
+            from ..providers.connection import check_connection
+            res = check_connection(book, provider)
+            detail = (res.detail or "").strip()[:500]
+            secret = book.key(provider) or ""
+            if secret:
+                detail = detail.replace(secret, "[redacted]")
+            if res.ok:
+                return go("/models", notice=f"{provider}: connection verified ({detail}).")
+            return go("/models", error=f"{provider}: connection test failed ({detail}).")
+        return go("/models", error=f"{provider} is not a configured connection, so Hutch cannot test it. Add the provider in Apps & AI first.")
+
+    @app.post("/models/add", include_in_schema=False)
+    async def model_add(request: Request):
+        f = await read_form(request)
+        provider = (f.get("provider") or "").strip()
+        model_id = (f.get("model_id") or "").strip()
+        label = (f.get("label") or "").strip()
+        if not provider or not model_id:
+            return go("/models", error="Provider and Model ID are required.")
+        if provider == "chatgpt":
+            return go("/models", error="ChatGPT plan access needs Sign in with ChatGPT in Apps & AI; an API key is not enough.")
+        from ..connections import ConnectionBook
+        book = ConnectionBook(config.state_dir)
+        api_key = (f.get("api_key") or "").strip()
+        base_url = (f.get("base_url") or "").strip()
+        template = "custom-openai" if provider == "custom" else provider
+        conn_name = provider
+        created_connection = False
+        if provider == "custom":
+            import re
+            safe_name = re.sub(r"[^a-z0-9\-]", "-", f"custom-{model_id}".lower()).strip("-")[:35]
+            conn_name = safe_name or "custom-endpoint"
+        if conn_name != "ollama" and conn_name not in book.names():
+            if template in book._templates:
+                overrides = {}
+                if base_url:
+                    overrides["base_url"] = base_url
+                try:
+                    book.add(template, conn_name, **overrides)
+                    created_connection = True
+                except Exception as exc:
+                    return go("/models", error=f"Could not configure provider {conn_name}: {exc}")
+        if api_key and conn_name in book.names():
+            book.set_key(conn_name, api_key, prefer_stored=True)
+        spec = f"{conn_name}/{model_id}" if conn_name != "ollama" else f"ollama/{model_id}"
+        set_default = f.flag("set_default")
+        bot_id = (f.get("bot_id") or "").strip()
+        bot = store.get_bot(bot_id) if bot_id else None
+
+        def add_failed(detail: str, where: str):
+            if created_connection:
+                book.remove(conn_name)      # do not leave half-configured providers behind a failed add
+            return go("/models", error=f"Could not add {spec} {where}: {detail}")
+
+        if bot_id and bot is None:
+            return add_failed("that bot no longer exists", "for the selected bot")
+        if set_default:
+            ok, detail = validated_route(spec, mode=workspace_mode(), owner="the workspace default")
+            if not ok:
+                return add_failed(detail, "as the workspace default")
+        if bot is not None:
+            ok, detail = validated_route(spec, bot=bot)
+            if not ok:
+                return add_failed(detail, f"for {bot.name}")
+        if not set_default and bot is None:
+            ok, detail = validated_route(spec, owner="the saved route")
+            if not ok:
+                return add_failed(detail, "as a saved route")
+        if label:
+            store.kv_set(f"model_label:{spec}", label)
+        stored_routes = [s.strip() for s in (store.kv_get("configured_model_routes") or "").split(",") if s.strip()]
+        if spec not in stored_routes:
+            stored_routes.append(spec)
+            store.kv_set("configured_model_routes", ",".join(stored_routes))
+        if set_default:
+            set_workspace_default(spec)
+        if bot is not None:
+            bot.model = spec
+            store.upsert_bot(bot, preserve_schedules=True)
+        return go("/models", notice=f"Configured model route {spec}.")
+
+    @app.post("/models/delete", include_in_schema=False)
+    async def model_delete(request: Request):
+        f = await read_form(request)
+        model = (f.get("model") or "").strip()
+        if not model:
+            return go("/models", error="Model spec is required.")
+        stored_routes = [s.strip() for s in (store.kv_get("configured_model_routes") or "").split(",") if s.strip()]
+        was_stored = model in stored_routes
+        cleared_default = workspace_default() == model
+        changed = []
+        for bot in store.list_bots():
+            if bot.model == model:
+                bot.model = ""
+                store.upsert_bot(bot, preserve_schedules=True)
+                changed.append(bot.name)
+        if cleared_default:
+            set_workspace_default("")
+        store.kv_set(f"model_label:{model}", "")
+        if model in stored_routes:
+            stored_routes.remove(model)
+            store.kv_set("configured_model_routes", ",".join(stored_routes))
+        PriceBook(config.state_dir / "prices.json").remove_override(model)
+        if model.startswith("ollama/") and not (cleared_default or changed or was_stored):
+            return go("/models", error=f"{model} is installed locally; Hutch does not uninstall model files. "
+                                       f"Run `ollama rm {model.split('/', 1)[1]}` to delete it.")
+        if changed or cleared_default or was_stored:
+            note = f"Removed {model} from {len(changed)} bot(s), the default and saved routes."
+        else:
+            note = f"Removed the saved route {model}."
+        if model.startswith("ollama/"):
+            note += f" The installed model file is unchanged; run `ollama rm {model.split('/', 1)[1]}` to delete it."
+        return go("/models", notice=note)

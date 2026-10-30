@@ -13,18 +13,12 @@ function openCampaignReport({ returnFocus, bot, conversationId, generation }) {
       <p class="campaign-report-lead">Turn a campaign export into checked metrics. Review the numbers before saving a local draft.</p>
       <p class="campaign-report-scope">No model calls · no campaign changes</p>
       <div class="campaign-report-source">
-        <label class="field" for="campaign-source">Campaign CSV
-          <textarea id="campaign-source" rows="6" maxlength="65536" spellcheck="false" wrap="off" aria-describedby="campaign-source-help" placeholder="Paste the CSV export here"></textarea>
-        </label>
-        <p id="campaign-source-help" class="hint">Use one export with matching currency, units and reporting window. Up to 64 KB.</p>
-        <div><button type="button" class="btn ghost" id="campaign-file-open">Choose CSV file</button><input type="file" id="campaign-file" accept=".csv,text/csv" hidden><span id="campaign-file-name" class="hint" role="status"></span></div>
+        <div class="hutch-field"><label class="hutch-label" for="campaign-source">Campaign CSV</label><textarea class="hutch-textarea" id="campaign-source" rows="6" maxlength="65536" spellcheck="false" wrap="off" aria-describedby="campaign-source-help" placeholder="Paste the CSV export here"></textarea><p id="campaign-source-help" class="hutch-help">Use one export with matching currency, units and reporting window. Up to 64 KB.</p></div>
+        <div class="hutch-actions"><button type="button" class="btn ghost" id="campaign-file-open">Choose CSV file</button><input type="file" id="campaign-file" accept=".csv,text/csv" hidden><span id="campaign-file-name" class="hint" role="status"></span></div>
         <details><summary>Required columns and calculations</summary><p class="hint campaign-report-columns">campaign,impressions,clicks,spend,conversions,revenue,daily_budget</p>
           <p class="hint">One row per campaign. CTR = clicks / impressions; CVR = conversions / clicks; CPA = spend / conversions; ROAS = revenue / spend. Empty metrics are undefined, not zero.</p></details>
       </div>
-      <div class="field"><label for="campaign-days">Reporting period in whole days</label>
-        <input id="campaign-days" type="number" min="0" max="3660" step="1" value="0" aria-describedby="campaign-days-help">
-        <span class="hint" id="campaign-days-help">Leave 0 when unknown. Budget checks need a complete matching window and daily budgets that stayed constant.</span>
-      </div>
+      <div class="hutch-field"><label class="hutch-label" for="campaign-days">Reporting period in whole days</label><input class="hutch-input" id="campaign-days" type="number" min="0" max="3660" step="1" value="0" aria-describedby="campaign-days-help"><span class="hutch-help" id="campaign-days-help">Leave 0 when unknown. Budget checks need a complete matching window and daily budgets that stayed constant.</span></div>
       <section id="campaign-preview" aria-label="Report preview" hidden></section>
       <p id="campaign-report-error" class="campaign-report-error" role="alert"></p>
     </div>`,

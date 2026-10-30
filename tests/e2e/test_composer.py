@@ -75,7 +75,7 @@ def _open_chat(page, base):
 
 
 def _tray(page):
-    return page.locator(".composer-attachments")
+    return page.locator(".hutch-composer__attachments")
 
 
 def _paste_image(page, target, name: str, data: bytes, mime: str):
@@ -144,7 +144,7 @@ def test_composer_stages_real_images_through_picker_paste_and_drop(browser, app_
         page.wait_for_timeout(400)
         chips = page.locator(".upload-chip")
         assert chips.count() == 2, "one chip per staged image"
-        hint = page.locator(".composer-attachments-hint").inner_text()
+        hint = page.locator(".hutch-composer__attachments-hint").inner_text()
         assert "Images here are sent with every message until you remove them" in hint
 
         # thumbnails are real bytes served by the conversation content route
@@ -156,7 +156,7 @@ def test_composer_stages_real_images_through_picker_paste_and_drop(browser, app_
         assert served.body().startswith(b"\x89PNG"), "the served thumbnail is the real PNG"
 
         # status region announced the staging (screen-reader live region)
-        status = page.locator(".composer-attachments-status").inner_text()
+        status = page.locator(".hutch-composer__attachments-status").inner_text()
         assert "Attached" in status
 
         # 2. Paste: a real clipboard image becomes a staged chip.
@@ -244,11 +244,11 @@ def test_composer_sends_images_and_renders_them_in_the_transcript(browser, app_s
         ta.click()
         page.keyboard.type("What service does this icon represent?")
         page.locator("#chat-send").click()
-        wait_for_page(page, "document.querySelector('.bubble-images') !== null", timeout=30_000)
+        wait_for_page(page, "document.querySelector('.hutch-msg__images') !== null", timeout=30_000)
         assert ta.input_value() == "", "sent text clears"
         assert page.locator(".upload-chip").count() == 1, "tray images persist after send"
 
-        bubble_img = page.locator(".bubble-images .bubble-image img").first
+        bubble_img = page.locator(".hutch-msg__images .hutch-msg__image img").first
         bubble_img.wait_for(state="visible", timeout=10_000)
         natural = bubble_img.evaluate("img => ({ w: img.naturalWidth, h: img.naturalHeight, alt: img.alt })")
         assert natural["w"] == 96 and natural["h"] == 96, f"real PNG dimensions: {natural}"
@@ -256,7 +256,7 @@ def test_composer_sends_images_and_renders_them_in_the_transcript(browser, app_s
         box = bubble_img.bounding_box()
         assert box["width"] <= 242, "thumbnail never exceeds its grid cap"
         # the transcript link opens the real bytes
-        href = page.locator(".bubble-images .bubble-image").first.get_attribute("href")
+        href = page.locator(".hutch-msg__images .hutch-msg__image").first.get_attribute("href")
         served = page.request.get(f"{base}{href}")
         assert served.status == 200 and served.body().startswith(b"\x89PNG")
 
@@ -266,9 +266,9 @@ def test_composer_sends_images_and_renders_them_in_the_transcript(browser, app_s
         page.keyboard.press("Backspace")
         assert ta.input_value() == ""
         page.locator("#chat-send").click()
-        wait_for_page(page, "document.querySelectorAll('.bubble-images').length >= 2", timeout=30_000)
-        image_only_bubble = page.locator(".msg.you .bubble").last
-        assert image_only_bubble.locator(".bubble-images img").count() == 1
+        wait_for_page(page, "document.querySelectorAll('.hutch-msg__images').length >= 2", timeout=30_000)
+        image_only_bubble = page.locator(".hutch-msg--user .hutch-msg__body").last
+        assert image_only_bubble.locator(".hutch-msg__images img").count() == 1
         assert image_only_bubble.inner_text().strip() == "", "image-only bubble has no invented text"
 
         # --- a refused send keeps both the tray and any typed draft.
@@ -288,7 +288,10 @@ def test_composer_sends_images_and_renders_them_in_the_transcript(browser, app_s
         assert any("no longer available" in t for t in toasts), toasts
         assert any("Your draft is kept." in t for t in toasts), toasts
         assert ta.input_value() == "this send must be refused", "draft survives a refused send"
-        assert page.locator("#composer-box").evaluate("el => el.classList.contains('has-error')")
+        # the failure is a plain line below the shell, never a red border on it
+        error_line = page.locator("#composer-error")
+        assert error_line.is_visible(), "the composer reports the refusal below the shell"
+        assert "Not sent" in error_line.inner_text() and "kept" in error_line.inner_text()
         page.wait_for_timeout(300)
         assert page.locator(".upload-chip").count() >= 2, "tray survives a refused send"
 
@@ -336,7 +339,7 @@ def test_composer_image_tray_survives_phone_and_zoom_checks(browser, app_server)
                 f"horizontal overflow at {label}"
             # the tray sits above the writing area, not over it
             tray_box = _tray(page).bounding_box()
-            body_box = page.locator(".composer-body").bounding_box()
+            body_box = page.locator(".hutch-composer__body").bounding_box()
             assert tray_box["y"] < body_box["y"], "context region leads the composer"
             send_box = page.locator("#chat-send").bounding_box()
             assert send_box["width"] >= 44 and send_box["height"] >= 44, "touch-size send"
@@ -355,11 +358,11 @@ def test_composer_image_tray_survives_phone_and_zoom_checks(browser, app_server)
         # confirm the transcript image link keeps a visible ring
         page.locator("#chat-prompt").fill("stage one more, then send")
         page.locator("#chat-send").click()
-        wait_for_page(page, "document.querySelector('.bubble-images') !== null", timeout=30_000)
+        wait_for_page(page, "document.querySelector('.hutch-msg__images') !== null", timeout=30_000)
         reached = False
         for _ in range(80):
             page.keyboard.press("Tab")
-            if page.evaluate("document.activeElement.classList.contains('bubble-image')"):
+            if page.evaluate("document.activeElement.classList.contains('hutch-msg__image')"):
                 reached = True
                 break
         assert reached, "the transcript image link is keyboard reachable"

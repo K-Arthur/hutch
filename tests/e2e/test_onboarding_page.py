@@ -26,11 +26,12 @@ from hutch.models import iso, utcnow  # noqa: E402
 from hutch.onboarding import apply_request_edit, default_setup, encode_setup  # noqa: E402
 from hutch.onboarding_store import SETUP_KEY  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
+from tests.support.artifacts import artifact_path  # noqa: E402
 from tests.support.browser import launch_browser  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[2]
-EVIDENCE = Path(os.environ.get("HUTCH_ONBOARDING_EVIDENCE_DIR",
-                                str(ROOT / "docs" / "onboarding" / "evidence" / "slice-01")))
+# Captures go to the isolated test-artifact root. Set HUTCH_ONBOARDING_EVIDENCE_DIR to refresh the
+# committed evidence under docs/onboarding/evidence/ on purpose; a passing run never rewrites it.
+EVIDENCE = Path(os.environ.get("HUTCH_ONBOARDING_EVIDENCE_DIR", str(artifact_path("onboarding-evidence"))))
 VIEWPORTS = {"320": (320, 740), "375": (375, 812), "768": (768, 1024), "1440": (1440, 1000)}
 LONG_NON_LATIN = "Juno 助手 - Zoë Ångström - محمد - e\u0301 - Alexandria-Cassandra Montgomery-Worthington the Third"
 
@@ -180,8 +181,7 @@ def test_capture_state_matrix(browser, app_server):
 
         open_page(page, url)
         assert page_state(page) == "setup.resume.current"
-        page.wait_for_function(
-            "document.querySelector('[data-resume-message]')?.textContent.includes('left off')")
+        pw.expect(page.locator("[data-resume-message]")).to_contain_text("left off")
         resumed_statuses = [item for item in page.locator("[role=status]").all_inner_texts()
                             if "left off" in item.lower()]
         assert len(resumed_statuses) == 1, resumed_statuses
@@ -194,9 +194,7 @@ def test_capture_state_matrix(browser, app_server):
         fill_and_submit(page, "   ")
         assert page_state(page) == "input.invalid"
         assert page.locator("[data-error-summary]").count() == 1
-        page.wait_for_function(
-            "document.activeElement === document.querySelector('[data-error-summary]')",
-            timeout=5_000)
+        pw.expect(page.locator("[data-error-summary]")).to_be_focused(timeout=5_000)
         assert page.evaluate("document.activeElement === document.querySelector('[data-error-summary]')")
         for label in ("375", "768", "1440", "320"):
             width, height = VIEWPORTS[label]
@@ -330,8 +328,7 @@ def test_capture_state_matrix(browser, app_server):
         fill_and_submit(page, "Check the announcement")
         page.goto(url + "/onboarding", wait_until="domcontentloaded")
         page.wait_for_selector("[data-onboarding-state]")
-        page.wait_for_function(
-            "document.querySelector('[data-resume-message]')?.textContent.includes('left off')")
+        pw.expect(page.locator("[data-resume-message]")).to_contain_text("left off")
         statuses = page.locator("[role=status]").all_inner_texts()
         assert len([item for item in statuses if "left off" in item.lower()]) == 1, statuses
     finally:

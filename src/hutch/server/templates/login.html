@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
+{% from "_form.html" import text_input, form_actions %}
 {% block title %}Sign in{% endblock %}
 {% block content %}
 <section class="panel narrow auth-panel" aria-labelledby="auth-title">
@@ -13,10 +14,10 @@
   {% if not request.state.hutch_remote %}
   <details class="auth-details">
     <summary>Local owner token</summary>
-    <form method="post" action="/login" class="stack">
+    <form method="post" action="/login" class="hutch-form">
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      <label class="field"><span>Access token</span><input type="password" name="token" autocomplete="current-password" required></label>
-      <button class="btn primary" type="submit">Sign in</button>
+      {{ text_input("token", "Access token", type="password", required=True, autocomplete="current-password") }}
+      {% call form_actions() %}<button class="btn primary" type="submit">Sign in</button>{% endcall %}
     </form>
   </details>
   {% endif %}

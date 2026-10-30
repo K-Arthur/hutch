@@ -1,36 +1,35 @@
 /* Fallback for readers without JavaScript.
- *
- * hutch.js opens the compact primary-nav overlay, so with scripting disabled the
- * overlay can never open and navigation would be unreachable below 1025px. This
- * sheet is linked only inside <noscript>: it hides the inert toggle and lets the
- * nav wrap into rows under the topbar instead.
- */
-@media (max-width: 1024px) {
-  .nav-toggle { display: none; }
-  .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
-  #primary-nav {
+
+   The app sidebar is a persistent rail on wide screens and a labelled drawer
+   below 900px, opened by hutch-shell.js. With scripting disabled the drawer can
+   never open, so this sheet (linked only inside <noscript>) stacks the rail
+   above the content as a normal navigation list. Every destination stays
+   reachable and nothing overflows; the toggle and close controls are hidden.
+*/
+@media (max-width: 900px) {
+  .hutch-shell { grid-template-columns: minmax(0, 1fr); }
+  .hutch-shell > .workspace {
     position: static;
     inset: auto;
-    transform: none;
-    opacity: 1;
-    pointer-events: auto;
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    flex-basis: 100%;
-    gap: 2px;
-    padding: 0;
-    background: none;
-    border: none;
-    overflow: visible;
+    width: auto;
     height: auto;
+    max-height: none;
+    min-height: 0;
+    transform: none;
+    box-shadow: none;
+    flex-direction: column;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-semantic-border);
   }
-  #primary-nav a {
-    font-size: var(--fs-sm);
-    font-weight: 550;
-    padding: 8px 12px;
-    border-bottom: 0;
-    border-radius: var(--r-sm);
-  }
+  .ws-brand { height: auto; padding: var(--space-2) var(--space-3); }
+  .ws-nav { display: grid; padding: 0 var(--space-2) var(--space-2); }
+  /* No JavaScript means the More disclosure cannot be relied on to open on
+     routes whose active destination is outside it; show every row directly. */
+  .ws-nav details > summary { display: none; }
+  .ws-nav details:not([open]) > a { display: flex; }
+  .ws-foot { margin-top: 0; padding: 0 var(--space-2) var(--space-3); }
+  .ws-nav a, .ws-nav button, .ws-nav summary { min-height: 40px; }
+  #nav-toggle, #ws-close { display: none; }
+  .app-top { position: static; }
 }

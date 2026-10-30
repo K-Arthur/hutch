@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
 {% from "_events.html" import events, more with context %}
+{% from "_message.html" import message_user, message_system %}
 {% from "_wait.html" import wait_banner %}
 {% block title %}Run {{ run.id[4:16] }}{% endblock %}
 {% block content %}
@@ -18,12 +19,12 @@
   </div>
   <div class="actions">
     {% if active %}
-    <form method="post" action="/runs/{{ run.id }}/stop" hx-post="/runs/{{ run.id }}/stop" hx-swap="none">
+    <form method="post" action="/runs/{{ run.id }}/stop" class="hutch-form hutch-inline" hx-post="/runs/{{ run.id }}/stop" hx-swap="none">
       <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/runs/{{ run.id }}">
       <button class="btn danger">{{ icon("stop", 15) }} Stop run</button></form>
     {% endif %}
     {% if run.status.value == "waiting_human" %}
-    <form method="post" action="/runs/{{ run.id }}/resume"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/runs/{{ run.id }}">
+    <form method="post" action="/runs/{{ run.id }}/resume" class="hutch-form hutch-inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/runs/{{ run.id }}">
       <button class="btn primary">{{ icon("play", 15) }} Resume</button></form>
     {% endif %}
   </div>
@@ -39,17 +40,16 @@
          data-run-stream="/runs/{{ run.id }}/stream" data-last-seq="{{ last_seq }}"
          data-run-id="{{ run.id }}" data-active="{{ 1 if active else 0 }}" data-gap-url="/runs/{{ run.id }}/events">
   <div class="tx-head"><span class="tx-title">{{ icon("list", 14) }} Transcript</span><span class="muted">{{ event_count }} event{{ '' if event_count == 1 else 's' }}</span></div>
-  <div class="turn user prompt">
-    <div class="turn-role">prompt - {{ run.created_at | ago }}</div>
-    <div class="turn-body">{{ run.prompt }}</div>
-  </div>
+  {{ message_user(run.prompt, "prompt - " ~ (run.created_at | ago)) }}
   <ol class="tx-list" id="tx-list" data-events>
     {{ more(first_seq, hidden, run.id) }}
     {{ events(evs, approvals, run) }}
   </ol>
-  <div class="stream-state" id="stream-state" role="status" aria-live="polite" data-state="{{ 'connecting' if active else 'done' }}">
-    {% if active %}{{ icon("spinner", 14, "spin") }}<span>connecting to live stream...</span>{% else %}{{ icon("check", 14) }}<span>run finished - {{ event_count }} events{% if verify.ok %}, history verified{% endif %}</span>{% endif %}
-  </div>
+  {% call message_system(extra_class="stream-state", id="stream-state", role="status", live="polite",
+                         state='connecting' if active else 'done') -%}
+    {%- if active %}{{ icon("spinner", 14, "spin") }}<span>connecting to live stream...</span>
+    {%- else %}{{ icon("check", 14) }}<span>run finished - {{ event_count }} events{% if verify.ok %}, history verified{% endif %}</span>{% endif -%}
+  {%- endcall %}
 </section>
 
 {% if not active %}

@@ -6,11 +6,43 @@
   const $ = (sel, el = document) => el.querySelector(sel);
   const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 
-  /* ---------------------------------------------------------- confirm forms */
-  document.addEventListener("submit", (ev) => {
-    const msg = ev.target.dataset && ev.target.dataset.confirm;
-    if (msg && !window.confirm(msg)) ev.preventDefault();
-  });
+  /* -------------------------------------------- bot identity (msg sheet) */
+  /* Shared assignment rule with app.js and static/hutch-messages.css:
+     index = (fnv1a32(bot_id || bot_name) >>> 0) % 6 + 1; no key -> neutral.
+     FNV-1a 32-bit: h = 0x811c9dc5; per UTF-16 code unit c: h ^= c;
+     h = Math.imul(h, 0x01000193). The chosen accent becomes the message's
+     --hutch-msg-identity, so rail, monogram and node dots agree. */
+  function fnv1a32(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i += 1) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return h >>> 0;
+  }
+  function applyBotIdentity() {
+    $$(".hutch-msg--agent[data-bot], [data-hutch-composer-target][data-bot]").forEach((el) => {
+      const key = el.dataset.bot;
+      if (!key) return;
+      const idx = (fnv1a32(key) % 6) + 1;
+      if (el.matches("[data-hutch-composer-target]")) {
+        // The routing dot reads this through its var() fallback chain.
+        el.style.setProperty("--hutch-composer-target-accent",
+          `var(--hutch-bot-identity-${idx}, var(--hutch-bot-identity-neutral, rgb(255 255 255 / 0.12)))`);
+      } else {
+        el.style.setProperty("--hutch-msg-identity", `var(--hutch-bot-identity-${idx}, rgb(255 255 255 / 0.12))`);
+      }
+    });
+  }
+  applyBotIdentity();
+  // HTMX swaps (load-more and live regions) bring messages in after DOM ready.
+  document.addEventListener("htmx:afterSwap", (ev) => { if (ev.target instanceof Element) applyBotIdentity(); });
+
+  /* ------------------------------------------------ destructive confirmations */
+  /* Form-level confirmations live in the modal primitive:
+     form[data-hutch-confirm-form] is wired by hutch-overlay-modal.js, so the
+     old window.confirm fallback is gone. Nothing in the templates uses
+     data-confirm any more; keep the server-side action untouched. */
 
   /* ------------------------------------------------------------- clocks */
   const pad = (n) => String(n).padStart(2, "0");
@@ -105,6 +137,7 @@
       if (!html) return;
       list.insertAdjacentHTML("beforeend", html);
       if (window.htmx) window.htmx.process(list);
+      applyBotIdentity();   // streamed-in agent messages need their accent too
     }
 
     async function fillGap(from, to) {
@@ -147,41 +180,6 @@
   }
 })();
 
-/* Full-screen mobile menu (header nav collapses to an overlay) */
-(function () {
-  var btn = document.getElementById("nav-toggle");
-  var nav = document.getElementById("primary-nav");
-  if (!btn || !nav) return;
-  function isCompact() { return window.matchMedia("(max-width: 1024px)").matches; }
-  function setOpen(open, restoreFocus) {
-    nav.classList.toggle("open", open);
-    btn.setAttribute("aria-expanded", String(open));
-    btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
-    nav.inert = isCompact() && !open;
-    if (isCompact() && !open) nav.setAttribute("aria-hidden", "true");
-    else nav.removeAttribute("aria-hidden");
-    if (open) nav.querySelector("a")?.focus();
-    else if (restoreFocus) btn.focus();
-  }
-  setOpen(false);
-  btn.addEventListener("click", function () {
-    setOpen(!nav.classList.contains("open"), nav.classList.contains("open"));
-  });
-  nav.addEventListener("click", function (e) { if (e.target.closest("a")) setOpen(false); });
-  document.addEventListener("keydown", function (e) {
-    if (!nav.classList.contains("open")) return;
-    if (e.key === "Escape") { e.preventDefault(); setOpen(false, true); return; }
-    if (e.key !== "Tab") return;
-    var items = [btn, ...nav.querySelectorAll("a")].filter(function (item) {
-      return !item.hidden && item.getClientRects().length;
-    });
-    if (!items.length) return;
-    var first = items[0], last = items[items.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-  });
-  window.addEventListener("resize", function () {
-    if (!isCompact()) setOpen(false);
-    else if (!nav.classList.contains("open")) setOpen(false);
-  });
-})();
+/* Primary navigation interaction (the app sidebar drawer) is owned by
+   static/hutch-shell.js; it is shared by every server page so no route can
+   grow its own navigation model. */

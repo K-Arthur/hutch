@@ -1,0 +1,45 @@
+label: working-tree
+git_head: 548a2d6e
+
+PASS  desktop: dropdown fits the viewport
+PASS  desktop: menu has menu semantics
+PASS  desktop: Escape closes the dropdown
+PASS  desktop: focus returns to the trigger
+PASS  desktop: destructive dialog is aria-modal
+PASS  desktop: destructive dialog is non-dismissible
+PASS  desktop: destructive dialog has a description reference
+PASS  desktop: destructive initial focus is Cancel
+PASS  desktop: Escape does not dismiss a destructive dialog
+PASS  desktop: backdrop does not dismiss a destructive dialog
+PASS  desktop: Tab stays inside the modal
+PASS  desktop: focus returns to the menu trigger
+PASS  desktop: form dialog title id
+PASS  desktop: form dialog focuses its first field
+PASS  desktop: page scroll is locked
+PASS  desktop: wheel does not scroll the page behind the modal
+PASS  desktop: Escape closes a dismissible form dialog (focus returned)
+PASS  desktop: server-page confirm uses the primitive
+PASS  desktop: server-page confirm has a description
+PASS  desktop: scroll lock released after close
+PASS  tooltip: native title is themed
+PASS  tooltip: native attribute is suppressed while shown
+PASS  tooltip: leaving hides it and restores the title
+PASS  zoom-200: dropdown fits at 200% text
+PASS  zoom-200: modal fits at 200% text
+PASS  zoom-200: no horizontal overflow
+PASS  palette: initial focus
+PASS  palette: scroll lock while open
+PASS  palette: Escape closes and unlocks scroll
+PASS  needs-you: initial focus is the close control
+PASS  needs-you: Escape closes the drawer
+PASS  stacking: palette refuses to open over the review drawer
+PASS  stacking: one Escape closes only the topmost overlay
+PASS  desktop: dropdown fits 1280x900
+PASS  phone: dropdown fits 390x844
+PASS  compact: dropdown fits 320x740
+PASS  landscape: dropdown fits 844x390
+PASS  no page errors while driving overlays
+PASS  light theme: scrim opacity token
+PASS  light theme: modal elevation uses ink shadows
+
+40/40 assertions passed

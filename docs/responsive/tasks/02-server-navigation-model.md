@@ -61,7 +61,15 @@ Two CSS/JS files with a scoped rule change plus one harness no-JS pass: one
 session.
 ## Outcome
 
-- Status: done, commit 2cf2c5fe.
+- Superseded 2026-10-30: the topbar navigation this task tuned was removed
+  entirely. Every full server page now renders the shared app sidebar
+  (`templates/macros/sidebar.html`, model in `src/hutch/server/nav.py`,
+  `static/hutch-nav.css` shared with the SPA, `static/hutch-shell.css` and
+  `-shell.js` for layout and the drawer). The breakpoint is now the SPA's 900px
+  drawer, the header is a fixed 56px `.app-top`, and the no-JS fallback keeps
+  every destination visible inline. Historical measurements below describe the
+  removed topbar and remain for provenance.
+- Status: done, commit 2cf2c5fe, then superseded.
 - Evidence: docs/responsive/screenshots/2cf2c5fe (JS on: 130 measurements,
   0 failures; nav overlay at <=1024, single-row 9-link nav at 1180 and 1366,
   toggle hidden there) and docs/responsive/screenshots/2cf2c5fe-nojs (25
