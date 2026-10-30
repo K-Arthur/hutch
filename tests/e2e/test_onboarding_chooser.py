@@ -30,11 +30,13 @@ from hutch.models import iso, utcnow  # noqa: E402
 from hutch.onboarding import apply_request_edit, default_setup, encode_setup  # noqa: E402
 from hutch.onboarding_store import SETUP_KEY  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
+from tests.support.artifacts import artifact_path  # noqa: E402
 from tests.support.browser import launch_browser  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-EVIDENCE = Path(os.environ.get("HUTCH_ONBOARDING_EVIDENCE_DIR",
-                                str(ROOT / "docs" / "onboarding" / "evidence" / "slice-02")))
+# Captures go to the isolated test-artifact root. Set HUTCH_ONBOARDING_EVIDENCE_DIR to refresh the
+# committed evidence under docs/onboarding/evidence/ on purpose; a passing run never rewrites it.
+EVIDENCE = Path(os.environ.get("HUTCH_ONBOARDING_EVIDENCE_DIR", str(artifact_path("onboarding-slice-02"))))
 VIEWPORTS = {"320": (320, 740), "375": (375, 812), "768": (768, 1024), "1440": (1440, 1000)}
 REQUEST = "Juno 助手 - Zoë Ångström - محمد - plan the launch week and keep the follow-ups"
 
