@@ -9,7 +9,8 @@ from pathlib import Path
 
 from responsive import config
 
-ALL_FAILURE_KINDS = ("overflow", "errors", "external", "ready", "state", "touch24", "contrast")
+ALL_FAILURE_KINDS = ("overflow", "errors", "external", "ready", "state", "meta",
+                     "touch24", "contrast")
 
 
 def utcnow_iso() -> str:
@@ -69,6 +70,11 @@ def _assertion_lines(summary: dict, fail_on: str) -> list[str]:
     ready = sum(1 for record in results if not record["ready"])
     errors = sum(1 for record in results if record["page_errors"])
     external = sum(1 for record in results if record["external_requests"])
+    contract = [record for record in results if record.get("viewport_contract")]
+    contract_bad = sum(1 for record in contract
+                       if not (record["viewport_contract"].get("present")
+                               and record["viewport_contract"].get("width_device")
+                               and record["viewport_contract"].get("viewport_fit_cover")))
     touch_records = [record for record in results if record.get("targets")]
     touch_min = sum(1 for record in touch_records if record["targets"]["under_min_count"])
     touch_comfort = sum(1 for record in touch_records if record["targets"]["under_comfort_count"])
@@ -88,6 +94,8 @@ def _assertion_lines(summary: dict, fail_on: str) -> list[str]:
         "  ready selector:      %d/%d pairs did not render" % (ready, len(results)),
         "  page errors:         %d/%d pairs raised" % (errors, len(results)),
         "  non-local requests:  %d/%d pairs made one" % (external, len(results)),
+        "  viewport contract:   %d/%d pairs missing width=device-width or viewport-fit=cover" % (
+            contract_bad, len(contract)),
         "  touch targets < %dpx: %d/%d coarse-pointer pairs" % (
             config.MIN_TARGET_PX, touch_min, len(touch_records)),
         "  touch targets < %dpx: %d/%d coarse-pointer pairs (comfort warning)" % (

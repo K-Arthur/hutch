@@ -75,6 +75,7 @@ def _measure_surface(page, surface, viewport, options, output_dir, observer, nav
         ready = False
         ready_error = str(error)[:400]
     page.wait_for_timeout(options.settle_ms)
+    viewport_contract = checks.measure_viewport(page)
     overflow = checks.measure_overflow(page)
     targets = (checks.measure_targets(page, config.MIN_TARGET_PX, config.COMFORT_TARGET_PX)
                if viewport.touch else None)
@@ -88,6 +89,7 @@ def _measure_surface(page, surface, viewport, options, output_dir, observer, nav
         "pointer": viewport.pointer,
         "ready": ready,
         "ready_error": ready_error,
+        "viewport_contract": viewport_contract,
         "overflow_px": overflow["overflow_px"],
         "overflow_offenders": overflow["offenders"],
         "external_requests": list(observer.external),
@@ -113,6 +115,13 @@ def _classify(record, failures, warnings, fail_on):
     where = {"surface": record["surface"], "viewport": record["viewport"]}
     if not record["ready"]:
         failures.append({"kind": "ready", **where, "detail": "ready selector did not appear"})
+    contract = record.get("viewport_contract") or {}
+    if record["ready"] and not (contract.get("present") and contract.get("width_device")):
+        failures.append({"kind": "meta", **where,
+                         "detail": "viewport meta missing or lacks width=device-width"})
+    elif record["ready"] and not contract.get("viewport_fit_cover"):
+        failures.append({"kind": "meta", **where,
+                         "detail": "viewport meta lacks viewport-fit=cover"})
     if record["overflow_px"] > 0:
         failures.append({"kind": "overflow", **where,
                          "detail": "%dpx; %s" % (record["overflow_px"],

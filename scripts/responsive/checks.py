@@ -153,6 +153,23 @@ CONTRAST_JS = r"""() => {
 }"""
 
 
+VIEWPORT_JS = r"""() => {
+  const meta = document.querySelector("meta[name='viewport']");
+  const content = meta ? (meta.getAttribute("content") || "") : "";
+  return {
+    present: !!meta,
+    content: content,
+    width_device: /width\s*=\s*device-width/i.test(content),
+    viewport_fit_cover: /viewport-fit\s*=\s*cover/i.test(content)
+  };
+}"""
+
+
+def measure_viewport(page) -> dict:
+    """The viewport contract declared by the document head."""
+    return page.evaluate(VIEWPORT_JS)
+
+
 def measure_overflow(page) -> dict:
     """Horizontal overflow of the document plus the elements extending past it."""
     return page.evaluate(OVERFLOW_JS)

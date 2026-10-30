@@ -1,0 +1,59 @@
+/* Hutch responsive foundation.
+ *
+ * Loaded last on both application shells: server pages link it from
+ * templates/base.html, the SPA links it from static/index.html. It owns only
+ * cross-cutting contracts: the safe-area tokens and the chrome insets that make
+ * viewport-fit=cover safe. Surface-specific responsive work lives in the task
+ * files under docs/responsive/tasks, not here.
+ *
+ * Documented breakpoint bands (custom properties cannot be used inside media
+ * queries, so these stay comments and every rule below reads them literally):
+ *   compact phone             <= 430px
+ *   large phone / landscape   431px - 767px
+ *   tablet portrait           768px - 1024px
+ *   compact laptop           1025px - 1199px
+ *   13in / small desktop     1200px - 1439px
+ *   desktop                  1440px+
+ *
+ * env() resolves to 0px wherever the browser does not expose a cutout, so every
+ * desktop measurement is byte-identical to the sheet that was replaced here.
+ */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+/* Server-page shell. Base values: hutch.css .topbar (54px, 0 24px) and the
+   <=720px wrapped variant (auto height, 8px 12px). Adding the safe inset keeps
+   the desktop box exactly the same and clears a landscape cutout. */
+.topbar {
+  padding-top: var(--safe-top);
+  padding-left: calc(24px + var(--safe-left));
+  padding-right: calc(24px + var(--safe-right));
+  height: calc(54px + var(--safe-top));
+}
+@media (max-width: 720px) {
+  .topbar {
+    padding-top: calc(8px + var(--safe-top));
+    padding-left: calc(12px + var(--safe-left));
+    padding-right: calc(12px + var(--safe-right));
+    height: auto;
+  }
+}
+@media (orientation: landscape) and (pointer: coarse) {
+  .container {
+    padding-left: calc(var(--gutter, 24px) + var(--safe-left));
+    padding-right: calc(var(--gutter, 24px) + var(--safe-right));
+  }
+}
+
+/* SPA shell. Base values: studio.css .app-top (padding 0 24px; 56px on wide
+   viewports). The SPA already declares viewport-fit=cover, so this is the first
+   inset it receives at the top edge. */
+.app-top {
+  padding-top: var(--safe-top);
+  padding-left: calc(24px + var(--safe-left));
+  padding-right: calc(24px + var(--safe-right));
+}
