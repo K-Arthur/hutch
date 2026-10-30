@@ -1,6 +1,6 @@
 # Dashboard incremental live updates (2026-10-29)
 
-Status: implemented and committed (`perf(ui): apply live run event batches incrementally`, plus the
+Status: merged into main (8f84db7a); originally implemented and committed (`perf(ui): apply live run event batches incrementally`, plus the
 browser journey in `test(ui): cover incremental live-update apply and full-refresh fallback`).
 Measurements below are filled from the paired browser A/B run recorded in the performance ledger.
 
@@ -59,6 +59,10 @@ kept alongside; all raw reps, medians/p95 and the browser/machine metadata are i
 `.dsh/long-horizon/hutch-wins/artifacts/ui/paired/ui-ab-20261029-202442.json`.
 
 ## Loading-path note
+
+The change is now in main via merge 8f84db7a. The module loads from the existing post-`app.js` slot in
+`responsive.js` and self-installs by wrapping `subscribeRun`; no edit to the parked `static/app.js` /
+`static/index.html` files was needed, so that session's uncommitted work remains untouched.
 
 The module is deliberately not wired from `app.js` or `index.html` in this slice: both files were
 another session's parked uncommitted work in the primary checkout, so editing them would have
