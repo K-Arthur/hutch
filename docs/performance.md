@@ -120,3 +120,22 @@ cumulative import even for `hutch version`), and the dashboard's per-batch refet
 UI files). A Rust XLSX-write prototype would clear the operation-level P11 gate (~28% of
 generation time) but is rejected for this release because it cannot be shipped without
 packaging changes and its end-to-end effect is small; see ADR-0024.
+## 2026-10-29 dashboard live updates and optional native XLSX writer
+
+Two measured follow-ups from the earlier performance programme, with full records in
+[perf/ui-live-updates-2026-10-29.md](perf/ui-live-updates-2026-10-29.md) and
+[perf/native-xlsx-2026-10-29.md](perf/native-xlsx-2026-10-29.md).
+
+- **Dashboard live updates are incremental.** The run SSE listener had never consumed the server's
+  named `batch` events; live refreshes came from the changes stream and replaced the whole run page
+  after a ~1.5 s fetch/rebuild cascade. A new classic script applies safe event batches in place from
+  a cached authoritative snapshot and forces the full authoritative render for approvals, status
+  transitions, gaps, terminal states and errors. Paired browser A/B (three viewports): refetches per
+  steady-state burst **1.0 -> 0.0**, commit-to-render **~1518 -> ~90 ms**, no full innerHTML rebuild,
+  no overflow or page errors, unchanged DOM size and scroll frame time.
+- **Optional native XLSX writer.** A pinned PyO3 + rust_xlsxwriter kernel is an opt-in build artifact
+  with a pure-Python fallback; the independent openpyxl read-back gate is unchanged. One-driver A/B:
+  write stage median **82.98 -> 44.34 ms** (-46.6%), full 5000-row generation p95 **343.41 -> 273.96 ms**
+  (-20.2%, the repository P11 operation-level bar including the JSON boundary). Build:
+  `python scripts/build_native_docgen.py --check`; disable with `HUTCH_DISABLE_NATIVE_DOCGEN=1`.
+  No mandatory Rust dependency or manifest change.
