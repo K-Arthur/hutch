@@ -63,6 +63,56 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/hutch"]
 
+[tool.hatch.build]
+# These exclusions also apply when building an extracted archive without Git.
+exclude = [
+    ".env",
+    ".env.*",
+    "!.env.example",
+    "!.env.sample",
+    "!.env.template",
+    ".aws",
+    ".ssh",
+    ".state",
+    "__pycache__",
+    "*.pyc",
+    "/desktop/target",
+    "/desktop/process-guard/target",
+    "/desktop/binaries",
+    "/desktop/gen",
+    "/benchmarks/results",
+    "/docs/**/artifacts/**/*.zip",
+]
+
+[tool.hatch.build.targets.sdist]
+# Explicit inputs keep unrelated local files out even without VCS metadata.
+# Tests intentionally load JSON/Markdown fixtures from docs/artifacts.
+include = [
+    "/src",
+    "/tests",
+    "/docs",
+    "/scripts",
+    "/app",
+    "/website",
+    "/desktop",
+    "/benchmarks",
+    "/.github",
+    "/.githooks",
+    "/*.md",
+    "/LICENSE",
+    "/pyproject.toml",
+    "/uv.lock",
+    "/package.json",
+    "/package-lock.json",
+    "/.python-version",
+    "/.gitignore",
+    "/.gitleaksignore",
+    "/.env.example",
+    "/.env.sample",
+    "/.env.template",
+    "/ui-audit.mjs",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
