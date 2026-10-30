@@ -1,0 +1,83 @@
+# Hutch search-ignore policy (agent context economy).
+#
+# Keeps generated, vendored, local-state and bulky evidence trees out of code
+# search so agent sessions do not burn tokens on build output, lockfiles or
+# 381 MB of evidence captures. The same rules live in .ignore, .dshignore and
+# .opencodeignore so every agent tool agrees. Git tracking policy is separate:
+# .gitignore decides what may be committed, and reviewed lockfiles/evidence
+# stay tracked there even though search skips them here.
+#
+# Syntax: gitignore-style globs relative to this file. These rules never
+# remove files from Git or from the working tree; they only narrow what search
+# tools walk. Remember that tracked files (uv.lock, package-lock.json,
+# Cargo.lock, evidence ZIPs) are still skippable in search.
+#
+# Honest tool coverage: .ignore is honored by ripgrep. This DSH build does not
+# yet read .dshignore, and .opencodeignore support depends on the OpenCode
+# version; all three files are kept identical so the convention is ready.
+# See docs/agent-workflow.md and docs/repository-hygiene.md.
+#
+# No emoji in this file or anywhere in the repository; see scripts/audit_emoji.py.
+
+# Installed environments and parallel worktree checkouts.
+/.worktrees/
+/.venv/
+venv/
+node_modules/
+
+# Desktop host build output (Rust/Tauri intermediates and bundled backend).
+/desktop/target/
+/desktop/process-guard/target/
+/desktop/binaries/
+/desktop/gen/
+
+# Python/npm build and packaging output. Root-anchored so a future source
+# package such as src/hutch/build/ cannot be hidden by an unanchored build/.
+/build/
+/dist/
+*.egg-info/
+.eggs/
+__pycache__/
+*.py[cod]
+
+# Test and analysis caches, coverage output.
+.pytest_cache/
+.hypothesis/
+.validation/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+coverage/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+playwright-report/
+test-results/
+
+# Dependency resolution trees. Read the manifests (pyproject.toml,
+# package.json, Cargo.toml) and the public API instead of a lockfile dump.
+uv.lock
+package-lock.json
+desktop/**/Cargo.lock
+*.lock
+
+# Documentation evidence trees (about 381 MB of captures and traces). Tests
+# load the few needed fixtures by exact path; they are never search material.
+docs/**/artifacts/**
+*.zip
+*.log
+
+# Local runtime state, databases and server scratch (never search these).
+.state/
+*.db*
+*.sqlite*
+/serve.pid
+/var/
+/reports/
+
+# Editor, agent and design-tool scratch state.
+/.superdesign/
+/.opencode/skills/
+/.agents/skills/
+/src/hutch/server/static/vendor/

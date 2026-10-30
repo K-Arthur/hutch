@@ -64,3 +64,32 @@ The checkout often carries in-flight work from other lanes (tracked in
 change reviewed, and never discard, reset, clean, or rewrite unrelated work to make a task easier.
 Do not force-push or rewrite published history. Coordinate pushes to `main`, releases and
 publication steps with the maintainer; the repository is public and its history is permanent.
+
+## Repository hygiene
+
+Keep `uv.lock`, `package-lock.json`, both desktop `Cargo.lock` files, generated shipping CSS,
+desktop icons and intentional test fixtures in Git. Put scratch validation under `.validation/`.
+New raw browser trace ZIPs under documentation artifacts are ignored; review their network,
+DOM and screenshot contents before deliberately retaining evidence. Placeholder-only
+`.env.example`, `.env.sample` and `.env.template` files remain trackable.
+
+Before committing, run `python3 scripts/check_repo_hygiene.py` to check the **staged blobs**
+against ignore rules and a 5 MiB per changed-file limit. Existing unchanged evidence is preserved.
+This check does not inspect credential contents. Install [Gitleaks 8.30.1](https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1)
+on `PATH`, then scan staged content with:
+
+```sh
+gitleaks git --pre-commit --staged --redact=100 --no-banner
+```
+
+The optional shared hook runs both checks: `git config --local core.hooksPath .githooks`.
+Inspect your existing `core.hooksPath` and hooks first; merge the checks into existing hooks
+instead of replacing them. No hook is installed automatically. The shell hook requires
+`python3`, Git and Gitleaks on `PATH` (Windows contributors can use Git Bash).
+Hooks are bypassable; `.gitignore` and a clean scan are not security boundaries.
+Historical false-positive fingerprints in `.gitleaksignore` do not exempt new commits.
+
+See [the hygiene audit](docs/repository-hygiene.md) for packaging, evidence retention and
+historical scanning limits. If a real credential reaches Git, revoke or rotate it first;
+index-only removal does not remove historical exposure. Coordinate any history cleanup
+explicitly with collaborators.

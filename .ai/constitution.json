@@ -1,0 +1,240 @@
+{
+  "schema": "agent-constitution-v1",
+  "version": 1,
+  "repo": "hutch",
+  "roles": [
+    {
+      "id": "python-tools-engineer",
+      "file": ".ai/roles/python-tools-engineer.md",
+      "applies_to": [
+        "src/hutch/tools",
+        "src/hutch/toolcalling",
+        "src/hutch/integrations/catalog.py",
+        "src/hutch/readiness.py"
+      ],
+      "required_checks": [
+        "check:agent",
+        "audit:tool-contracts"
+      ]
+    },
+    {
+      "id": "platform-runtime-engineer",
+      "file": ".ai/roles/platform-runtime-engineer.md",
+      "applies_to": [
+        "src/hutch/runtime",
+        "src/hutch/engine.py",
+        "src/hutch/store.py",
+        "src/hutch/models.py",
+        "src/hutch/safety.py",
+        "src/hutch/approvals.py",
+        "src/hutch/workflow"
+      ],
+      "required_checks": [
+        "check:agent",
+        "test:agent"
+      ]
+    },
+    {
+      "id": "web-ui-engineer",
+      "file": ".ai/roles/web-ui-engineer.md",
+      "applies_to": [
+        "src/hutch/server",
+        "app/src",
+        "website"
+      ],
+      "required_checks": [
+        "check:agent",
+        "build:css"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "CON-001",
+      "title": "No emoji in source, docs or UI",
+      "statement": "Source, documentation and UI copy contain no pictographic emoji; UI surface files also use inline SVG rather than icon-like text characters.",
+      "severity": "blocking",
+      "source": "AGENTS.md#hard-rules",
+      "enforcement": {
+        "kind": "script",
+        "value": "scripts/audit_emoji.py"
+      }
+    },
+    {
+      "id": "CON-002",
+      "title": "Canonical tool schema is validated before dispatch",
+      "statement": "Every model tool call is decoded strictly and validated against the tool's canonical JSON Schema in Tool.parameters before it executes; a provider grammar or structured-output mode never replaces that local check.",
+      "severity": "blocking",
+      "source": "docs/realignment/tool-calling.md#3-contracts",
+      "enforcement": {
+        "kind": "test",
+        "paths": [
+          "tests/test_toolcalling_validation.py"
+        ]
+      }
+    },
+    {
+      "id": "CON-003",
+      "title": "Registered tool contracts are certifiable and spec-consistent",
+      "statement": "Every registered Tool has a unique provider-safe name, a reviewed description, a certifiable object schema and a spec() that matches the canonical registered values.",
+      "severity": "blocking",
+      "source": "docs/agent-workflow.md#tool-schema-seam-contract",
+      "enforcement": {
+        "kind": "command",
+        "value": "audit:tool-contracts"
+      }
+    },
+    {
+      "id": "CON-004",
+      "title": "Approval and permission boundaries change deliberately",
+      "statement": "An execution boundary changes only with an explicit task, focused tests for allowed, ask and deny paths, and documentation of the new boundary; no feature widens authority incidentally.",
+      "severity": "blocking",
+      "source": "AGENTS.md#hard-rules",
+      "enforcement": {
+        "kind": "manual",
+        "checklist": [
+          "The task names who approves what, for which Bot and account, and which data moves",
+          "New or changed effects route through the existing policy engine, approval gate and action receipt",
+          "Focused tests cover allowed, ask (pauses then resumes) and deny paths, and docs name the boundary change"
+        ],
+        "review_doc": "docs/agent-workflow.md"
+      }
+    },
+    {
+      "id": "CON-005",
+      "title": "Local-first routing and secret handling are preserved",
+      "statement": "Prompts, files and tool output leave the machine only through a provider route the user configured, and secrets or private account data never enter client artifacts, logs or receipts.",
+      "severity": "blocking",
+      "source": "AGENTS.md#hard-rules",
+      "enforcement": {
+        "kind": "manual",
+        "checklist": [
+          "No new credential class, secret or private account data enters a client artifact, transcript or log",
+          "Hosted routes are used only when the Bot's routing and the owner's configuration allow them",
+          "Tools that accept transient secrets override Tool.recorded_arguments before anything is persisted"
+        ],
+        "review_doc": "docs/safety.md"
+      }
+    },
+    {
+      "id": "CON-006",
+      "title": "400-line source cap and shrink-only baseline",
+      "statement": "A new source file stays at or below 400 lines; over-cap files are frozen in .file-size-baseline.json and may shrink but never grow, with splits landing at 350-400 lines.",
+      "severity": "blocking",
+      "source": "docs/agent-workflow.md#file-size-policy",
+      "enforcement": {
+        "kind": "command",
+        "value": "audit:context"
+      }
+    },
+    {
+      "id": "CON-007",
+      "title": "Quiet focused validation is the default inner loop",
+      "statement": "Agents run focused, quiet checks and the default gate instead of full suites, Playwright or native builds unless the change warrants escalation stated in the task.",
+      "severity": "blocking",
+      "source": "docs/agent-workflow.md#quiet-verification",
+      "enforcement": {
+        "kind": "command",
+        "value": "check:agent"
+      }
+    },
+    {
+      "id": "CON-008",
+      "title": "Generated CSS is built from sources, never hand-edited",
+      "statement": "The generated ui.css, model-switcher.css, app.css and styles.min.css files are outputs of app/src and website sources; edits happen in the sources and are rebuilt with npm run build:css.",
+      "severity": "blocking",
+      "source": "AGENTS.md#directory-map-exact",
+      "enforcement": {
+        "kind": "manual",
+        "checklist": [
+          "ui.css, model-switcher.css, app.css and styles.min.css were not hand-edited",
+          "CSS changes were made in app/src/ or website/ sources and rebuilt with npm run build:css",
+          "The report says whether build:css ran or why it was unnecessary"
+        ],
+        "review_doc": "docs/repository-hygiene.md"
+      }
+    },
+    {
+      "id": "CON-009",
+      "title": "Commits carry no AI-tool attribution",
+      "statement": "Commit messages, trailers and signatures contain no AI-tool attribution, generated-by marker or bot co-author; the maintainer authors commits.",
+      "severity": "advisory",
+      "source": "AGENTS.md#hard-rules",
+      "enforcement": {
+        "kind": "manual",
+        "checklist": [
+          "No AI-tool attribution trailer, generated-by signature or bot co-author appears in the commit",
+          "The staged diff and final git status were reviewed before reporting the change"
+        ],
+        "review_doc": "CONTRIBUTING.md"
+      }
+    },
+    {
+      "id": "CON-010",
+      "title": "Runtime state, fixtures and reviewed evidence stay out of commits",
+      "statement": "Runtime state, credentials, SQLite sidecars, generated output and reviewed evidence follow .gitignore; fixtures and evidence are intentional inputs and are never blindly added, pruned or untracked.",
+      "severity": "blocking",
+      "source": "docs/repository-hygiene.md#implemented-safeguards",
+      "enforcement": {
+        "kind": "script",
+        "value": "scripts/check_repo_hygiene.py"
+      }
+    },
+    {
+      "id": "CON-011",
+      "title": "Persisted state uses pydantic models, ordered migrations and UTC ISO timestamps",
+      "statement": "Persisted state is modeled in models.py, schema changes use a new ordered SQLite migration in store.py, and timestamps are ISO-8601 UTC via models.iso/models.utcnow rather than naive local time.",
+      "severity": "blocking",
+      "source": "AGENTS.md#hard-rules",
+      "enforcement": {
+        "kind": "test",
+        "paths": [
+          "tests/test_migration.py"
+        ]
+      }
+    },
+    {
+      "id": "CON-012",
+      "title": "Focused regression tests accompany behaviour changes",
+      "statement": "Each behaviour change ships with focused pytest coverage run through npm run test:agent with explicit paths, so the quiet lane exercises the changed seam.",
+      "severity": "advisory",
+      "source": "docs/agent-workflow.md#quiet-verification",
+      "enforcement": {
+        "kind": "command",
+        "value": "test:agent"
+      }
+    },
+    {
+      "id": "CON-013",
+      "title": "External agent tooling is pinned, sandboxed and verified",
+      "statement": "MCP servers and code-graph or other external agent tools enter the harness only with explicit approval, a pinned version or commit, sandboxed access without ambient credentials, and outputs cross-checked against .ai/repo-map.generated.md before they are trusted.",
+      "severity": "advisory",
+      "source": "docs/agent-workflow.md#constitution-and-role-files",
+      "enforcement": {
+        "kind": "manual",
+        "checklist": [
+          "The MCP server or code-graph tool is pinned to an explicit version, tag or commit and approved in the task",
+          "It runs sandboxed, without ambient credentials, write access or data sharing beyond the declared scope",
+          "Its output is treated as untrusted and cross-checked against .ai/repo-map.generated.md before it guides an edit"
+        ],
+        "review_doc": "docs/agent-workflow.md"
+      }
+    },
+    {
+      "id": "CON-014",
+      "title": "Concurrent sessions isolate worktrees and respect single-writer surfaces",
+      "statement": "Parallel agent sessions work in their own .worktrees/<slug> checkout, never edit or prune another session's worktree, and treat generated and lock files as single-writer surfaces that are regenerated rather than hand-merged; pruning removes only clean, merged, old, repo-local worktrees.",
+      "severity": "advisory",
+      "source": "docs/concurrent-agents.md#isolation-rules",
+      "enforcement": {
+        "kind": "manual",
+        "checklist": [
+          "Each task runs in its own .worktrees/<slug> checkout and single-writer surfaces (AGENTS.md, lockfiles, constitution, baseline, generated map/CSS, evidence) are edited by one session at a time",
+          "Validation distinguishes your own staged change from another session's dirty worktree and uses the quiet gate (npm run check:agent plus focused tests)",
+          "Pruning removes only clean, merged, repo-local worktrees older than the threshold; external, current and nested-parent worktrees are never touched"
+        ],
+        "review_doc": "docs/concurrent-agents.md"
+      }
+    }
+  ]
+}

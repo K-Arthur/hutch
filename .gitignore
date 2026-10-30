@@ -1,31 +1,64 @@
-# Python
+# Python installs, bytecode and root packaging output
 __pycache__/
 *.py[cod]
 *.egg-info/
 .eggs/
-build/
-dist/
+/build/
+/dist/
 .venv/
-desktop/target/
-desktop/process-guard/target/
-desktop/binaries/
-desktop/gen/
 venv/
-.python-version
+
+# Native desktop builds (keep Cargo.lock, backend.spec, web/ and icons/)
+/desktop/target/
+/desktop/process-guard/target/
+/desktop/binaries/
+/desktop/gen/
+
+# Frontend dependencies (built CSS is shipped in wheels and the static website)
+node_modules/
 
 # Tooling
 .validation/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.hypothesis/
+.ipynb_checkpoints/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 
 # Runtime state (never commit bot workspaces, DBs, secrets, transcripts)
 .state/
 *.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
 *.sqlite3
+*.sqlite3-journal
+*.sqlite3-shm
+*.sqlite3-wal
 *.log
+/serve.pid
+/var/cache/fontconfig/
+
+# Local credentials; examples must contain placeholders only
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+.aws/
+.ssh/
+
+# Reviewed historical evidence is intentional; keep raw new browser traces local.
+!/docs/realignment/artifacts/**/*.log
+/docs/**/artifacts/**/*.zip
 
 # Playwright
 playwright-report/
@@ -40,7 +73,6 @@ Thumbs.db
 
 # Benchmark output (baselines under benchmarks/baselines/ ARE committed)
 benchmarks/results/
-node_modules/
 
 # superdesign working files
 .superdesign/
@@ -48,3 +80,13 @@ node_modules/
 # Local Impeccable skill installations
 /.agents/skills/impeccable/
 /.opencode/skills/impeccable/
+
+# Machine-specific plugin pointers, not shared agent configuration or research
+/.v2c/plugin_root
+/.video_agent/plugin_root
+
+# Worktree checkouts must also stay out of source distributions.
+/.worktrees/
+
+# Agent-harness working state (sessions, scratch scripts, long-horizon notes); large and local.
+/.dsh/
