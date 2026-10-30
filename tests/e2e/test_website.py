@@ -209,7 +209,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert page.locator("#proof .proof-img").count() == 1
     assert "Real application" in page.inner_text("#proof .proof-chrome")
     assert "carries your words into assistant setup" in page.inner_text("#proof")
-    assert "2026-10-23" in page.inner_text("#proof")
+    assert "2026-10-30" in page.inner_text("#proof")   # the capture date the caption states
     assert page.locator("#gate-card, #gate-demo, #gate-allow, #gate-deny").count() == 0
     assert page.locator("#get").get_by_text("Public source", exact=True).count() == 1
     assert page.locator("#get .ev").filter(has_text="Experimental").count() >= 1
@@ -1360,9 +1360,9 @@ def test_real_setup_capture_is_truthful_and_fits_anonymous_viewports(browser, si
         page.locator("img").evaluate_all("imgs => Promise.all(imgs.map(img => { img.loading = 'eager'; return img.decode(); }))")
         page.evaluate("document.fonts.ready")
         figure = image.locator("xpath=ancestor::figure")
-        assert image.evaluate("img => img.naturalWidth") == (390 if width <= 640 else 1440)
+        assert image.evaluate("img => img.naturalWidth") == (360 if width <= 640 else 900 if width <= 1000 else 1440)
         assert "temporary account was empty" in figure.inner_text()
-        assert "no provider call" in figure.inner_text()
+        assert "no request was sent to a model" in figure.inner_text()
         assert "monospace" not in figure.locator(".proof-meta").evaluate("el => getComputedStyle(el).fontFamily")
         assert page.locator("#gate-card, #gate-demo").count() == 0
         page.evaluate("window.scrollTo(0, 0)")
@@ -1373,7 +1373,7 @@ def test_real_setup_capture_is_truthful_and_fits_anonymous_viewports(browser, si
         assert all(url.startswith(site_url) for url in requests), "static site requested another origin"
         files = [SITE_DIR / path for path in (
             "index.html", "styles.css", "site.js", "app.css", "tokens.css",
-            "assets/captures/setup-desktop.webp", "assets/captures/setup-phone.webp")]
+            "assets/captures/setup-desktop.webp", "assets/captures/setup-tablet.webp", "assets/captures/setup-phone.webp")]
         (out / f"site-{size}.json").write_text(json.dumps({
             "captured_at": iso(utcnow()), "browser": browser.browser_type.name, "version": browser.version,
             "viewport": [width, height],

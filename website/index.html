@@ -341,9 +341,10 @@
         </div>
         <div class="proof-body">
           <picture class="proof-picture">
-            <source media="(max-width: 640px)" srcset="assets/captures/setup-phone.webp?v=b1672b9c" width="390" height="1200">
-            <img class="proof-img" src="assets/captures/setup-desktop.webp?v=da748fab" width="1440" height="1000" loading="lazy" decoding="async"
-                 alt="The actual Hutch welcome screen. A person can describe a request, see whether OpenCode or another AI service is ready, and set up an assistant without repeating the request.">
+            <source media="(max-width: 640px)" srcset="assets/captures/setup-phone.webp?v=b31c9733" width="360" height="1200">
+            <source media="(max-width: 1000px)" srcset="assets/captures/setup-tablet.webp?v=6d7a6a49" width="900" height="1000">
+            <img class="proof-img" src="assets/captures/setup-desktop.webp?v=d31f7321" width="1440" height="1000" loading="lazy" decoding="async"
+                 alt="The actual Hutch welcome screen. A person can describe a request, see whether OpenCode or another AI service is ready, check that the install is healthy and whether the background service is running, and set up an assistant without repeating the request.">
           </picture>
           <figcaption class="proof-legend">
             <ol>
@@ -351,7 +352,7 @@
               <li><b>Know what powers it.</b> Hutch shows the ready AI service and carries that choice into setup.</li>
               <li><b>Keep the final say.</b> Important actions come back to you for review.</li>
             </ol>
-            <p class="proof-meta">Captured from the current local application on 2026-10-23, using a desktop viewport and an extended 390 by 1200 phone viewport to show the full setup panel. The temporary account was empty; no provider call or external action was made.</p>
+            <p class="proof-meta">Captured from the current local application on 2026-10-30 at 1440 by 1000 (desktop), 900 by 1000 (tablet) and an extended 360 by 1200 phone viewport to show the full setup panel. The temporary account was empty; no assistant was created and no request was sent to a model.</p>
           </figcaption>
         </div>
       </figure>
@@ -432,7 +433,7 @@
             <details class="page-details workflow-details">
               <summary>More about history, files, and memory</summary>
               <div class="details-copy">
-                <p>Inspect the final status, tool results, ordered transcript and reported usage. The Chat library can find active, archived, and imported conversation titles across assistants; message search stays focused on active chats. Uncertain effects remain visible for reconciliation. Keep memory private by default. If another assistant needs a fact, share the reviewed snapshot with that named assistant. Either side can revoke; the share adds no tools, account access or workspace context.</p>
+                <p>Inspect the final status, tool results, ordered transcript and reported usage. The Conversations view of Activity can find active, archived, and imported conversation titles across assistants; message search stays focused on active chats. Uncertain effects remain visible for reconciliation. Keep memory private by default. If another assistant needs a fact, share the reviewed snapshot with that named assistant. Either side can revoke; the share adds no tools, account access or workspace context.</p>
                 <p>Workspace settings hold defaults for assistants you create and the optional motion preference. Existing assistants and chats retain their saved choices.</p>
                 <p>For repeat work, save a reviewed request in Hutch&rsquo;s local library and search for it from another chat. Choosing one fills a draft only; you still review and send it yourself.</p>
                 <p>Documents Hutch creates &mdash; PDF, DOCX, XLSX, PPTX, CSV, JSON, Markdown or a ZIP bundle &mdash; are stored on your machine as versioned files with recorded SHA-256 hashes. Downloads come straight from that local store, so a file does not expire with the chat that made it, and each preview says whether it is the extracted content or an approximate render.</p>

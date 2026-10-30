@@ -14,7 +14,7 @@ Local-first, multi-bot AI assistant that runs on your machine.
 
 **Development preview.** APIs, storage schema and CLI may change without notice.
 
-![The Hutch first-run setup screen on a fresh install: no assistants yet, a first-request field with suggested starting points, and a right panel reporting a detected OpenCode service with local model options. No run or provider call has been made.](website/assets/captures/setup-desktop.webp)
+![The Hutch first-run setup screen on a fresh install: no assistants yet, a first-request field with suggested starting points, and a right rail reporting the detected AI service and a read-only setup check with a background-service offer. No assistant was created and no request was sent to a model.](website/assets/captures/setup-desktop.webp)
 
 ```bash
 git clone --depth 1 https://github.com/K-Arthur/hutch.git

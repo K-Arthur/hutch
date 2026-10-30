@@ -137,7 +137,7 @@ def test_local_site_images_are_content_pinned():
 
     site = ROOT / "website"
     html = (site / "index.html").read_text()
-    for name in ("assets/captures/setup-desktop.webp", "assets/captures/setup-phone.webp"):
+    for name in ("assets/captures/setup-desktop.webp", "assets/captures/setup-tablet.webp", "assets/captures/setup-phone.webp"):
         digest = hashlib.sha256((site / name).read_bytes()).hexdigest()[:8]
         assert re.search(rf"{re.escape(name)}\?v={digest}(?:\s|\")", html), name
 
