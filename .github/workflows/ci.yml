@@ -72,6 +72,38 @@ jobs:
         if: always()
         run: python -c "from pathlib import Path; p=Path('benchmarks/results/latest.json'); print(p.read_text()[:100000] if p.is_file() else 'Benchmark did not produce a result; inspect the failed step.')"
 
+  native-xlsx:
+    timeout-minutes: 20
+    # Optional Rust XLSX writer: proves the crate builds, its parity corpus matches the pure-Python
+    # reference writer under the unchanged openpyxl gate, and the fallback works when it is absent.
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install uv==0.12.24
+      - run: uv sync --frozen --extra dev
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup toolchain install 1.97.1 --profile minimal --component clippy
+          rustup override set 1.97.1
+      - name: Check the pure-Rust core
+        run: |
+          cargo test --locked --manifest-path native/docgen_xlsx/Cargo.toml
+          cargo clippy --locked --manifest-path native/docgen_xlsx/Cargo.toml --all-targets -- -D warnings
+      - name: Build the optional extension and smoke-test it
+        run: uv run --frozen --no-sync python scripts/build_native_docgen.py --check
+      - name: Native-path parity and document regression
+        run: uv run --frozen --no-sync pytest -q tests/test_docgen_native_parity.py tests/test_docgen_xlsx.py tests/test_document_store.py
+      - name: Pure-Python fallback path
+        env:
+          HUTCH_DISABLE_NATIVE_DOCGEN: "1"
+        run: uv run --frozen --no-sync pytest -q tests/test_docgen_xlsx.py
+
   commit-attribution:
     name: commit attribution policy
     timeout-minutes: 5
