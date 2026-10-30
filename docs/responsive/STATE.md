@@ -1,6 +1,6 @@
 # Responsive Adaptation - State
 
-Last updated: 2026-10-29T18:15:00-07:00 | Last commit: 2cf2c5fe (task 02 source)
+Last updated: 2026-10-29T18:22:00-07:00 | Last commit: 28aa02e0 (task 03 source)
 Goal id: goal-28c56178-ce15-4d56-b317-b0f275ff75cb (revision 1) | Branch: main
 Validation runner: scripts/validate_responsive.py (single source: scripts/responsive/config.py)
 Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png}
@@ -15,8 +15,8 @@ Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png
 | P1 | responsive audit | done | e4dfe6ce | - |
 | 01 | viewport and safe-area contract | done | 9f74a378 | evidence: docs/responsive/screenshots/9f74a378 |
 | 02 | server navigation model | done | 2cf2c5fe | evidence: screenshots/2cf2c5fe + 2cf2c5fe-nojs |
-| 03 | dynamic viewport and keyboard | not-started | - | svh/dvh + visualViewport publisher + keyboard scenario |
-| 04 | stylesheet structure and sticky offsets | not-started | - | close style.css:2713 media block + topbar height variable |
+| 03 | dynamic viewport and keyboard | done | 28aa02e0 | evidence: screenshots/28aa02e0 |
+| 04 | stylesheet structure and sticky offsets | not-started | - | close style.css unclosed media block + topbar height variable |
 | 05 | touch-target floor | not-started | - | depends 01; 24px AA floor, 44px coarse floor |
 | 06 | safe-area chrome | not-started | - | depends 01; insets on toast/drawers/header/composer |
 | 07 | 13-inch and tablet device bands | not-started | - | depends 02/03/05; rail width + 1180/1366 tuning |
@@ -68,7 +68,8 @@ where possible.
 
 - baseline-2a89909a: pre-change baseline (commit bb01f24d)
 - 9f74a378: task 01 viewport and safe-area contract (evidence commit c390d8f0)
-- 2cf2c5fe: task 02 server navigation model (JS on and no-JS runs)
+- 2cf2c5fe: task 02 server navigation model (JS on and no-JS runs; evidence commit 5818ab2b)
+- 28aa02e0: task 03 dynamic viewport and keyboard
 
 ## Handoff
 

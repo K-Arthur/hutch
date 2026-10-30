@@ -60,3 +60,16 @@ hunks, or keep every rule in the new responsive.css. The script file is new.
 
 One new JS file, one stylesheet rule set, two one-line template links and one
 harness scenario: one session.
+## Outcome
+
+- Status: done, commit 28aa02e0.
+- Evidence: docs/responsive/screenshots/28aa02e0 (130 measurements, 0 failures;
+  state-spa-keyboard-390.png shows the 390x844 shell shrunk to 390x520 with the
+  composer fully inside the visual viewport).
+- Measured: shell 844 -> 520 px, composer bottom 520 px, --vvh 520.00px,
+  --keyboard-inset published; server-page body min-height resolves to 100svh and
+  body content still scrolls normally.
+- Limitation recorded: Chromium simulates the keyboard by resizing the viewport;
+  a real iOS visual-viewport overlay was not available. The publisher uses only
+  the documented Visual Viewport API and measures --keyboard-inset for sheets.
+- Rollback: revert 28aa02e0 (source) and its evidence commit.
