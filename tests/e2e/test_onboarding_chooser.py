@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE = Path(os.environ.get("HUTCH_ONBOARDING_EVIDENCE_DIR",
                                 str(ROOT / "docs" / "onboarding" / "evidence" / "slice-02")))
 VIEWPORTS = {"320": (320, 740), "375": (375, 812), "768": (768, 1024), "1440": (1440, 1000)}
-REQUEST = "Juno 助手 - Zoë Ångström - plan the launch week and keep the follow-ups"
+REQUEST = "Juno 助手 - Zoë Ångström - محمد - plan the launch week and keep the follow-ups"
 
 
 @pytest.fixture(scope="module")
@@ -222,6 +222,17 @@ def test_capture_chooser_and_handoff_matrix(browser, app_server):
             width, height = VIEWPORTS[label]
             snapshot(page, rows, state="chooser-default", label=label, width=width, height=height)
 
+        def route_tops(width):
+            page.set_viewport_size({"width": width, "height": 1000})
+            return page.evaluate(
+                "() => [...document.querySelectorAll('.onboarding-route')]"
+                ".map((el) => Math.round(el.getBoundingClientRect().top))")
+
+        assert len(set(route_tops(1440))) == 1, "1440: expected three route cards in one row"
+        wide_top = route_tops(768)
+        assert len(set(wide_top)) == 2 and wide_top.count(wide_top[0]) == 2, wide_top
+        assert len(set(route_tops(375))) == 3, "375: expected stacked route cards"
+
         page.check('input[name="route_kind"][value="hosted_key"]')
         for label in VIEWPORTS:
             width, height = VIEWPORTS[label]
@@ -345,7 +356,7 @@ def test_capture_chooser_and_handoff_matrix(browser, app_server):
         # OS light preference must not invert the fixed dark theme.
         seed(app)
         open_chooser(page, url)
-        for label in ("375", "768", "1440"):
+        for label in ("320", "375", "768", "1440"):
             width, height = VIEWPORTS[label]
             snapshot(page, rows, state="chooser-default", label=label, width=width, height=height,
                      suffix="-light-preference", color_scheme="light")
@@ -356,4 +367,4 @@ def test_capture_chooser_and_handoff_matrix(browser, app_server):
     assert not external, f"unexpected external requests: {external}"
     results = {"slice": "02", "browser": "chromium", "platform": "linux", "rows": rows}
     (EVIDENCE / "capture-results.json").write_text(json.dumps(results, indent=2, sort_keys=True))
-    assert len(rows) >= 45, f"expected the full chooser matrix, captured {len(rows)} rows"
+    assert len(rows) >= 50, f"expected the full chooser matrix, captured {len(rows)} rows"

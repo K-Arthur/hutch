@@ -37,6 +37,11 @@
   font-weight: 600;
   line-height: 1.4;
 }
+/* The required/help sentence belongs to the whole group, not a card cell. */
+.onboarding-routes > .onboarding-help {
+  grid-column: 1 / -1;
+  margin: 0;
+}
 @media (min-width: 620px) {
   .onboarding-routes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
