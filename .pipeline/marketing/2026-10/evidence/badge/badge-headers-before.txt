@@ -1,0 +1,10 @@
+GET https://github.com/K-Arthur/hutch/actions/workflows/ci.yml/badge.svg?branch=main
+captured 2026-10-29T23:02:05Z (headers below are the relevant subset; cookies/request ids omitted)
+
+HTTP/2 200
+date: Thu, 29 Oct 2026 23:02:05 GMT
+content-type: image/svg+xml; charset=utf-8
+content-length: 2263
+cache-control: max-age=300, private
+etag: W/"993938d8ce5e902ccfb9d6747725c320"
+server: github.com

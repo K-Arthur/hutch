@@ -1,0 +1,34 @@
+# CI run 40838063314 on adddfbfd - captured 2026-10-29T23:0xZ
+
+## Job conclusions (gh api .../jobs)
+test (3.13)  success  07:51:16Z-08:33:11Z
+test (3.12)  success  07:51:16Z-08:34:39Z
+test (3.11)  success  07:51:16Z-08:33:20Z
+benchmarks   success  07:51:16Z-07:54:15Z
+commit attribution policy  success  07:51:15Z-07:51:42Z
+
+## Pytest summary lines (job logs)
+3.12: 4162 passed, 86 skipped, 3 xfailed in 2551.84s (0:42:31)
+3.13: 4162 passed, 86 skipped, 3 xfailed in 2473.44s (0:41:13)
+3.11: 4162 passed, 86 skipped, 3 xfailed in 2461.27s (0:41:01)
+
+## Compare with red run 40813421173 (577e1154)
+3.12: 1 failed, 4161 passed, 86 skipped, 3 xfailed in 2589.29s
+3.13: 3 failed, 4159 passed, 86 skipped, 3 xfailed
+3.11: success (green)
+
+Delta: green counts are exactly red counts + the 4 failures (4161+1=4162; 4159+3=4162).
+
+## Product-path diff 577e1154..adddfbfd
+(empty above = identical product code and tests)
+
+## Commits on main between the two runs
+adddfbfd docs(marketing): name the follow-up CI run for the next session's flakiness check
+fe263eef docs(marketing): record session 10 verification (CI red on record commit, attributed to product e2e; Pages deploy verified)
+961aa4db docs(brand): record maintainer decision to retain the Hutch name
+28e8282c docs(brand): record run 4 browser checks and D3/D4 text concepts
+b203a2f4 docs(brand): record maintainer risk decision and add D1+D2 text concept specs
+f45d7eae docs(brand): add Run 3 IP pre-screen, provenance register and signed clearance protocol
+f00a330a docs(brand): add Run 2 strategy and concept log for the 2026-10 brand pipeline
+6a744aaf docs(brand): close Run 1 with handoff and next prompt
+40b35322 docs(brand): add Run 1 evidence base for the 2026-10 brand pipeline

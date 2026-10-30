@@ -116,6 +116,22 @@ Evidence paths: EVIDENCE-session-10.md; evidence/ci/run-40813421173/.
 Residual risk: public CI badge withheld until green; product e2e failures (4 distinct tests across 3.12/3.13) remain open for the product workstream; B-03 (Search Console/Bing) and R9-D1 (54 alerts) untouched owner items.
 Next session: re-check CI on main (new runs from merged work), then the badge; owner steps per HANDOFF.
 
+## Session 11 - CI flakiness check + CI badge - 2026-10-30
+Files: README.md; .pipeline/marketing/2026-10/{00-BRIEF.md,EVIDENCE-session-11.md,DECISION.md,CHANGES.md,HANDOFF.md,NEXT-PROMPT.md} + evidence/ci/run-40838063314/{run.json,jobs.json,summaries.txt} + evidence/ci/run-40837883068/{run.json,jobs.json} + evidence/badge/{ci-badge-before.svg,badge-headers-before.txt}
+Commits: one docs commit on origin/main (README badge + campaign artifacts/evidence); see `git log -1 origin/main`.
+What changed (user-visible): README badge row gains the CI workflow badge (first badge). Release badge unchanged on v0.1.0. No site, content, docs or claim change.
+Claims affected: none in the register. The badge is self-updating status backed by run 40838063314 (green 2026-10-29); not static copy (R11-03).
+Docs updated: README only. docs/discoverability.md, docs/marketing-site.md and website/** untouched.
+Gates run (command -> result):
+- `gh api .../runs/40837883068` -> cancelled; 4 jobs cancelled + attribution success; not a result (superseded by 40838063314 101 s later).
+- `gh api .../runs/40838063314` + `/jobs` -> success, 5/5 jobs; test logs 4162 passed / 86 skipped / 3 xfailed on 3.11, 3.12, 3.13.
+- `git diff --name-only 577e1154..adddfbfd` outside docs/.pipeline/README -> empty (identical product code/tests).
+- `curl` badge -> HTTP 200, image/svg+xml, `<title>ci - passing</title>`.
+- `git diff -- README.md` -> one added line; release badge line unchanged.
+Evidence paths: EVIDENCE-session-11.md; evidence/ci/run-40838063314/; evidence/ci/run-40837883068/; evidence/badge/.
+Residual risk: the badge commit's own CI run is not awaited (query next session); the badge can flip red on recurrence of the four flaky e2e tests; B-03 (Search Console/Bing) and R9-D3 (social preview) remain owner-gated.
+Next session: check the latest CI run on main; then the deferred Search Console tag slice if the human provides the tag, or record social/Bing completion.
+
 ## Session summary
 - Slices completed: Phase 1 audit (RECON + FINDINGS + DECISION updates); Phase 2 strategy (STRATEGY + CLAIM-REGISTER + CONTENT-MAP + human sign-off)
 - Slices partially done / reverted: none
