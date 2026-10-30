@@ -1,0 +1,1340 @@
+{
+  "browser": "chromium",
+  "platform": "linux",
+  "rows": [
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "empty",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-768-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "empty",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-1440-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "empty",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-320-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "320",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "empty",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.draft.saved",
+        "statuses": [
+          "Saved on this machine."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "saved",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/non-latin-long-request-375-dark-long-non-latin.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.draft.saved",
+        "statuses": [
+          "Saved on this machine."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "non-latin-long-request",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-768-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.draft.saved",
+        "statuses": [
+          "Saved on this machine."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "saved",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/non-latin-long-request-768-dark-long-non-latin.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.draft.saved",
+        "statuses": [
+          "Saved on this machine."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "non-latin-long-request",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-1440-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.draft.saved",
+        "statuses": [
+          "Saved on this machine."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "saved",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/non-latin-long-request-1440-dark-long-non-latin.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.draft.saved",
+        "statuses": [
+          "Saved on this machine."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "non-latin-long-request",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-320-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "320",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.draft.saved",
+        "statuses": [
+          "Saved on this machine."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "saved",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/non-latin-long-request-320-dark-long-non-latin.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "320",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.draft.saved",
+        "statuses": [
+          "Saved on this machine."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "non-latin-long-request",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/resumed-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.current",
+        "statuses": [
+          "You left off here. Hutch resumed the request you saved on this machine on 2026-10-29 19:44 PDT."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "resumed",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/resumed-768-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.current",
+        "statuses": [
+          "You left off here. Hutch resumed the request you saved on this machine on 2026-10-29 19:44 PDT."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "resumed",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/resumed-1440-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.current",
+        "statuses": [
+          "You left off here. Hutch resumed the request you saved on this machine on 2026-10-29 19:44 PDT."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "resumed",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/resumed-320-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "320",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.current",
+        "statuses": [
+          "You left off here. Hutch resumed the request you saved on this machine on 2026-10-29 19:44 PDT."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "resumed",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [
+          "There is a problem\n    Enter a request before saving."
+        ],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "input.invalid",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "validation-error",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-768-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [
+          "There is a problem\n    Enter a request before saving."
+        ],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "input.invalid",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "validation-error",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-1440-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [
+          "There is a problem\n    Enter a request before saving."
+        ],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "input.invalid",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "validation-error",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-320-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "320",
+      "observed": {
+        "alerts": [
+          "There is a problem\n    Enter a request before saving."
+        ],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "input.invalid",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "validation-error",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-320-dark-forced-colors.png",
+      "color_scheme": "dark",
+      "forced_colors": "active",
+      "label": "320",
+      "observed": {
+        "alerts": [
+          "There is a problem\n    Enter a request before saving."
+        ],
+        "bodyBackground": "rgb(0, 0, 0)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "input.invalid",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "validation-error",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-375-dark-forced-colors.png",
+      "color_scheme": "dark",
+      "forced_colors": "active",
+      "label": "375",
+      "observed": {
+        "alerts": [
+          "There is a problem\n    Enter a request before saving."
+        ],
+        "bodyBackground": "rgb(0, 0, 0)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "input.invalid",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "validation-error",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-768-dark-forced-colors.png",
+      "color_scheme": "dark",
+      "forced_colors": "active",
+      "label": "768",
+      "observed": {
+        "alerts": [
+          "There is a problem\n    Enter a request before saving."
+        ],
+        "bodyBackground": "rgb(0, 0, 0)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "input.invalid",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "validation-error",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-1440-dark-forced-colors.png",
+      "color_scheme": "dark",
+      "forced_colors": "active",
+      "label": "1440",
+      "observed": {
+        "alerts": [
+          "There is a problem\n    Enter a request before saving."
+        ],
+        "bodyBackground": "rgb(0, 0, 0)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "input.invalid",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "validation-error",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saving-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "saving",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/stale-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.stale",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "stale",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/stale-768-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.stale",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "stale",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/stale-1440-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.stale",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "stale",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/stale-320-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "320",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.stale",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "stale",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/expired-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.expired",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "expired",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/expired-768-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.expired",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "expired",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/expired-1440-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.expired",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "expired",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/expired-320-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "320",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.expired",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "expired",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/damaged-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.damaged",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "damaged",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/damaged-768-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.damaged",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "damaged",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/damaged-1440-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.damaged",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "damaged",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/damaged-320-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "320",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.damaged",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "damaged",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/newer-version-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.stale",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "newer-version",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/newer-version-768-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.stale",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "newer-version",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/newer-version-1440-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.stale",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "newer-version",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/newer-version-320-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "320",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.resume.stale",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "newer-version",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/conflict-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [
+          "Newer saved request (kept)\n    Saved first in this tab\n    Your text from this page (not saved)\n    Typed second in the other tab"
+        ],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.conflict",
+        "statuses": [],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "conflict",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/conflict-768-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [
+          "Newer saved request (kept)\n    Saved first in this tab\n    Your text from this page (not saved)\n    Typed second in the other tab"
+        ],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.conflict",
+        "statuses": [],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "conflict",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/conflict-1440-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [
+          "Newer saved request (kept)\n    Saved first in this tab\n    Your text from this page (not saved)\n    Typed second in the other tab"
+        ],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.conflict",
+        "statuses": [],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "conflict",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/conflict-320-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "320",
+      "observed": {
+        "alerts": [
+          "Newer saved request (kept)\n    Saved first in this tab\n    Your text from this page (not saved)\n    Typed second in the other tab"
+        ],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.conflict",
+        "statuses": [],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "conflict",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/forbidden-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "auth.csrf_rejected",
+        "statuses": [],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "forbidden",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/forbidden-768-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "auth.csrf_rejected",
+        "statuses": [],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "forbidden",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/forbidden-1440-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "auth.csrf_rejected",
+        "statuses": [],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "forbidden",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-375-light-light-preference.png",
+      "color_scheme": "light",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "empty",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-768-light-light-preference.png",
+      "color_scheme": "light",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "empty",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-1440-light-light-preference.png",
+      "color_scheme": "light",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "empty",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-375-dark-reduced-motion.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.draft.saved",
+        "statuses": [
+          "Saved on this machine."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "saved",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-768-dark-reduced-motion.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.draft.saved",
+        "statuses": [
+          "Saved on this machine."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "saved",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-1440-dark-reduced-motion.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.draft.saved",
+        "statuses": [
+          "Saved on this machine."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "saved",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-320-dark-reduced-motion.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "320",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.draft.saved",
+        "statuses": [
+          "Saved on this machine."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "saved",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/keyboard-focus-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "keyboard-focus",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/keyboard-focus-768-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "keyboard-focus",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/keyboard-focus-1440-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "keyboard-focus",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/keyboard-focus-320-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "320",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "keyboard-focus",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/text-zoom-200-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "text-zoom-200",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/text-zoom-200-768-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "768",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "text-zoom-200",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/text-zoom-200-1440-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "1440",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "text-zoom-200",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/text-zoom-200-320-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "320",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "mode": "view",
+        "overflow": 0,
+        "state": "setup.empty_no_route",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding",
+      "state": "text-zoom-200",
+      "viewport": "320x740"
+    }
+  ],
+  "slice": "01"
+}

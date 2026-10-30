@@ -1,0 +1,576 @@
+{
+  "browser": "chromium 153.0.8010.12 (Playwright bundled), headless, Linux",
+  "date": "2026-10-29",
+  "gate": "CP1",
+  "method": "live Chromium 153.0.8010.12 on Linux; opened-image verdicts; see README.md",
+  "rows": [
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-375-dark.png",
+      "finding": "One h1, one primary action, request field and honest next-step note; no account/verified claim.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "empty",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-768-dark.png",
+      "finding": "One h1, one primary action, request field and honest next-step note; no account/verified claim.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "empty",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-1440-dark.png",
+      "finding": "One h1, one primary action, request field and honest next-step note; no account/verified claim.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "empty",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-320-dark.png",
+      "finding": "One h1, one primary action, request field and honest next-step note; no account/verified claim.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "empty",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-375-dark.png",
+      "finding": "Long non-Latin/RTL request wraps with no clipping; saved is explicitly not connected.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "saved",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/non-latin-long-request-375-dark-long-non-latin.png",
+      "finding": "CJK, accented Latin, Arabic RTL, combining marks and 100+ chars preserved exactly.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "non-latin-long-request",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-768-dark.png",
+      "finding": "Long non-Latin/RTL request wraps with no clipping; saved is explicitly not connected.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "saved",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/non-latin-long-request-768-dark-long-non-latin.png",
+      "finding": "CJK, accented Latin, Arabic RTL, combining marks and 100+ chars preserved exactly.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "non-latin-long-request",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-1440-dark.png",
+      "finding": "Long non-Latin/RTL request wraps with no clipping; saved is explicitly not connected.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "saved",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/non-latin-long-request-1440-dark-long-non-latin.png",
+      "finding": "CJK, accented Latin, Arabic RTL, combining marks and 100+ chars preserved exactly.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "non-latin-long-request",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-320-dark.png",
+      "finding": "Long non-Latin/RTL request wraps with no clipping; saved is explicitly not connected.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "saved",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/non-latin-long-request-320-dark-long-non-latin.png",
+      "finding": "CJK, accented Latin, Arabic RTL, combining marks and 100+ chars preserved exactly.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "non-latin-long-request",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/resumed-375-dark.png",
+      "finding": "One polite status announces the resume once after load; saved_at in local time.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "resumed",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/resumed-768-dark.png",
+      "finding": "One polite status announces the resume once after load; saved_at in local time.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "resumed",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/resumed-1440-dark.png",
+      "finding": "One polite status announces the resume once after load; saved_at in local time.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "resumed",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/resumed-320-dark.png",
+      "finding": "One polite status announces the resume once after load; saved_at in local time.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "resumed",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-375-dark.png",
+      "finding": "Focused error summary plus adjacent inline text; value preserved; no colour-only cue.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "validation-error",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-768-dark.png",
+      "finding": "Focused error summary plus adjacent inline text; value preserved; no colour-only cue.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "validation-error",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-1440-dark.png",
+      "finding": "Focused error summary plus adjacent inline text; value preserved; no colour-only cue.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "validation-error",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-320-dark.png",
+      "finding": "Focused error summary plus adjacent inline text; value preserved; no colour-only cue.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "validation-error",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-320-dark-forced-colors.png",
+      "finding": "Focused error summary plus adjacent inline text; value preserved; no colour-only cue.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "validation-error",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-375-dark-forced-colors.png",
+      "finding": "Focused error summary plus adjacent inline text; value preserved; no colour-only cue.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "validation-error",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-768-dark-forced-colors.png",
+      "finding": "Focused error summary plus adjacent inline text; value preserved; no colour-only cue.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "validation-error",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/validation-error-1440-dark-forced-colors.png",
+      "finding": "Focused error summary plus adjacent inline text; value preserved; no colour-only cue.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "validation-error",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saving-375-dark.png",
+      "finding": "Button disabled with aria-busy and a visible Saving... status; text preserved.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "saving",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/stale-375-dark.png",
+      "finding": "Kept vs needs-re-checking list plus one re-save action; Start over is a secondary disclosure.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "stale",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/stale-768-dark.png",
+      "finding": "Kept vs needs-re-checking list plus one re-save action; Start over is a secondary disclosure.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "stale",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/stale-1440-dark.png",
+      "finding": "Kept vs needs-re-checking list plus one re-save action; Start over is a secondary disclosure.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "stale",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/stale-320-dark.png",
+      "finding": "Kept vs needs-re-checking list plus one re-save action; Start over is a secondary disclosure.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "stale",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/expired-375-dark.png",
+      "finding": "Request kept, explicit refresh action, TTL wording; no false current claim.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "expired",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/expired-768-dark.png",
+      "finding": "Request kept, explicit refresh action, TTL wording; no false current claim.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "expired",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/expired-1440-dark.png",
+      "finding": "Request kept, explicit refresh action, TTL wording; no false current claim.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "expired",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/expired-320-dark.png",
+      "finding": "Request kept, explicit refresh action, TTL wording; no false current claim.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "expired",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/damaged-375-dark.png",
+      "finding": "No fabricated request; safe dashboard exit primary and destructive Start over secondary.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "damaged",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/damaged-768-dark.png",
+      "finding": "No fabricated request; safe dashboard exit primary and destructive Start over secondary.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "damaged",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/damaged-1440-dark.png",
+      "finding": "No fabricated request; safe dashboard exit primary and destructive Start over secondary.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "damaged",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/damaged-320-dark.png",
+      "finding": "No fabricated request; safe dashboard exit primary and destructive Start over secondary.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "damaged",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/newer-version-375-dark.png",
+      "finding": "Explicit newer-Hutch state, request kept, no overwrite.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "newer-version",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/newer-version-768-dark.png",
+      "finding": "Explicit newer-Hutch state, request kept, no overwrite.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "newer-version",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/newer-version-1440-dark.png",
+      "finding": "Explicit newer-Hutch state, request kept, no overwrite.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "newer-version",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/newer-version-320-dark.png",
+      "finding": "Explicit newer-Hutch state, request kept, no overwrite.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "newer-version",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/conflict-375-dark.png",
+      "finding": "Both versions shown; newer saved value kept; review-latest action.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "conflict",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/conflict-768-dark.png",
+      "finding": "Both versions shown; newer saved value kept; review-latest action.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "conflict",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/conflict-1440-dark.png",
+      "finding": "Both versions shown; newer saved value kept; review-latest action.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "conflict",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/conflict-320-dark.png",
+      "finding": "Both versions shown; newer saved value kept; review-latest action.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "conflict",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/forbidden-375-dark.png",
+      "finding": "Explicit CSRF/session rejection copy, nothing saved, reload + dashboard actions.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "forbidden",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/forbidden-768-dark.png",
+      "finding": "Explicit CSRF/session rejection copy, nothing saved, reload + dashboard actions.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "forbidden",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/forbidden-1440-dark.png",
+      "finding": "Explicit CSRF/session rejection copy, nothing saved, reload + dashboard actions.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "forbidden",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-375-light-light-preference.png",
+      "finding": "One h1, one primary action, request field and honest next-step note; no account/verified claim.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "empty",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-768-light-light-preference.png",
+      "finding": "One h1, one primary action, request field and honest next-step note; no account/verified claim.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "empty",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/empty-1440-light-light-preference.png",
+      "finding": "One h1, one primary action, request field and honest next-step note; no account/verified claim.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "empty",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-375-dark-reduced-motion.png",
+      "finding": "Long non-Latin/RTL request wraps with no clipping; saved is explicitly not connected.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "saved",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-768-dark-reduced-motion.png",
+      "finding": "Long non-Latin/RTL request wraps with no clipping; saved is explicitly not connected.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "saved",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-1440-dark-reduced-motion.png",
+      "finding": "Long non-Latin/RTL request wraps with no clipping; saved is explicitly not connected.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "saved",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/saved-320-dark-reduced-motion.png",
+      "finding": "Long non-Latin/RTL request wraps with no clipping; saved is explicitly not connected.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "saved",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/keyboard-focus-375-dark.png",
+      "finding": "Textarea reachable by Tab with a visible focus ring; one primary action remains.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "keyboard-focus",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/keyboard-focus-768-dark.png",
+      "finding": "Textarea reachable by Tab with a visible focus ring; one primary action remains.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "keyboard-focus",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/keyboard-focus-1440-dark.png",
+      "finding": "Textarea reachable by Tab with a visible focus ring; one primary action remains.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "keyboard-focus",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/keyboard-focus-320-dark.png",
+      "finding": "Textarea reachable by Tab with a visible focus ring; one primary action remains.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "keyboard-focus",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/text-zoom-200-375-dark.png",
+      "finding": "200 percent root text scale: no horizontal overflow, action reachable in normal flow.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "text-zoom-200",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/text-zoom-200-768-dark.png",
+      "finding": "200 percent root text scale: no horizontal overflow, action reachable in normal flow.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "text-zoom-200",
+      "verdict": "APPROVED",
+      "viewport": "768x1024"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/text-zoom-200-1440-dark.png",
+      "finding": "200 percent root text scale: no horizontal overflow, action reachable in normal flow.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "text-zoom-200",
+      "verdict": "APPROVED",
+      "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-01/text-zoom-200-320-dark.png",
+      "finding": "200 percent root text scale: no horizontal overflow, action reachable in normal flow.",
+      "reviewer": "lead (implementation reviewer, opened every image)",
+      "source_commit": "88221ef9",
+      "state": "text-zoom-200",
+      "verdict": "APPROVED",
+      "viewport": "320x740"
+    }
+  ],
+  "slice": "01"
+}
