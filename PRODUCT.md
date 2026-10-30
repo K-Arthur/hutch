@@ -63,9 +63,11 @@ limit.
   runtime or authority. See the [roster and mascot review](docs/research/bot-roster-and-mascot-review-2026-10-09.md).
 - Chat is the daily workspace: familiar conversations, one compact assistant list, one Apps & AI
   destination, inline approvals and a clear Needs you view. The main assistant stays first;
-  owners can pin frequent assistants without hiding active work. More contains Activity,
-  Scheduled work, Work history, and Manage assistants. The larger assistant manager appears
-  at ten assistants with search/state filters; ten is a product heuristic, not a research-proven threshold.
+  owners can pin frequent assistants without hiding active work. More contains Activity (Now,
+  History and Conversations, one destination), Scheduled work, Skills, Models, Usage, Runtime and
+  Assistants. The Assistants manager is offered from ten assistants, with search/state filters, on
+  the app and on server pages alike; ten is a product heuristic, not a research-proven threshold.
+  Page titles read `<View> — Hutch`; the interface says "assistant" and keeps "bot" for the CLI.
 - Frontend stack constraint: zero build step, zero external assets (fonts/CDNs),
   vanilla ES + hash-routed SPA at `/`; Jinja2+HTMX server pages for the remainder.
   Restructuring inside those files is allowed; introducing a framework or bundler is not.

@@ -57,7 +57,6 @@ Where a document and the running code disagree, the code and the current
 | [realignment/artifacts/](realignment/artifacts/) | captured screenshots, manifests and machine-readable validation evidence |
 | [adr/](adr/) | numbered architecture decision records |
 | [qa/](qa/) | interface QA review and images |
-| [prompts/](prompts/) | dated implementation prompts and reports kept for traceability |
 
 `docs/realignment/` holds dated evidence artifacts, not current product documentation. Files
 there record what was measured on a given date; some paths, screenshots and conclusions are

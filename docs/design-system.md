@@ -154,7 +154,7 @@ Brand art, assistant identity, and runtime state never substitute for one anothe
 ### Chat recovery and workspace settings
 
 Chats remain the daily workspace. The compact conversation selector is a recent
-switcher, not a history browser: the **Chat library** is the canonical recovery
+switcher, not a history browser: the **Conversations** view of Activity is the canonical recovery
 path for active, archived, and imported conversation titles across assistants.
 It pages results, opens the selected conversation exactly, and keeps message
 search scoped to active chats so its disclosure remains true. Do not replace a
@@ -298,8 +298,8 @@ Activity and task review follow the same first-layer rule: lead with the
 assistant, request, status, and conversation. Keep reported tokens, recorded
 cost, timing, run references, and transcript checks together in a clearly named
 optional details layer. Hide empty activity buckets; when no task needs
-attention, use one compact clear-state with direct links to chat and past work.
-Past work uses the same task cards at desktop and phone widths. Never imply
+attention, use one compact clear-state with direct links to chat and History.
+History uses the same task cards at desktop and phone widths. Never imply
 recorded usage is a guaranteed bill or that an accepted send was delivered.
 
 ### Marketing site

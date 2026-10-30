@@ -22,7 +22,7 @@ The OpenCode coding handoff now includes `hutch code login`, which uses the inst
 | ID | Requirement | Phase | Status | Where |
 |---|---|---|---|---|
 | UI-1 | Home shows Needs you / Running now / Stale | MVP | done | `views.home_state` served at `/`: Needs you / Running now / Stale, each with cause and fix; `tests/test_views.py`, `tests/test_dashboard.py` |
-| UI-2 | Stop all in every header; per-run Stop kills child processes | MVP | done | Stop all in every header (plain POST + confirm); engine kills process groups; tested incl. forked helper |
+| UI-2 | Stop all reachable from every page; per-run Stop kills child processes | MVP | done | Stop all in server-page headers (plain POST + confirm) and in the app header while work is running (confirm overlay, `tests/e2e/test_stop_all.py`); engine kills process groups; tested incl. forked helper |
 | UI-3 | Run event streams resume from durable cursors and resources publish ordered updates | MVP | done | Per-run `seq`, cross-run SQLite event IDs and transactional resource invalidations replay from `Last-Event-ID`; pages are bounded, the retained boundary remains replayable, and older cursors require a reconciliation snapshot. See `tests/test_sse_resume.py`, `tests/test_durable_changes.py`, and the retention checkpoint in `realignment/ledger.md` |
 | UI-4 | Run detail: steps, elapsed, spend, context vs caps | MVP | done | `views.run_meters`: steps, elapsed, spend, tokens, context vs caps, plus absolute model/tool/Hutch timing |
 | UI-5 | Approvals inbox: parsed segments, rule, once/always/deny, countdown | MVP | done | approval card: parsed segments, rule, once/always/plan/deny, live countdown; outward never offers always |
