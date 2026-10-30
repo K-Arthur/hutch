@@ -45,6 +45,20 @@ The repository is over 1 GB, mostly dated browser traces and evidence under `doc
 - [Development](#development)
 - [Contributing and security](#contributing-and-security)
 - [License](#license)
+- [Responsive and device support](#responsive-and-device-support)
+
+## Responsive and device support
+
+The dashboard and the marketing site are validated from 320px phones through
+1536px desktops, including 13-14 inch devices in both orientations (1024x768,
+1180x820, 1366x1024), touch and fine pointers, and JavaScript-off server pages.
+A re-runnable Playwright harness boots the app with seeded data, measures
+horizontal overflow, the viewport contract, the navigation model, stylesheet
+structure, touch targets and contrast, and writes committed screenshots plus
+summary.json under docs/responsive/screenshots/. Run it with
+uv run --frozen --no-sync python scripts/validate_responsive.py --label <sha>
+(or scripts/validate-responsive.sh). Contract, evidence and remaining limits:
+[docs/responsive/COMPLETION.md](docs/responsive/COMPLETION.md).
 
 ## What is Hutch?
 

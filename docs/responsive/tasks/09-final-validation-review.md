@@ -62,3 +62,20 @@ README/docs rows, staged explicitly.
 ## Size check
 
 One validation run plus a review pass: one session.
+## Outcome
+
+- Status: done.
+- Final gate: docs/responsive/screenshots/8525c208 (130 measurements, 0 failures
+  with --fail-on all; every failure kind enabled, css problems 0, 13 state
+  captures).
+- Clean-tree desktop parity: docs/responsive/screenshots/clean-tree-parity
+  compares pre-change commit 2a89909a with final commit 8525c208 using detached
+  worktrees: 0 changed pixels at 1536, 17/189 changed pixels at 1440 confined to
+  live status indicators; the baseline tree fails 5 assertions the work fixes.
+- Marketing reviewed at 375/768/1366 plus 844x390 landscape and no-JS variants.
+- Review pass: diff confined to planned paths; harness split by responsibility
+  (capture.py 252 lines, states.py 238); no TODO/FIXME in new code; emoji audit
+  clean; CSS structure clean; STATE rows checked against git log; documented
+  caveat that local .git/info/exclude lists scripts/ so new files there need
+  git add -f.
+- COMPLETION.md written; 07b and 07c recorded as deferred with next actions.

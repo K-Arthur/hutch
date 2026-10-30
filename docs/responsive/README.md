@@ -7,8 +7,8 @@ session should be able to resume from STATE.md plus git log alone.
 
 ## Status
 
-- Current state, task rows and handoff: [STATE.md](STATE.md)
-- Completion doc exists only when every non-deferred task is done.
+- Complete: [COMPLETION.md](COMPLETION.md) (final gate PASS at 8525c208).
+- Run history, task rows and handoff: [STATE.md](STATE.md).
 
 ## Document map
 
