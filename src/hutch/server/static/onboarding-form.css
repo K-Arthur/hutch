@@ -1,0 +1,103 @@
+/* Onboarding request step: the form field tier for this chrome-less route.
+ *
+ * The shared form macro/CSS tier is another session's uncommitted work, so this
+ * route ships the small field vocabulary it needs in its own stylesheet. Values
+ * still come from the server-page token layer (brand-tokens.css / hutch.css); the
+ * markup stays a real label + textarea + help + error, works without JavaScript,
+ * and the error is text, never colour alone. Loaded before onboarding.css.
+ *
+ * The field edge mirrors the shared form tier's documented server-page
+ * fallback: 0.38 alpha, the >=3:1 WCAG 1.4.11 boundary, because the semantic
+ * --border-strong token in brand-tokens.css is a quiet 0.14 hairline.
+ *
+ * The selectors are scoped under .onboarding-form because hutch.css styles
+ * bare textareas with a (0,1,1) selector; the extra class makes this tier the
+ * authoritative one for this route.
+ */
+
+:root {
+  --onboarding-field-edge: var(--hutch-alias-border-edge, rgba(255, 255, 255, 0.38));
+}
+
+.onboarding-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  min-width: 0;
+}
+
+.onboarding-label {
+  color: var(--text);
+  font-size: var(--text-size-sm, 15px);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.onboarding-req {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.onboarding-form .onboarding-textarea {
+  width: 100%;
+  min-height: 10rem;
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  border: 1px solid var(--onboarding-field-edge);
+  border-radius: var(--r);
+  background: var(--bg-subtle);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-size-base, 17px);
+  line-height: var(--text-lh-body, 1.65);
+  resize: vertical;
+}
+.onboarding-form .onboarding-textarea::placeholder { color: var(--faint); }
+.onboarding-form .onboarding-textarea:hover:not(:disabled) { border-color: var(--dim); }
+.onboarding-form .onboarding-textarea:focus-visible {
+  border-color: var(--focus);
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.onboarding-form .onboarding-textarea[aria-invalid="true"] { border-color: var(--red); }
+.onboarding-textarea[aria-invalid="true"]:focus-visible {
+  border-color: var(--red);
+  outline-color: var(--red);
+}
+
+.onboarding-help {
+  margin: 0;
+  max-width: var(--size-measure, 62ch);
+  color: var(--faint);
+  font-size: var(--text-size-sm, 15px);
+  line-height: 1.6;
+}
+.onboarding-field-error {
+  margin: 0;
+  max-width: var(--size-measure, 62ch);
+  color: var(--red);
+  font-size: var(--text-size-sm, 15px);
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.onboarding-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3, 12px);
+}
+
+@media (max-width: 560px) {
+  .onboarding-form-actions { flex-direction: column; align-items: stretch; }
+  .onboarding-form-actions .btn { width: 100%; }
+}
+
+@media (pointer: coarse), (max-width: 720px) {
+  .onboarding-form-actions .btn { min-height: var(--size-target, 44px); }
+}
+
+@media (forced-colors: active) {
+  .onboarding-textarea { background: Canvas; color: CanvasText; border-color: CanvasText; }
+  .onboarding-textarea:focus-visible { outline-color: Highlight; }
+  .onboarding-label, .onboarding-help, .onboarding-field-error, .onboarding-req { color: CanvasText; }
+}
