@@ -16,6 +16,18 @@ header.sticky {
   padding-top: var(--safe-top);
 }
 
+/* Short landscape viewports: the hero scene's desktop min-height (460/450/340px)
+   nearly fills a 390px-tall phone, pushing the value proposition off the first
+   screen. Keep the artwork visible but let the copy and CTA lead. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .hero { padding-block: var(--space-8); }
+  .hero-scene { min-height: 240px; }
+  .hero-mascot { width: clamp(150px, 26vh, 210px); }
+  .hero-note-task { top: 6%; left: 4%; }
+  .hero-note-review { right: 4%; bottom: 6%; }
+  .hero-note { max-width: min(210px, 42%); padding: 9px 11px; }
+}
+
 @media (orientation: landscape) and (pointer: coarse) {
   .navbar {
     padding-left: max(24px, calc(var(--safe-left) + 12px));

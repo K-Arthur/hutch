@@ -108,7 +108,10 @@ def _measure_surface(page, surface, viewport, options, output_dir, observer, nav
             "%s-%s.png" % (surface.label, viewport.label))
         path = config.REPO_ROOT / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        page.screenshot(path=str(path), full_page=(surface.kind == "site"), animations="disabled")
+        # Full-page marketing captures are tall; in landscape the first-screen
+        # composition is what matters, so capture the viewport only there.
+        full_page = surface.kind == "site" and viewport.height >= viewport.width
+        page.screenshot(path=str(path), full_page=full_page, animations="disabled")
         record["screenshot"] = str(relative)
     return record
 

@@ -337,22 +337,8 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
   .proof-legend { border-left: 0; border-top: 1px solid var(--color-semantic-border-soft); }
 }
 
-/* --------------------------------------------------- receipts data table */
-.receipts { width: 100%; min-width: 760px; }
-.receipts th, .receipts td { vertical-align: top; }
-.receipts thead th {
-  font-family: var(--font-mono); font-size: var(--text-size-xs); font-weight: 700;
-  letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--color-semantic-text-3); white-space: nowrap;
-}
-.receipts .cell-i { font-family: var(--font-mono); font-size: 12px; color: var(--color-semantic-text-3); white-space: nowrap; }
-.receipts .cell-src { font-family: var(--font-mono); font-size: 12px; color: var(--color-semantic-text-2); white-space: nowrap; }
-.receipts .cell-src a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
-.receipts .cell-src a:hover { color: var(--color-semantic-brand); }
-.receipts .cell-inc b { display: block; color: var(--color-semantic-text); font-weight: 650; }
-.receipts .cell-inc span { display: block; margin-top: var(--space-1); font-size: 12px; line-height: 1.5; color: var(--color-semantic-text-3); }
-.receipts .cell-ans { font-family: var(--font-mono); font-size: 12px; line-height: 1.7; color: var(--color-semantic-text); }
-.receipts .cell-ev { white-space: nowrap; }
+/* The legacy receipts table and its rules were removed with the table; the
+   .ev status component below is still in use. */
 /* one status treatment everywhere: 7px dot + text, no container */
 .ev { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--font-mono); font-size: 12px; color: var(--color-semantic-text-2); white-space: nowrap; }
 

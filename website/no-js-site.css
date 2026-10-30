@@ -1,0 +1,33 @@
+/* Fallback for visitors without JavaScript.
+ *
+ * site.js opens the navigation drawer, so with scripting disabled the drawer can
+ * never open and the link list must stay in the document flow. This sheet is
+ * linked only inside <noscript>. It lets the navbar wrap instead of clipping the
+ * six primary links below 1024px, and hides the inert menu button.
+ */
+@media (max-width: 1023px) {
+  .navbar {
+    flex-wrap: wrap;
+    min-height: auto;
+    padding-block: 10px;
+    row-gap: 6px;
+  }
+  .navbar-center {
+    display: flex !important;
+    flex-basis: 100%;
+    order: 3;
+  }
+  .navbar-center .menu {
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 0;
+  }
+  .navbar-center a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-inline: 8px;
+  }
+  .menu-btn { display: none !important; }
+  body { overflow-x: visible; }
+}

@@ -89,7 +89,8 @@ VIEWPORT_BY_LABEL = {viewport.label: viewport for viewport in VIEWPORTS}
 # remaining surfaces get the phone, tablet and 13-inch widths.
 FULL_MATRIX_SURFACES = frozenset({"spa-studio", "pages-models", "site-home"})
 SECONDARY_SCREENSHOT_VIEWPORTS = frozenset({"phone-375", "tablet-portrait-768", "ipad-13in-1366"})
-MARKETING_SCREENSHOT_VIEWPORTS = frozenset({"phone-375", "tablet-portrait-768", "ipad-13in-1366"})
+MARKETING_SCREENSHOT_VIEWPORTS = frozenset({"phone-375", "tablet-portrait-768",
+                                         "phone-landscape-844", "ipad-13in-1366"})
 CONTRAST_VIEWPORTS = frozenset({"phone-390", "ipad-13in-1366"})
 
 QUICK_SURFACES = frozenset({"spa-studio", "pages-models", "site-home"})
