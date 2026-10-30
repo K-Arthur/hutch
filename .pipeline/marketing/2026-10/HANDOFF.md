@@ -1,13 +1,13 @@
 # HANDOFF - Hutch - 2026-10-30 - session 11 (CI flakiness check + CI badge)
 
 ## State
-- Repo/branch: `/home/kevina/CodingProjects/hutch` · local `main` is the product workstream's branch: 15 commits ahead of `origin/main` at first check, 16 after its mid-session commit (`f0551b8b`), and dirty (153 paths at session start). Its HEAD moved mid-session (`cb8ca349` -> `f0551b8b`), confirming active work. After this session's push it is 16 ahead / 1 behind `origin/main`; the product workstream must rebase before its next push. Do not reset, clean, merge or stage it.
-- Origin/main: `adddfbfd` + this session's one docs commit (the badge commit; find with `git log -1 origin/main` after `git fetch`). Campaign work was done in detached worktree `.worktrees/marketing-s11` at origin/main; the worktree is left in place for reading.
+- Repo/branch: `/home/kevina/CodingProjects/hutch` · local `main` is the product workstream's branch: 15 commits ahead of `origin/main` at first check, 108 at the last check (it committed continuously; `f0551b8b` was one mid-session tip), and dirty (153 paths at session start). Its HEAD moved mid-session (`cb8ca349` -> `f0551b8b`), confirming active work. After this session's push it is far ahead (108 at the last check) / 1 behind `origin/main`; the product workstream must rebase before its next push. Do not reset, clean, merge or stage it.
+- Origin/main: `adddfbfd` + this session's docs commits (badge commit `3980a03b` plus a post-push evidence/count follow-up; find the tip with `git log -1 origin/main` after `git fetch`). Campaign work was done in detached worktree `.worktrees/marketing-s11` at origin/main; the worktree is left in place for reading.
 - Site: LIVE at https://k-arthur.github.io/hutch/ on the github.io host. No `website/**` change this session, so the Pages deployment is unchanged.
 - Release: v0.1.0 source pre-release; release badge unchanged and still points at the tag.
 - CI: run `40838063314` on `adddfbfd` is GREEN (5/5 jobs; 4162 passed on each Python 3.11/3.12/3.13). Run `40837883068` on `fe263eef` was CANCELLED (superseded 101 s later), not a result. The badge commit starts a fresh run (workflow triggers on every push, no paths filter); its conclusion is not awaited here.
 - Campaign phase machine: Phases 0-7 complete; maintenance/measure mode. Open work is owner-gated.
-- Other workstream: 16 unpushed commits + dirty tree (src, app, tests, package files, AGENTS.md, .gitignore, CONTRIBUTING.md, website/brand assets) untouched. PR #11 open (theirs).
+- Other workstream: over 100 unpushed commits (108 at the last check) + dirty tree (src, app, tests, package files, AGENTS.md, .gitignore, CONTRIBUTING.md, website/brand assets) untouched. PR #11 open (theirs).
 
 ## What changed this session
 - README badge row gains the CI workflow badge as the first badge (`README.md:7`), linking to `https://github.com/K-Arthur/hutch/actions/workflows/ci.yml`. The v0.1.0 release badge is unchanged (`README.md:13`).
@@ -21,6 +21,7 @@ See `DECISION.md` "Session 11 decisions". Key: the cancelled run is not evidence
 - Acceptance table: `EVIDENCE-session-11.md`.
 - CI: `evidence/ci/run-40838063314/{run.json,jobs.json,summaries.txt}`; `evidence/ci/run-40837883068/{run.json,jobs.json}`.
 - Badge: `evidence/badge/{ci-badge-before.svg,badge-headers-before.txt}` (HTTP 200, `image/svg+xml`, `<title>ci - passing</title>`).
+- Post-push: `evidence/badge/{readme-badge-excerpt.html,ci-badge-after.svg}` - GitHub-rendered README contains the badge pair; the badge endpoint still said `ci - passing` while run `41098154819` (the badge commit's run) was in progress. That run was superseded by the follow-up docs commit; check the latest run on main.
 - README diff: one added line at `README.md:7`; release badge line unchanged.
 
 ## Owner-gated steps (status 2026-10-30)
@@ -34,7 +35,7 @@ See `DECISION.md` "Session 11 decisions". Key: the cancelled run is not evidence
 | ID | Risk | Impact | Owner | Next action | Trigger |
 |---|---|---|---|---|---|
 | R10-D1 | Four product e2e failures (workflow route-card forced colors; 2 browser timeouts; design-system assert) | Badge can flip red; public Actions tab shows failures | product/Studio workstream | triage recurrence; the 2026-10-29 green run on identical code makes flakiness the working explanation | next red run |
-| R11-D1 | Product workstream's local `main` is 16 ahead / 1 behind `origin/main` after this push | Their next push will be rejected until they rebase; dirty tree may complicate it | product/Studio workstream | fetch + rebase onto origin/main before pushing | their next push |
+| R11-D1 | Product workstream's local `main` is far ahead (108 at the last check) / 1 behind `origin/main` after this push | Their next push will be rejected until they rebase; dirty tree may complicate it | product/Studio workstream | fetch + rebase onto origin/main before pushing | their next push |
 | R9-D1 | 54 open Dependabot alerts (8 critical, 26 high) + 10 update PRs | Supply-chain risk on a public repo | maintainer | triage critical/high; review queued PRs | now |
 | B-03 | No Search Console/Bing properties | AI-performance and index measurement not started | maintainer | steps 2-3 above | now |
 | R9-D3 | Social preview not uploaded | Weaker repo unfurls | maintainer | step 1 above | now |
@@ -44,7 +45,7 @@ See `DECISION.md` "Session 11 decisions". Key: the cancelled run is not evidence
 | B-07 | Local `npm run check:agent` red: tests/test_commit_attribution.py 419 lines (as of 2026-10-29) | Local repo gate red; not CI (CI attribution job green) | git-attribution workstream | split the file | their next session |
 
 ## Next step (one only)
-- Fetch `origin/main`, then check the latest `ci` run on main (the badge commit's run). Green = the badge is backed by two consecutive green runs; red on the same four e2e tests = recurrence evidence for the product workstream. Do not fix product tests from a marketing session. Then, with the human, do the deferred Search Console tag slice if they provide the tag, or record social/Bing completion.
+- Fetch `origin/main`, then check the latest `ci` run on main (the follow-up docs commit's run; the badge commit's run `41098154819` was superseded). Green = the badge is backed by two consecutive green runs; red on the same four e2e tests = recurrence evidence for the product workstream. Do not fix product tests from a marketing session. Then, with the human, do the deferred Search Console tag slice if they provide the tag, or record social/Bing completion.
 
 ## Environment facts
 - Campaign worktree: `/home/kevina/CodingProjects/hutch/.worktrees/marketing-s11` (detached at `adddfbfd` + this session's docs commit; gitignored). Reuse it or recreate from `origin/main`.
