@@ -7,7 +7,7 @@ found a layout defect, the fix was recaptured and re-reviewed).
 
 ## What was captured
 
-56 PNGs from the live app at `http://127.0.0.1:<port>/onboarding/ai-service` and
+57 PNGs from the live app at `http://127.0.0.1:<port>/onboarding/ai-service` and
 `/onboarding`, captured by `tests/e2e/test_onboarding_chooser.py` (real uvicorn
 server, real routes, real CSRF-protected form posts; deterministic kv seeds only
 for states a user cannot produce by hand: requirements-drift stale, existing
@@ -19,11 +19,11 @@ observations for every row (state token, h1 count, visible primary actions,
 route-card count, horizontal overflow, status/alert text, body background).
 `validation.json` holds the opened-image verdicts.
 
-Coverage (56 rows, one row per capture):
+Coverage (57 rows, one row per capture):
 
 | Dimension | Values |
 |---|---|
-| States | chooser-default (incl. 4 OS light-preference), chooser-recommended, chooser-chosen (incl. 4 reduced-motion), chosen-resumed, change, invalid (incl. forced colours), stale, conflict, forbidden, no-request, keyboard-focus, 200 percent text scale, forced colours, handoff-before/after |
+| States | chooser-default (incl. 4 OS light-preference), chooser-recommended, chooser-chosen (incl. 4 reduced-motion), chosen-resumed, change, invalid (incl. forced colours), stale, conflict, forbidden, no-request, saving, keyboard-focus, 200 percent text scale, forced colours, handoff-before/after |
 | Viewports | 320x740, 375x812, 768x1024, 1440x1000 |
 | Themes | fixed dark (product decision, no light theme); OS light preference captured at all four widths and verified pixel-identical per pair |
 | Accessibility variants | forced colours for choose/invalid; reduced motion for chosen at all four widths; keyboard focus on a route radio at all four widths; 200 percent root text scale at all four widths; heading focused on arrival |
@@ -54,14 +54,14 @@ owner.
 
 ## Review method and verdicts
 
-Method: the independent reviewer opened every PNG (56), recorded a binary verdict
+Method: the independent reviewer opened every PNG (57), recorded a binary verdict
 per row, and re-opened the full set after the layout fix. The first pass found one
 non-blocking layout defect: the route fieldset is a grid, so the required/help
 paragraph took the first grid cell, giving 1+2 at 768 and a lopsided 2+1 at 1440.
 The fix spans the help across the group; the live lane now asserts card top edges.
 The second pass confirmed 3-up at 1440 and 2+1 at 768 with no clipping or overflow.
 
-Verdict summary: 56 APPROVED, 0 NEEDS WORK. Non-blocking observations kept in the
+Verdict summary: 57 APPROVED, 0 NEEDS WORK. Non-blocking observations kept in the
 verdicts:
 
 - The arrival focus ring is visible around the step heading (deliberate: the
@@ -81,7 +81,7 @@ verdicts:
 # fast lane -> 105 passed
 .venv/bin/python -m pytest -q --no-header --tb=line tests/test_onboarding_chooser_state.py tests/test_onboarding_chooser.py tests/test_onboarding_page.py tests/test_onboarding_state.py
 
-# live visual capture (writes this directory) -> 1 passed, 56 PNGs
+# live visual capture (writes this directory) -> 1 passed, 57 PNGs
 .venv/bin/python -m pytest -q --no-header --tb=short tests/e2e/test_onboarding_chooser.py
 
 # pinned first-run behavior updated deliberately -> 3 passed

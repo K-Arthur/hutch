@@ -214,7 +214,7 @@ Delivered anchors:
   line-neutrally (file stays at 3,334 lines; no coverage deleted).
 - Tests: `@tests/test_onboarding_chooser_state.py` (271 lines),
   `@tests/test_onboarding_chooser.py` (303), `@tests/e2e/test_onboarding_chooser.py`
-  (56 live captures). Docs: `docs/onboarding/setup-record.md` section 9,
+  (57 live captures). Docs: `docs/onboarding/setup-record.md` section 9,
   `docs/design-system.md` chooser rules, `docs/runtime-setup.md`, changelog,
   edge-case-matrix row 02/tokens/section 8, task-plan CP2.
 
@@ -224,7 +224,7 @@ Commands and exact results:
 .venv/bin/python -m pytest -q --no-header --tb=line tests/test_onboarding_chooser_state.py tests/test_onboarding_chooser.py tests/test_onboarding_page.py tests/test_onboarding_state.py
   -> 105 passed
 .venv/bin/python -m pytest -q --no-header --tb=short tests/e2e/test_onboarding_chooser.py
-  -> 1 passed (56 PNGs + capture-results.json; layout assertions 3-up/2+1/stacked)
+  -> 1 passed (57 PNGs + capture-results.json; layout assertions 3-up/2+1/stacked)
 .venv/bin/python -m pytest -q --no-header --tb=short tests/e2e/test_design_system.py -k first_run
   -> 3 passed
 python3 scripts/audit_context_hygiene.py
@@ -237,7 +237,7 @@ python3 scripts/audit_emoji.py
 npm run check:agent -> blocked by the read-only shared uv cache in this environment; the four audits were run directly instead
 ```
 
-Visual evidence: `docs/onboarding/evidence/slice-02/` - 56 opened-image rows, all
+Visual evidence: `docs/onboarding/evidence/slice-02/` - 57 opened-image rows, all
 APPROVED (canonical `validation.json` there; identical pointer copy under
 `docs/onboarding/artifacts/slice-02/`). The live lane captured chooser default,
 recommended, chosen, chosen-resumed, change, invalid, stale, two-tab conflict,
@@ -251,7 +251,7 @@ Independent-review findings and resolutions:
 
 | Finding | Resolution |
 |---|---|
-| First visual pass: the route fieldset grid made the help paragraph the first cell, so cards rendered 1+2 at 768 and a lopsided 2+1 at 1440 | Help now spans the full group width; the live lane asserts card top edges (3-up at 1440, 2+1 at 768, stacked at 375); the full 56-row matrix was recaptured and re-reviewed. |
+| First visual pass: the route fieldset grid made the help paragraph the first cell, so cards rendered 1+2 at 768 and a lopsided 2+1 at 1440 | Help now spans the full group width; the live lane asserts card top edges (3-up at 1440, 2+1 at 768, stacked at 375); the full 57-row matrix was recaptured and re-reviewed. |
 | Evidence fixture had no RTL and the light-preference rows stopped at 375 | Fixture now includes Arabic RTL alongside CJK/accented Latin; light-preference rows cover 320/375/768/1440. Re-reviewed. |
 | Saved-state primary link initially rendered an empty `href` because `continue_target` was not injected by the extracted shared renderer | Caught by the live lane before review; the request-step field map supplies it and `tests/test_onboarding_page.py` keeps covering the target. |
 | `npm run check:agent` cannot run here (read-only uv cache) | The same four audits were run directly with the project venv and recorded above; re-run the aggregate command before merging on a normal workstation. |
@@ -276,7 +276,7 @@ Deviations from the planning brief:
    checkpoints (recorded in each brief section 15 and matrix section 8).
 
 Reviewer sign-off: CP2 PASS after the findings above were resolved and the full
-matrix was recaptured and re-opened (56 APPROVED / 0 NEEDS WORK). The slice is
+matrix was recaptured and re-opened (57 APPROVED / 0 NEEDS WORK). The slice is
 committed in `4c53c814`, `7140d48f`, `4fd5199d`, `3e47330b` plus the CP2
 docs/evidence commit.
 

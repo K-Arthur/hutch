@@ -2,13 +2,13 @@
   "browser": "chromium 153.0.8010.12 (Playwright bundled), headless, Linux",
   "date": "2026-10-29",
   "gate": "CP2",
-  "method": "live Chromium 153.0.8010.12 (Playwright bundled) headless on Linux via tests/e2e/test_onboarding_chooser.py; all 56 PNGs opened for opened-image verdicts; machine observations in docs/onboarding/evidence/slice-02/capture-results.json. Limitations: Chromium/Linux only; OS light-preference rows captured at 320/375/768/1440; keyboard/zoom emulated; Arabic RTL exercised through the request fixture (محمد).",
+  "method": "live Chromium 153.0.8010.12 (Playwright bundled) headless on Linux via tests/e2e/test_onboarding_chooser.py; all 57 PNGs opened for opened-image verdicts; machine observations in docs/onboarding/evidence/slice-02/capture-results.json. Limitations: Chromium/Linux only; OS light-preference rows captured at 320/375/768/1440; keyboard/zoom emulated; Arabic RTL exercised through the request fixture (محمد).",
   "rows": [
     {
       "artifact": "docs/onboarding/evidence/slice-02/chooser-no-request-320-dark.png",
       "finding": "Explicit no-request redirect: 'Write your request first.' notice above the request step (empty request field); one h1, one primary action, no chooser with nothing to carry; dark theme, no overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-no-request",
       "verdict": "APPROVED",
       "viewport": "320x740"
@@ -17,7 +17,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-no-request-375-dark.png",
       "finding": "Explicit no-request redirect: 'Write your request first.' notice above the request step (empty request field); one h1, one primary action, no chooser with nothing to carry; dark theme, no overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-no-request",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -26,7 +26,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-no-request-768-dark.png",
       "finding": "Explicit no-request redirect: 'Write your request first.' notice above the request step (empty request field); one h1, one primary action, no chooser with nothing to carry; dark theme, no overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-no-request",
       "verdict": "APPROVED",
       "viewport": "768x1024"
@@ -35,7 +35,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-no-request-1440-dark.png",
       "finding": "Explicit no-request redirect: 'Write your request first.' notice above the request step (empty request field); one h1, one primary action, no chooser with nothing to carry; dark theme, no overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-no-request",
       "verdict": "APPROVED",
       "viewport": "1440x1000"
@@ -44,7 +44,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/handoff-before-375-dark.png",
       "finding": "SPA empty chat: typed request with CJK, accented Latin and Arabic (محمد, correct inline bidi) visible in the first-run composer; one h1, one primary action 'Choose an AI service'; no apps/devices/channel/Telegram route; no account/sign-up/download/free/trial wording.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "handoff-before",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -53,7 +53,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/handoff-after-375-dark.png",
       "finding": "Typed request (CJK + accented Latin + Arabic محمد, rendered inline with correct bidi) carried into /onboarding and restored in the textarea with the honest 'not saved on this machine yet' note; one h1, one primary action.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "handoff-after",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -62,7 +62,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-default-320-dark.png",
       "finding": "Default chooser: one h1 'Choose how Hutch reaches an AI model' (heading focus ring visible on arrival); three real radio routes (hosted key / local service / existing OpenCode login); 'Recommended' tag with the honest qualifier 'only if you already have a provider key'; request intact including Arabic محمد inline (correct bidi); one primary action 'Continue with this route'; apps/devices explicitly deferred; no prohibited account/free/trial wording.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-default",
       "verdict": "APPROVED",
       "viewport": "320x740"
@@ -71,7 +71,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-default-375-dark.png",
       "finding": "Default chooser: one h1 'Choose how Hutch reaches an AI model' (heading focus ring visible on arrival); three real radio routes (hosted key / local service / existing OpenCode login); 'Recommended' tag with the honest qualifier 'only if you already have a provider key'; request intact including Arabic محمد inline (correct bidi); one primary action 'Continue with this route'; apps/devices explicitly deferred; no prohibited account/free/trial wording.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-default",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -80,7 +80,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-default-768-dark.png",
       "finding": "Default chooser: one h1 'Choose how Hutch reaches an AI model' (heading focus ring visible on arrival); three real radio routes (hosted key / local service / existing OpenCode login); 'Recommended' tag with the honest qualifier 'only if you already have a provider key'; request intact including Arabic محمد inline (correct bidi); one primary action 'Continue with this route'; apps/devices explicitly deferred; no prohibited account/free/trial wording. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the cards render 2+1 (Hosted provider key and Local model service on the first row, Existing OpenCode login below) with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-default",
       "verdict": "APPROVED",
       "viewport": "768x1024"
@@ -89,7 +89,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-default-1440-dark.png",
       "finding": "Default chooser: one h1 'Choose how Hutch reaches an AI model' (heading focus ring visible on arrival); three real radio routes (hosted key / local service / existing OpenCode login); 'Recommended' tag with the honest qualifier 'only if you already have a provider key'; request intact including Arabic محمد inline (correct bidi); one primary action 'Continue with this route'; apps/devices explicitly deferred; no prohibited account/free/trial wording. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the three cards render 3-up with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-default",
       "verdict": "APPROVED",
       "viewport": "1440x1000"
@@ -98,7 +98,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-recommended-320-dark.png",
       "finding": "Selected state is not colour-only: filled radio plus a drawn tick and the word 'Selected'; recommendation tag and its honest qualifier visible; request intact including Arabic محمد inline; one primary action; no verified/connected claim.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-recommended",
       "verdict": "APPROVED",
       "viewport": "320x740"
@@ -107,7 +107,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-recommended-375-dark.png",
       "finding": "Selected state is not colour-only: filled radio plus a drawn tick and the word 'Selected'; recommendation tag and its honest qualifier visible; request intact including Arabic محمد inline; one primary action; no verified/connected claim.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-recommended",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -116,7 +116,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-recommended-768-dark.png",
       "finding": "Selected state is not colour-only: filled radio plus a drawn tick and the word 'Selected'; recommendation tag and its honest qualifier visible; request intact including Arabic محمد inline; one primary action; no verified/connected claim. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the cards render 2+1 (Hosted provider key and Local model service on the first row, Existing OpenCode login below) with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-recommended",
       "verdict": "APPROVED",
       "viewport": "768x1024"
@@ -125,7 +125,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-recommended-1440-dark.png",
       "finding": "Selected state is not colour-only: filled radio plus a drawn tick and the word 'Selected'; recommendation tag and its honest qualifier visible; request intact including Arabic محمد inline; one primary action; no verified/connected claim. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the three cards render 3-up with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-recommended",
       "verdict": "APPROVED",
       "viewport": "1440x1000"
@@ -134,7 +134,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-keyboard-focus-320-dark.png",
       "finding": "Keyboard focus shows a clear focus ring on the 'Hosted provider key' route card (outline on the card and the input); radios are real inputs; one h1, one primary action; request with Arabic محمد intact.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-keyboard-focus",
       "verdict": "APPROVED",
       "viewport": "320x740"
@@ -143,7 +143,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-keyboard-focus-375-dark.png",
       "finding": "Keyboard focus shows a clear focus ring on the 'Hosted provider key' route card (outline on the card and the input); radios are real inputs; one h1, one primary action; request with Arabic محمد intact.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-keyboard-focus",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -152,7 +152,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-keyboard-focus-768-dark.png",
       "finding": "Keyboard focus shows a clear focus ring on the 'Hosted provider key' route card (outline on the card and the input); radios are real inputs; one h1, one primary action; request with Arabic محمد intact. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the cards render 2+1 (Hosted provider key and Local model service on the first row, Existing OpenCode login below) with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-keyboard-focus",
       "verdict": "APPROVED",
       "viewport": "768x1024"
@@ -161,7 +161,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-keyboard-focus-1440-dark.png",
       "finding": "Keyboard focus shows a clear focus ring on the 'Hosted provider key' route card (outline on the card and the input); radios are real inputs; one h1, one primary action; request with Arabic محمد intact. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the three cards render 3-up with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-keyboard-focus",
       "verdict": "APPROVED",
       "viewport": "1440x1000"
@@ -170,7 +170,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-text-zoom-200-320-dark.png",
       "finding": "200 percent text scale: all copy, three routes and the request (including Arabic محمد) stay readable and unclipped; the primary action stays fully visible and usable in normal flow; no horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-text-zoom-200",
       "verdict": "APPROVED",
       "viewport": "320x740"
@@ -179,7 +179,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-text-zoom-200-375-dark.png",
       "finding": "200 percent text scale: all copy, three routes and the request (including Arabic محمد) stay readable and unclipped; the primary action stays fully visible and usable in normal flow; no horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-text-zoom-200",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -188,7 +188,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-text-zoom-200-768-dark.png",
       "finding": "200 percent text scale: all copy, three routes and the request (including Arabic محمد) stay readable and unclipped; the primary action stays fully visible and usable in normal flow; no horizontal overflow. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the cards render 2+1 (Hosted provider key and Local model service on the first row, Existing OpenCode login below) with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-text-zoom-200",
       "verdict": "APPROVED",
       "viewport": "768x1024"
@@ -197,7 +197,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-text-zoom-200-1440-dark.png",
       "finding": "200 percent text scale: all copy, three routes and the request (including Arabic محمد) stay readable and unclipped; the primary action stays fully visible and usable in normal flow; no horizontal overflow. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the three cards render 3-up with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-text-zoom-200",
       "verdict": "APPROVED",
       "viewport": "1440x1000"
@@ -206,7 +206,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-forced-colors-320-dark-forced-colors.png",
       "finding": "Forced colours: card, request and action boundaries stay visible; the focus ring and 'Recommended' tag remain distinguishable; request including Arabic محمد readable, no clipping; one h1, one primary action.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-forced-colors",
       "verdict": "APPROVED",
       "viewport": "320x740"
@@ -215,7 +215,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-forced-colors-375-dark-forced-colors.png",
       "finding": "Forced colours: card, request and action boundaries stay visible; the focus ring and 'Recommended' tag remain distinguishable; request including Arabic محمد readable, no clipping; one h1, one primary action.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-forced-colors",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -224,7 +224,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-forced-colors-768-dark-forced-colors.png",
       "finding": "Forced colours: card, request and action boundaries stay visible; the focus ring and 'Recommended' tag remain distinguishable; request including Arabic محمد readable, no clipping; one h1, one primary action. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the cards render 2+1 (Hosted provider key and Local model service on the first row, Existing OpenCode login below) with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-forced-colors",
       "verdict": "APPROVED",
       "viewport": "768x1024"
@@ -233,7 +233,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-forced-colors-1440-dark-forced-colors.png",
       "finding": "Forced colours: card, request and action boundaries stay visible; the focus ring and 'Recommended' tag remain distinguishable; request including Arabic محمد readable, no clipping; one h1, one primary action. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the three cards render 3-up with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-forced-colors",
       "verdict": "APPROVED",
       "viewport": "1440x1000"
@@ -242,7 +242,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-chosen-320-dark.png",
       "finding": "Chosen state: h1 'You chose Local model service' (focus ring visible); 'Selected' summary uses the word, not colour alone; request intact including Arabic محمد inline; honest 'not connected yet' line; temporary 'Continue to Apps & AI' bridge primary plus 'Change route'; no verified/connected claim.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-chosen",
       "verdict": "APPROVED",
       "viewport": "320x740"
@@ -251,7 +251,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-chosen-375-dark.png",
       "finding": "Chosen state: h1 'You chose Local model service' (focus ring visible); 'Selected' summary uses the word, not colour alone; request intact including Arabic محمد inline; honest 'not connected yet' line; temporary 'Continue to Apps & AI' bridge primary plus 'Change route'; no verified/connected claim.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-chosen",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -260,7 +260,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-chosen-768-dark.png",
       "finding": "Chosen state: h1 'You chose Local model service' (focus ring visible); 'Selected' summary uses the word, not colour alone; request intact including Arabic محمد inline; honest 'not connected yet' line; temporary 'Continue to Apps & AI' bridge primary plus 'Change route'; no verified/connected claim.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-chosen",
       "verdict": "APPROVED",
       "viewport": "768x1024"
@@ -269,7 +269,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-chosen-1440-dark.png",
       "finding": "Chosen state: h1 'You chose Local model service' (focus ring visible); 'Selected' summary uses the word, not colour alone; request intact including Arabic محمد inline; honest 'not connected yet' line; temporary 'Continue to Apps & AI' bridge primary plus 'Change route'; no verified/connected claim.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-chosen",
       "verdict": "APPROVED",
       "viewport": "1440x1000"
@@ -278,7 +278,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-chosen-resumed-375-dark.png",
       "finding": "Resumed chosen state after reload: selection and request preserved, flash status not repeated; one h1, one primary action; request with Arabic محمد intact; no verified/connected claim.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-chosen-resumed",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -287,7 +287,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-chosen-320-dark-reduced-motion.png",
       "finding": "Reduced-motion chosen state: same content and layout as the chosen state with no animation visible in the still; one h1, one primary action; 'Selected' summary and request with Arabic محمد intact.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-chosen",
       "verdict": "APPROVED",
       "viewport": "320x740"
@@ -296,7 +296,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-chosen-375-dark-reduced-motion.png",
       "finding": "Reduced-motion chosen state: same content and layout as the chosen state with no animation visible in the still; one h1, one primary action; 'Selected' summary and request with Arabic محمد intact.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-chosen",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -305,7 +305,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-chosen-768-dark-reduced-motion.png",
       "finding": "Reduced-motion chosen state: same content and layout as the chosen state with no animation visible in the still; one h1, one primary action; 'Selected' summary and request with Arabic محمد intact.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-chosen",
       "verdict": "APPROVED",
       "viewport": "768x1024"
@@ -314,7 +314,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-chosen-1440-dark-reduced-motion.png",
       "finding": "Reduced-motion chosen state: same content and layout as the chosen state with no animation visible in the still; one h1, one primary action; 'Selected' summary and request with Arabic محمد intact.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-chosen",
       "verdict": "APPROVED",
       "viewport": "1440x1000"
@@ -323,7 +323,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-change-375-dark.png",
       "finding": "Change route: h1 'Change your AI service route' (focus ring visible); previously chosen Local model service is pre-selected with tick and 'Selected'; all three routes, recommendation tag and qualifier visible; request with Arabic محمد intact; one primary action.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-change",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -332,7 +332,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-invalid-320-dark.png",
       "finding": "Invalid: focused error summary ('There is a problem' / 'Choose one of the three AI service routes.') with a visible focus ring, plus inline group error in words (not colour-only); request with Arabic محمد preserved; three routes and qualifier visible; one primary action.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-invalid",
       "verdict": "APPROVED",
       "viewport": "320x740"
@@ -341,7 +341,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-invalid-375-dark.png",
       "finding": "Invalid: focused error summary ('There is a problem' / 'Choose one of the three AI service routes.') with a visible focus ring, plus inline group error in words (not colour-only); request with Arabic محمد preserved; three routes and qualifier visible; one primary action.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-invalid",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -350,7 +350,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-invalid-768-dark.png",
       "finding": "Invalid: focused error summary ('There is a problem' / 'Choose one of the three AI service routes.') with a visible focus ring, plus inline group error in words (not colour-only); request with Arabic محمد preserved; three routes and qualifier visible; one primary action. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the cards render 2+1 (Hosted provider key and Local model service on the first row, Existing OpenCode login below) with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-invalid",
       "verdict": "APPROVED",
       "viewport": "768x1024"
@@ -359,7 +359,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-invalid-1440-dark.png",
       "finding": "Invalid: focused error summary ('There is a problem' / 'Choose one of the three AI service routes.') with a visible focus ring, plus inline group error in words (not colour-only); request with Arabic محمد preserved; three routes and qualifier visible; one primary action. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the three cards render 3-up with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-invalid",
       "verdict": "APPROVED",
       "viewport": "1440x1000"
@@ -368,7 +368,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-invalid-375-dark-forced-colors.png",
       "finding": "Forced colours invalid: focused error summary boundary/ring and inline error text remain visible without relying on colour; card and action boundaries visible; request with Arabic محمد intact; one primary action.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-invalid",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -377,7 +377,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-stale-320-dark.png",
       "finding": "Stale is explicit, not a generic error: 'Setup has changed since you started' (focus ring visible), kept request shown including Arabic محمد, 'Needs re-checking' reason, primary 'Review my setup' plus dashboard exit; one h1, one primary action.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-stale",
       "verdict": "APPROVED",
       "viewport": "320x740"
@@ -386,7 +386,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-stale-375-dark.png",
       "finding": "Stale is explicit, not a generic error: 'Setup has changed since you started' (focus ring visible), kept request shown including Arabic محمد, 'Needs re-checking' reason, primary 'Review my setup' plus dashboard exit; one h1, one primary action.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-stale",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -395,7 +395,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-stale-768-dark.png",
       "finding": "Stale is explicit, not a generic error: 'Setup has changed since you started' (focus ring visible), kept request shown including Arabic محمد, 'Needs re-checking' reason, primary 'Review my setup' plus dashboard exit; one h1, one primary action.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-stale",
       "verdict": "APPROVED",
       "viewport": "768x1024"
@@ -404,7 +404,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-stale-1440-dark.png",
       "finding": "Stale is explicit, not a generic error: 'Setup has changed since you started' (focus ring visible), kept request shown including Arabic محمد, 'Needs re-checking' reason, primary 'Review my setup' plus dashboard exit; one h1, one primary action.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-stale",
       "verdict": "APPROVED",
       "viewport": "1440x1000"
@@ -413,7 +413,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-conflict-320-dark.png",
       "finding": "Conflict is explicit: 'This setup changed in another window' (focus ring visible); saved choice kept and submitted choice marked not saved; request with Arabic محمد intact; primary 'Review latest saved setup'; no silent overwrite.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-conflict",
       "verdict": "APPROVED",
       "viewport": "320x740"
@@ -422,7 +422,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-conflict-375-dark.png",
       "finding": "Conflict is explicit: 'This setup changed in another window' (focus ring visible); saved choice kept and submitted choice marked not saved; request with Arabic محمد intact; primary 'Review latest saved setup'; no silent overwrite.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-conflict",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -431,7 +431,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-conflict-768-dark.png",
       "finding": "Conflict is explicit: 'This setup changed in another window' (focus ring visible); saved choice kept and submitted choice marked not saved; request with Arabic محمد intact; primary 'Review latest saved setup'; no silent overwrite.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-conflict",
       "verdict": "APPROVED",
       "viewport": "768x1024"
@@ -440,7 +440,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-conflict-1440-dark.png",
       "finding": "Conflict is explicit: 'This setup changed in another window' (focus ring visible); saved choice kept and submitted choice marked not saved; request with Arabic محمد intact; primary 'Review latest saved setup'; no silent overwrite.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-conflict",
       "verdict": "APPROVED",
       "viewport": "1440x1000"
@@ -449,7 +449,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-forbidden-375-dark.png",
       "finding": "Forbidden is explicit: 'This page is not available from this session' (focus ring visible) with the CSRF/session reason and 'Nothing has been changed'; request with Arabic محمد preserved; one primary action 'Reload the chooser'; no raw exception.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-forbidden",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -458,7 +458,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-forbidden-768-dark.png",
       "finding": "Forbidden is explicit: 'This page is not available from this session' (focus ring visible) with the CSRF/session reason and 'Nothing has been changed'; request with Arabic محمد preserved; one primary action 'Reload the chooser'; no raw exception.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-forbidden",
       "verdict": "APPROVED",
       "viewport": "768x1024"
@@ -467,7 +467,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-forbidden-1440-dark.png",
       "finding": "Forbidden is explicit: 'This page is not available from this session' (focus ring visible) with the CSRF/session reason and 'Nothing has been changed'; request with Arabic محمد preserved; one primary action 'Reload the chooser'; no raw exception.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-forbidden",
       "verdict": "APPROVED",
       "viewport": "1440x1000"
@@ -476,7 +476,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-default-320-light-light-preference.png",
       "finding": "OS light preference does not invert the fixed dark theme: rendered byte-identical to the matching dark-preference default capture (equal SHA-256); one h1, three route cards, honest qualifier and request with Arabic محمد intact.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-default",
       "verdict": "APPROVED",
       "viewport": "320x740"
@@ -485,7 +485,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-default-375-light-light-preference.png",
       "finding": "OS light preference does not invert the fixed dark theme: rendered byte-identical to the matching dark-preference default capture (equal SHA-256); one h1, three route cards, honest qualifier and request with Arabic محمد intact.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-default",
       "verdict": "APPROVED",
       "viewport": "375x812"
@@ -494,7 +494,7 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-default-768-light-light-preference.png",
       "finding": "OS light preference does not invert the fixed dark theme: rendered byte-identical to the matching dark-preference default capture (equal SHA-256); one h1, three route cards, honest qualifier and request with Arabic محمد intact. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the cards render 2+1 (Hosted provider key and Local model service on the first row, Existing OpenCode login below) with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-default",
       "verdict": "APPROVED",
       "viewport": "768x1024"
@@ -503,10 +503,19 @@
       "artifact": "docs/onboarding/evidence/slice-02/chooser-default-1440-light-light-preference.png",
       "finding": "OS light preference does not invert the fixed dark theme: rendered byte-identical to the matching dark-preference default capture (equal SHA-256); one h1, three route cards, honest qualifier and request with Arabic محمد intact. Wide layout fixed: the help paragraph now spans the full fieldset width above the cards and the three cards render 3-up with aligned top edges, no clipping, overlap or horizontal overflow.",
       "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
-      "source_commit": "3e47330b",
+      "source_commit": "39618432",
       "state": "chooser-default",
       "verdict": "APPROVED",
       "viewport": "1440x1000"
+    },
+    {
+      "artifact": "docs/onboarding/evidence/slice-02/chooser-saving-375-dark.png",
+      "finding": "Saving state: visible 'Saving...' status line above the submit control; one h1, one primary action 'Continue with this route', secondary 'Back to my request'; three route cards and request intact including Arabic محمد inline; no route-selected/connected/success claim; layout intact, no overflow. aria-busy/disabled is asserted by the live lane; the still shows no separate dimmed disabled fill, the visible Saving... line is the in-flight cue.",
+      "reviewer": "independent visual reviewer (fresh-context verifier), opened every image",
+      "source_commit": "39618432",
+      "state": "chooser-saving",
+      "verdict": "APPROVED",
+      "viewport": "375x812"
     }
   ],
   "slice": "02"
