@@ -1,0 +1,46 @@
+Responsive validation: 2cf2c5fe-nojs
+Generated: 2026-10-30T01:06:38+00:00
+Git: 2cf2c5fe (uncommitted worktree entries: 168)
+Matrix: 5 surfaces x 5 viewports = 25 measurements
+Fail-on: errors, external, meta, nav, overflow, ready, state
+
+ASSERTIONS
+  horizontal overflow: 0/25 measuring pairs overflow
+  ready selector:      0/25 pairs did not render
+  page errors:         0/25 pairs raised
+  non-local requests:  0/25 pairs made one
+  viewport contract:   0/25 pairs missing width=device-width or viewport-fit=cover
+  server nav model:    25 pairs measured, 0 with horizontal nav overflow
+  touch targets < 24px: 4/20 coarse-pointer pairs
+  touch targets < 44px: 20/20 coarse-pointer pairs (comfort warning)
+  contrast < WCAG AA:  0/5 sampled pairs
+
+FAILURES (0)
+
+WARNINGS (24): {'touch24': 4, 'touch44': 20}
+
+SCREENSHOTS (17)
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-phone-375.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-usage-phone-375.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-bot-detail-phone-375.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-login-phone-375.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-pair-phone-375.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-tablet-portrait-768.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-usage-tablet-portrait-768.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-bot-detail-tablet-portrait-768.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-login-tablet-portrait-768.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-pair-tablet-portrait-768.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-tablet-landscape-1024.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-laptop-1180.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-ipad-13in-1366.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-usage-ipad-13in-1366.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-bot-detail-ipad-13in-1366.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-login-ipad-13in-1366.png
+  docs/responsive/screenshots/2cf2c5fe-nojs/pages-pair-ipad-13in-1366.png
+
+STATES (0)
+
+NOTE: measurements ran against the current working tree. Uncommitted changes
+owned by another session may be present; this task never stages them.
+
+RESULT: PASS

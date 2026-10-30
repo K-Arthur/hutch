@@ -59,3 +59,16 @@ hunks. base.html, if touched, gets a one-line change only.
 
 Two CSS/JS files with a scoped rule change plus one harness no-JS pass: one
 session.
+## Outcome
+
+- Status: done, commit 2cf2c5fe.
+- Evidence: docs/responsive/screenshots/2cf2c5fe (JS on: 130 measurements,
+  0 failures; nav overlay at <=1024, single-row 9-link nav at 1180 and 1366,
+  toggle hidden there) and docs/responsive/screenshots/2cf2c5fe-nojs (25
+  measurements, 0 failures; 9/9 links visible without JavaScript at 375, 768,
+  1024, 1180 and 1366).
+- Tradeoff recorded: between 1025 and 1439px the decorative leading nav icons
+  are hidden so all nine destinations fit single-row without horizontal
+  scrolling; labels, active state and the approval badge remain. At >=1440px
+  the icons return and the layout matches the previous desktop exactly.
+- Rollback: revert 2cf2c5fe (source) and its evidence commit. No generated CSS.
