@@ -89,3 +89,34 @@ control-path SQL counts, not model or network latency.
 - The idle-memory numbers are for an empty state directory. Current `hutch init` creates no bots or sample activity.
 - PF-1 (cached-token share) and PF-4/PF-10 (compaction, router residency) are model-layer items and
   are measured in the model-layer phases, not here.
+## 2026-10-29 selective optimisation programme
+
+The programme's full measured record is in [perf/results-2026-10-29.md](perf/results-2026-10-29.md);
+the plan, external research and the selective-Rust decision are in
+[perf/plan-2026-10-29.md](perf/plan-2026-10-29.md),
+[research/performance-rust-2026-10-29.md](research/performance-rust-2026-10-29.md) and
+[ADR-0024](adr/0024-selective-rust-performance.md).
+
+Adopted, paired before/after measurements on this machine:
+
+| Change | Operation | Before | After | Paired delta |
+|---|---|---|---|---|
+| Cached tool-argument validation | `validate_call`, real 25-tool catalog | median 37.5 us / p95 40.7 us | median 18.8 us / p95 22.3 us | 1.98x median |
+| Memoized transcript token accounting | `prompt_tokens`, 400-message transcript | 0.665 ms | 0.174 ms | -74% |
+| Memoized transcript token accounting | cumulative sizing, 100 steps | 27.6 ms | 9.8 ms | -64% |
+| Byte-framed global SSE batch | 200-event global frame (95 KB) | 0.717 ms | 0.518 ms | -27.5% |
+
+Supporting changes: the PF-11 step-overhead benchmark fixture was repaired (the old mock runtime
+was removed, so the metric silently measured 0.0 ms; it now runs the deterministic scenario
+runtime and fails loudly if it produces no steps), and `benchmarks/hotpaths.py` was added as the
+reproducible hot-path harness. The event insert rate is now measured at 5.4-6.2k events/s versus
+the 52k events/s in the 2026-10-07 table: a per-event durable outbox commit was added since then
+so an accepted append survives a restart. The documented 1,000 events/s sustained gate still has
+more than 5x headroom; the crash-recovery contract was not weakened for throughput.
+
+Deferred with measurements (not abandoned): lazy CLI imports (`hutch.tools` costs ~294 ms
+cumulative import even for `hutch version`), and the dashboard's per-batch refetch + full
+`innerHTML` rebuild (largest user-visible opportunity; blocked by another session's uncommitted
+UI files). A Rust XLSX-write prototype would clear the operation-level P11 gate (~28% of
+generation time) but is rejected for this release because it cannot be shipped without
+packaging changes and its end-to-end effect is small; see ADR-0024.
