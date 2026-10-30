@@ -114,3 +114,18 @@ validation gate remain the supported implementation; no Rust performance replace
   interleaved A/B through one driver, boundary counted, equivalence tests, repeat on a second session).
 - Any adopted kernel must also pass: focused pytest for touched behaviour, `python -m benchmarks.run --check`,
   audits, and the independent verifier gate.
+## Update 2026-10-29 (follow-up programme): the XLSX prototype was built
+
+The follow-up programme acted on the prototype measurement rather than leaving it as a deferred note.
+The optional kernel (`native/docgen_xlsx/`, PyO3 + rust_xlsxwriter, pure-Python fallback, independent
+openpyxl gate unchanged) was implemented and is shipped as an **opt-in build artifact**; a normal Python
+install is unchanged and no Rust toolchain is required.
+
+Two one-driver A/B runs (loaded and quiet host): write-stage median improved -47% to -53%; full 5000-row
+generation median improved -19% to -22%; full-generation p95 improved 13.5%-20.2% depending on host
+load. The plan's absolute pre-registered p95 target (<=252 ms) was met on the quiet run (178 ms) and
+missed on the loaded run (274 ms). This does **not** establish a stable >=20% p95 improvement, so the
+kernel is documented as an experimental, optional accelerator rather than a validated replacement of
+the reference writer. The earlier "no Rust performance replacement is adopted" statement is superseded
+only for this optional kernel; all other rejections in this ADR stand, and the full measured record is
+in `docs/perf/native-xlsx-2026-10-29.md` and the performance-programme ledger.
