@@ -60,6 +60,7 @@ TARGETS_JS = r"""(thresholds) => {
     if (el.tagName === "A" && cs.display === "inline") continue;
     const rect = el.getBoundingClientRect();
     if (rect.width < 1 || rect.height < 1) continue;
+    if (rect.bottom < 0 || rect.top > window.innerHeight) continue;
     total += 1;
     const item = {label: describe(el), width: Math.round(rect.width), height: Math.round(rect.height)};
     if (rect.width < thresholds.min || rect.height < thresholds.min) under_min.push(item);

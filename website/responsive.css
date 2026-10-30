@@ -26,3 +26,20 @@ header.sticky {
     padding-right: max(var(--space-6), calc(var(--safe-right) + var(--space-4)));
   }
 }
+
+/* Touch-target floor (task 05). The public site had no coarse-pointer rules at
+   all: header CTAs and the drawer close stayed 32-40px, and the footer link list
+   was 20px tall, below WCAG 2.2 AA 2.5.8's 24x24 minimum. */
+@media (pointer: coarse) {
+  .btn,
+  .btn-sm { min-height: 44px; }
+  .btn-square { min-width: 44px; }
+  .navbar a { min-height: 44px; }
+  .navbar-start a { display: inline-flex; align-items: center; }
+  .navbar-center a { display: inline-flex; align-items: center; }
+  footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

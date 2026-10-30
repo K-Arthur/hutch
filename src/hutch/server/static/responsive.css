@@ -68,9 +68,38 @@
   #primary-nav a { padding-inline: 10px; }
 }
 
-/* Touch devices need a comfortable menu target; the base control is 38px. */
+/* Touch-target floor (task 05). WCAG 2.2 AA 2.5.8 is 24x24; Hutch's own
+   documented standard is 44x44 (DESIGN.md:322-323, docs/design-system.md:100).
+   The baseline measured the SPA brand lockup and marketing footer links below the
+   AA minimum, and the high-use controls below 44. These rules raise the real hit
+   box on coarse pointers only, so mouse layouts keep their current density. */
 @media (pointer: coarse) {
-  .nav-toggle { width: 44px; height: 44px; }
+  .nav-toggle,
+  .icon-btn { min-width: 44px; min-height: 44px; }
+  .brand { min-height: 44px; }
+  .btn,
+  .btn.small,
+  .btn.ghost { min-height: 44px; }
+  .ws-nav button,
+  .ws-nav a,
+  .ws-nav summary { min-height: 44px; }
+  .ws-foot-link { min-height: 44px; }
+  #attention-review { min-height: 44px; }
+  input[type="search"],
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="url"],
+  input[type="number"] { min-height: 44px; }
+  details > summary { min-height: 44px; }
+  .ms-btn { min-height: 44px; }
+  textarea.hutch-composer__textarea { min-height: 44px; }
+  .approval-filter { min-height: 44px; }
+  .runs-filter-bar a,
+  .runs-filter-bar button,
+  .runs-filter-bar .chip { min-height: 44px; }
+  input[type="checkbox"],
+  input[type="radio"] { min-width: 24px; min-height: 24px; }
 }
 
 /* Dynamic viewport and keyboard (task 03). responsive.js publishes --vvh (the
