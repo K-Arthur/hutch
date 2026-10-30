@@ -91,6 +91,12 @@ flowchart LR
   CODE --> SCHED_STORE
 ```
 
+The first-run setup record is server-owned as well: `src/hutch/onboarding.py`
+owns the pure step/transition decisions, `src/hutch/onboarding_store.py` persists
+one revision-checked record under the `onboarding:setup:v1` kv key, and
+`src/hutch/server/onboarding_api.py` serves the owner-only `/onboarding` request
+step. No provider call happens from the browser or from those routes.
+
 The code-handoff API validates and records an immutable review; it does not launch an executor process. The owner later starts the
 local OpenCode CLI from `hutch code run` in an interactive Linux terminal. That terminal path uses the saved commit and a separate
 Git worktree. OpenCode command approvals, account usage and shell effects stay outside Hutch's executor, sandbox and usage ledger.

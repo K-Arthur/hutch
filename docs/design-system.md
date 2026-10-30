@@ -325,3 +325,20 @@ latest edit before page exit, cancel pending persistence on discard/create, and
 ask before replacing an existing draft with a template, duplicate or chat source.
 A delayed create result must not take over the next page. Blank setups and runtime
 switches do not grant tools; only explicit selections or reviewed templates do.
+
+Onboarding setup is server-owned before an assistant exists. The first-run request
+step writes one record to the `onboarding:setup:v1` kv entry through a
+revision-checked adapter; the browser holds no draft and a save is only "saved"
+after the server confirms it. A repeated submit with the same content replays
+instead of writing twice; a stale revision with different text renders an explicit
+conflict with both versions, never a silent overwrite. Stale requirements, an
+expired resume window, an unreadable record, and a record written by a newer Hutch
+each render their own named state. Stale/expired records offer "use my request and
+continue" as the one recovery action with start-over behind a disclosure; damaged
+and newer records offer the safe dashboard exit plus a destructive start-over
+alternative, and reset is refused server-side (409) while a current request is
+saved. None of these are generic errors, and none of them fabricate request text.
+The request-step error summary is a server-rendered `role="alert"` with
+`tabindex="-1"`, focused on load, with one link per field and adjacent inline text;
+the resumed step announces once through a polite region filled after load. Saved is
+never called connected or verified.

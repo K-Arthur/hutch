@@ -1,0 +1,367 @@
+# CP0 planning baseline (2026-10-29)
+
+## git status --porcelain (whole tree)
+ M .gitignore
+ M .pipeline/brand/2026-10/00-BRIEF.md
+ M .pipeline/brand/2026-10/ASSET-INVENTORY.md
+ M .pipeline/brand/2026-10/BRAND-GUIDELINES.md
+ M .pipeline/brand/2026-10/DECISION.md
+ M .pipeline/brand/2026-10/HANDOFF.md
+ M .pipeline/brand/2026-10/NEXT-PROMPT.md
+ M .pipeline/brand/2026-10/assets/production/PACKAGE-MANIFEST.json
+ M AGENTS.md
+ M CONTRIBUTING.md
+ M THIRD_PARTY_NOTICES.md
+ M app/src/input.css
+ M app/src/model-switcher.css
+ M desktop/icons/icon.icns
+ M desktop/icons/icon.ico
+ M desktop/icons/icon.png
+ M desktop/icons/icon.svg
+ M docs/brand-assets.md
+ M docs/design-system.md
+ M package-lock.json
+ M package.json
+ M pyproject.toml
+ M src/hutch/server/app.py
+ M src/hutch/server/static/THIRD_PARTY_NOTICES.txt
+ M src/hutch/server/static/app.js
+ M src/hutch/server/static/campaign-report.js
+ M src/hutch/server/static/channels.js
+ D src/hutch/server/static/composer.css
+ M src/hutch/server/static/composer.js
+ M src/hutch/server/static/controls.css
+ M src/hutch/server/static/hutch-pages.css
+ M src/hutch/server/static/hutch.css
+ M src/hutch/server/static/hutch.js
+ M src/hutch/server/static/index.html
+ M src/hutch/server/static/model-switcher.css
+ M src/hutch/server/static/persona.js
+ M src/hutch/server/static/skills.css
+ M src/hutch/server/static/skills.js
+ M src/hutch/server/static/studio.css
+ M src/hutch/server/static/style.css
+ M src/hutch/server/static/ui.css
+ M src/hutch/server/static/widgets.css
+ M src/hutch/server/static/widgets.js
+ M src/hutch/server/templates/_approval_card.html
+ M src/hutch/server/templates/_events.html
+ M src/hutch/server/templates/_home_lists.html
+ M src/hutch/server/templates/base.html
+ M src/hutch/server/templates/bot.html
+ M src/hutch/server/templates/bot_new.html
+ M src/hutch/server/templates/bots.html
+ M src/hutch/server/templates/connections.html
+ M src/hutch/server/templates/login.html
+ M src/hutch/server/templates/models.html
+ M src/hutch/server/templates/pair.html
+ M src/hutch/server/templates/run.html
+ M src/hutch/server/templates/runs.html
+ M tests/e2e/test_browser.py
+ M tests/e2e/test_composer.py
+ M tests/e2e/test_design_system.py
+ M tests/e2e/test_dropdown_controls.py
+ M tests/e2e/test_experience_surfaces.py
+ M tests/e2e/test_studio_transcript.py
+ M tests/e2e/test_wcag_fixes.py
+ M tests/e2e/test_workflow_route_card.py
+ M tests/test_workflow_usage_budget.py
+ M website/THIRD_PARTY_NOTICES.txt
+ M website/app.css
+ M website/assets/github-social-preview-1280x640.png
+ M website/assets/og-card-1200x630.png
+ M website/index.html
+ M website/src/input.css
+?? .codex/
+?? .dsh/
+?? .dshignore
+?? .githooks/pre-commit
+?? .ignore
+?? .opencode/
+?? .opencodeignore
+?? .pipeline/brand/2026-10/AVATAR-SYSTEM.md
+?? .pipeline/brand/2026-10/CHANGES.md
+?? .pipeline/brand/2026-10/EVIDENCE.md
+?? .pipeline/brand/2026-10/FRONTEND-GATE.md
+?? .pipeline/brand/2026-10/REVIEW.md
+?? .pipeline/brand/2026-10/SLICE-7A.md
+?? .pipeline/brand/2026-10/SLICE-7B.md
+?? .pipeline/brand/2026-10/SLICE-7C.md
+?? .pipeline/brand/2026-10/assets/build_desktop_icons.py
+?? .pipeline/brand/2026-10/assets/concepts/render_avatar_family.py
+?? .pipeline/brand/2026-10/assets/concepts/render_avatar_motion_sheet.py
+?? .pipeline/brand/2026-10/assets/production/desktop/
+?? .pipeline/brand/2026-10/evidence/
+?? desktop/icons/128x128.png
+?? desktop/icons/128x128@2x.png
+?? desktop/icons/32x32.png
+?? docs/agent-workflow.md
+?? docs/concurrent-agents.md
+?? docs/onboarding/
+?? docs/prompts/
+?? docs/repository-hygiene.md
+?? docs/responsive/screenshots/8525c208/
+?? docs/responsive/screenshots/clean-tree-parity/
+?? docs/validation-queue.md
+?? hig-app-icons.json
+?? hig-app-icons.txt
+?? reports/
+?? research_notes/
+?? src/hutch/coordinator_redirect.py
+?? src/hutch/coordinator_tasks.py
+?? src/hutch/server/static/apple-touch-icon.png
+?? src/hutch/server/static/brand.css
+?? src/hutch/server/static/favicon-32x32.png
+?? src/hutch/server/static/favicon.ico
+?? src/hutch/server/static/favicon.svg
+?? src/hutch/server/static/fonts/OFL-bricolage-grotesque.txt
+?? src/hutch/server/static/fonts/bricolage-grotesque-latin-800.woff2
+?? src/hutch/server/static/hutch-composer-context.css
+?? src/hutch/server/static/hutch-composer.css
+?? src/hutch/server/static/hutch-form-controls.css
+?? src/hutch/server/static/hutch-forms.css
+?? src/hutch/server/static/hutch-forms.js
+?? src/hutch/server/static/hutch-messages.css
+?? src/hutch/server/static/hutch-select.css
+?? src/hutch/server/static/hutch-select.js
+?? src/hutch/server/static/icons/
+?? src/hutch/server/static/redesign-preview.html
+?? src/hutch/server/static/redesign-preview.js
+?? src/hutch/server/static/site.webmanifest
+?? src/hutch/server/static/tasks.css
+?? src/hutch/server/static/tasks.js
+?? src/hutch/server/tasks_api.py
+?? src/hutch/server/tasks_api_models.py
+?? src/hutch/server/templates/_form.html
+?? src/hutch/server/templates/_message.html
+?? src/hutch/web/
+?? tests/e2e/test_hutch_select.py
+?? tests/test_agent_map.py
+?? tests/test_constitution.py
+?? tests/test_context_hygiene.py
+?? tests/test_coordinator_tasks.py
+?? tests/test_repo_hygiene.py
+?? tests/test_tool_contracts.py
+?? tests/test_validation_queue.py
+?? tests/test_worktree_tools.py
+?? tree.json
+?? tsconfig.json
+?? website/apple-touch-icon.png
+?? website/assets/fonts/OFL-bricolage-grotesque.txt
+?? website/assets/fonts/bricolage-grotesque-latin-800.woff2
+?? website/favicon-16x16.png
+?? website/favicon-32x32.png
+?? website/favicon-48x48.png
+?? website/favicon.ico
+?? website/favicon.svg
+?? website/icons/
+?? website/site.webmanifest
+
+## git diff --stat (tracked modifications)
+ .gitignore                                         |   57 +-
+ .pipeline/brand/2026-10/00-BRIEF.md                |   38 +-
+ .pipeline/brand/2026-10/ASSET-INVENTORY.md         |   18 +
+ .pipeline/brand/2026-10/BRAND-GUIDELINES.md        |   13 +-
+ .pipeline/brand/2026-10/DECISION.md                |   59 +
+ .pipeline/brand/2026-10/HANDOFF.md                 |  114 +-
+ .pipeline/brand/2026-10/NEXT-PROMPT.md             |   82 +-
+ .../assets/production/PACKAGE-MANIFEST.json        |   54 +-
+ AGENTS.md                                          |  197 ++-
+ CONTRIBUTING.md                                    |   29 +
+ THIRD_PARTY_NOTICES.md                             |    3 +-
+ app/src/input.css                                  |   26 +-
+ app/src/model-switcher.css                         |    4 +-
+ desktop/icons/icon.icns                            |  Bin 102645 -> 104223 bytes
+ desktop/icons/icon.ico                             |  Bin 21880 -> 18481 bytes
+ desktop/icons/icon.png                             |  Bin 10306 -> 39016 bytes
+ desktop/icons/icon.svg                             |    7 +-
+ docs/brand-assets.md                               |   35 +-
+ docs/design-system.md                              |   37 +-
+ package-lock.json                                  |  563 +++++++-
+ package.json                                       |   20 +-
+ pyproject.toml                                     |   50 +
+ src/hutch/server/app.py                            |  213 +--
+ src/hutch/server/static/THIRD_PARTY_NOTICES.txt    |    3 +-
+ src/hutch/server/static/app.js                     | 1497 +++++++++-----------
+ src/hutch/server/static/campaign-report.js         |   12 +-
+ src/hutch/server/static/channels.js                |   27 +-
+ src/hutch/server/static/composer.css               |  141 --
+ src/hutch/server/static/composer.js                |   47 +-
+ src/hutch/server/static/controls.css               |   50 +-
+ src/hutch/server/static/hutch-pages.css            |   12 +-
+ src/hutch/server/static/hutch.css                  |   68 +-
+ src/hutch/server/static/hutch.js                   |   33 +
+ src/hutch/server/static/index.html                 |   35 +-
+ src/hutch/server/static/model-switcher.css         |    2 +-
+ src/hutch/server/static/persona.js                 |   45 +-
+ src/hutch/server/static/skills.css                 |    5 +-
+ src/hutch/server/static/skills.js                  |   25 +-
+ src/hutch/server/static/studio.css                 |  331 ++---
+ src/hutch/server/static/style.css                  |  113 +-
+ src/hutch/server/static/ui.css                     |    2 +-
+ src/hutch/server/static/widgets.css                |    6 +-
+ src/hutch/server/static/widgets.js                 |    2 +-
+ src/hutch/server/templates/_approval_card.html     |    2 +-
+ src/hutch/server/templates/_events.html            |   55 +-
+ src/hutch/server/templates/_home_lists.html        |    8 +-
+ src/hutch/server/templates/base.html               |   28 +-
+ src/hutch/server/templates/bot.html                |  116 +-
+ src/hutch/server/templates/bot_new.html            |   22 +-
+ src/hutch/server/templates/bots.html               |    2 +-
+ src/hutch/server/templates/connections.html        |   45 +-
+ src/hutch/server/templates/login.html              |    7 +-
+ src/hutch/server/templates/models.html             |   22 +-
+ src/hutch/server/templates/pair.html               |   14 +-
+ src/hutch/server/templates/run.html                |   18 +-
+ src/hutch/server/templates/runs.html               |   18 +-
+ tests/e2e/test_browser.py                          |   82 +-
+ tests/e2e/test_composer.py                         |   29 +-
+ tests/e2e/test_design_system.py                    |    8 +-
+ tests/e2e/test_dropdown_controls.py                |    2 +-
+ tests/e2e/test_experience_surfaces.py              |    6 +-
+ tests/e2e/test_studio_transcript.py                |   36 +-
+ tests/e2e/test_wcag_fixes.py                       |    8 +-
+ tests/e2e/test_workflow_route_card.py              |    4 +-
+ tests/test_workflow_usage_budget.py                |   89 +-
+ website/THIRD_PARTY_NOTICES.txt                    |    3 +-
+ website/app.css                                    |    2 +-
+ website/assets/github-social-preview-1280x640.png  |  Bin 133259 -> 47004 bytes
+ website/assets/og-card-1200x630.png                |  Bin 118901 -> 46515 bytes
+ website/index.html                                 |   27 +-
+ website/src/input.css                              |   19 +
+ 71 files changed, 2570 insertions(+), 2177 deletions(-)
+
+## Source-file size baseline
+src/hutch/browser_proxy.py: current=401 baseline=401
+src/hutch/chatgpt_auth.py: current=519 baseline=519
+src/hutch/cli.py: current=2760 baseline=2758
+src/hutch/code_handoff.py: current=550 baseline=550
+src/hutch/connections.py: current=448 baseline=448
+src/hutch/connections_service.py: current=absent baseline=-
+src/hutch/documents/docgen/pptx.py: current=401 baseline=401
+src/hutch/documents/docgen/xlsx.py: current=491 baseline=491
+src/hutch/engine.py: current=1837 baseline=1837
+src/hutch/google_calendar.py: current=838 baseline=838
+src/hutch/grounding/acquire.py: current=865 baseline=865
+src/hutch/grounding/media.py: current=491 baseline=491
+src/hutch/grounding/streams.py: current=718 baseline=718
+src/hutch/grounding/temporal.py: current=482 baseline=482
+src/hutch/gsuite/client.py: current=899 baseline=899
+src/hutch/gsuite/requests.py: current=747 baseline=748
+src/hutch/media/jobs.py: current=592 baseline=592
+src/hutch/media/render.py: current=575 baseline=576
+src/hutch/media/storage.py: current=547 baseline=547
+src/hutch/media/validate.py: current=512 baseline=513
+src/hutch/modelchoices.py: current=435 baseline=435
+src/hutch/models.py: current=828 baseline=828
+src/hutch/netguard.py: current=539 baseline=539
+src/hutch/onboarding.py: current=absent baseline=-
+src/hutch/onboarding_store.py: current=absent baseline=-
+src/hutch/outlook_calendar.py: current=612 baseline=612
+src/hutch/outputblocks.py: current=621 baseline=621
+src/hutch/persona.py: current=552 baseline=552
+src/hutch/providers/ollama.py: current=432 baseline=432
+src/hutch/providers/openai_compat.py: current=466 baseline=466
+src/hutch/providers/openrouter_pricing.py: current=482 baseline=482
+src/hutch/route_readiness.py: current=absent baseline=-
+src/hutch/runtime/builtin.py: current=1955 baseline=1955
+src/hutch/runtime/opencode.py: current=719 baseline=719
+src/hutch/runtime/opencode_memory.py: current=549 baseline=549
+src/hutch/runtime/opencode_server.py: current=513 baseline=513
+src/hutch/runtime/steps.py: current=407 baseline=407
+src/hutch/safety.py: current=593 baseline=593
+src/hutch/sandbox.py: current=641 baseline=641
+src/hutch/scheduler.py: current=523 baseline=523
+src/hutch/server/app.py: current=7256 baseline=7461
+src/hutch/server/onboarding_api.py: current=absent baseline=-
+src/hutch/server/pages.py: current=743 baseline=731
+src/hutch/server/security.py: current=513 baseline=513
+src/hutch/server/static/app.js: current=14345 baseline=14532
+src/hutch/server/static/model-switcher.js: current=483 baseline=483
+src/hutch/server/static/onboarding.css: current=absent baseline=-
+src/hutch/server/static/onboarding.js: current=absent baseline=-
+src/hutch/server/static/persona.js: current=952 baseline=969
+src/hutch/server/static/skills.js: current=516 baseline=523
+src/hutch/server/static/studio.css: current=1016 baseline=1115
+src/hutch/server/static/style.css: current=2733 baseline=2775
+src/hutch/server/static/widgets.css: current=456 baseline=456
+src/hutch/server/static/widgets.js: current=1332 baseline=1332
+src/hutch/server/uploads.py: current=507 baseline=507
+src/hutch/server/workflows_api.py: current=1312 baseline=1312
+src/hutch/service.py: current=512 baseline=512
+src/hutch/skills.py: current=1460 baseline=1460
+src/hutch/store.py: current=12605 baseline=12593
+src/hutch/synthesis/infographic.py: current=418 baseline=418
+src/hutch/synthesis/ingest.py: current=710 baseline=710
+src/hutch/synthesis/model.py: current=683 baseline=684
+src/hutch/synthesis/tts.py: current=891 baseline=891
+src/hutch/toolcalling/profiles.py: current=440 baseline=440
+src/hutch/toolcalling/validate.py: current=410 baseline=462
+src/hutch/tools/browser.py: current=1714 baseline=1714
+src/hutch/tools/media.py: current=479 baseline=479
+src/hutch/tools/python_exec.py: current=405 baseline=406
+src/hutch/tools/synthesis.py: current=474 baseline=474
+src/hutch/views.py: current=490 baseline=490
+src/hutch/workflow/amendments.py: current=655 baseline=655
+src/hutch/workflow/compile.py: current=676 baseline=676
+src/hutch/workflow/engine.py: current=1357 baseline=1357
+src/hutch/workflow/ops.py: current=639 baseline=639
+src/hutch/workflow/persistence.py: current=2066 baseline=2066
+src/hutch/workflow/probes.py: current=466 baseline=466
+src/hutch/workspace/kernel.py: current=653 baseline=655
+src/hutch/workspace/manager.py: current=732 baseline=733
+tests/e2e/test_browser.py: current=13265 baseline=13265
+tests/e2e/test_computer_browser_real.py: current=501 baseline=501
+tests/e2e/test_design_system.py: current=3334 baseline=3334
+tests/e2e/test_dropdown_controls.py: current=478 baseline=478
+tests/e2e/test_wcag_fixes.py: current=418 baseline=418
+tests/e2e/test_wcag_measured_audit.py: current=549 baseline=549
+tests/e2e/test_website.py: current=1449 baseline=1449
+tests/e2e/test_workflow_route_card.py: current=401 baseline=401
+tests/fakes.py: current=436 baseline=436
+tests/test_action_intents.py: current=419 baseline=419
+tests/test_api.py: current=1789 baseline=1789
+tests/test_channels.py: current=401 baseline=401
+tests/test_chat_vision.py: current=602 baseline=603
+tests/test_claims.py: current=513 baseline=513
+tests/test_code_handoff.py: current=536 baseline=536
+tests/test_connections.py: current=645 baseline=645
+tests/test_conversations.py: current=1616 baseline=1616
+tests/test_delegation.py: current=1146 baseline=1146
+tests/test_google_calendar.py: current=821 baseline=821
+tests/test_gsuite_client.py: current=787 baseline=787
+tests/test_integration_contract_regressions.py: current=428 baseline=429
+tests/test_media_jobs.py: current=488 baseline=488
+tests/test_migration.py: current=1209 baseline=1210
+tests/test_model_switcher.py: current=456 baseline=456
+tests/test_monitoring.py: current=534 baseline=534
+tests/test_offline_mode.py: current=489 baseline=489
+tests/test_opencode_memory_bridge.py: current=595 baseline=596
+tests/test_persona.py: current=1051 baseline=1051
+tests/test_providers.py: current=532 baseline=532
+tests/test_remote_pairing.py: current=1068 baseline=1068
+tests/test_runtime_builtin.py: current=1611 baseline=1611
+tests/test_runtime_opencode.py: current=574 baseline=574
+tests/test_skills.py: current=634 baseline=634
+tests/test_store_events.py: current=493 baseline=493
+tests/test_synthesis_tts.py: current=589 baseline=589
+tests/test_tools_python_exec.py: current=478 baseline=478
+tests/test_uploads.py: current=423 baseline=423
+tests/test_workflow_api.py: current=1961 baseline=1961
+tests/test_workflow_coding_repair_acceptance.py: current=420 baseline=420
+tests/test_workflow_engine.py: current=1321 baseline=1321
+tests/test_workflow_regressions.py: current=679 baseline=679
+tests/test_workflow_steps.py: current=600 baseline=600
+tests/test_workspace_manager.py: current=539 baseline=539
+tests/test_workspace_protocol.py: current=547 baseline=547
+ui-audit.mjs: current=565 baseline=565
+website/styles.css: current=577 baseline=591
+
+## Context-hygiene audit (pre-existing violations only)
+Context hygiene violations (6):
+  new source file over 400 lines: src/hutch/bot_deletion.py (1067 lines); split it
+  frozen file grew: src/hutch/cli.py (2758 -> 2760 lines); split it instead of extending it
+  frozen file grew: src/hutch/server/pages.py (731 -> 743 lines); split it instead of extending it
+  frozen file grew: src/hutch/store.py (12593 -> 12605 lines); split it instead of extending it
+  new source file over 400 lines: tests/test_bot_deletion.py (771 lines); split it
+  new source file over 400 lines: tests/test_commit_attribution.py (419 lines); split it
