@@ -102,6 +102,18 @@ def test_importing_the_cli_does_not_import_heavy_tool_families():
     assert not leaked, "importing hutch.cli eagerly imported " + repr(leaked)
 
 
+def test_tool_submodules_stay_reachable_as_package_attributes_lazily():
+    """The old eager imports also bound hutch.tools.<module>; keep that surface without the cost."""
+    statement = (
+        "import hutch.tools\n"
+        "before = 'hutch.tools.shell' in sys.modules\n"
+        "cls = hutch.tools.shell.ShellTool\n"
+        "print(json.dumps({'before': before, 'name': cls.__name__}))\n"
+    )
+    report = json.loads(_run_python(statement))
+    assert report["before"] is False
+    assert report["name"] == "ShellTool"
+
 def test_registry_import_is_cheap_and_aliasing_only_imports_the_named_tool():
     report = json.loads(_run_python(
         "import hutch.tools\n"

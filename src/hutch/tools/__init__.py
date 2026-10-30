@@ -74,6 +74,16 @@ class _LazyCatalog(Mapping[str, type[Tool]]):
 #: name -> tool class (browser/computer stay lazy too: their dependencies are optional).
 _CATALOG: Mapping[str, type[Tool]] = _LazyCatalog()
 
+#: Tool submodules, kept reachable as package attributes (the old eager imports bound them).
+_MODULES = frozenset(module_name for module_name, _ in _SPECS.values()) | {"browser", "computer"}
+
+
+def __getattr__(name: str):
+    """Import a tool submodule on attribute access, matching the eager-import surface."""
+    if name in _MODULES:
+        return import_module(f"{__name__}.{name}")
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 #: bot-level tool groups that expand to concrete tool names
 GROUPS: dict[str, list[str]] = {
     "files": ["read_file", "list_files", "write_file"],
