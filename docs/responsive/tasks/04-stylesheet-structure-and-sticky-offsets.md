@@ -57,3 +57,14 @@ script change is code in a new module.
 ## Size check
 
 Two CSS files and one added static check: one session.
+## Outcome
+
+- Status: done, commit c5d3beb4.
+- Evidence: docs/responsive/screenshots/c5d3beb4 (130 measurements, 0 failures,
+  0 CSS structure problems). State captures include style-scope-desktop (the
+  previously phone-only .preflight/.context-line rules now compute margin-top
+  8px at 1440) and topbar-offset-desktop (--topbar-h 54.00px and .run-head
+  sticky top 54px).
+- The unclosed @media block existed in HEAD as well as the parked tree; both the
+  working tree and the committed HEAD blob now balance.
+- Rollback: revert c5d3beb4 (source) and its evidence commit.
