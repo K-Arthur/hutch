@@ -1,0 +1,86 @@
+Responsive validation: baseline-2a89909a
+Generated: 2026-10-30T00:50:37+00:00
+Git: 72c072c6 (uncommitted worktree entries: 168)
+Matrix: 13 surfaces x 10 viewports = 130 measurements
+Fail-on: none
+
+ASSERTIONS
+  horizontal overflow: 0/130 measuring pairs overflow
+  ready selector:      0/130 pairs did not render
+  page errors:         0/130 pairs raised
+  non-local requests:  0/130 pairs made one
+  touch targets < 24px: 28/91 coarse-pointer pairs
+  touch targets < 44px: 91/91 coarse-pointer pairs (comfort warning)
+  contrast < WCAG AA:  0/26 sampled pairs
+
+FAILURES (0)
+
+WARNINGS (119): {'touch24': 28, 'touch44': 91}
+
+SCREENSHOTS (53)
+  docs/responsive/screenshots/baseline-2a89909a/spa-studio-compact-phone-320.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-models-compact-phone-320.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-studio-phone-375.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-runs-phone-375.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-tasks-phone-375.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-runtime-phone-375.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-settings-phone-375.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-bot-settings-phone-375.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-activity-phone-375.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-models-phone-375.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-usage-phone-375.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-bot-detail-phone-375.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-login-phone-375.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-pair-phone-375.png
+  docs/responsive/screenshots/baseline-2a89909a/site-home-phone-375.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-studio-phone-390.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-models-phone-390.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-studio-phone-landscape-844.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-models-phone-landscape-844.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-studio-tablet-portrait-768.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-runs-tablet-portrait-768.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-tasks-tablet-portrait-768.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-runtime-tablet-portrait-768.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-settings-tablet-portrait-768.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-bot-settings-tablet-portrait-768.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-activity-tablet-portrait-768.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-models-tablet-portrait-768.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-usage-tablet-portrait-768.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-bot-detail-tablet-portrait-768.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-login-tablet-portrait-768.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-pair-tablet-portrait-768.png
+  docs/responsive/screenshots/baseline-2a89909a/site-home-tablet-portrait-768.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-studio-tablet-landscape-1024.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-models-tablet-landscape-1024.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-studio-laptop-1180.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-models-laptop-1180.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-studio-ipad-13in-1366.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-runs-ipad-13in-1366.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-tasks-ipad-13in-1366.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-runtime-ipad-13in-1366.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-settings-ipad-13in-1366.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-bot-settings-ipad-13in-1366.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-activity-ipad-13in-1366.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-models-ipad-13in-1366.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-usage-ipad-13in-1366.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-bot-detail-ipad-13in-1366.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-login-ipad-13in-1366.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-pair-ipad-13in-1366.png
+  docs/responsive/screenshots/baseline-2a89909a/site-home-ipad-13in-1366.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-studio-desktop-1440.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-models-desktop-1440.png
+  docs/responsive/screenshots/baseline-2a89909a/spa-studio-desktop-wide-1536.png
+  docs/responsive/screenshots/baseline-2a89909a/pages-models-desktop-wide-1536.png
+
+STATES (6)
+  spa-sidebar-open-1180        docs/responsive/screenshots/baseline-2a89909a/state-spa-sidebar-open-1180.png
+  spa-sidebar-open-1366        docs/responsive/screenshots/baseline-2a89909a/state-spa-sidebar-open-1366.png
+  spa-sheet-open-375           docs/responsive/screenshots/baseline-2a89909a/state-spa-sheet-open-375.png
+  pages-nav-open-375           docs/responsive/screenshots/baseline-2a89909a/state-pages-nav-open-375.png
+  spa-focus-1366               docs/responsive/screenshots/baseline-2a89909a/state-spa-focus-1366.png
+  spa-focus-375                docs/responsive/screenshots/baseline-2a89909a/state-spa-focus-375.png
+
+NOTE: measurements ran against the current working tree. Uncommitted changes
+owned by another session may be present; this task never stages them.
+
+RESULT: PASS
