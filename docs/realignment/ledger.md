@@ -4828,3 +4828,49 @@ currently dirty from another session while the committed hunk is session-authore
 The two documentation nits the verifier found (test-count 11 vs 12; stale local long-horizon state)
 are corrected here and in the local run ledger. Main HEAD moved `e9a298c1` -> `e4dfe6ce` during
 verification via two other-session docs-only commits; the verified code tree was unchanged.
+
+## Release-readiness landing, gates and branch triage (2026-10-30)
+
+Authority: owner direction in the session. The working tree held about 200 uncommitted entries from earlier
+sessions; each was read, verified and either committed or archived off-repository. Record of the plan and
+open items: `release-readiness-progress.md`; findings: `start-state-audit-2026-10-30.md`; branches:
+`unmerged-branch-triage-2026-10-30.md`.
+
+**Commits (main).** `06887b15` plan-wide approval control removed; `27d94414` legacy-schema test helper;
+`70e4fa09` `bot_deletion` split and frozen-file caps; `d93ae7e2` audit tooling tracked; `44ed5a2c` `8e663bc0`
+`3bcbe454` map within its cap and the static-directory guard; `2dbe4787` sdist allowlist; `29561b47` research
+reports; `79a37973` brand integration; `332d44dc` marketing session 11 merged; `696b9f37` workflow currency
+ceiling; `728e0b4f` shared style layer; `de4a84cd` dashboard shell, forms, overlays, tasks and models page;
+`e6f8991e` triage and audit docs; `245a2631` path-length-independent tests; `ef8573f8` prompt refresh.
+
+**Suite evidence.**
+
+| Run | Tree | Result |
+|---|---|---|
+| Full non-browser | clean HEAD `548a2d6e`, before any change | 3 failed, 3940 passed, 63 skipped, 3 xfailed, 21m31s. Two upgrade tests failed because a test fixture dropped tables a real v50 database has (fixed `27d94414`, production migrations unchanged); the onboarding chooser test passed only with the dashboard changes. |
+| Full non-browser | working tree with the dashboard uncommitted | 5 failed, 4089 passed, 63 skipped, 3 xfailed, 20m44s. All five failures were specification tests for a workflow currency ceiling that did not exist; built in `696b9f37`. |
+| Focused regression after the ceiling | workflow, reservation, budget, usage, migration and gate tests | 398 passed; the failures were a pinned default-budget dictionary (updated) and two gate tests that ran during an edit and passed on rerun. |
+| Browser, 24 e2e files | working tree | 7 failed, 169 passed, 1 skipped, 10m04s. Compared with clean HEAD, 6 of the 7 were introduced by the uncommitted dashboard and 1 (onboarding, a CSP `unsafe-eval` error) was already failing. After fixes: 176 passed, 1 skipped, 0 failed, 9m13s, no reviewed evidence rewritten. |
+| Full non-browser from a fresh clone | `3bcbe454`, clone and temp files on the main disk | 2 failed, 4118 passed, 63 skipped, 3 xfailed, 21m19s. Both failures were sensitive to a long temp-directory path and passed under default paths; fixed in `245a2631`. An earlier attempt with the clone on the RAM-backed `/tmp` died with `ENOSPC` and is not counted. |
+| Gates | repository and fresh clone | `npm run check:agent` (context hygiene, tool contracts, constitution, agent map) and the emoji audit pass; the README's responsive-validation command resolves from a clean clone. |
+
+**Defects found and fixed while landing.** The legacy modal API stacked dialogs with duplicate ids (inner dialog
+mislabelled, Save disabling the outer dialog's button); Escape inside a search field did not close its dialog;
+a stale tooltip consumed the first Escape; plan amendments and re-adoption guarded only integer allowances, so
+a float spend ceiling could have been raised or dropped; two browser tests rewrote reviewed evidence on every
+passing run; models-table text and a chip radius were off the documented scales.
+
+**Limits, recorded rather than hidden.**
+
+- Not run: a screen-reader or axe-core pass; a live-model first-task journey.
+- The full clean-clone suite was not repeated after `245a2631`; both tests were re-verified individually under
+  the default `TMPDIR` and a 31-character one (123 passed across their two files).
+- Strict Offline broker sockets use `len(TMPDIR) + 47` bytes of path, so a `TMPDIR` longer than about 60
+  characters exceeds the Unix-socket limit. The product honors `TMPDIR` by design; a short-root fallback or a
+  clear error is recommended. Not changed here because the offline boundary is security-sensitive.
+- `scripts/prune_validation_tmp.py` reports 17.6 GiB reclaimable under `~/.hutch-tmp`, 14.8 GiB of it in
+  `hp26`, which holds registered worktrees; it was not applied.
+- Seven worktrees of merged branches still hold uncommitted edits (not examined); `agent-connections` is
+  preserved as a tag and needs a product decision.
+- From about 12:38 a second session was active. Its commit `2fedfc4f` (product spine) and its uncommitted
+  page-title work are not part of this entry's verification.
