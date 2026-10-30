@@ -1575,7 +1575,7 @@ class UsageReservationResource(BaseModel):
 
 class ApproveRequest(BaseModel):
     always: bool = False
-    plan_scope: int = 0               # accepted and ignored: plan-wide grants were never implemented
+    plan_scope: int = Field(0, ge=0, le=0, description="Plan-wide approvals are not implemented; only 0 is accepted.")
     action_hash: Optional[str] = None  # the fingerprint the person was shown; if the stored action differs nothing is decided
 
 

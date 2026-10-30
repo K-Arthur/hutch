@@ -264,9 +264,9 @@ def resolve_approval_ex(store: Store, approval_id: str, approve: bool, by: str =
 
 
 def resolve_approval(store: Store, approval_id: str, approve: bool, by: str = "human",
-                     sticky: bool = False, plan_scope: int = 0) -> Optional[ApprovalRequest]:
+                     sticky: bool = False) -> Optional[ApprovalRequest]:
     """Back-compatible form of ``resolve_approval_ex``: returns the request as it now stands (decided by us or by someone
-    else). ``plan_scope`` is accepted and ignored: plan-wide grants were referenced but never implemented."""
+    else). Plan-wide grants do not exist, so there is no scope argument to accept and ignore."""
     return resolve_approval_ex(store, approval_id, approve, by=by, sticky=sticky).request
 
 

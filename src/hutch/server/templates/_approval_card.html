@@ -57,10 +57,7 @@
     <input type="hidden" name="next" value="{{ next_url }}">
     <button class="btn primary" name="choice" value="once" type="submit">{{ icon("check", 15) }} Allow once</button>
     {% if a.sticky_key and not a.outward %}
-    <button class="btn" name="choice" value="always" type="submit" title="Remember for this bot: <code>{{ a.sticky_key }}</code>">{{ icon("shield", 15) }} Always for this bot</button>
-    {% endif %}
-    {% if a.plan_id and a.sticky_key and not a.outward %}
-    <button class="btn" name="choice" value="plan" type="submit" title="Allow the same action for this plan, up to 20 uses">{{ icon("plan", 15) }} For this plan (20)</button>
+    <button class="btn" name="choice" value="always" type="submit" title="Remember for this bot: {{ a.sticky_key }}">{{ icon("shield", 15) }} Always for this bot</button>
     {% endif %}
     <button class="btn danger" name="choice" value="deny" type="submit">{{ icon("x", 15) }} Deny</button>
     <a class="btn ghost small" href="/runs/{{ a.run_id }}">Open run {{ icon("arrow", 13) }}</a>
@@ -72,6 +69,6 @@
 {% macro approval_resolved(a, choice) %}
 <article class="approval resolved {{ 'denied' if choice == 'deny' else 'allowed' }}" id="{{ a.id }}">
   {{ icon("check" if choice != 'deny' else "x", 16) }}
-  <span><strong>{{ 'Denied' if choice == 'deny' else 'Allowed' }}</strong>{% if choice == 'always' %} - and remembered for this bot{% elif choice == 'plan' %} - and granted to the plan{% endif %}: {{ a.action }}</span>
+  <span><strong>{{ 'Denied' if choice == 'deny' else 'Allowed' }}</strong>{% if choice == 'always' %} - and remembered for this bot{% endif %}: {{ a.action }}</span>
 </article>
 {% endmacro %}

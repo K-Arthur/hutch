@@ -139,6 +139,34 @@ def test_deciding_once_always_and_deny_over_plain_post(client):
     assert store.get_approval(req2.id).status.value == "denied"
 
 
+def _plan_run_approval(client):
+    """A pending approval on a run that belongs to a plan, the only case that used to render the plan button."""
+    store = client.app_.state.store
+    bot = make_bot(client, "plan-bot")
+    run = store.create_run(Run(bot_id=bot.id, prompt="planned", status=RunStatus.waiting_approval))
+    return store, store.create_approval(ApprovalRequest(
+        run_id=run.id, bot_id=bot.id, tool="shell", action="$ ls", sticky_key="shell:ls", plan_id="plan-1"))
+
+
+def test_plan_wide_approval_is_neither_offered_nor_accepted_on_the_page(client):
+    """Plan grants were never implemented; a button for them would grant one use and claim twenty."""
+    store, req = _plan_run_approval(client)
+    html = client.get("/_approvals").text
+    assert "Allow once" in html
+    assert 'value="plan"' not in html and "For this plan" not in html
+    r = post(client, f"/approvals/{req.id}/decide", choice="plan")
+    assert r.status_code == 422
+    assert store.get_approval(req.id).status.value == "pending"
+
+
+def test_api_refuses_plan_scope_instead_of_silently_ignoring_it(client):
+    store, req = _plan_run_approval(client)
+    r = client.post(f"/api/approvals/{req.id}/approve", json={"plan_scope": 20})
+    assert r.status_code == 422
+    assert store.get_approval(req.id).status.value == "pending"
+    assert client.post(f"/api/approvals/{req.id}/approve", json={"plan_scope": 0}).status_code == 200
+
+
 def test_htmx_decision_swaps_the_card_in_place(client):
     _, _, req = seed_pending_shell_approval(client)
     r = client.post(f"/approvals/{req.id}/decide", data={"csrf": token(client), "choice": "once"},

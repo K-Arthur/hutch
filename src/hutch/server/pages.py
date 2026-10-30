@@ -554,10 +554,9 @@ def register_pages(app: FastAPI) -> None:
         nxt = safe_next(form.get("next"), "/approvals")
         if a.status is not ApprovalStatus.pending:
             return go(nxt, error=f"That approval was already {a.status.value}.")
-        if choice not in ("once", "always", "plan", "deny"):
-            raise HTTPException(422, "Choose once, always, plan or deny.")
-        resolve_approval(store, approval_id, approve=choice != "deny", by="dashboard",
-                         sticky=choice == "always", plan_scope=20 if choice == "plan" else 0)
+        if choice not in ("once", "always", "deny"):
+            raise HTTPException(422, "Choose once, always or deny.")
+        resolve_approval(store, approval_id, approve=choice != "deny", by="dashboard", sticky=choice == "always")
         if request.headers.get("hx-request"):
             return fragment(request, "_approval_resolved.html", a=store.get_approval(approval_id), choice=choice)
         return go(nxt, notice="Denied." if choice == "deny" else "Allowed - the run continues.")
