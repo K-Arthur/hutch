@@ -92,9 +92,27 @@ def bench_events(state: Path, n: int = 20_000, runs: int = 5) -> dict[str, list[
     return {"events_per_sec": rates}
 
 
+def _install_test_scenario_runtime() -> None:
+    """Install the test suite's deterministic scenario runtime in this process.
+
+    HUTCH_TESTING=1 alone does not select a runtime: the product never imports test code.
+    The pytest suite injects the scenario through tests/support/runtime.py, so a standalone
+    benchmark must do the same explicitly. Without this the retired mock runtime is not
+    available, the run executes no steps, and the PF-11 metric silently measured 0.0 ms.
+    """
+    project = Path(__file__).resolve().parent.parent
+    if str(project) not in sys.path:
+        sys.path.insert(0, str(project))
+    import hutch.engine as engine_module
+    from hutch.runtime import get_runtime as production_get_runtime
+    from tests.support.runtime import test_runtime_for
+    engine_module.get_runtime = lambda bot: test_runtime_for(bot, production_get_runtime)
+
+
 def bench_step_overhead(state: Path, runs: int = 12) -> dict[str, list[float]]:
     os.environ["HUTCH_STATE_DIR"] = str(state)
     os.environ["HUTCH_TESTING"] = "1"  # select the source-only test scenario fixture, never a product runtime
+    _install_test_scenario_runtime()
     from hutch.config import get_config
     from hutch.engine import Engine
     from hutch.models import ApprovalMode, Bot
@@ -104,10 +122,12 @@ def bench_step_overhead(state: Path, runs: int = 12) -> dict[str, list[float]]:
     engine = Engine(config, store)
     bot = store.create_bot(Bot(name="steps", model="mock/demo", tools=["shell", "files", "memory"],
                                approval_mode=ApprovalMode.auto))
-    samples = []
+    samples: list[float] = []
     for _ in range(runs):
         run = engine.run_blocking(bot, "research the weekly news and summarize")
-        samples.append(run.overhead_ms / max(run.steps, 1))
+        if run.steps < 1:
+            raise RuntimeError("the deterministic scenario produced no steps; the step-overhead metric would be meaningless")
+        samples.append(run.overhead_ms / run.steps)
     store.close()
     return {"step_overhead_ms": samples}
 

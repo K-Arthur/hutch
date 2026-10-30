@@ -31,11 +31,12 @@ Measured findings that frame the decision:
    marshalling, token accounting, workspace discovery or the orchestrator. For validation and SSE the
    measured Python improvements are adopted instead; for the rest the operation is sub-ms, already
    native, linear, or its contract duplication risk exceeds any measured gain.
-2. Prototype one optional kernel - the XLSX write stage - because it is the only measured ms-scale
-   pure-Python CPU operation with a small typed boundary and a fallback-friendly seam. Adopt it only
-   if the pre-registered threshold in docs/perf/plan-2026-10-29.md is met through one Python driver
-   including conversion, with the Python generator retained as reference/fallback and the independent
-   openpyxl read-back gate unchanged. Otherwise record reject-measured with the A/B data.
+2. The XLSX write stage was the one prototype candidate (small typed boundary, measured ms-scale
+   pure-Python work). It was measured (see "Prototype measurement and final decision" below); the
+   operation-level gain would clear the threshold, but the kernel is rejected/deferred for this
+   release because it cannot be shipped within the current packaging window and its end-to-end
+   effect does not justify a second native build. The Python generator, its tests and the
+   independent openpyxl read-back gate remain the supported implementation.
 3. No mandatory Rust dependency: if adopted, the kernel is an optional built artifact; a pure-Python
    fallback always exists, and a missing extension is not an error. No pyproject/uv.lock changes are
    made for it (the checkout's manifests are another session's parked files); the crate is a separate
@@ -55,6 +56,44 @@ Measured findings that frame the decision:
   per-step budget appears that Python cannot meet after the adopted fixes; or a future profile shows
   a >20% p95 kernel candidate that is not security- or contract-critical.
 
+
+## Prototype measurement and final decision (2026-10-29, same programme)
+
+The only candidate with a plausible operation-level win was the XLSX write stage. It was
+prototyped and measured rather than argued about:
+
+- A disposable PyO3 0.29.3 + rust_xlsxwriter 0.90.2 cdylib was built against the locked venv
+  Python (PYO3_PYTHON pointer; writable CARGO_HOME scratch; not committed).
+- PyO3 trivial-call overhead measured 0.167 us/call, so call overhead is not the issue.
+- Rust wrote a 5000x3-cell numeric workbook (write + zip) in 24.1 ms median (min 22.3, max 32.6)
+  on the loaded host.
+- The current Python XLSX path on the quieter host: 5000-row generation total 296.6 ms median
+  (p95 318.4), of which `_write_workbook` is 108.7 ms, normalize 17.3 ms, the independent
+  openpyxl read-back gate 174.0 ms (59%), declared-value verification 2.0 ms, preview 0.01 ms.
+
+So a native write stage would plausibly remove ~85 ms of ~297 ms (about 28%, before spec
+serialisation and the Python<->Rust copy), which would clear the operation-level P11 threshold.
+It is nevertheless **rejected/deferred for this release**, deliberately and with the numbers
+written down:
+
+1. **Shipping path is unavailable in this programme window.** A user-installed wheel would need
+   the Rust extension built and packaged through the project's mandatory install (build backend,
+   dependencies, `uv.lock`). Those manifests are another session's uncommitted work in the main
+   checkout; changing them cannot be merged safely here, and an optional .so that pip users never
+   receive would not improve the product at all.
+2. **The end-to-end effect is small relative to the workflow.** Document creation is normally
+   preceded by model drafting (seconds); the measured saving is tens of milliseconds on unusually
+   large (5000-row) spreadsheets and a few milliseconds on ordinary ones.
+3. **The largest part of the cost is the safety gate, not the writer.** The independent openpyxl
+   read-back is 59% of generation time and must stay independent; eliminating it to make a kernel
+   look faster would be a safety regression, not an optimisation.
+4. **Maintenance vs value.** A second native build unit, pinned Rust dependencies, CI coverage and
+   a fallback path are a permanent cost for a sub-100 ms win on one optional operation.
+
+Revisit when all of: the packaging/manifest window is clear, document generation is a primary user
+workflow, and a shippable optional-extension path (maturin/abi3 wheels with pure-Python fallback)
+is accepted by the maintainer. Until then the Python generator, its tests and its independent
+validation gate remain the supported implementation; no Rust performance replacement is adopted.
 ## Rejected alternatives
 
 | Option | Why rejected now |
