@@ -60,3 +60,18 @@ is new.
 
 One new sheet, one HTML file with small edits, one hand-written sheet with small
 edits plus a no-JS harness pass: one session.
+## Outcome
+
+- Status: done, commit db288fc1.
+- Evidence: docs/responsive/screenshots/db288fc1 (130 measurements, 0 failures;
+  marketing screenshots now include the 844x390 landscape viewport-only capture)
+  and docs/responsive/screenshots/db288fc1-nojs (5 no-JS site measurements at
+  375/768/1024/844-landscape/1366, 0 failures).
+- Fixed: the no-JS navbar used to clip 412px of overflow at 375 and 23px at 768;
+  a noscript-only stylesheet now wraps the six links with 44px targets and hides
+  the inert menu button. Short landscape viewports no longer keep the
+  460/450/340px hero-scene minimum, so the headline and CTA lead the first
+  screen. Dead receipts-table rules were removed and the CSS structure checker
+  is clean.
+- Unchanged: the JS drawer, reduced-motion handling and pointer:fine gating.
+- Rollback: revert db288fc1 (source) and its evidence commits.

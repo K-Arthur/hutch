@@ -1,0 +1,267 @@
+{
+  "label": "db288fc1-nojs",
+  "surfaces": [
+    "site-home"
+  ],
+  "viewports": [
+    {
+      "label": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse"
+    },
+    {
+      "label": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse"
+    },
+    {
+      "label": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse"
+    },
+    {
+      "label": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse"
+    },
+    {
+      "label": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse"
+    }
+  ],
+  "results": [
+    {
+      "surface": "site-home",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "button#tab-tiers.term-tab",
+          "right": 474,
+          "width": 112
+        },
+        {
+          "label": "span.t-c",
+          "right": 443,
+          "width": 140
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1-nojs/site-home-phone-375.png",
+      "targets": {
+        "total": 10,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.text-ink-2.hover:text-ink [FAQ]",
+            "width": 40,
+            "height": 44
+          }
+        ],
+        "under_comfort_count": 1
+      }
+    },
+    {
+      "surface": "site-home",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1-nojs/site-home-phone-landscape-844.png",
+      "targets": {
+        "total": 8,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.text-ink-2.hover:text-ink [FAQ]",
+            "width": 40,
+            "height": 44
+          }
+        ],
+        "under_comfort_count": 1
+      }
+    },
+    {
+      "surface": "site-home",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1-nojs/site-home-tablet-portrait-768.png",
+      "targets": {
+        "total": 10,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.text-ink-2.hover:text-ink [FAQ]",
+            "width": 40,
+            "height": 44
+          }
+        ],
+        "under_comfort_count": 1
+      }
+    },
+    {
+      "surface": "site-home",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 10,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "site-home",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1-nojs/site-home-ipad-13in-1366.png",
+      "targets": {
+        "total": 10,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 286,
+        "violations": [],
+        "violation_count": 0
+      }
+    }
+  ],
+  "failures": [],
+  "warnings": [
+    {
+      "kind": "touch44",
+      "surface": "site-home",
+      "viewport": "phone-375",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "site-home",
+      "viewport": "phone-landscape-844",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "site-home",
+      "viewport": "tablet-portrait-768",
+      "detail": "1 target(s) below 44px"
+    }
+  ],
+  "states": [],
+  "screenshots": [
+    "docs/responsive/screenshots/db288fc1-nojs/site-home-phone-375.png",
+    "docs/responsive/screenshots/db288fc1-nojs/site-home-phone-landscape-844.png",
+    "docs/responsive/screenshots/db288fc1-nojs/site-home-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1-nojs/site-home-ipad-13in-1366.png"
+  ],
+  "thresholds": {
+    "min_target_px": 24,
+    "comfort_target_px": 44
+  },
+  "fail_on": [
+    "errors",
+    "external",
+    "meta",
+    "nav",
+    "overflow",
+    "ready",
+    "state"
+  ],
+  "css_structure": [],
+  "git": {
+    "sha": "db288fc1",
+    "dirty_entries": 154
+  },
+  "generated_at": "2026-10-30T01:36:29+00:00",
+  "measurement_note": "Measured the current working tree; another session's uncommitted changes may be present and are never staged by this task."
+}

@@ -1,6 +1,6 @@
 # Responsive Adaptation - State
 
-Last updated: 2026-10-29T18:52:00-07:00 | Last commit: a1171d2e (task 07 source)
+Last updated: 2026-10-29T19:00:00-07:00 | Last commit: db288fc1 (task 08 source)
 Goal id: goal-28c56178-ce15-4d56-b317-b0f275ff75cb (revision 1) | Branch: main
 Validation runner: scripts/validate_responsive.py (single source: scripts/responsive/config.py)
 Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png}
@@ -22,8 +22,8 @@ Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png
 | 07 | 13-inch and tablet device bands | done | a1171d2e | evidence: screenshots/a1171d2e; 07b/07c deferred |
 | 07b | reconcile rail width in app/src/input.css + rebuild ui.css | blocked | - | parked files: wait for the brand session to commit, then edit source and rebuild. Do not edit ui.css by hand. |
 | 07c | align SPA drawer breakpoint (900) with server overlay (1024) | deferred | - | needs coordinated style.css + studio.css + app.js edits across parked files; do it after the parked brand work lands, in one reviewed commit. |
-| 08 | marketing site adaptation | not-started | - | no-JS nav fallback, short-landscape hero, dead rule cleanup |
-| 09 | final validation, review and docs | not-started | - | depends 01-08; full --fail-on all run + diff review |
+| 08 | marketing site adaptation | done | db288fc1 | evidence: screenshots/db288fc1 + db288fc1-nojs |
+| 09 | final validation, review and docs | not-started | - | full --fail-on all run + diff review + COMPLETION.md |
 
 ## Baseline evidence (pre-change)
 
@@ -74,7 +74,8 @@ where possible.
 - c5d3beb4: task 04 stylesheet structure and sticky offsets (evidence commit 3a583128)
 - 0fa93cfe: task 05 touch-target floor (under-24 0; under-44 110; evidence commit dab0dd9f)
 - 8b24b9ba: task 06 safe-area chrome (portrait + landscape drawer states; evidence commit b91b3f8f)
-- a1171d2e: task 07 device bands (rail 304 at 960/1024/1180/1366)
+- a1171d2e: task 07 device bands (rail 304 at 960/1024/1180/1366; evidence commit e16d461f)
+- db288fc1: task 08 marketing site (JS on + no-JS site runs)
 
 ## Handoff
 

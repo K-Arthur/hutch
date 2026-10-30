@@ -1,0 +1,34 @@
+Responsive validation: db288fc1-nojs
+Generated: 2026-10-30T01:36:29+00:00
+Git: db288fc1 (uncommitted worktree entries: 154)
+Matrix: 1 surfaces x 5 viewports = 5 measurements
+Fail-on: errors, external, meta, nav, overflow, ready, state
+
+ASSERTIONS
+  horizontal overflow: 0/5 measuring pairs overflow
+  ready selector:      0/5 pairs did not render
+  page errors:         0/5 pairs raised
+  non-local requests:  0/5 pairs made one
+  viewport contract:   0/5 pairs missing width=device-width or viewport-fit=cover
+  server nav model:    0 pairs measured, 0 with horizontal nav overflow
+  css structure:       0 problem(s) in 0 stylesheet(s)
+  touch targets < 24px: 0/5 coarse-pointer pairs
+  touch targets < 44px: 3/5 coarse-pointer pairs (comfort warning)
+  contrast < WCAG AA:  0/1 sampled pairs
+
+FAILURES (0)
+
+WARNINGS (3): {'touch44': 3}
+
+SCREENSHOTS (4)
+  docs/responsive/screenshots/db288fc1-nojs/site-home-phone-375.png
+  docs/responsive/screenshots/db288fc1-nojs/site-home-phone-landscape-844.png
+  docs/responsive/screenshots/db288fc1-nojs/site-home-tablet-portrait-768.png
+  docs/responsive/screenshots/db288fc1-nojs/site-home-ipad-13in-1366.png
+
+STATES (0)
+
+NOTE: measurements ran against the current working tree. Uncommitted changes
+owned by another session may be present; this task never stages them.
+
+RESULT: PASS

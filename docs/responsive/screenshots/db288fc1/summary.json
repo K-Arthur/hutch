@@ -1,0 +1,5345 @@
+{
+  "label": "db288fc1",
+  "surfaces": [
+    "spa-studio",
+    "spa-runs",
+    "spa-tasks",
+    "spa-runtime",
+    "spa-settings",
+    "spa-bot-settings",
+    "spa-activity",
+    "pages-models",
+    "pages-usage",
+    "pages-bot-detail",
+    "pages-login",
+    "pages-pair",
+    "site-home"
+  ],
+  "viewports": [
+    {
+      "label": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse"
+    },
+    {
+      "label": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse"
+    },
+    {
+      "label": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse"
+    },
+    {
+      "label": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse"
+    },
+    {
+      "label": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse"
+    },
+    {
+      "label": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse"
+    },
+    {
+      "label": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine"
+    },
+    {
+      "label": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse"
+    },
+    {
+      "label": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine"
+    },
+    {
+      "label": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine"
+    }
+  ],
+  "results": [
+    {
+      "surface": "spa-studio",
+      "viewport": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-studio-compact-phone-320.png",
+      "targets": {
+        "total": 11,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-runs",
+      "viewport": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 11,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "input",
+            "width": 143,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 142,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 143,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 142,
+            "height": 30
+          }
+        ],
+        "under_comfort_count": 4
+      }
+    },
+    {
+      "surface": "spa-tasks",
+      "viewport": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 3,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-runtime",
+      "viewport": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-settings",
+      "viewport": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-bot-settings",
+      "viewport": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "button#settings-tab-model.settings-tab",
+          "right": 337,
+          "width": 107
+        },
+        {
+          "label": "span",
+          "right": 325,
+          "width": 58
+        },
+        {
+          "label": "button#settings-tab-tools.settings-tab",
+          "right": 504,
+          "width": 163
+        },
+        {
+          "label": "svg",
+          "right": 370,
+          "width": 17
+        },
+        {
+          "label": "path",
+          "right": 369,
+          "width": 13
+        },
+        {
+          "label": "button#settings-tab-schedule.settings-tab",
+          "right": 619,
+          "width": 111
+        },
+        {
+          "label": "rect",
+          "right": 535,
+          "width": 13
+        },
+        {
+          "label": "button#settings-tab-safety.settings-tab",
+          "right": 716,
+          "width": 93
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 14,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-activity",
+      "viewport": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "table",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "thead",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "tr",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "th",
+          "right": 775,
+          "width": 541
+        },
+        {
+          "label": "tbody",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "td",
+          "right": 775,
+          "width": 541
+        },
+        {
+          "label": "span.muted.small",
+          "right": 612,
+          "width": 304
+        },
+        {
+          "label": "td.mono.small",
+          "right": 1039,
+          "width": 264
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-models-compact-phone-320.png",
+      "targets": {
+        "total": 3,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a [7 days]",
+            "width": 63,
+            "height": 36
+          },
+          {
+            "label": "a.active [30 days]",
+            "width": 73,
+            "height": 36
+          },
+          {
+            "label": "a [90 days]",
+            "width": 73,
+            "height": 36
+          }
+        ],
+        "under_comfort_count": 3
+      }
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 7,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "input#rehearse",
+            "width": 24,
+            "height": 24
+          }
+        ],
+        "under_comfort_count": 1
+      }
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 4,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "site-home",
+      "viewport": "compact-phone-320",
+      "width": 320,
+      "height": 740,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "button#tab-compound.term-tab",
+          "right": 360,
+          "width": 168
+        },
+        {
+          "label": "button#tab-tiers.term-tab",
+          "right": 474,
+          "width": 112
+        },
+        {
+          "label": "span.t-c",
+          "right": 324,
+          "width": 266
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-studio",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-studio-phone-375.png",
+      "targets": {
+        "total": 11,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-runs",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-runs-phone-375.png",
+      "targets": {
+        "total": 11,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "input",
+            "width": 171,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 170,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 171,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 170,
+            "height": 30
+          }
+        ],
+        "under_comfort_count": 4
+      }
+    },
+    {
+      "surface": "spa-tasks",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-tasks-phone-375.png",
+      "targets": {
+        "total": 3,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-runtime",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-runtime-phone-375.png",
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-settings",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-settings-phone-375.png",
+      "targets": {
+        "total": 7,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-bot-settings",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "button#settings-tab-tools.settings-tab",
+          "right": 504,
+          "width": 163
+        },
+        {
+          "label": "span",
+          "right": 492,
+          "width": 114
+        },
+        {
+          "label": "button#settings-tab-schedule.settings-tab",
+          "right": 619,
+          "width": 111
+        },
+        {
+          "label": "svg",
+          "right": 537,
+          "width": 17
+        },
+        {
+          "label": "rect",
+          "right": 535,
+          "width": 13
+        },
+        {
+          "label": "path",
+          "right": 535,
+          "width": 13
+        },
+        {
+          "label": "button#settings-tab-safety.settings-tab",
+          "right": 716,
+          "width": 93
+        },
+        {
+          "label": "button#settings-tab-limits.settings-tab",
+          "right": 894,
+          "width": 174
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-bot-settings-phone-375.png",
+      "targets": {
+        "total": 14,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-activity",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-activity-phone-375.png",
+      "targets": {
+        "total": 8,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "table",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "thead",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "tr",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "th",
+          "right": 775,
+          "width": 541
+        },
+        {
+          "label": "tbody",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "td",
+          "right": 775,
+          "width": 541
+        },
+        {
+          "label": "span.muted.small",
+          "right": 612,
+          "width": 304
+        },
+        {
+          "label": "td.mono.small",
+          "right": 1039,
+          "width": 264
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-models-phone-375.png",
+      "targets": {
+        "total": 3,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-usage-phone-375.png",
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a [7 days]",
+            "width": 63,
+            "height": 36
+          },
+          {
+            "label": "a.active [30 days]",
+            "width": 73,
+            "height": 36
+          },
+          {
+            "label": "a [90 days]",
+            "width": 73,
+            "height": 36
+          }
+        ],
+        "under_comfort_count": 3
+      }
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-bot-detail-phone-375.png",
+      "targets": {
+        "total": 7,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "input#rehearse",
+            "width": 24,
+            "height": 24
+          }
+        ],
+        "under_comfort_count": 1
+      }
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-login-phone-375.png",
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-pair-phone-375.png",
+      "targets": {
+        "total": 4,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "site-home",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "button#tab-tiers.term-tab",
+          "right": 474,
+          "width": 112
+        },
+        {
+          "label": "span.t-c",
+          "right": 443,
+          "width": 140
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/site-home-phone-375.png",
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-studio",
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-studio-phone-390.png",
+      "targets": {
+        "total": 12,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 59,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-runs",
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 12,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "input",
+            "width": 178,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 177,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 178,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 177,
+            "height": 30
+          }
+        ],
+        "under_comfort_count": 4
+      },
+      "contrast": {
+        "sampled": 98,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-tasks",
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 3,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 33,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-runtime",
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 57,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-settings",
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 8,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 43,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-bot-settings",
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "button#settings-tab-tools.settings-tab",
+          "right": 504,
+          "width": 163
+        },
+        {
+          "label": "span",
+          "right": 492,
+          "width": 114
+        },
+        {
+          "label": "button#settings-tab-schedule.settings-tab",
+          "right": 619,
+          "width": 111
+        },
+        {
+          "label": "svg",
+          "right": 537,
+          "width": 17
+        },
+        {
+          "label": "rect",
+          "right": 535,
+          "width": 13
+        },
+        {
+          "label": "path",
+          "right": 535,
+          "width": 13
+        },
+        {
+          "label": "button#settings-tab-safety.settings-tab",
+          "right": 716,
+          "width": 93
+        },
+        {
+          "label": "button#settings-tab-limits.settings-tab",
+          "right": 894,
+          "width": 174
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 14,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 56,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-activity",
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 8,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 58,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "table",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "thead",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "tr",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "th",
+          "right": 775,
+          "width": 541
+        },
+        {
+          "label": "tbody",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "td",
+          "right": 775,
+          "width": 541
+        },
+        {
+          "label": "span.muted.small",
+          "right": 612,
+          "width": 304
+        },
+        {
+          "label": "td.mono.small",
+          "right": 1039,
+          "width": 264
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-models-phone-390.png",
+      "targets": {
+        "total": 3,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 186,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a [7 days]",
+            "width": 63,
+            "height": 36
+          },
+          {
+            "label": "a.active [30 days]",
+            "width": 73,
+            "height": 36
+          },
+          {
+            "label": "a [90 days]",
+            "width": 73,
+            "height": 36
+          }
+        ],
+        "under_comfort_count": 3
+      },
+      "contrast": {
+        "sampled": 40,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 7,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "input#rehearse",
+            "width": 24,
+            "height": 24
+          }
+        ],
+        "under_comfort_count": 1
+      },
+      "contrast": {
+        "sampled": 79,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 9,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 4,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 8,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "site-home",
+      "viewport": "phone-390",
+      "width": 390,
+      "height": 844,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "button#tab-tiers.term-tab",
+          "right": 474,
+          "width": 112
+        },
+        {
+          "label": "span.t-c",
+          "right": 443,
+          "width": 140
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 286,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-studio",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-studio-phone-landscape-844.png",
+      "targets": {
+        "total": 8,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-runs",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 9,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "input",
+            "width": 42,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 98,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 104,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 122,
+            "height": 30
+          }
+        ],
+        "under_comfort_count": 4
+      }
+    },
+    {
+      "surface": "spa-tasks",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 3,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-runtime",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-settings",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-bot-settings",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 10,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-activity",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "table",
+          "right": 1051,
+          "width": 1001
+        },
+        {
+          "label": "thead",
+          "right": 1051,
+          "width": 1001
+        },
+        {
+          "label": "tr",
+          "right": 1051,
+          "width": 1001
+        },
+        {
+          "label": "th",
+          "right": 1051,
+          "width": 264
+        },
+        {
+          "label": "tbody",
+          "right": 1051,
+          "width": 1001
+        },
+        {
+          "label": "td.mono.small",
+          "right": 1051,
+          "width": 264
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-models-phone-landscape-844.png",
+      "targets": {
+        "total": 3,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a [7 days]",
+            "width": 63,
+            "height": 36
+          },
+          {
+            "label": "a.active [30 days]",
+            "width": 73,
+            "height": 36
+          },
+          {
+            "label": "a [90 days]",
+            "width": 73,
+            "height": 36
+          }
+        ],
+        "under_comfort_count": 3
+      }
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 4,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 3,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "site-home",
+      "viewport": "phone-landscape-844",
+      "width": 844,
+      "height": 390,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/site-home-phone-landscape-844.png",
+      "targets": {
+        "total": 3,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-studio",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-studio-tablet-portrait-768.png",
+      "targets": {
+        "total": 17,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-runs",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-runs-tablet-portrait-768.png",
+      "targets": {
+        "total": 14,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "input",
+            "width": 42,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 98,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 104,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 122,
+            "height": 30
+          }
+        ],
+        "under_comfort_count": 4
+      }
+    },
+    {
+      "surface": "spa-tasks",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-tasks-tablet-portrait-768.png",
+      "targets": {
+        "total": 3,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-runtime",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-runtime-tablet-portrait-768.png",
+      "targets": {
+        "total": 8,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-settings",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-settings-tablet-portrait-768.png",
+      "targets": {
+        "total": 8,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-bot-settings",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-bot-settings-tablet-portrait-768.png",
+      "targets": {
+        "total": 30,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-activity",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-activity-tablet-portrait-768.png",
+      "targets": {
+        "total": 9,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "table",
+          "right": 1171,
+          "width": 1121
+        },
+        {
+          "label": "thead",
+          "right": 1171,
+          "width": 1121
+        },
+        {
+          "label": "tr",
+          "right": 1171,
+          "width": 1121
+        },
+        {
+          "label": "th",
+          "right": 907,
+          "width": 653
+        },
+        {
+          "label": "tbody",
+          "right": 1171,
+          "width": 1121
+        },
+        {
+          "label": "td",
+          "right": 907,
+          "width": 653
+        },
+        {
+          "label": "td.mono.small",
+          "right": 1171,
+          "width": 264
+        },
+        {
+          "label": "span.muted.small",
+          "right": 895,
+          "width": 560
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-models-tablet-portrait-768.png",
+      "targets": {
+        "total": 3,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-usage-tablet-portrait-768.png",
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a [7 days]",
+            "width": 63,
+            "height": 36
+          },
+          {
+            "label": "a.active [30 days]",
+            "width": 73,
+            "height": 36
+          },
+          {
+            "label": "a [90 days]",
+            "width": 73,
+            "height": 36
+          }
+        ],
+        "under_comfort_count": 3
+      }
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-bot-detail-tablet-portrait-768.png",
+      "targets": {
+        "total": 13,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "input#rehearse",
+            "width": 24,
+            "height": 24
+          },
+          {
+            "label": "a [Waiting for you Delete the stale build d]",
+            "width": 670,
+            "height": 25
+          },
+          {
+            "label": "a [Done Review the settings page at tablet ]",
+            "width": 670,
+            "height": 25
+          },
+          {
+            "label": "a [Done Summarize the incoming workspace it]",
+            "width": 670,
+            "height": 25
+          },
+          {
+            "label": "a [Done Summarize the incoming workspace it]",
+            "width": 670,
+            "height": 25
+          },
+          {
+            "label": "a [Failed Summarize the incoming workspace ]",
+            "width": 670,
+            "height": 25
+          },
+          {
+            "label": "a [Done Summarize the incoming workspace it]",
+            "width": 670,
+            "height": 25
+          }
+        ],
+        "under_comfort_count": 7
+      }
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-login-tablet-portrait-768.png",
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-pair-tablet-portrait-768.png",
+      "targets": {
+        "total": 4,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "site-home",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/site-home-tablet-portrait-768.png",
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-studio",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-studio-tablet-landscape-1024.png",
+      "targets": {
+        "total": 41,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          }
+        ],
+        "under_comfort_count": 1
+      }
+    },
+    {
+      "surface": "spa-runs",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 32,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          },
+          {
+            "label": "input",
+            "width": 42,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 98,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 104,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 122,
+            "height": 30
+          }
+        ],
+        "under_comfort_count": 5
+      }
+    },
+    {
+      "surface": "spa-tasks",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 23,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          }
+        ],
+        "under_comfort_count": 1
+      }
+    },
+    {
+      "surface": "spa-runtime",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 26,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          }
+        ],
+        "under_comfort_count": 1
+      }
+    },
+    {
+      "surface": "spa-settings",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 28,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          }
+        ],
+        "under_comfort_count": 1
+      }
+    },
+    {
+      "surface": "spa-bot-settings",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 34,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          }
+        ],
+        "under_comfort_count": 1
+      }
+    },
+    {
+      "surface": "spa-activity",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 28,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          }
+        ],
+        "under_comfort_count": 1
+      }
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "table",
+          "right": 1059,
+          "width": 1009
+        },
+        {
+          "label": "thead",
+          "right": 1059,
+          "width": 1009
+        },
+        {
+          "label": "tr",
+          "right": 1059,
+          "width": 1009
+        },
+        {
+          "label": "th",
+          "right": 1059,
+          "width": 264
+        },
+        {
+          "label": "tbody",
+          "right": 1059,
+          "width": 1009
+        },
+        {
+          "label": "td.mono.small",
+          "right": 1059,
+          "width": 264
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-models-tablet-landscape-1024.png",
+      "targets": {
+        "total": 3,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a [7 days]",
+            "width": 63,
+            "height": 36
+          },
+          {
+            "label": "a.active [30 days]",
+            "width": 73,
+            "height": 36
+          },
+          {
+            "label": "a [90 days]",
+            "width": 73,
+            "height": 36
+          }
+        ],
+        "under_comfort_count": 3
+      }
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": false,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "flex",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 9,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "input#rehearse",
+            "width": 24,
+            "height": 24
+          },
+          {
+            "label": "a [Waiting for you Delete the stale build d]",
+            "width": 438,
+            "height": 25
+          },
+          {
+            "label": "a [Done Review the settings page at tablet ]",
+            "width": 438,
+            "height": 25
+          }
+        ],
+        "under_comfort_count": 3
+      }
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 4,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "site-home",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 10,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      }
+    },
+    {
+      "surface": "spa-studio",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-studio-laptop-1180.png"
+    },
+    {
+      "surface": "spa-runs",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-tasks",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-runtime",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-settings",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-bot-settings",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-activity",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-models-laptop-1180.png"
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "site-home",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-studio",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-studio-ipad-13in-1366.png",
+      "targets": {
+        "total": 45,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          }
+        ],
+        "under_comfort_count": 1
+      },
+      "contrast": {
+        "sampled": 59,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-runs",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-runs-ipad-13in-1366.png",
+      "targets": {
+        "total": 42,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          },
+          {
+            "label": "input",
+            "width": 42,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 98,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 104,
+            "height": 30
+          },
+          {
+            "label": "input",
+            "width": 122,
+            "height": 30
+          }
+        ],
+        "under_comfort_count": 5
+      },
+      "contrast": {
+        "sampled": 98,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-tasks",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-tasks-ipad-13in-1366.png",
+      "targets": {
+        "total": 31,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          }
+        ],
+        "under_comfort_count": 1
+      },
+      "contrast": {
+        "sampled": 33,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-runtime",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-runtime-ipad-13in-1366.png",
+      "targets": {
+        "total": 36,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          }
+        ],
+        "under_comfort_count": 1
+      },
+      "contrast": {
+        "sampled": 57,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-settings",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-settings-ipad-13in-1366.png",
+      "targets": {
+        "total": 36,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          }
+        ],
+        "under_comfort_count": 1
+      },
+      "contrast": {
+        "sampled": 43,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-bot-settings",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-bot-settings-ipad-13in-1366.png",
+      "targets": {
+        "total": 59,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          }
+        ],
+        "under_comfort_count": 1
+      },
+      "contrast": {
+        "sampled": 56,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-activity",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-activity-ipad-13in-1366.png",
+      "targets": {
+        "total": 37,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "summary [More]",
+            "width": 279,
+            "height": 40
+          }
+        ],
+        "under_comfort_count": 1
+      },
+      "contrast": {
+        "sampled": 58,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-models-ipad-13in-1366.png",
+      "targets": {
+        "total": 11,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a [Chats]",
+            "width": 66,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 79,
+            "height": 41
+          },
+          {
+            "label": "a [Assistants]",
+            "width": 103,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 120,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 127,
+            "height": 41
+          },
+          {
+            "label": "a.active [Models]",
+            "width": 77,
+            "height": 41
+          },
+          {
+            "label": "a [Usage]",
+            "width": 68,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 101,
+            "height": 41
+          }
+        ],
+        "under_comfort_count": 9
+      },
+      "contrast": {
+        "sampled": 195,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-usage-ipad-13in-1366.png",
+      "targets": {
+        "total": 14,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a [Chats]",
+            "width": 66,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 79,
+            "height": 41
+          },
+          {
+            "label": "a [Assistants]",
+            "width": 103,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 120,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 127,
+            "height": 41
+          },
+          {
+            "label": "a [Models]",
+            "width": 77,
+            "height": 41
+          },
+          {
+            "label": "a.active [Usage]",
+            "width": 68,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 101,
+            "height": 41
+          },
+          {
+            "label": "a [7 days]",
+            "width": 63,
+            "height": 36
+          },
+          {
+            "label": "a.active [30 days]",
+            "width": 73,
+            "height": 36
+          },
+          {
+            "label": "a [90 days]",
+            "width": 73,
+            "height": 36
+          }
+        ],
+        "under_comfort_count": 12
+      },
+      "contrast": {
+        "sampled": 52,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-bot-detail-ipad-13in-1366.png",
+      "targets": {
+        "total": 21,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a [Chats]",
+            "width": 66,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 79,
+            "height": 41
+          },
+          {
+            "label": "a.active [Assistants]",
+            "width": 103,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 120,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 127,
+            "height": 41
+          },
+          {
+            "label": "a [Models]",
+            "width": 77,
+            "height": 41
+          },
+          {
+            "label": "a [Usage]",
+            "width": 68,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 101,
+            "height": 41
+          },
+          {
+            "label": "input#rehearse",
+            "width": 24,
+            "height": 24
+          },
+          {
+            "label": "a [Waiting for you Delete the stale build d]",
+            "width": 446,
+            "height": 25
+          },
+          {
+            "label": "a [Done Review the settings page at tablet ]",
+            "width": 446,
+            "height": 25
+          }
+        ],
+        "under_comfort_count": 16
+      },
+      "contrast": {
+        "sampled": 88,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-login-ipad-13in-1366.png",
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 9,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-pair-ipad-13in-1366.png",
+      "targets": {
+        "total": 4,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 8,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "site-home",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/site-home-ipad-13in-1366.png",
+      "targets": {
+        "total": 10,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [],
+        "under_comfort_count": 0
+      },
+      "contrast": {
+        "sampled": 286,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "spa-studio",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-studio-desktop-1440.png"
+    },
+    {
+      "surface": "spa-runs",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-tasks",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-runtime",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-settings",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-bot-settings",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-activity",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-models-desktop-1440.png"
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "site-home",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-studio",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/spa-studio-desktop-wide-1536.png"
+    },
+    {
+      "surface": "spa-runs",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-tasks",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-runtime",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-settings",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-bot-settings",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "spa-activity",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/db288fc1/pages-models-desktop-wide-1536.png"
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "site-home",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    }
+  ],
+  "failures": [],
+  "warnings": [
+    {
+      "kind": "touch44",
+      "surface": "spa-runs",
+      "viewport": "compact-phone-320",
+      "detail": "4 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-usage",
+      "viewport": "compact-phone-320",
+      "detail": "3 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-bot-detail",
+      "viewport": "compact-phone-320",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-runs",
+      "viewport": "phone-375",
+      "detail": "4 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-usage",
+      "viewport": "phone-375",
+      "detail": "3 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-bot-detail",
+      "viewport": "phone-375",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-runs",
+      "viewport": "phone-390",
+      "detail": "4 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-usage",
+      "viewport": "phone-390",
+      "detail": "3 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-bot-detail",
+      "viewport": "phone-390",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-runs",
+      "viewport": "phone-landscape-844",
+      "detail": "4 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-usage",
+      "viewport": "phone-landscape-844",
+      "detail": "3 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-runs",
+      "viewport": "tablet-portrait-768",
+      "detail": "4 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-usage",
+      "viewport": "tablet-portrait-768",
+      "detail": "3 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-bot-detail",
+      "viewport": "tablet-portrait-768",
+      "detail": "7 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-studio",
+      "viewport": "tablet-landscape-1024",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-runs",
+      "viewport": "tablet-landscape-1024",
+      "detail": "5 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-tasks",
+      "viewport": "tablet-landscape-1024",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-runtime",
+      "viewport": "tablet-landscape-1024",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-settings",
+      "viewport": "tablet-landscape-1024",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-bot-settings",
+      "viewport": "tablet-landscape-1024",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-activity",
+      "viewport": "tablet-landscape-1024",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-usage",
+      "viewport": "tablet-landscape-1024",
+      "detail": "3 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-bot-detail",
+      "viewport": "tablet-landscape-1024",
+      "detail": "3 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-studio",
+      "viewport": "ipad-13in-1366",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-runs",
+      "viewport": "ipad-13in-1366",
+      "detail": "5 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-tasks",
+      "viewport": "ipad-13in-1366",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-runtime",
+      "viewport": "ipad-13in-1366",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-settings",
+      "viewport": "ipad-13in-1366",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-bot-settings",
+      "viewport": "ipad-13in-1366",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "spa-activity",
+      "viewport": "ipad-13in-1366",
+      "detail": "1 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-models",
+      "viewport": "ipad-13in-1366",
+      "detail": "9 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-usage",
+      "viewport": "ipad-13in-1366",
+      "detail": "12 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-bot-detail",
+      "viewport": "ipad-13in-1366",
+      "detail": "16 target(s) below 44px"
+    }
+  ],
+  "states": [
+    {
+      "name": "spa-sidebar-open-1180",
+      "screenshot": "docs/responsive/screenshots/db288fc1/state-spa-sidebar-open-1180.png"
+    },
+    {
+      "name": "spa-sidebar-open-1366",
+      "screenshot": "docs/responsive/screenshots/db288fc1/state-spa-sidebar-open-1366.png"
+    },
+    {
+      "name": "spa-sheet-open-375",
+      "screenshot": "docs/responsive/screenshots/db288fc1/state-spa-sheet-open-375.png"
+    },
+    {
+      "name": "spa-keyboard-390",
+      "screenshot": "docs/responsive/screenshots/db288fc1/state-spa-keyboard-390.png"
+    },
+    {
+      "name": "style-scope-desktop",
+      "measurement": {
+        "preflight": {
+          "margin_top": "8px",
+          "top": "960px"
+        },
+        "context_line": {
+          "margin_top": "8px",
+          "top": "960px"
+        },
+        "run_head": {
+          "margin_top": "0px",
+          "top": "54px"
+        },
+        "topbar_variable": ""
+      }
+    },
+    {
+      "name": "topbar-offset-desktop",
+      "measurement": {
+        "preflight": {
+          "margin_top": "0px",
+          "top": "0px"
+        },
+        "context_line": {
+          "margin_top": "0px",
+          "top": "0px"
+        },
+        "run_head": {
+          "margin_top": "-12px",
+          "top": "54px"
+        },
+        "topbar_variable": "54.00px"
+      }
+    },
+    {
+      "name": "rail-widths",
+      "measurement": {
+        "960": {
+          "rail": 304,
+          "collapsed": false
+        },
+        "1024": {
+          "rail": 304,
+          "collapsed": false
+        },
+        "1180": {
+          "rail": 304,
+          "collapsed": false
+        },
+        "1366": {
+          "rail": 304,
+          "collapsed": false
+        }
+      }
+    },
+    {
+      "name": "needs-you-390",
+      "screenshot": "docs/responsive/screenshots/db288fc1/state-needs-you-390.png"
+    },
+    {
+      "name": "needs-you-landscape-844",
+      "screenshot": "docs/responsive/screenshots/db288fc1/state-needs-you-landscape-844.png"
+    },
+    {
+      "name": "pages-nav-open-375",
+      "screenshot": "docs/responsive/screenshots/db288fc1/state-pages-nav-open-375.png"
+    },
+    {
+      "name": "pages-nav-open-1024",
+      "screenshot": "docs/responsive/screenshots/db288fc1/state-pages-nav-open-1024.png"
+    },
+    {
+      "name": "spa-focus-1366",
+      "screenshot": "docs/responsive/screenshots/db288fc1/state-spa-focus-1366.png"
+    },
+    {
+      "name": "spa-focus-375",
+      "screenshot": "docs/responsive/screenshots/db288fc1/state-spa-focus-375.png"
+    }
+  ],
+  "screenshots": [
+    "docs/responsive/screenshots/db288fc1/spa-studio-compact-phone-320.png",
+    "docs/responsive/screenshots/db288fc1/pages-models-compact-phone-320.png",
+    "docs/responsive/screenshots/db288fc1/spa-studio-phone-375.png",
+    "docs/responsive/screenshots/db288fc1/spa-runs-phone-375.png",
+    "docs/responsive/screenshots/db288fc1/spa-tasks-phone-375.png",
+    "docs/responsive/screenshots/db288fc1/spa-runtime-phone-375.png",
+    "docs/responsive/screenshots/db288fc1/spa-settings-phone-375.png",
+    "docs/responsive/screenshots/db288fc1/spa-bot-settings-phone-375.png",
+    "docs/responsive/screenshots/db288fc1/spa-activity-phone-375.png",
+    "docs/responsive/screenshots/db288fc1/pages-models-phone-375.png",
+    "docs/responsive/screenshots/db288fc1/pages-usage-phone-375.png",
+    "docs/responsive/screenshots/db288fc1/pages-bot-detail-phone-375.png",
+    "docs/responsive/screenshots/db288fc1/pages-login-phone-375.png",
+    "docs/responsive/screenshots/db288fc1/pages-pair-phone-375.png",
+    "docs/responsive/screenshots/db288fc1/site-home-phone-375.png",
+    "docs/responsive/screenshots/db288fc1/spa-studio-phone-390.png",
+    "docs/responsive/screenshots/db288fc1/pages-models-phone-390.png",
+    "docs/responsive/screenshots/db288fc1/spa-studio-phone-landscape-844.png",
+    "docs/responsive/screenshots/db288fc1/pages-models-phone-landscape-844.png",
+    "docs/responsive/screenshots/db288fc1/site-home-phone-landscape-844.png",
+    "docs/responsive/screenshots/db288fc1/spa-studio-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1/spa-runs-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1/spa-tasks-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1/spa-runtime-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1/spa-settings-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1/spa-bot-settings-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1/spa-activity-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1/pages-models-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1/pages-usage-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1/pages-bot-detail-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1/pages-login-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1/pages-pair-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1/site-home-tablet-portrait-768.png",
+    "docs/responsive/screenshots/db288fc1/spa-studio-tablet-landscape-1024.png",
+    "docs/responsive/screenshots/db288fc1/pages-models-tablet-landscape-1024.png",
+    "docs/responsive/screenshots/db288fc1/spa-studio-laptop-1180.png",
+    "docs/responsive/screenshots/db288fc1/pages-models-laptop-1180.png",
+    "docs/responsive/screenshots/db288fc1/spa-studio-ipad-13in-1366.png",
+    "docs/responsive/screenshots/db288fc1/spa-runs-ipad-13in-1366.png",
+    "docs/responsive/screenshots/db288fc1/spa-tasks-ipad-13in-1366.png",
+    "docs/responsive/screenshots/db288fc1/spa-runtime-ipad-13in-1366.png",
+    "docs/responsive/screenshots/db288fc1/spa-settings-ipad-13in-1366.png",
+    "docs/responsive/screenshots/db288fc1/spa-bot-settings-ipad-13in-1366.png",
+    "docs/responsive/screenshots/db288fc1/spa-activity-ipad-13in-1366.png",
+    "docs/responsive/screenshots/db288fc1/pages-models-ipad-13in-1366.png",
+    "docs/responsive/screenshots/db288fc1/pages-usage-ipad-13in-1366.png",
+    "docs/responsive/screenshots/db288fc1/pages-bot-detail-ipad-13in-1366.png",
+    "docs/responsive/screenshots/db288fc1/pages-login-ipad-13in-1366.png",
+    "docs/responsive/screenshots/db288fc1/pages-pair-ipad-13in-1366.png",
+    "docs/responsive/screenshots/db288fc1/site-home-ipad-13in-1366.png",
+    "docs/responsive/screenshots/db288fc1/spa-studio-desktop-1440.png",
+    "docs/responsive/screenshots/db288fc1/pages-models-desktop-1440.png",
+    "docs/responsive/screenshots/db288fc1/spa-studio-desktop-wide-1536.png",
+    "docs/responsive/screenshots/db288fc1/pages-models-desktop-wide-1536.png"
+  ],
+  "thresholds": {
+    "min_target_px": 24,
+    "comfort_target_px": 44
+  },
+  "fail_on": [
+    "errors",
+    "external",
+    "meta",
+    "nav",
+    "overflow",
+    "ready",
+    "state"
+  ],
+  "css_structure": [],
+  "git": {
+    "sha": "db288fc1",
+    "dirty_entries": 153
+  },
+  "generated_at": "2026-10-30T01:36:18+00:00",
+  "measurement_note": "Measured the current working tree; another session's uncommitted changes may be present and are never staged by this task."
+}
