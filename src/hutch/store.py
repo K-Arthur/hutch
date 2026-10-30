@@ -7060,6 +7060,11 @@ class Store:
             return {"owner": "", "expires_at": None, "fence": 0}
         return {"owner": row["owner"] or "", "expires_at": row["expires_at"], "fence": row["fence"]}
 
+    def is_unowned(self, run: Run, grace_seconds: int = 300) -> bool:
+        """A live run with no pid and no lease holder: nothing owns it (a claimed run always has one). The grace
+        period keeps a run that is being claimed this moment out of reach."""
+        return not run.owner and not run.lease_owner and run.created_at < iso(utcnow() - timedelta(seconds=grace_seconds))
+
     def legacy_live_runs(self) -> list[Run]:
         """Live runs from before leases existed (no lease at all): only the old process-liveness check can judge them."""
         marks = ",".join("?" for _ in _LIVE_VALUES)

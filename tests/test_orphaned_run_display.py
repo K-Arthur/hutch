@@ -54,7 +54,7 @@ def _seed(owner: str) -> str:
 def _wait_for(client, run_id, timeout=20.0):
     deadline = time.monotonic() + timeout
     run = client.get(f"/api/runs/{run_id}").json()
-    while run["status"] == "running" and time.monotonic() < deadline:
+    while run["status"] in ("running", "recovering") and time.monotonic() < deadline:   # recovering is the step between
         time.sleep(0.2)
         run = client.get(f"/api/runs/{run_id}").json()
     return run
@@ -89,3 +89,62 @@ def test_the_doctor_reports_the_orphan_while_nothing_is_supervising():
     assert checks["orphans"].status == "warn"
     assert "exited" in checks["orphans"].detail
     assert "next time" in checks["orphans"].fix
+
+
+# ------------------------------------------------ a "Working" row that nothing owns
+#
+# Leftover rows (from an earlier version, a crash, or seeded data) can sit in a live status with no
+# owner pid and no lease. The supervisor only recovered lapsed leases and dead pids, so such a row
+# showed "Working" on the assistant forever. A claimed run always has a pid or a lease holder.
+
+from datetime import timedelta  # noqa: E402
+
+from hutch.models import iso, utcnow  # noqa: E402
+
+
+def _seed_unowned(status: RunStatus, age_minutes: float) -> str:
+    config = get_config()
+    store = Store(config)
+    try:
+        bot = store.create_bot(Bot(name="leftover-check", display_name="Leftover Check", tools=[]))
+        run = Run(bot_id=bot.id, prompt="sort this week's downloads", status=status, owner="",
+                  created_at=iso(utcnow() - timedelta(minutes=age_minutes)))
+        return store.create_run(run).id
+    finally:
+        store.close()
+
+
+def test_an_old_running_row_nobody_owns_is_recovered_instead_of_working_forever():
+    run_id = _seed_unowned(RunStatus.running, age_minutes=30)
+    with TestClient(create_app()) as client:
+        run = _wait_for(client, run_id)
+        assert run["status"] == "failed" and run["terminal"] is True, run["status"]
+        assert run["exit_reason"] == "interrupted"
+        assert "no process owns this job" in run["error"]
+        assert client.get("/api/stats").json()["working_runs"] == 0
+
+
+def test_a_row_created_moments_ago_is_not_touched_while_it_may_be_being_claimed():
+    run_id = _seed_unowned(RunStatus.running, age_minutes=0.1)
+    with TestClient(create_app()) as client:
+        time.sleep(2.5)
+        assert client.get(f"/api/runs/{run_id}").json()["status"] == "running"
+
+
+@pytest.mark.parametrize("status", [RunStatus.waiting_child, RunStatus.waiting_workflow])
+def test_parked_runs_are_never_treated_as_unowned(status):
+    run_id = _seed_unowned(status, age_minutes=120)
+    with TestClient(create_app()) as client:
+        time.sleep(2.5)
+        assert client.get(f"/api/runs/{run_id}").json()["status"] == status.value
+
+
+def test_the_doctor_reports_an_unowned_live_run_while_nothing_is_supervising():
+    _seed_unowned(RunStatus.running, age_minutes=30)
+    config = get_config()
+    store = Store(config)
+    try:
+        checks = {c.id: c for c in run_doctor(config, store)}
+    finally:
+        store.close()
+    assert checks["orphans"].status == "warn"

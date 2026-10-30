@@ -1363,8 +1363,8 @@ class Engine:
         recovered: list[Run] = []
         self.store.release_expired_claims()
         candidates = [r for r in self.store.expired_runs() if r.id not in self._threads]
-        candidates += [r for r in self.store.legacy_live_runs()
-                       if r.owner and r.id not in self._threads and not self._pid_alive(r.owner)]
+        candidates += [r for r in self.store.legacy_live_runs() if r.id not in self._threads
+                       and (not self._pid_alive(r.owner) if r.owner else self.store.is_unowned(r))]
         if candidates:
             self._ensure_heartbeat()
         for run in candidates:
@@ -1397,7 +1397,7 @@ class Engine:
         else:
             to, reason = RunStatus.failed, "interrupted"
             owner = run.owner or run.lease_owner
-            error = f"the process running this job ({owner}) exited before it finished"
+            error = f"the process running this job ({owner}) exited before it finished" if owner else "no process owns this job: it was left running by an earlier version or an unclean shutdown"
         if extra_error:
             error += "\n" + extra_error
         if owned.status is RunStatus.waiting_child and not owned.cancel_requested:
