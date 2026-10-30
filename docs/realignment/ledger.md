@@ -4773,8 +4773,9 @@ the useful session budget, the committed HEAD (`2a89909a`) was exported to
 `.dsh/long-horizon/hutch-completion/artifacts/head-export` and its 234 non-e2e test files were run as
 six disjoint partitions under one job (all six ran to completion; no file skipped). Aggregate:
 **3765 passed, 55 skipped, 3 xfailed, 10 failed**. The 10 failures were outside every deletion module;
-a serial rerun of exactly those 10 node ids produced **7 passed** (parallel-run interference in
-OpenCode CLI/server, procguard and timer/perf tests) and 3 persistent failures
+a serial rerun of exactly those 10 node ids produced **7 passed** (most consistent with
+parallel-run interference in OpenCode CLI/server, procguard and timer/perf tests; the label is an
+inference, not proven) and 3 persistent failures
 (`tests/test_outputs_store.py` downgrade/v51 upgrade: `no such table: memory_fact_shares`, and
 `tests/test_procguard.py::test_group_inspection_checks_the_saved_session_identity`). The same three
 tests fail identically on the pre-run committed HEAD `cb8ca349` export (checked), so they are
@@ -4812,3 +4813,18 @@ the journey. No screen reader or axe-core pass was run on the new page.
 `src/hutch/server/app.py`). Those changes are uncommitted and were not staged, reverted or validated by
 this task; the full-suite and verifier evidence above was taken from the clean committed HEAD export,
 not that dirty tree. The parked session's ~70 pre-existing entries remain untouched.
+
+**Independent verification (2026-10-29, fresh verifier subagent, read-only).** All eight
+definition-of-done rows PASS against the clean committed-HEAD export (verified as tree `2a89909a` by
+blob hashes): D1 51 passed; D2 11/16/49 passed; D3 PASS 52 checks; D4 9 browser cases passed with the
+recorded capture.json hash and 12/12 captures at zero page errors and zero overflow; D5 187 passed;
+D6 no stale current-facing deletion claim; D7 the 10 commits change 41 explicit session paths and no
+parked dirty path is among them; D8 aggregate 3765 passed / 55 skipped / 3 xfailed / 10 failed, with
+7/10 passing on serial rerun and the same 3 failures reproducing on the pre-run HEAD `cb8ca349`
+export. Verifier caveats, recorded not hidden: `continuation-B.md` keeps historical design-only
+wording that its appended update explicitly supersedes; `src/hutch/server/app.py` is a shared file
+currently dirty from another session while the committed hunk is session-authored; the
+"parallel-run interference" label for the seven serial-passing failures is an inference, not proven.
+The two documentation nits the verifier found (test-count 11 vs 12; stale local long-horizon state)
+are corrected here and in the local run ledger. Main HEAD moved `e9a298c1` -> `e4dfe6ce` during
+verification via two other-session docs-only commits; the verified code tree was unchanged.

@@ -370,7 +370,9 @@ th, td { font-family: var(--mono); }
 .nav-toggle { display: none; width: 38px; height: 38px; align-items: center; justify-content: center;
   background: transparent; border: 1px solid var(--border); color: var(--dim); cursor: pointer; border-radius: var(--r-sm); }
 .nav-toggle[aria-expanded="true"] { color: var(--accent); border-color: rgba(52, 211, 153, .42); }
-@media (max-width: 1400px) {
+/* Phones and tablets (<=1024px) open the nav as an overlay; 1025px and wider
+   keeps the horizontal nav so a 13-inch laptop or iPad gets the desktop model. */
+@media (max-width: 1024px) {
   .nav-toggle { display: inline-flex; }
   #primary-nav {
     position: fixed; inset: 0; z-index: 120;

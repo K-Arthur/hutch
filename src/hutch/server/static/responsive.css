@@ -1,0 +1,156 @@
+/* Hutch responsive foundation.
+ *
+ * Loaded last on both application shells: server pages link it from
+ * templates/base.html, the SPA links it from static/index.html. It owns only
+ * cross-cutting contracts: the safe-area tokens and the chrome insets that make
+ * viewport-fit=cover safe. Surface-specific responsive work lives in the task
+ * files under docs/responsive/tasks, not here.
+ *
+ * Documented breakpoint bands (custom properties cannot be used inside media
+ * queries, so these stay comments and every rule below reads them literally):
+ *   compact phone             <= 430px
+ *   large phone / landscape   431px - 767px
+ *   tablet portrait           768px - 1024px
+ *   compact laptop           1025px - 1199px
+ *   13in / small desktop     1200px - 1439px
+ *   desktop                  1440px+
+ *
+ * env() resolves to 0px wherever the browser does not expose a cutout, so every
+ * desktop measurement is byte-identical to the sheet that was replaced here.
+ */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+/* Server-page shell. Base values: hutch.css .topbar (54px, 0 24px) and the
+   <=720px wrapped variant (auto height, 8px 12px). Adding the safe inset keeps
+   the desktop box exactly the same and clears a landscape cutout. */
+.topbar {
+  padding-top: var(--safe-top);
+  padding-left: calc(24px + var(--safe-left));
+  padding-right: calc(24px + var(--safe-right));
+  height: calc(54px + var(--safe-top));
+}
+@media (max-width: 720px) {
+  .topbar {
+    padding-top: calc(8px + var(--safe-top));
+    padding-left: calc(12px + var(--safe-left));
+    padding-right: calc(12px + var(--safe-right));
+    height: auto;
+  }
+}
+@media (orientation: landscape) and (pointer: coarse) {
+  .container {
+    padding-left: calc(var(--gutter, 24px) + var(--safe-left));
+    padding-right: calc(var(--gutter, 24px) + var(--safe-right));
+  }
+}
+
+/* SPA shell. Base values: studio.css .app-top (padding 0 24px; 56px on wide
+   viewports). The SPA already declares viewport-fit=cover, so this is the first
+   inset it receives at the top edge. */
+.app-top {
+  padding-top: var(--safe-top);
+  padding-left: calc(24px + var(--safe-left));
+  padding-right: calc(24px + var(--safe-right));
+}
+
+/* Server-page navigation model (task 02). Nine destinations need about 1055px at
+   full padding. The overlay now engages only at <=1024px; from 1025px the
+   horizontal nav must fit, so the decorative leading icons are hidden (labels and
+   the approval badge stay) and the side padding tightens. */
+@media (min-width: 1025px) and (max-width: 1439px) {
+  #primary-nav a svg,
+  #primary-nav a .ico { display: none; }
+  #primary-nav a { padding-inline: 10px; }
+}
+
+/* Touch-target floor (task 05). WCAG 2.2 AA 2.5.8 is 24x24; Hutch's own
+   documented standard is 44x44 (DESIGN.md:322-323, docs/design-system.md:100).
+   The baseline measured the SPA brand lockup and marketing footer links below the
+   AA minimum, and the high-use controls below 44. These rules raise the real hit
+   box on coarse pointers only, so mouse layouts keep their current density. */
+@media (pointer: coarse) {
+  .nav-toggle,
+  .icon-btn { min-width: 44px; min-height: 44px; }
+  .brand { min-height: 44px; }
+  .btn,
+  .btn.small,
+  .btn.ghost { min-height: 44px; }
+  .ws-nav button,
+  .ws-nav a,
+  .ws-nav summary { min-height: 44px; }
+  .ws-foot-link { min-height: 44px; }
+  #attention-review { min-height: 44px; }
+  input[type="search"],
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="url"],
+  input[type="number"] { min-height: 44px; }
+  details > summary { min-height: 44px; }
+  .ms-btn { min-height: 44px; }
+  textarea.hutch-composer__textarea { min-height: 44px; }
+  .approval-filter { min-height: 44px; }
+  .runs-filter-bar a,
+  .runs-filter-bar button,
+  .runs-filter-bar .chip { min-height: 44px; }
+  input[type="checkbox"],
+  input[type="radio"] { min-width: 24px; min-height: 24px; }
+}
+
+/* Dynamic viewport and keyboard (task 03). responsive.js publishes --vvh (the
+   current visual viewport height) and --keyboard-inset. Server-page bodies keep a
+   small-viewport minimum so mobile browser chrome cannot force a spurious page
+   scroll; the SPA frame follows the visual viewport so the composer stays above
+   the on-screen keyboard; phone sheets never exceed the visual viewport. */
+@supports (height: 100svh) {
+  body { min-height: 100svh; }
+}
+.app-shell { height: var(--vvh, 100dvh); }
+@media (max-width: 900px) {
+  .needs-you {
+    height: var(--vvh, 100dvh);
+    max-height: var(--vvh, 100dvh);
+  }
+  .modal-card { max-height: min(93dvh, var(--vvh, 93dvh)); }
+  .modal-card.modal-tall { max-height: min(100dvh, var(--vvh, 100dvh)); }
+}
+
+/* Safe-area chrome (task 06). All three shells declare viewport-fit=cover (task
+   01); these rules keep the fixed edges clear of a cutout or the home indicator.
+   env() is 0px off-device, so desktop rectangles are unchanged. */
+.toast-root {
+  right: calc(var(--s-5, 24px) + var(--safe-right));
+  bottom: calc(var(--s-5, 24px) + var(--safe-bottom));
+}
+.workspace {
+  padding-top: var(--safe-top);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  padding-bottom: var(--safe-bottom);
+}
+.needs-you {
+  padding-bottom: calc(var(--needs-you-pad, var(--s-5, 24px)) + var(--safe-bottom));
+  padding-right: calc(var(--needs-you-pad, var(--s-5, 24px)) + var(--safe-right));
+}
+@media (max-width: 900px) {
+  .composer {
+    padding-left: calc(var(--hutch-space-3, 12px) + var(--safe-left));
+    padding-right: calc(var(--hutch-space-3, 12px) + var(--safe-right));
+  }
+}
+
+/* Sticky chrome offsets (task 04). hutch.css pins the run header at 54px and
+   scrolls focus targets clear of a 72px bar, but below 720px the topbar wraps to
+   an auto height. responsive.js publishes the measured height; the fallbacks
+   keep the no-JS/no-resize case usable instead of pinning under the bar. */
+html { scroll-padding-top: calc(var(--topbar-h, 54px) + 8px); }
+.run-head { top: var(--topbar-h, 54px); }
+@media (max-width: 720px) {
+  html { scroll-padding-top: calc(var(--topbar-h, 96px) + 8px); }
+  .run-head { top: var(--topbar-h, 96px); }
+}

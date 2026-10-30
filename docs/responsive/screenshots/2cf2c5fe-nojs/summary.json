@@ -1,0 +1,2057 @@
+{
+  "label": "2cf2c5fe-nojs",
+  "surfaces": [
+    "pages-models",
+    "pages-usage",
+    "pages-bot-detail",
+    "pages-login",
+    "pages-pair"
+  ],
+  "viewports": [
+    {
+      "label": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse"
+    },
+    {
+      "label": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse"
+    },
+    {
+      "label": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse"
+    },
+    {
+      "label": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine"
+    },
+    {
+      "label": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse"
+    }
+  ],
+  "results": [
+    {
+      "surface": "pages-models",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "table",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "thead",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "tr",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "th",
+          "right": 775,
+          "width": 541
+        },
+        {
+          "label": "tbody",
+          "right": 1039,
+          "width": 1009
+        },
+        {
+          "label": "td",
+          "right": 775,
+          "width": 541
+        },
+        {
+          "label": "span.muted.small",
+          "right": 612,
+          "width": 304
+        },
+        {
+          "label": "td.mono.small",
+          "right": 1039,
+          "width": 264
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-phone-375.png",
+      "targets": {
+        "total": 20,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          },
+          {
+            "label": "a [Chats]",
+            "width": 93,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 106,
+            "height": 41
+          },
+          {
+            "label": "a [Assistants]",
+            "width": 130,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 147,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 154,
+            "height": 41
+          },
+          {
+            "label": "a.active [Models]",
+            "width": 104,
+            "height": 41
+          },
+          {
+            "label": "a [Usage]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 122,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 128,
+            "height": 41
+          },
+          {
+            "label": "summary [Add or correct a price]",
+            "width": 317,
+            "height": 25
+          }
+        ],
+        "under_comfort_count": 12
+      }
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-usage-phone-375.png",
+      "targets": {
+        "total": 15,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          },
+          {
+            "label": "a [Chats]",
+            "width": 93,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 106,
+            "height": 41
+          },
+          {
+            "label": "a [Assistants]",
+            "width": 130,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 147,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 154,
+            "height": 41
+          },
+          {
+            "label": "a [Models]",
+            "width": 104,
+            "height": 41
+          },
+          {
+            "label": "a.active [Usage]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 122,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 128,
+            "height": 41
+          },
+          {
+            "label": "a [7 days]",
+            "width": 63,
+            "height": 36
+          }
+        ],
+        "under_comfort_count": 14
+      }
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-bot-detail-phone-375.png",
+      "targets": {
+        "total": 39,
+        "under_min": [
+          {
+            "label": "input#rehearse",
+            "width": 16,
+            "height": 16
+          }
+        ],
+        "under_min_count": 1,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          },
+          {
+            "label": "a [Chats]",
+            "width": 93,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 106,
+            "height": 41
+          },
+          {
+            "label": "a.active [Assistants]",
+            "width": 130,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 147,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 154,
+            "height": 41
+          },
+          {
+            "label": "a [Models]",
+            "width": 104,
+            "height": 41
+          },
+          {
+            "label": "a [Usage]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 122,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 128,
+            "height": 41
+          },
+          {
+            "label": "input#rehearse",
+            "width": 16,
+            "height": 16
+          }
+        ],
+        "under_comfort_count": 13
+      }
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-login-phone-375.png",
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          }
+        ],
+        "under_comfort_count": 2
+      }
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "phone-375",
+      "width": 375,
+      "height": 812,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-pair-phone-375.png",
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          }
+        ],
+        "under_comfort_count": 2
+      }
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "table",
+          "right": 1059,
+          "width": 1009
+        },
+        {
+          "label": "thead",
+          "right": 1059,
+          "width": 1009
+        },
+        {
+          "label": "tr",
+          "right": 1059,
+          "width": 1009
+        },
+        {
+          "label": "th",
+          "right": 795,
+          "width": 541
+        },
+        {
+          "label": "tbody",
+          "right": 1059,
+          "width": 1009
+        },
+        {
+          "label": "td",
+          "right": 795,
+          "width": 541
+        },
+        {
+          "label": "td.mono.small",
+          "right": 1059,
+          "width": 264
+        },
+        {
+          "label": "span.muted.small",
+          "right": 783,
+          "width": 448
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-tablet-portrait-768.png",
+      "targets": {
+        "total": 20,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          },
+          {
+            "label": "a [Chats]",
+            "width": 93,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 106,
+            "height": 41
+          },
+          {
+            "label": "a [Assistants]",
+            "width": 130,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 147,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 154,
+            "height": 41
+          },
+          {
+            "label": "a.active [Models]",
+            "width": 104,
+            "height": 41
+          },
+          {
+            "label": "a [Usage]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 122,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 128,
+            "height": 41
+          },
+          {
+            "label": "summary [Add or correct a price]",
+            "width": 670,
+            "height": 25
+          }
+        ],
+        "under_comfort_count": 12
+      }
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-usage-tablet-portrait-768.png",
+      "targets": {
+        "total": 15,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          },
+          {
+            "label": "a [Chats]",
+            "width": 93,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 106,
+            "height": 41
+          },
+          {
+            "label": "a [Assistants]",
+            "width": 130,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 147,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 154,
+            "height": 41
+          },
+          {
+            "label": "a [Models]",
+            "width": 104,
+            "height": 41
+          },
+          {
+            "label": "a.active [Usage]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 122,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 128,
+            "height": 41
+          },
+          {
+            "label": "a [7 days]",
+            "width": 63,
+            "height": 36
+          }
+        ],
+        "under_comfort_count": 14
+      }
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-bot-detail-tablet-portrait-768.png",
+      "targets": {
+        "total": 39,
+        "under_min": [
+          {
+            "label": "input#rehearse",
+            "width": 16,
+            "height": 16
+          }
+        ],
+        "under_min_count": 1,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          },
+          {
+            "label": "a [Chats]",
+            "width": 93,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 106,
+            "height": 41
+          },
+          {
+            "label": "a.active [Assistants]",
+            "width": 130,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 147,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 154,
+            "height": 41
+          },
+          {
+            "label": "a [Models]",
+            "width": 104,
+            "height": 41
+          },
+          {
+            "label": "a [Usage]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 122,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 128,
+            "height": 41
+          },
+          {
+            "label": "input#rehearse",
+            "width": 16,
+            "height": 16
+          }
+        ],
+        "under_comfort_count": 21
+      }
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-login-tablet-portrait-768.png",
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          }
+        ],
+        "under_comfort_count": 2
+      }
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "tablet-portrait-768",
+      "width": 768,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-pair-tablet-portrait-768.png",
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          }
+        ],
+        "under_comfort_count": 2
+      }
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [
+        {
+          "label": "table",
+          "right": 1059,
+          "width": 1009
+        },
+        {
+          "label": "thead",
+          "right": 1059,
+          "width": 1009
+        },
+        {
+          "label": "tr",
+          "right": 1059,
+          "width": 1009
+        },
+        {
+          "label": "th",
+          "right": 1059,
+          "width": 264
+        },
+        {
+          "label": "tbody",
+          "right": 1059,
+          "width": 1009
+        },
+        {
+          "label": "td.mono.small",
+          "right": 1059,
+          "width": 264
+        }
+      ],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-tablet-landscape-1024.png",
+      "targets": {
+        "total": 20,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          },
+          {
+            "label": "a [Chats]",
+            "width": 93,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 106,
+            "height": 41
+          },
+          {
+            "label": "a [Assistants]",
+            "width": 130,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 147,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 154,
+            "height": 41
+          },
+          {
+            "label": "a.active [Models]",
+            "width": 104,
+            "height": 41
+          },
+          {
+            "label": "a [Usage]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 122,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 128,
+            "height": 41
+          },
+          {
+            "label": "summary [Add or correct a price]",
+            "width": 926,
+            "height": 25
+          }
+        ],
+        "under_comfort_count": 12
+      }
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 15,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          },
+          {
+            "label": "a [Chats]",
+            "width": 93,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 106,
+            "height": 41
+          },
+          {
+            "label": "a [Assistants]",
+            "width": 130,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 147,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 154,
+            "height": 41
+          },
+          {
+            "label": "a [Models]",
+            "width": 104,
+            "height": 41
+          },
+          {
+            "label": "a.active [Usage]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 122,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 128,
+            "height": 41
+          },
+          {
+            "label": "a [7 days]",
+            "width": 63,
+            "height": 36
+          }
+        ],
+        "under_comfort_count": 14
+      }
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 39,
+        "under_min": [
+          {
+            "label": "input#rehearse",
+            "width": 16,
+            "height": 16
+          }
+        ],
+        "under_min_count": 1,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          },
+          {
+            "label": "a [Chats]",
+            "width": 93,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 106,
+            "height": 41
+          },
+          {
+            "label": "a.active [Assistants]",
+            "width": 130,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 147,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 154,
+            "height": 41
+          },
+          {
+            "label": "a [Models]",
+            "width": 104,
+            "height": 41
+          },
+          {
+            "label": "a [Usage]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 122,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 128,
+            "height": 41
+          },
+          {
+            "label": "input#rehearse",
+            "width": 16,
+            "height": 16
+          }
+        ],
+        "under_comfort_count": 21
+      }
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          }
+        ],
+        "under_comfort_count": 2
+      }
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "tablet-landscape-1024",
+      "width": 1024,
+      "height": 768,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null,
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          }
+        ],
+        "under_comfort_count": 2
+      }
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-laptop-1180.png"
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "laptop-1180",
+      "width": 1180,
+      "height": 820,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": null
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-ipad-13in-1366.png",
+      "targets": {
+        "total": 20,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          },
+          {
+            "label": "a [Chats]",
+            "width": 66,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 79,
+            "height": 41
+          },
+          {
+            "label": "a [Assistants]",
+            "width": 103,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 120,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 127,
+            "height": 41
+          },
+          {
+            "label": "a.active [Models]",
+            "width": 77,
+            "height": 41
+          },
+          {
+            "label": "a [Usage]",
+            "width": 68,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 101,
+            "height": 41
+          },
+          {
+            "label": "summary [Add or correct a price]",
+            "width": 942,
+            "height": 25
+          }
+        ],
+        "under_comfort_count": 12
+      },
+      "contrast": {
+        "sampled": 194,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-usage",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-usage-ipad-13in-1366.png",
+      "targets": {
+        "total": 15,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          },
+          {
+            "label": "a [Chats]",
+            "width": 66,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 79,
+            "height": 41
+          },
+          {
+            "label": "a [Assistants]",
+            "width": 103,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 120,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 127,
+            "height": 41
+          },
+          {
+            "label": "a [Models]",
+            "width": 77,
+            "height": 41
+          },
+          {
+            "label": "a.active [Usage]",
+            "width": 68,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 101,
+            "height": 41
+          },
+          {
+            "label": "a [7 days]",
+            "width": 63,
+            "height": 36
+          }
+        ],
+        "under_comfort_count": 14
+      },
+      "contrast": {
+        "sampled": 52,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-bot-detail",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-bot-detail-ipad-13in-1366.png",
+      "targets": {
+        "total": 39,
+        "under_min": [
+          {
+            "label": "input#rehearse",
+            "width": 16,
+            "height": 16
+          }
+        ],
+        "under_min_count": 1,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          },
+          {
+            "label": "a [Chats]",
+            "width": 66,
+            "height": 41
+          },
+          {
+            "label": "a [Activity]",
+            "width": 79,
+            "height": 41
+          },
+          {
+            "label": "a.active [Assistants]",
+            "width": 103,
+            "height": 41
+          },
+          {
+            "label": "a [Work history]",
+            "width": 120,
+            "height": 41
+          },
+          {
+            "label": "a [Needs you1]",
+            "width": 127,
+            "height": 41
+          },
+          {
+            "label": "a [Models]",
+            "width": 77,
+            "height": 41
+          },
+          {
+            "label": "a [Usage]",
+            "width": 68,
+            "height": 41
+          },
+          {
+            "label": "a [Apps & AI]",
+            "width": 95,
+            "height": 41
+          },
+          {
+            "label": "a [Delete bot]",
+            "width": 101,
+            "height": 41
+          },
+          {
+            "label": "input#rehearse",
+            "width": 16,
+            "height": 16
+          }
+        ],
+        "under_comfort_count": 21
+      },
+      "contrast": {
+        "sampled": 81,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-login",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-login-ipad-13in-1366.png",
+      "targets": {
+        "total": 6,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          }
+        ],
+        "under_comfort_count": 2
+      },
+      "contrast": {
+        "sampled": 9,
+        "violations": [],
+        "violation_count": 0
+      }
+    },
+    {
+      "surface": "pages-pair",
+      "viewport": "ipad-13in-1366",
+      "width": 1366,
+      "height": 1024,
+      "pointer": "coarse",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": false,
+      "nav": {
+        "present": false
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/2cf2c5fe-nojs/pages-pair-ipad-13in-1366.png",
+      "targets": {
+        "total": 5,
+        "under_min": [],
+        "under_min_count": 0,
+        "under_comfort": [
+          {
+            "label": "a.skip [Skip to content]",
+            "width": 134,
+            "height": 41
+          },
+          {
+            "label": "a.brand [hutch home]",
+            "width": 77,
+            "height": 28
+          }
+        ],
+        "under_comfort_count": 2
+      },
+      "contrast": {
+        "sampled": 8,
+        "violations": [],
+        "violation_count": 0
+      }
+    }
+  ],
+  "failures": [],
+  "warnings": [
+    {
+      "kind": "touch44",
+      "surface": "pages-models",
+      "viewport": "phone-375",
+      "detail": "12 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-usage",
+      "viewport": "phone-375",
+      "detail": "14 target(s) below 44px"
+    },
+    {
+      "kind": "touch24",
+      "surface": "pages-bot-detail",
+      "viewport": "phone-375",
+      "detail": "1 target(s) below 24px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-bot-detail",
+      "viewport": "phone-375",
+      "detail": "13 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-login",
+      "viewport": "phone-375",
+      "detail": "2 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-pair",
+      "viewport": "phone-375",
+      "detail": "2 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-models",
+      "viewport": "tablet-portrait-768",
+      "detail": "12 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-usage",
+      "viewport": "tablet-portrait-768",
+      "detail": "14 target(s) below 44px"
+    },
+    {
+      "kind": "touch24",
+      "surface": "pages-bot-detail",
+      "viewport": "tablet-portrait-768",
+      "detail": "1 target(s) below 24px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-bot-detail",
+      "viewport": "tablet-portrait-768",
+      "detail": "21 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-login",
+      "viewport": "tablet-portrait-768",
+      "detail": "2 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-pair",
+      "viewport": "tablet-portrait-768",
+      "detail": "2 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-models",
+      "viewport": "tablet-landscape-1024",
+      "detail": "12 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-usage",
+      "viewport": "tablet-landscape-1024",
+      "detail": "14 target(s) below 44px"
+    },
+    {
+      "kind": "touch24",
+      "surface": "pages-bot-detail",
+      "viewport": "tablet-landscape-1024",
+      "detail": "1 target(s) below 24px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-bot-detail",
+      "viewport": "tablet-landscape-1024",
+      "detail": "21 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-login",
+      "viewport": "tablet-landscape-1024",
+      "detail": "2 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-pair",
+      "viewport": "tablet-landscape-1024",
+      "detail": "2 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-models",
+      "viewport": "ipad-13in-1366",
+      "detail": "12 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-usage",
+      "viewport": "ipad-13in-1366",
+      "detail": "14 target(s) below 44px"
+    },
+    {
+      "kind": "touch24",
+      "surface": "pages-bot-detail",
+      "viewport": "ipad-13in-1366",
+      "detail": "1 target(s) below 24px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-bot-detail",
+      "viewport": "ipad-13in-1366",
+      "detail": "21 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-login",
+      "viewport": "ipad-13in-1366",
+      "detail": "2 target(s) below 44px"
+    },
+    {
+      "kind": "touch44",
+      "surface": "pages-pair",
+      "viewport": "ipad-13in-1366",
+      "detail": "2 target(s) below 44px"
+    }
+  ],
+  "states": [],
+  "screenshots": [
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-phone-375.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-usage-phone-375.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-bot-detail-phone-375.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-login-phone-375.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-pair-phone-375.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-tablet-portrait-768.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-usage-tablet-portrait-768.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-bot-detail-tablet-portrait-768.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-login-tablet-portrait-768.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-pair-tablet-portrait-768.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-tablet-landscape-1024.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-laptop-1180.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-models-ipad-13in-1366.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-usage-ipad-13in-1366.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-bot-detail-ipad-13in-1366.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-login-ipad-13in-1366.png",
+    "docs/responsive/screenshots/2cf2c5fe-nojs/pages-pair-ipad-13in-1366.png"
+  ],
+  "thresholds": {
+    "min_target_px": 24,
+    "comfort_target_px": 44
+  },
+  "fail_on": [
+    "errors",
+    "external",
+    "meta",
+    "nav",
+    "overflow",
+    "ready",
+    "state"
+  ],
+  "git": {
+    "sha": "2cf2c5fe",
+    "dirty_entries": 168
+  },
+  "generated_at": "2026-10-30T01:06:38+00:00",
+  "measurement_note": "Measured the current working tree; another session's uncommitted changes may be present and are never staged by this task."
+}

@@ -152,7 +152,7 @@
   var btn = document.getElementById("nav-toggle");
   var nav = document.getElementById("primary-nav");
   if (!btn || !nav) return;
-  function isCompact() { return window.matchMedia("(max-width: 1400px)").matches; }
+  function isCompact() { return window.matchMedia("(max-width: 1024px)").matches; }
   function setOpen(open, restoreFocus) {
     nav.classList.toggle("open", open);
     btn.setAttribute("aria-expanded", String(open));
