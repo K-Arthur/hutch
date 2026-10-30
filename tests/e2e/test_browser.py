@@ -2102,7 +2102,7 @@ def test_work_history_paginates_and_searches_beyond_the_first_200_runs(browser, 
             oldest = run
     assert oldest is not None
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/ui-audit-2026-10-20/history"
+    out = artifact_path("ui-audit-2026-10-20/history")
     out.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": 1440, "height": 960})
     errors: list[str] = []
