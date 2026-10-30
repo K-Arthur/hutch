@@ -219,6 +219,37 @@ def _capture_states(browser, app_url, options) -> tuple[list[dict], list[dict]]:
     finally:
         context.close()
 
+    context, page = new_page(390, 844, True)
+    try:
+        open_studio(page)
+        page.locator("#chat-prompt").focus()
+        page.set_viewport_size({"width": 390, "height": 520})
+        page.wait_for_timeout(500)
+        probe = checks.measure_keyboard(page)
+        visual_height = probe["visual_height"]
+        composer = probe.get("composer") or {}
+        if not composer or composer.get("bottom", 10**6) > visual_height + 1:
+            failures.append({"kind": "state", "surface": "spa-studio",
+                             "viewport": "keyboard-390",
+                             "detail": "composer is not inside the shrunk visual viewport"})
+        shell = probe.get("shell") or {}
+        if shell and shell.get("height", 10**6) > visual_height + 2:
+            failures.append({"kind": "state", "surface": "spa-studio",
+                             "viewport": "keyboard-390",
+                             "detail": "app shell height does not follow the visual viewport"})
+        transcript = probe.get("transcript") or {}
+        if transcript and transcript.get("scroll_height", 0) <= transcript.get("client_height", 0):
+            failures.append({"kind": "state", "surface": "spa-studio",
+                             "viewport": "keyboard-390",
+                             "detail": "transcript lost its scroll range after the viewport shrink"})
+        grab(page, "spa-keyboard-390")
+    except Exception as error:
+        failures.append({"kind": "state", "surface": "spa-studio",
+                         "viewport": "keyboard-390",
+                         "detail": "keyboard scenario failed: %s" % str(error)[:200]})
+    finally:
+        context.close()
+
     for name, width, height in (("pages-nav-open-375", 375, 812),
                                 ("pages-nav-open-1024", 1024, 768)):
         context, page = new_page(width, height, True)

@@ -72,3 +72,21 @@
 @media (pointer: coarse) {
   .nav-toggle { width: 44px; height: 44px; }
 }
+
+/* Dynamic viewport and keyboard (task 03). responsive.js publishes --vvh (the
+   current visual viewport height) and --keyboard-inset. Server-page bodies keep a
+   small-viewport minimum so mobile browser chrome cannot force a spurious page
+   scroll; the SPA frame follows the visual viewport so the composer stays above
+   the on-screen keyboard; phone sheets never exceed the visual viewport. */
+@supports (height: 100svh) {
+  body { min-height: 100svh; }
+}
+.app-shell { height: var(--vvh, 100dvh); }
+@media (max-width: 900px) {
+  .needs-you {
+    height: var(--vvh, 100dvh);
+    max-height: var(--vvh, 100dvh);
+  }
+  .modal-card { max-height: min(93dvh, var(--vvh, 93dvh)); }
+  .modal-card.modal-tall { max-height: min(100dvh, var(--vvh, 100dvh)); }
+}

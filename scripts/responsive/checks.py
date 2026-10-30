@@ -197,9 +197,42 @@ def measure_viewport(page) -> dict:
     return page.evaluate(VIEWPORT_JS)
 
 
+KEYBOARD_JS = r"""() => {
+  function box(element) {
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return {top: Math.round(rect.top), bottom: Math.round(rect.bottom),
+            height: Math.round(rect.height)};
+  }
+  const viewport = window.visualViewport;
+  const shell = document.querySelector(".app-shell");
+  const composer = document.querySelector(".composer")
+    || document.querySelector(".hutch-composer");
+  const transcript = document.querySelector(".chat-scroll");
+  const focused = document.activeElement;
+  return {
+    visual_height: Math.round(viewport ? viewport.height : window.innerHeight),
+    layout_height: Math.round(window.innerHeight),
+    vvh: getComputedStyle(document.documentElement).getPropertyValue("--vvh").trim(),
+    keyboard_inset: getComputedStyle(document.documentElement)
+      .getPropertyValue("--keyboard-inset").trim(),
+    shell: box(shell),
+    composer: box(composer),
+    transcript: transcript ? {scroll_height: transcript.scrollHeight,
+                              client_height: transcript.clientHeight} : null,
+    focused: focused ? {tag: focused.tagName.toLowerCase(), box: box(focused)} : null
+  };
+}"""
+
+
 def measure_nav(page) -> dict:
     """The server-page navigation model: visible nav, overflow and toggle state."""
     return page.evaluate(NAV_JS)
+
+
+def measure_keyboard(page) -> dict:
+    """Layout geometry after the visual viewport shrinks (keyboard simulation)."""
+    return page.evaluate(KEYBOARD_JS)
 
 
 def measure_overflow(page) -> dict:
