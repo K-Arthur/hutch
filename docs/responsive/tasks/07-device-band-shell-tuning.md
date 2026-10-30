@@ -61,3 +61,21 @@ row, not silently dropped.
 ## Size check
 
 One new rule set plus one scripted geometry check: one session.
+## Outcome
+
+- Status: done, commit a1171d2e.
+- Evidence: docs/responsive/screenshots/a1171d2e (130 measurements, 0 failures).
+  The rail-widths state check measured 304px at 960, 1024, 1180 and 1366 with the
+  shell expanded; the landscape header capture (spa-studio-phone-landscape-844)
+  shows identity and actions on one row.
+- Applied: rail mode uses 304px from 901px upward (was 272px at 901-1000 and
+  304px above, a 32px jump); landscape phones <=500px tall and <=950px wide
+  compact the context header to one row, recovering about 32px of transcript.
+- Deliberately unchanged: the workflow/status cluster still hides at <=1100px
+  (the attention bar and Needs-you drawer carry pending state there); documented
+  as a non-goal rather than crowding the 1024 header.
+- Deferred, recorded in STATE.md: 07b reconciles the rail width in
+  app/src/input.css and rebuilds ui.css (blocked on the parked brand commit);
+  07c aligns the SPA drawer breakpoint (900) with the server overlay (1024),
+  which needs coordinated style.css/studio.css/app.js edits across parked files.
+- Rollback: revert a1171d2e (source) and its evidence commit.

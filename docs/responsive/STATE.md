@@ -1,6 +1,6 @@
 # Responsive Adaptation - State
 
-Last updated: 2026-10-29T18:45:00-07:00 | Last commit: 8b24b9ba (task 06 source)
+Last updated: 2026-10-29T18:52:00-07:00 | Last commit: a1171d2e (task 07 source)
 Goal id: goal-28c56178-ce15-4d56-b317-b0f275ff75cb (revision 1) | Branch: main
 Validation runner: scripts/validate_responsive.py (single source: scripts/responsive/config.py)
 Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png}
@@ -19,9 +19,10 @@ Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png
 | 04 | stylesheet structure and sticky offsets | done | c5d3beb4 | evidence: screenshots/c5d3beb4 |
 | 05 | touch-target floor | done | 0fa93cfe | evidence: screenshots/0fa93cfe |
 | 06 | safe-area chrome | done | 8b24b9ba | evidence: screenshots/8b24b9ba |
-| 07 | 13-inch and tablet device bands | not-started | - | unify rail width + 1024/1180/1366 header/shell tuning |
+| 07 | 13-inch and tablet device bands | done | a1171d2e | evidence: screenshots/a1171d2e; 07b/07c deferred |
 | 07b | reconcile rail width in app/src/input.css + rebuild ui.css | blocked | - | parked files: wait for the brand session to commit, then edit source and rebuild. Do not edit ui.css by hand. |
-| 08 | marketing site adaptation | not-started | - | depends 01/05; coarse targets, no-JS nav, short landscape hero |
+| 07c | align SPA drawer breakpoint (900) with server overlay (1024) | deferred | - | needs coordinated style.css + studio.css + app.js edits across parked files; do it after the parked brand work lands, in one reviewed commit. |
+| 08 | marketing site adaptation | not-started | - | no-JS nav fallback, short-landscape hero, dead rule cleanup |
 | 09 | final validation, review and docs | not-started | - | depends 01-08; full --fail-on all run + diff review |
 
 ## Baseline evidence (pre-change)
@@ -72,7 +73,8 @@ where possible.
 - 28aa02e0: task 03 dynamic viewport and keyboard (evidence commit e0850681)
 - c5d3beb4: task 04 stylesheet structure and sticky offsets (evidence commit 3a583128)
 - 0fa93cfe: task 05 touch-target floor (under-24 0; under-44 110; evidence commit dab0dd9f)
-- 8b24b9ba: task 06 safe-area chrome (portrait + landscape drawer states)
+- 8b24b9ba: task 06 safe-area chrome (portrait + landscape drawer states; evidence commit b91b3f8f)
+- a1171d2e: task 07 device bands (rail 304 at 960/1024/1180/1366)
 
 ## Handoff
 
