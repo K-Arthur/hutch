@@ -1,0 +1,28 @@
+[package]
+name = "hutch-docgen-native"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.83"
+description = "Optional native XLSX write kernel for Hutch document generation"
+license = "MIT"
+publish = false
+
+[lib]
+name = "hutch_docgen_native"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# The PyO3 binding is a non-default feature so that `cargo test` / `cargo clippy`
+# exercise the pure-Rust core without linking libpython. The build script and CI
+# build the extension with `--features python`.
+default = []
+python = ["dep:pyo3"]
+
+[dependencies]
+pyo3 = { version = "=0.29.3", features = ["extension-module"], optional = true }
+rust_xlsxwriter = { version = "=0.90.2", default-features = false }
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.145"
+# Same pinned zip crate rust_xlsxwriter uses, also used to rewrite the empty-string
+# shared-string entry after saving. Pinned to the transitive version so it is not duplicated.
+zip = { version = "=4.6.1", default-features = false, features = ["deflate"] }
