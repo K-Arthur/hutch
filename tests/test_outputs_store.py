@@ -14,7 +14,7 @@ import pytest
 from hutch.store import (SCHEMA_VERSION, IdempotencyConflict, RevisionConflict, Store,
                          UploadLimitExceeded,
                          _ensure_output_tables)
-from tests.test_delegation import _remove_later_conversation_schema
+from tests.support.legacy_schema import remove_later_conversation_schema
 
 V51_TABLES = ("uploads", "media_jobs", "workspace_sessions")
 
@@ -60,7 +60,7 @@ def test_the_downgrade_helper_knows_v55_and_reopening_recreates_the_tables(store
     store.close()
 
     db = sqlite3.connect(config.db_path)
-    _remove_later_conversation_schema(db)
+    remove_later_conversation_schema(db, legacy_version=50)
     db.execute("PRAGMA user_version = 50")
     db.commit()
     db.close()
@@ -83,7 +83,7 @@ def test_historical_output_v51_shape_upgrades_without_losing_uploads(store, conf
     store.close()
 
     db = sqlite3.connect(config.db_path)
-    _remove_later_conversation_schema(db)
+    remove_later_conversation_schema(db, legacy_version=51)
     _ensure_output_tables(db)
     db.execute(
         "INSERT INTO uploads VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
