@@ -1,10 +1,11 @@
-"""Tool-call validation: the real catalog through validate_call, analyze_schema alone, jsonschema cost.
+"""Tool-call validation: the real catalog through the canonical and cached paths.
 
 (a) times hutch.toolcalling.validate.validate_call for realistic valid args and a few invalid
 args across every tool in hutch.tools._CATALOG, plus analyze_schema alone and per-tool medians.
-(b) times Draft202012Validator(schema) construction versus a cached validator reused per call,
-in memory only (no source edits): this quantifies the per-call validator construction cost the
-production path currently pays.
+(b) times Draft202012Validator(schema) construction versus a cached validator reused per call:
+this quantifies the per-call validator construction cost the uncached path pays.
+(c) A/B: validate_call (uncached reference) versus validate_tool_call_cached (the production
+path after perf programme D6-A), same process, same inputs, outputs checked equal first.
 """
 
 from __future__ import annotations
@@ -136,35 +137,6 @@ def _jsonschema_cases(schema: dict, args: dict, n: int, engine: str) -> list[dic
     ]
 
 
-def _cached_validator(schemas: dict[str, dict]):
-    """In-memory alternative: analyze each schema once, reuse one Draft validator per schema.
-
-    No source edit: this wraps validate's own bounded checker (_errors) and the jsonschema
-    Draft202012Validator to quantify the share of validate_call that a production cache would
-    remove (analyze_schema + validator construction). It is a measurement sketch, not a fix.
-    """
-    from hutch.toolcalling.validate import _HAVE_JSONSCHEMA, _Draft202012Validator, _errors, analyze_schema
-
-    cache: dict[str, tuple[object, object]] = {}
-    for name, schema in schemas.items():
-        report = analyze_schema(schema)
-        if report.unsupported:
-            raise RuntimeError(f"schema for {name} cannot be certified; cached comparison invalid")
-        cache[name] = (report, _Draft202012Validator(schema) if _HAVE_JSONSCHEMA else None)
-
-    def validate(name: str, args: object) -> list[str]:
-        _report, validator = cache[name]
-        problems: list[str] = []
-        _errors(args, schemas[name], "", schemas[name], problems, depth=0, ref_seen=frozenset())
-        if problems:
-            return problems
-        if validator is not None:
-            return [error.message for error in validator.iter_errors(args)]
-        return []
-
-    return validate
-
-
 def run(quick: bool, state) -> list[dict]:
     from benchmarks.hotpath_workloads import tool_schemas
 
@@ -245,30 +217,33 @@ def run(quick: bool, state) -> list[dict]:
     cases.append({"name": "validation.analyze_schema_us", "unit": "us", "samples": analysis_samples,
                   "better": "lower", "note": "static schema walk alone (no validation)"})
 
-    # Direct A/B: current validate_call vs the cacheable variant, same inputs, same process.
-    cached_validate = _cached_validator(schemas)
-    for name, args in valid.items():
-        if cached_validate(name, args):
-            raise RuntimeError(f"cached-validator A/B disagrees on valid args for {name}")
-    for name, args in invalid:
-        if not cached_validate(name, args):
-            raise RuntimeError(f"cached-validator A/B accepted invalid args for {name}")
+    # Direct A/B: canonical validate_call vs the production cached path, same inputs/process.
+    from hutch.toolcalling.validate import validate_tool_call_cached
+    from hutch.toolcalling.schema_analysis import clear_analysis_cache
+    from hutch.toolcalling.validate import clear_validation_cache
+
+    mismatches = [name for name, args in list(valid.items()) + list(invalid)
+                  if validate_tool_call_cached(schemas[name], args) != validate_call(schemas[name], args)]
+    if mismatches:
+        raise RuntimeError(f"cached validation disagrees with validate_call for: {mismatches}")
 
     cached_samples: list[float] = []
     for _ in range(n):
         started = time.perf_counter()
         for _loop in range(AGGREGATE_LOOPS):
             for name, args in valid.items():
-                cached_validate(name, args)
+                validate_tool_call_cached(schemas[name], args)
         elapsed = time.perf_counter() - started
         cached_samples.append(elapsed / (AGGREGATE_LOOPS * len(valid)) * 1_000_000)
-    cases.append({"name": "validation.cached_engine_valid_us", "unit": "us", "samples": cached_samples,
+    cases.append({"name": "validation.cached_tool_validation_us", "unit": "us", "samples": cached_samples,
                   "better": "lower",
-                  "note": "in-memory alternative: analyze_schema cached once + one reused Draft202012Validator"})
+                  "note": "production validate_tool_call_cached: reused analysis + compiled validator"})
     speedups = [current / cached if cached else 0.0 for current, cached in zip(valid_samples, cached_samples)]
-    cases.append({"name": "validation.cached_engine_speedup_ratio", "unit": "x", "samples": speedups,
+    cases.append({"name": "validation.cached_speedup_ratio", "unit": "x", "samples": speedups,
                   "better": "higher",
-                  "note": f"current validate_call / cached-engine cost; median {sorted(speedups)[len(speedups) // 2]:.2f}x"})
+                  "note": f"canonical validate_call / cached path; median {sorted(speedups)[len(speedups) // 2]:.2f}x"})
+    clear_analysis_cache()
+    clear_validation_cache()
 
     cases.extend(_jsonschema_cases(schemas["shell"], valid["shell"], n, engine))
     return cases
