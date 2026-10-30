@@ -47,6 +47,12 @@ class OnboardingSetup(BaseModel):
     resume_expires_at: str
     created_at: str
     updated_at: str
+    # Slice 02 adds the chosen AI service route. They stay plain strings (not a
+    # literals) so a record written by a newer Hutch parses and surfaces as the
+    # explicit stale/resume state instead of "damaged"; an empty value means no
+    # route was chosen yet. Route validation lives in onboarding_choices.py.
+    route_kind: str = ""
+    route_chosen_at: str = ""
 
     @field_validator("resume_expires_at", "created_at", "updated_at")
     @classmethod
