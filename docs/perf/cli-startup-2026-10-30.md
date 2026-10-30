@@ -93,7 +93,7 @@ above remains the authoritative claim because it controls load drift at sample l
 
 ## Regression and real-world validation
 
-- Focused pytest for the touched surface: catalog/import-graph tests, tools, runtime builtin,
+- Focused pytest for the touched surface (259 passed / 1 skipped, 11 files): catalog/import-graph tests, tools, runtime builtin,
   engine, engine loop, integration catalog/contract, offline mode, sandbox, doctor/health, CLI,
   bot deletion, templates, skills, tool-calling suites.
 - Real-world workflow on an isolated state dir (all exit 0): `init`, `bot create demo --model
@@ -113,7 +113,7 @@ above remains the authoritative claim because it controls load drift at sample l
   PyO3 0.29.3 + rust_xlsxwriter 0.90.2 crate under `native/docgen_xlsx` and passed its smoke
   test (5,365-byte workbook, extension version 0.1.0, exit 0) on this host; no manifest or
   mandatory Rust dependency was added. Build artifacts were removed afterwards.
-- Focused pytest for the touched and adjacent surface: 254 passed / 1 skipped across the
+- Focused pytest for the touched and adjacent surface (final clean run): 259 passed / 1 skipped across the
   tool-calling, tools, CLI, bot-deletion, templates and skills sets, plus 162 passed / 23 skipped
   / 3 xfailed across engine, engine-loop, integration-catalog/contract, offline, sandbox,
   doctor/health, skills and stats sets.
