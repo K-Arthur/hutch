@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import typer
 
+from .cli_facts import install_bot_fact_commands
 
-def install_bot_destroy_command(bot_app, store_factory, require_bot, err, console) -> None:
-    """Attach the governed permanent-deletion command to the existing bot group."""
+
+def install_bot_data_commands(bot_app, store_factory, require_bot, err, console) -> None:
+    """Attach the governed fact-purge and whole-Bot deletion commands to the existing bot group."""
+    install_bot_fact_commands(bot_app, store_factory, require_bot, err, console)
     _install_destroy(bot_app, store_factory, require_bot, err, console)
 
 
