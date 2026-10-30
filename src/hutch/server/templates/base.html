@@ -6,6 +6,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  {#- The response policy is no-referrer, which makes Chromium send `Origin: null` on same-origin form posts and
+      the same-origin guard refuse them. A same-origin referrer is visible only to this server. #}
+  <meta name="referrer" content="same-origin">
   <title>{% block title %}Hutch{% endblock %} — Hutch</title>
   <meta name="csrf" content="{{ csrf }}">
   <link rel="icon" href="/static/favicon.svg?v=cada88dd" type="image/svg+xml">

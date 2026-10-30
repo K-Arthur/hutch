@@ -4,6 +4,7 @@
 {% from "macros/modal.html" import confirm_form %}
 {% block title %}Models{% endblock %}
 {% block flash %}{% endblock %}
+{% block head %}{% if not v.configured_routes %}<script src="/static/models-detect.js" defer></script>{% endif %}{% endblock %}
 {% macro fitchip(f) -%}
   <span class="chip fit-{{ f.status }}">{{ f.label }}</span>
 {%- endmacro %}
@@ -85,6 +86,13 @@
     </ul>
   </div>
 </div>
+{% endif %}
+
+{% if not v.configured_routes %}
+<section class="panel" id="detected-service" aria-labelledby="detected-h" data-no-routes="1" data-csrf="{{ csrf }}" hidden>
+  <h2 id="detected-h" class="card-title">{{ icon("cpu", 18) }} Detected AI service</h2>
+  <div id="detected-body" role="status" aria-live="polite"></div>
+</section>
 {% endif %}
 
 <section class="panel" id="configured-models" aria-labelledby="cfg-models-h">
@@ -174,8 +182,8 @@
   {% else %}
   <div class="empty">
     {{ icon("cpu", 32) }}
-    <p><strong>No model routes configured</strong></p>
-    <p class="muted">Hutch needs at least one model route to power your assistants. Start local Ollama, connect a provider, or add a custom model route below.</p>
+    <p><strong>No model routes saved yet</strong></p>
+    <p class="muted">Hutch needs a saved model route to power your assistants. If an AI service was detected, use it above; otherwise start local Ollama, connect a provider, or add a custom model route below.</p>
     <div class="card-actions">
       <a href="#add-model" class="btn small primary">{{ icon("plus", 14) }} Add model</a>
       <a href="/#/connections" class="btn small ghost">{{ icon("layers", 14) }} Connect a provider</a>

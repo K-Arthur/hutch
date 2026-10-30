@@ -83,3 +83,12 @@ def test_assistants_row_appears_at_ten_assistants_or_when_active(client):
     for index in range(2, 10):
         store.create_bot(Bot(name=f"few-{index}"))
     assert 'data-nav="bots"' in _sidebar(client.get("/models", headers=BROWSER).text)
+
+
+@pytest.mark.parametrize("path", ["/models", "/usage", "/legacy/connections", "/bots/delete"])
+def test_server_pages_keep_their_plain_forms_usable(client, path):
+    """With `Referrer-Policy: no-referrer` Chromium posts `Origin: null` and the same-origin guard
+    refuses every form on the page (a 403 on /models/set-default). Same-origin referrers are visible
+    only to this server, so server pages opt back in, as the first-run page already did."""
+    text = client.get(path, headers=BROWSER).text
+    assert '<meta name="referrer" content="same-origin">' in text, path
