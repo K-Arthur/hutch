@@ -10,10 +10,10 @@
 -#}
 {% from "_icons.html" import icon %}
 
-{% macro app_sidebar(nav_active, nav_primary, nav_more, nav_foot, more_open, pending_count) -%}
+{% macro app_sidebar(nav_active, nav_primary, nav_more, nav_foot, more_open, pending_count, roster=[]) -%}
 <aside class="workspace" id="workspace" aria-label="Workspace">
   <header class="ws-brand">
-    <a class="brand" href="/#/chat" aria-label="hutch - open main chat">
+    <a class="brand" href="/#/chat" aria-label="hutch — open main chat">
       <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><path d="M 16.00 2.80 C 23.80 2.80 29.00 7.90 29.00 14.80 L 29.00 26.80 A 2.40 2.40 0 0 1 24.20 26.80 L 24.20 25.40 A 2.90 2.90 0 0 0 18.40 25.40 L 18.40 26.80 A 2.40 2.40 0 0 1 13.60 26.80 L 13.60 25.40 A 2.90 2.90 0 0 0 7.80 25.40 L 7.80 26.80 A 2.40 2.40 0 0 1 3.00 26.80 L 3.00 14.80 C 3.00 7.90 8.20 2.80 16.00 2.80 Z M 12.00 7.60 L 20.00 7.60 A 5.80 5.80 0 0 1 25.80 13.40 L 25.80 14.80 A 3.80 3.80 0 0 1 22.00 18.60 L 10.00 18.60 A 3.80 3.80 0 0 1 6.20 14.80 L 6.20 13.40 A 5.80 5.80 0 0 1 12.00 7.60 Z M 11.63 10.63 C 12.81 10.46 13.93 11.50 14.13 12.95 C 14.33 14.40 13.54 15.71 12.37 15.87 C 11.19 16.04 10.07 15.00 9.87 13.55 C 9.67 12.10 10.46 10.79 11.63 10.63 Z M 20.37 10.38 C 21.54 10.54 22.33 11.85 22.13 13.30 C 21.93 14.75 20.81 15.79 19.63 15.62 C 18.46 15.46 17.67 14.15 17.87 12.70 C 18.07 11.25 19.19 10.21 20.37 10.38 Z" fill="var(--color-semantic-brand)" fill-rule="evenodd"/></svg>
       <span class="brand-name brand-wordmark">hutch</span>
     </a>
@@ -33,6 +33,20 @@
       {%- endfor %}
     </details>
   </nav>
+
+  <section class="ws-roster" aria-label="Your assistants">
+    <div class="roster-head">
+      <h2 class="roster-title">Assistants</h2>
+      <a class="icon-btn roster-new" href="/#/assistant/new" aria-label="New assistant" title="New assistant">{{ icon("plus", 16) }}</a>
+    </div>
+    {%- if roster %}
+    <div class="roster-list">
+      {%- for item in roster %}
+      <a class="roster-row" href="/#/chat/{{ item.name }}"><span class="roster-name">{{ item.label }}</span></a>
+      {%- endfor %}
+    </div>
+    {%- endif %}
+  </section>
 
   <footer class="ws-foot">
     {%- for key, href, label, ic in nav_foot %}

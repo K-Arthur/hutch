@@ -31,6 +31,8 @@ from .security import AUTH_COOKIE, auth_digest, check_csrf
 from .sse import FINISHED, live_stream, resume_cursor, run_event_stream
 from ..estimate import estimate_run
 
+ROSTER_LIMIT = 12  # assistants listed in the server shell; the manager (from ten assistants) shows them all
+
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 PAGE_WINDOW = 200            # transcript events rendered on first paint (PF-9)
 RUNS_PAGE = 50
@@ -70,9 +72,16 @@ def register_pages(app: FastAPI) -> None:
     def page(request: Request, name: str, nav: str = "", status_code: int = 200, **ctx) -> Response:
         flash, flash_err = request.cookies.get(FLASH), request.cookies.get(FLASH_ERR)
         active = normalize_nav(nav)
+        bots = store.list_bots()
+        # The SPA offers the Assistants manager from ten assistants (PRODUCT.md); server pages follow
+        # the same rule, and always show it while it is the active destination.
+        show_fleet = len(bots) >= 10 or active == "bots"
         base = {
             "request": request, "nav": nav, "nav_active": active,
-            "nav_primary": PRIMARY, "nav_more": MORE, "nav_foot": FOOT,
+            "nav_primary": PRIMARY, "nav_foot": FOOT,
+            "nav_more": [item for item in MORE if item[0] != "bots" or show_fleet],
+            "nav_roster": [{"name": b.name, "label": (b.display_name or b.name).split(" · ")[0]}
+                           for b in bots[:ROSTER_LIMIT]],
             "nav_more_open": active in MORE_KEYS,
             "csrf": getattr(request.state, "csrf", ""),
             "pending_count": len(store.pending_approvals()), "version": __version__,

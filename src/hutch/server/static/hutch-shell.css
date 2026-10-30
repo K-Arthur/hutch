@@ -56,6 +56,45 @@
 .hutch-shell .ws-nav { flex: none; }
 .hutch-shell .ws-foot { margin-top: auto; }
 
+/* Assistants roster: same position and wording as the SPA sidebar, plain links on server pages. */
+.hutch-shell .ws-roster {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  min-height: 0;
+  padding: var(--space-2) var(--space-3);
+  overflow-y: auto;
+}
+.ws-roster .roster-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: var(--space-3) 0;
+}
+.ws-roster .roster-title {
+  margin: 0;
+  color: var(--color-semantic-text-3);
+  font: 600 0.75rem/1 var(--font-body);
+  letter-spacing: 0.04em;
+}
+.ws-roster .roster-list { display: grid; gap: 2px; }
+.ws-roster .roster-row {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  color: var(--color-semantic-text-2);
+  font: 500 0.875rem/1 var(--font-body);
+  text-decoration: none;
+}
+.ws-roster .roster-row:hover { color: var(--color-semantic-text); background: var(--color-semantic-raised); }
+.ws-roster .roster-row:focus-visible { outline: 2px solid var(--color-semantic-focus, currentColor); outline-offset: -2px; }
+.ws-roster .roster-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 480px) {
+  .ws-roster .roster-new, .ws-roster .roster-row { min-height: 44px; }
+}
+
 /* ── main column ── */
 .hutch-workspace {
   display: flex;

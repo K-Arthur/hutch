@@ -62,7 +62,7 @@
   <a class="skip" href="#main">Skip to content</a>
   {% if chrome|default(true) %}
   <div class="hutch-shell">
-    {{ app_sidebar(nav_active, nav_primary, nav_more, nav_foot, nav_more_open, pending_count) }}
+    {{ app_sidebar(nav_active, nav_primary, nav_more, nav_foot, nav_more_open, pending_count, nav_roster) }}
     <div class="ws-scrim" id="ws-scrim" hidden></div>
     <div class="hutch-workspace">
       <!-- Contextual header: the page's own controls only. Primary navigation
@@ -92,7 +92,7 @@
     {% block content %}{% endblock %}
   </main>
   {% if chrome|default(true) %}
-      <footer class="foot">hutch {{ version }} - local-first - <span class="mono">{{ state_dir }}</span></footer>
+      <footer class="foot">hutch {{ version }} · local-first</footer>
     </div>
   </div>
   {% endif %}
