@@ -1,0 +1,338 @@
+/* ============================================================================
+   Hutch theme overrides - explicit dark parity and a derived light counterpart
+
+   Load path: imported by app/src/input.css after hutch-tokens.css and the two
+   surface sheets, so the scopes below win at equal specificity by source order.
+   They are compiled into the dashboard's first stylesheet (static/ui.css).
+
+   Premise, verified against this checkout
+   ---------------------------------------
+   Hutch is dark-first: hutch-tokens.css owns one `:root` alias tier that IS the
+   shipped operator theme, and no light palette exists anywhere in app/src,
+   src/hutch/web or the templates. This sheet therefore does two things:
+
+     1. `:root[data-hutch-theme="dark"]` restates the existing alias tier by
+        reference to the existing `--hutch-static-*` primitives. It duplicates
+        no value: it makes today's dark tier explicit so a future default can
+        change without silently changing what "dark" means.
+     2. `:root[data-hutch-theme="light"]` is a counterpart derived by role
+        inversion from the same Hutch anchors, never from another product's
+        palette. Ground and raised surfaces come from the paper end of the
+        existing text family; labels come from the ink end; white-alpha
+        hairlines become ink-alpha hairlines; the emerald, azure, amber and rose
+        hue families are kept, and their luminance is adjusted only where a
+        status word or icon is read on a light surface.
+
+   No attribute means no change: every rule below is scoped to
+   `:root[data-hutch-theme]`, so the incumbent dashboard keeps rendering exactly
+   as before. The theme is presentation only - no server route, no storage, no
+   script. Activation of the attribute belongs to a later step; resolving a
+   `system` preference belongs there too (resolve it into the attribute the way
+   DeepSeek Harness's ThemeRuntime resolves a snapshot, rather than making this
+   sheet switch on `prefers-color-scheme` behind the fixed dark default).
+
+   Rules kept throughout
+   ---------------------
+   - Alias tier only: `--hutch-static-*`, type, space, radius, motion, icon
+     stroke and focus geometry stay scheme-invariant. Light elevation is the one
+     non-alias family that needs a per-scheme value, because its shadows and top
+     hairline were mixed for a dark ground.
+   - Values are expressed as `var(--hutch-static-*)` reads or
+     `color-mix(in oklab, <existing Hutch anchor> N%, white|black|transparent)`.
+     No new hex, no new hue family, no copied external palette.
+   - Roles that do not invert are named where they occur: status hues keep their
+     hue family (only luminance moves), masks and scrims stay dark ink alphas,
+     bot identity hues stay identity, and on-brand ink stays emerald-950.
+   - Meaning never moves to colour alone: every state still ships its word and
+     glyph in the component. The gate tiers stay calm in both modes.
+
+   The derivation, measured contrast and deliberate divergences are recorded in
+   docs/prompts/prompt-5-theme-overrides-report.md.
+   ========================================================================== */
+
+/* -- explicit dark tier: the shipped theme, restated by reference ---------- */
+
+:root[data-hutch-theme="dark"] {
+  color-scheme: dark;
+
+  /* Surfaces. The three mask/scrim aliases are literal ink alphas that read the
+     same over any ground and stay defined in hutch-tokens.css only. */
+  --hutch-alias-bg-base: var(--hutch-static-ink-850);
+  --hutch-alias-bg-sunken: var(--hutch-static-ink-950);
+  --hutch-alias-bg-sidebar: var(--hutch-static-ink-900);
+  --hutch-alias-bg-well: var(--hutch-static-ink-800);
+  --hutch-alias-bg-layer-1: var(--hutch-static-ink-700);
+  --hutch-alias-bg-layer-2: var(--hutch-static-ink-650);
+  --hutch-alias-bg-layer-3: var(--hutch-static-ink-500);
+  --hutch-alias-bg-layer-4: var(--hutch-static-ink-400);
+  --hutch-alias-bg-overlay: var(--hutch-static-ink-600);
+  --hutch-alias-bg-skeleton: var(--hutch-static-white-a05);
+
+  /* Labels. Primary/secondary/tertiary keep their 5:1-on-every-surface steps. */
+  --hutch-alias-label-primary: var(--hutch-static-text-100);
+  --hutch-alias-label-secondary: var(--hutch-static-text-200);
+  --hutch-alias-label-tertiary: var(--hutch-static-text-300);
+  --hutch-alias-label-caption: var(--hutch-static-text-300);
+  --hutch-alias-label-dimmed: var(--hutch-static-ink-350);
+  --hutch-alias-label-on-brand: var(--hutch-static-emerald-950);
+  --hutch-alias-label-inverted: var(--hutch-static-ink-950);
+
+  /* Borders. White alphas are the dark-side hairline ladder; edge is the
+     WCAG 1.4.11 control boundary. */
+  --hutch-alias-border-soft: var(--hutch-static-white-a06);
+  --hutch-alias-border-l1: var(--hutch-static-white-a05);
+  --hutch-alias-border-l2: var(--hutch-static-white-a07);
+  --hutch-alias-border-l3: var(--hutch-static-white-a12);
+  --hutch-alias-border-l4: var(--hutch-static-white-a22);
+  --hutch-alias-border-edge: var(--hutch-static-white-a38);
+
+  /* Brand. Emerald is the brand statement and the one primary action. */
+  --hutch-alias-brand-primary: var(--hutch-static-emerald-400);
+  --hutch-alias-brand-strong: var(--hutch-static-emerald-300);
+  --hutch-alias-brand-deep: var(--hutch-static-emerald-600);
+  --hutch-alias-brand-ink: var(--hutch-static-emerald-950);
+  --hutch-alias-brand-wash: color-mix(in oklab, var(--hutch-static-emerald-400) 9%, transparent);
+  --hutch-alias-brand-line: color-mix(in oklab, var(--hutch-static-emerald-400) 32%, transparent);
+
+  /* Interaction. Azure is interaction only. */
+  --hutch-alias-interactive-bg-hover: var(--hutch-static-white-a06);
+  --hutch-alias-interactive-bg-active: var(--hutch-static-white-a10);
+  --hutch-alias-interactive-bg-hover-solid: var(--hutch-static-ink-500);
+  --hutch-alias-focus-ring: var(--hutch-static-azure-400);
+  --hutch-alias-focus-wash: color-mix(in oklab, var(--hutch-static-azure-400) 14%, transparent);
+  --hutch-alias-focus-line: color-mix(in oklab, var(--hutch-static-azure-400) 45%, transparent);
+  --hutch-alias-selection-bg: color-mix(in oklab, var(--hutch-static-azure-400) 22%, transparent);
+  --hutch-alias-link: var(--hutch-static-emerald-400);
+
+  /* Buttons. Exactly one emerald primary; every other action stays quiet. */
+  --hutch-alias-button-primary-fill: var(--hutch-alias-brand-primary);
+  --hutch-alias-button-primary-hover: var(--hutch-alias-brand-strong);
+  --hutch-alias-button-primary-ink: var(--hutch-alias-brand-ink);
+  --hutch-alias-button-subtle-fill: var(--hutch-static-ink-500);
+  --hutch-alias-button-subtle-hover: var(--hutch-static-ink-400);
+  --hutch-alias-button-ghost-line: var(--hutch-alias-border-l3);
+  --hutch-alias-button-danger-line: color-mix(in oklab, var(--hutch-static-rose-400) 45%, transparent);
+  --hutch-alias-button-danger-wash: color-mix(in oklab, var(--hutch-static-rose-400) 10%, transparent);
+
+  /* States. Hue carries the family; the word and icon carry the state. */
+  --hutch-alias-state-success-primary: var(--hutch-static-emerald-400);
+  --hutch-alias-state-success-secondary: var(--hutch-static-emerald-300);
+  --hutch-alias-state-success-wash: var(--hutch-alias-brand-wash);
+  --hutch-alias-state-warn-primary: var(--hutch-static-amber-400);
+  --hutch-alias-state-warn-wash: color-mix(in oklab, var(--hutch-static-amber-400) 9%, transparent);
+  --hutch-alias-state-warn-line: color-mix(in oklab, var(--hutch-static-amber-400) 38%, transparent);
+  --hutch-alias-state-error-primary: var(--hutch-static-rose-400);
+  --hutch-alias-state-error-wash: color-mix(in oklab, var(--hutch-static-rose-400) 9%, transparent);
+  --hutch-alias-state-error-line: color-mix(in oklab, var(--hutch-static-rose-400) 40%, transparent);
+  --hutch-alias-state-idle-primary: var(--hutch-static-text-300);
+  --hutch-alias-state-info-primary: var(--hutch-static-azure-400);
+
+  /* Raised materials: menus, tooltips, toasts, code wells and switches. */
+  --hutch-alias-overlay-bg: var(--hutch-static-ink-600);
+  --hutch-alias-tooltip-bg: var(--hutch-static-ink-550);
+  --hutch-alias-tooltip-label: var(--hutch-static-text-100);
+  --hutch-alias-toast-bg: var(--hutch-static-ink-450);
+  --hutch-alias-toast-label: var(--hutch-static-text-100);
+  --hutch-alias-switch-thumb: var(--hutch-static-text-100);
+  --hutch-alias-code-bg: var(--hutch-static-ink-800);
+  --hutch-alias-code-line: var(--hutch-alias-border-l2);
+
+  /* Safety gates: where a thread stops until a person decides. */
+  --hutch-alias-gate-pending: var(--hutch-static-amber-400);
+  --hutch-alias-gate-pending-wash: var(--hutch-alias-state-warn-wash);
+  --hutch-alias-gate-pending-line: var(--hutch-alias-state-warn-line);
+  --hutch-alias-gate-approved: var(--hutch-static-emerald-400);
+  --hutch-alias-gate-approved-wash: var(--hutch-alias-brand-wash);
+  --hutch-alias-gate-approved-line: var(--hutch-alias-brand-line);
+  --hutch-alias-gate-denied: var(--hutch-static-rose-400);
+  --hutch-alias-gate-denied-wash: var(--hutch-alias-state-error-wash);
+  --hutch-alias-gate-denied-line: var(--hutch-alias-state-error-line);
+  --hutch-alias-gate-risk-line: var(--hutch-alias-state-error-line);
+
+  /* Local-first truth: the machine is the product boundary. */
+  --hutch-alias-local-online: var(--hutch-static-emerald-400);
+  --hutch-alias-local-idle: var(--hutch-static-text-300);
+  --hutch-alias-local-unconfirmed: var(--hutch-static-azure-400);
+
+  /* Icons. Colour only restates the label or state beside the glyph. */
+  --hutch-icon-color-primary: var(--hutch-alias-label-primary);
+  --hutch-icon-color-secondary: var(--hutch-alias-label-secondary);
+  --hutch-icon-color-muted: var(--hutch-alias-label-tertiary);
+  --hutch-icon-color-disabled: var(--hutch-alias-label-dimmed);
+  --hutch-icon-color-menu: var(--hutch-alias-label-secondary);
+  --hutch-icon-color-on-brand: var(--hutch-alias-label-on-brand);
+  --hutch-icon-color-attention: var(--hutch-alias-state-warn-primary);
+  --hutch-icon-color-danger: var(--hutch-alias-state-error-primary);
+  --hutch-icon-color-success: var(--hutch-alias-state-success-primary);
+
+  /* Bot management. Identity tints the avatar and its thread only. */
+  --hutch-alias-bot-identity-1: var(--hutch-static-identity-1);
+  --hutch-alias-bot-identity-2: var(--hutch-static-identity-2);
+  --hutch-alias-bot-identity-3: var(--hutch-static-identity-3);
+  --hutch-alias-bot-identity-4: var(--hutch-static-identity-4);
+  --hutch-alias-bot-identity-5: var(--hutch-static-identity-5);
+  --hutch-alias-bot-identity-6: var(--hutch-static-identity-6);
+  --hutch-alias-bot-identity-7: var(--hutch-static-identity-7);
+  --hutch-alias-bot-identity-8: var(--hutch-static-identity-8);
+  --hutch-alias-bot-thread-line: color-mix(in oklab, var(--hutch-static-text-300) 35%, transparent);
+  --hutch-alias-roster-hover: var(--hutch-alias-interactive-bg-hover);
+}
+
+/* -- derived light tier: role inversion from the same Hutch anchors --------- */
+
+:root[data-hutch-theme="light"] {
+  color-scheme: light;
+
+  /* Ground and raised surfaces come from the paper end of the text family:
+     base is the paper step itself, sunken/rail/well recess with ink, and raised
+     layers step toward white instead of away from it. The scrim is a canvas
+     material (it equals the dark base surface at 94% in the base sheet, and the
+     generated brand tokens call the same value a nav scrim), so it tracks the
+     mode's own base surface; the two masks are dimming overlays and stay ink. */
+  --hutch-alias-bg-base: var(--hutch-static-text-100);
+  --hutch-alias-bg-sunken: color-mix(in oklab, var(--hutch-static-text-100) 94%, black);
+  --hutch-alias-bg-sidebar: color-mix(in oklab, var(--hutch-static-text-100) 98%, black);
+  --hutch-alias-bg-well: color-mix(in oklab, var(--hutch-static-text-100) 97%, black);
+  --hutch-alias-bg-layer-1: color-mix(in oklab, var(--hutch-static-text-100) 90%, white);
+  --hutch-alias-bg-layer-2: color-mix(in oklab, var(--hutch-static-text-100) 82%, white);
+  --hutch-alias-bg-layer-3: color-mix(in oklab, var(--hutch-static-text-100) 72%, white);
+  --hutch-alias-bg-layer-4: color-mix(in oklab, var(--hutch-static-text-100) 60%, white);
+  --hutch-alias-bg-overlay: color-mix(in oklab, var(--hutch-static-text-100) 72%, white);
+  --hutch-alias-bg-skeleton: color-mix(in oklab, var(--hutch-static-ink-950) 6%, transparent);
+  --hutch-alias-bg-scrim: color-mix(in oklab, var(--hutch-static-text-100) 94%, transparent);
+
+  /* Labels come from the ink end. The steps are chosen so primary, secondary
+     and tertiary keep the same 5:1-on-every-surface order as the dark tier.
+     label-inverted carries ink on a light status fill, so on paper it becomes
+     the near-white step; on-brand ink stays emerald-950. */
+  --hutch-alias-label-primary: var(--hutch-static-ink-950);
+  --hutch-alias-label-secondary: color-mix(in oklab, var(--hutch-static-ink-950) 76%, white);
+  --hutch-alias-label-tertiary: color-mix(in oklab, var(--hutch-static-ink-950) 66%, white);
+  --hutch-alias-label-caption: color-mix(in oklab, var(--hutch-static-ink-950) 66%, white);
+  --hutch-alias-label-dimmed: color-mix(in oklab, var(--hutch-static-ink-950) 22%, white);
+  --hutch-alias-label-on-brand: var(--hutch-static-emerald-950);
+  --hutch-alias-label-inverted: var(--hutch-static-text-100);
+
+  /* Hairlines become ink alphas; edge reaches 3:1 on every light surface. */
+  --hutch-alias-border-soft: color-mix(in oklab, var(--hutch-static-ink-950) 6%, transparent);
+  --hutch-alias-border-l1: color-mix(in oklab, var(--hutch-static-ink-950) 5%, transparent);
+  --hutch-alias-border-l2: color-mix(in oklab, var(--hutch-static-ink-950) 7%, transparent);
+  --hutch-alias-border-l3: color-mix(in oklab, var(--hutch-static-ink-950) 12%, transparent);
+  --hutch-alias-border-l4: color-mix(in oklab, var(--hutch-static-ink-950) 22%, transparent);
+  --hutch-alias-border-edge: color-mix(in oklab, var(--hutch-static-ink-950) 50%, transparent);
+
+  /* Brand keeps the emerald family. The fill stays emerald-400 so the One-Ink
+     Rule holds; the strong/deep steps move to the darker emerald anchors
+     because a hover/press step must move away from light paper, not toward it.
+     Tints are re-anchored to the darker emerald for visibility on paper. */
+  --hutch-alias-brand-primary: var(--hutch-static-emerald-400);
+  --hutch-alias-brand-strong: var(--hutch-static-emerald-600);
+  --hutch-alias-brand-deep: var(--hutch-static-emerald-900);
+  --hutch-alias-brand-ink: var(--hutch-static-emerald-950);
+  --hutch-alias-brand-wash: color-mix(in oklab, var(--hutch-static-emerald-400) 14%, transparent);
+  --hutch-alias-brand-line: color-mix(in oklab, var(--hutch-static-emerald-600) 45%, transparent);
+
+  /* Interaction keeps azure. The focus ring needs the darker end of the azure
+     family on paper; the translucent washes stay alpha tints of the same hue. */
+  --hutch-alias-interactive-bg-hover: color-mix(in oklab, var(--hutch-static-ink-950) 6%, transparent);
+  --hutch-alias-interactive-bg-active: color-mix(in oklab, var(--hutch-static-ink-950) 10%, transparent);
+  --hutch-alias-interactive-bg-hover-solid: color-mix(in oklab, var(--hutch-static-text-100) 93%, black);
+  --hutch-alias-focus-ring: color-mix(in oklab, var(--hutch-static-azure-400) 60%, black);
+  --hutch-alias-focus-wash: color-mix(in oklab, var(--hutch-static-azure-400) 14%, transparent);
+  --hutch-alias-focus-line: color-mix(in oklab, var(--hutch-static-azure-400) 45%, transparent);
+  --hutch-alias-selection-bg: color-mix(in oklab, var(--hutch-static-azure-400) 22%, transparent);
+  --hutch-alias-link: var(--hutch-static-emerald-900);
+
+  /* Buttons. The primary pair resolves through the light brand aliases; the
+     quiet fills recess from paper and the danger border reuses the light error
+     step so the destructive action stays legible without becoming loud. */
+  --hutch-alias-button-primary-fill: var(--hutch-alias-brand-primary);
+  --hutch-alias-button-primary-hover: var(--hutch-alias-brand-strong);
+  --hutch-alias-button-primary-ink: var(--hutch-alias-brand-ink);
+  --hutch-alias-button-subtle-fill: color-mix(in oklab, var(--hutch-static-text-100) 94%, black);
+  --hutch-alias-button-subtle-hover: color-mix(in oklab, var(--hutch-static-text-100) 88%, black);
+  --hutch-alias-button-ghost-line: var(--hutch-alias-border-l3);
+  --hutch-alias-button-danger-line: color-mix(in oklab, var(--hutch-alias-state-error-primary) 55%, transparent);
+  --hutch-alias-button-danger-wash: color-mix(in oklab, var(--hutch-alias-state-error-primary) 12%, transparent);
+
+  /* States. Hue families are unchanged; only luminance moves, far enough that
+     the state word or icon clears 5:1 on every light surface. Washes and rails
+     are alpha tints of the same adjusted anchor, so a state reads as one
+     material rather than a mix of two palettes. The warn step is dark enough
+     to be read as text on paper; the warn Button therefore takes the
+     label-inverted near-white ink, which is the same role it has in dark. */
+  --hutch-alias-state-success-primary: color-mix(in oklab, var(--hutch-static-emerald-400) 55%, black);
+  --hutch-alias-state-success-secondary: color-mix(in oklab, var(--hutch-static-emerald-400) 42%, black);
+  --hutch-alias-state-success-wash: var(--hutch-alias-brand-wash);
+  --hutch-alias-state-warn-primary: color-mix(in oklab, var(--hutch-static-amber-400) 50%, black);
+  --hutch-alias-state-warn-wash: color-mix(in oklab, var(--hutch-alias-state-warn-primary) 12%, transparent);
+  --hutch-alias-state-warn-line: color-mix(in oklab, var(--hutch-alias-state-warn-primary) 42%, transparent);
+  --hutch-alias-state-error-primary: color-mix(in oklab, var(--hutch-static-rose-400) 55%, black);
+  --hutch-alias-state-error-wash: color-mix(in oklab, var(--hutch-alias-state-error-primary) 12%, transparent);
+  --hutch-alias-state-error-line: color-mix(in oklab, var(--hutch-alias-state-error-primary) 42%, transparent);
+  --hutch-alias-state-idle-primary: var(--hutch-alias-label-tertiary);
+  --hutch-alias-state-info-primary: color-mix(in oklab, var(--hutch-static-azure-400) 60%, black);
+
+  /* Raised materials: menus and tooltips are the near-white end of paper. */
+  --hutch-alias-overlay-bg: color-mix(in oklab, var(--hutch-static-text-100) 72%, white);
+  --hutch-alias-tooltip-bg: color-mix(in oklab, var(--hutch-static-text-100) 45%, white);
+  --hutch-alias-tooltip-label: var(--hutch-static-ink-950);
+  --hutch-alias-toast-bg: color-mix(in oklab, var(--hutch-static-text-100) 28%, white);
+  --hutch-alias-toast-label: var(--hutch-static-ink-950);
+  --hutch-alias-switch-thumb: var(--hutch-static-ink-950);
+  --hutch-alias-code-bg: color-mix(in oklab, var(--hutch-static-text-100) 97%, black);
+  --hutch-alias-code-line: var(--hutch-alias-border-l2);
+
+  /* Safety gates. The three tiers resolve through the adjusted state steps so
+     pending, approved and denied stay one calm material each: a quiet wash, a
+     rail, the state word and glyph. Risk is an outline, never a fill. */
+  --hutch-alias-gate-pending: var(--hutch-alias-state-warn-primary);
+  --hutch-alias-gate-pending-wash: var(--hutch-alias-state-warn-wash);
+  --hutch-alias-gate-pending-line: var(--hutch-alias-state-warn-line);
+  --hutch-alias-gate-approved: var(--hutch-alias-state-success-primary);
+  --hutch-alias-gate-approved-wash: var(--hutch-alias-brand-wash);
+  --hutch-alias-gate-approved-line: var(--hutch-alias-brand-line);
+  --hutch-alias-gate-denied: var(--hutch-alias-state-error-primary);
+  --hutch-alias-gate-denied-wash: var(--hutch-alias-state-error-wash);
+  --hutch-alias-gate-denied-line: var(--hutch-alias-state-error-line);
+  --hutch-alias-gate-risk-line: var(--hutch-alias-state-error-line);
+
+  /* Local-first truth follows the same adjusted state steps. */
+  --hutch-alias-local-online: var(--hutch-alias-state-success-primary);
+  --hutch-alias-local-idle: var(--hutch-alias-label-tertiary);
+  --hutch-alias-local-unconfirmed: var(--hutch-alias-state-info-primary);
+
+  /* Icons restate the label and state jobs they follow; the wrapper needs no
+     new family because every icon role is a reference to one of those tiers. */
+  --hutch-icon-color-primary: var(--hutch-alias-label-primary);
+  --hutch-icon-color-secondary: var(--hutch-alias-label-secondary);
+  --hutch-icon-color-muted: var(--hutch-alias-label-tertiary);
+  --hutch-icon-color-disabled: var(--hutch-alias-label-dimmed);
+  --hutch-icon-color-menu: var(--hutch-alias-label-secondary);
+  --hutch-icon-color-on-brand: var(--hutch-alias-label-on-brand);
+  --hutch-icon-color-attention: var(--hutch-alias-state-warn-primary);
+  --hutch-icon-color-danger: var(--hutch-alias-state-error-primary);
+  --hutch-icon-color-success: var(--hutch-alias-state-success-primary);
+
+  /* Bot management: identity hues are identity, not state, so the eight
+     identity statics stay unchanged and only the thread line inverts. */
+  --hutch-alias-bot-thread-line: color-mix(in oklab, var(--hutch-static-ink-950) 22%, transparent);
+  --hutch-alias-roster-hover: var(--hutch-alias-interactive-bg-hover);
+
+  /* Overlay contract, light counterpart: the scrim stays an ink material and
+     only its opacity moves; floating surfaces swap black ambient shadow for ink
+     alphas. Z ordering and motion are scheme-invariant. */
+  --hutch-overlay-scrim-opacity: 0.52;
+  --hutch-overlay-scrim-strong-opacity: 0.66;
+  --hutch-elevation-overlay-tooltip: 0 0 0 1px color-mix(in oklab, var(--hutch-static-ink-950) 6%, transparent), 0 2px 6px color-mix(in oklab, var(--hutch-static-ink-950) 8%, transparent);
+  --hutch-elevation-overlay-dropdown: 0 0 0 1px color-mix(in oklab, var(--hutch-static-ink-950) 7%, transparent), 0 2px 4px color-mix(in oklab, var(--hutch-static-ink-950) 6%, transparent), 0 14px 34px -10px color-mix(in oklab, var(--hutch-static-ink-950) 10%, transparent);
+  --hutch-elevation-overlay-modal: 0 0 0 1px color-mix(in oklab, var(--hutch-static-ink-950) 8%, transparent), 0 12px 28px color-mix(in oklab, var(--hutch-static-ink-950) 10%, transparent), 0 44px 96px -16px color-mix(in oklab, var(--hutch-static-ink-950) 14%, transparent);
+
+  /* Light elevation. The dark sheet builds depth from black shadows and a
+     white top hairline; on paper both must read as ink rather than as glow. */
+  --hutch-elevation-stroke-color: color-mix(in oklab, var(--hutch-static-ink-950) 6%, transparent);
+  --hutch-elevation-control: var(--hutch-elevation-stroke), 0 1px 2px color-mix(in oklab, var(--hutch-static-ink-950) 8%, transparent), 0 4px 14px -4px color-mix(in oklab, var(--hutch-static-ink-950) 8%, transparent);
+  --hutch-elevation-panel: inset 0 1px 0 color-mix(in oklab, var(--hutch-static-ink-950) 5%, transparent), 0 2px 4px color-mix(in oklab, var(--hutch-static-ink-950) 6%, transparent), 0 14px 34px -10px color-mix(in oklab, var(--hutch-static-ink-950) 10%, transparent);
+  --hutch-elevation-overlay: 0 0 0 1px color-mix(in oklab, var(--hutch-static-ink-950) 8%, transparent), 0 8px 16px color-mix(in oklab, var(--hutch-static-ink-950) 8%, transparent), 0 28px 64px -12px color-mix(in oklab, var(--hutch-static-ink-950) 12%, transparent);
+  --hutch-elevation-soft: inset 0 1px 0 color-mix(in oklab, var(--hutch-static-ink-950) 5%, transparent), 0 2px 10px color-mix(in oklab, var(--hutch-static-ink-950) 6%, transparent);
+}

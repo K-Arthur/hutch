@@ -1,0 +1,85 @@
+/* ============================================================================
+   Hutch overlay tokens - the floating-layer slice of the token layer
+
+   Split from hutch-tokens.css when the token source reached the repo's 400-line
+   source budget (scripts/audit_context_hygiene.py). It is not a second token
+   layer: hutch-tokens.css remains authoritative for palette, type, space,
+   radius, elevation, motion and focus geometry; this file owns the families the
+   overlay pass added, and the shipped mirror lives in
+   src/hutch/server/static/hutch-overlays.css.
+
+   Ordering rationale
+   ------------------
+   base 0 < tooltip 42 < dropdown 44 < popover 46 < modal 50 < toast 60 <
+   skip 70. The gaps let a category grow a variant without renumbering its
+   neighbours. In the native top layer the browser owns order and these numbers
+   are inert; they matter for the no-Popover-API fallback and for any positioned
+   overlay that is not in the top layer. Tooltips sit lowest because they are
+   descriptive, yet they still paint above inert content because they are
+   positioned. Toasts sit above modals so an action receipt stays readable while
+   a dialog is open.
+
+   Motion pairs with the reduced-motion block at the end of this file; enter is
+   decelerating, exit is shorter so a dismissed layer never blocks the surface
+   it reveals.
+   ========================================================================== */
+
+:root {
+  /* -- overlays: stacking, scrim, elevation, motion ----------------------- */
+
+  /* One explicit z-index ordering. Nothing outside this block may invent a
+     stacking number: base 0 < tooltip 42 < dropdown 44 < popover 46 <
+     modal 50 < toast 60 < skip 70. The gaps are deliberate: each category can
+     grow a variant (for example a menu inside a modal) without renumbering its
+     neighbours, and the three floating tiers keep their relative order when the
+     native Popover API is unavailable (in the top layer the browser owns the
+     order and these numbers are inert). Tooltip sits closest to the base
+     because it is descriptive and should never out-rank the surface it
+     annotates; it still paints above inert content because it is positioned. */
+  --hutch-z-base: 0;
+  /* Local stacking inside a floating surface (a sticky popup header above its
+     own scroller). Never part of the page layer scale. */
+  --hutch-z-local: 1;
+  --hutch-z-tooltip: 42;
+  --hutch-z-dropdown: 44;
+  --hutch-z-popover: 46;
+  --hutch-z-modal: 50;
+  --hutch-z-toast: 60;
+  --hutch-z-skip: 70;
+
+  /* Scrim: modals only. Colour is the deepest ink in both themes; the opacity
+     is the part that adapts (paper needs less dimming than graphite to reach
+     the same perceived separation). The mask aliases below keep their existing
+     jobs; these four names are the overlay contract. */
+  --hutch-overlay-scrim-color: var(--hutch-static-ink-950);
+  --hutch-overlay-scrim-opacity: 0.72;
+  --hutch-overlay-scrim-strong-opacity: 0.84;
+  --hutch-overlay-scrim-blur: 0px;
+  --hutch-overlay-scrim: color-mix(in oklab, var(--hutch-overlay-scrim-color) calc(var(--hutch-overlay-scrim-opacity) * 100%), transparent);
+
+  /* Motion for the four overlay categories: enter is short and decelerating,
+     exit is shorter so a dismissed layer never blocks the revealed surface.
+     Both pair with the reduced-motion block at the end of this file. */
+  --hutch-motion-overlay-enter-duration: var(--hutch-motion-duration-base);
+  --hutch-motion-overlay-exit-duration: var(--hutch-motion-duration-fast);
+  --hutch-motion-overlay-enter-ease: var(--hutch-motion-ease-out);
+  --hutch-motion-overlay-exit-ease: var(--hutch-motion-ease-standard);
+  --hutch-motion-overlay-shift: 10px;
+  --hutch-motion-overlay-scale-enter: 0.985;
+  --hutch-motion-overlay-scale-exit: 0.99;
+
+  --hutch-focus-ring: var(--hutch-focus-ring-width) var(--hutch-focus-ring-style) var(--hutch-focus-ring-color);
+  --hutch-focus-ring-inset: inset 0 0 0 var(--hutch-focus-ring-width) var(--hutch-focus-ring-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    /* Near-zero, not display:none: the state change still happens, focus still
+       moves, and the scrim still appears - only the travel goes. */
+    --hutch-motion-overlay-enter-duration: 1ms;
+    --hutch-motion-overlay-exit-duration: 1ms;
+    --hutch-motion-overlay-shift: 0px;
+    --hutch-motion-overlay-scale-enter: 1;
+    --hutch-motion-overlay-scale-exit: 1;
+  }
+}

@@ -1,7 +1,7 @@
 /* Model switcher (composer menu + all-models dialog). Uses the studio's design-system
-   tokens only; the menu is anchored to the composer box so it can never be cut off
+   tokens only; the menu is anchored to the composer shell so it can never be cut off
    by the bot rail on a phone. */
-.composer-box { position: relative; }
+.hutch-composer { position: relative; }
 .model-switch-slot { display: inline-flex; }
 .ms-btn {
   display: inline-flex; align-items: center; gap: 8px; max-width: 260px; min-height: 40px; padding: 0 12px;

@@ -1,0 +1,378 @@
+/* ============================================================================
+   Hutch redesign surfaces - approval gate and run transcript
+
+   Hand-written companion to hutch-tokens.css for the two unwired prototype
+   surfaces (components/ApprovalGate.tsx, components/RunTranscript.tsx) and the
+   Button primitive they compose. The TSX files carry resting layout inline;
+   this sheet owns interaction, focus, disabled, state and responsive rules.
+
+   Colour jobs: pending amber (a person is needed now), approved emerald, denied
+   and expired rose; azure is interaction and focus only. Every state also
+   carries its visible word and glyph, so colour never stands alone. Machine
+   text uses the mono roles, prose the body and label roles.
+
+   No custom properties, colour literals or imports: every value is a token
+   read (--hutch-* name) declared in hutch-tokens.css.
+   ============================================================================ */
+
+/* -- shared ---------------------------------------------------------------- */
+
+/* The word fallback for a state that the surface also carries in colour. */
+.hutch-visually-hidden {
+  border: 0;
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* One keyboard ring for every focusable seat in either surface, including the
+   code wells that are focusable so they can be scrolled from the keyboard. */
+.hutch-button:focus-visible,
+.hutch-approval-gate__action:focus-visible,
+.hutch-approval-gate__context:focus-visible,
+.hutch-run-transcript__title:focus-visible,
+[data-hutch-run-focus="title"]:focus-visible,
+pre[tabindex="0"]:focus-visible {
+  outline: var(--hutch-focus-ring-width) var(--hutch-focus-ring-style) var(--hutch-focus-ring-color);
+  outline-offset: var(--hutch-focus-ring-offset);
+}
+
+/* Recorded machine text keeps its own wrapping and scrolls inline rather than
+   being clipped; the line stays tabular so columns do not drift. */
+.hutch-approval-gate__code,
+.hutch-run-transcript__code,
+.hutch-run-transcript__diff,
+.hutch-run-transcript__well {
+  max-width: 100%;
+  min-width: 0;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+  tab-size: 2;
+}
+
+/* -- Button primitive ------------------------------------------------------ */
+
+/* Resting fill, ink, edge and height arrive as inline styles from
+   ui/Button.tsx, so the documented state colours below need !important to
+   replace that style attribute. Heights stay on the shared 32/36/40px ladder. */
+.hutch-button {
+  transition:
+    background-color var(--hutch-motion-duration-fast) var(--hutch-motion-ease-standard),
+    border-color var(--hutch-motion-duration-fast) var(--hutch-motion-ease-standard),
+    box-shadow var(--hutch-motion-duration-fast) var(--hutch-motion-ease-standard),
+    color var(--hutch-motion-duration-fast) var(--hutch-motion-ease-standard);
+}
+.hutch-button__icon { align-items: center; display: inline-flex; flex: none; }
+.hutch-button--sm { min-height: var(--hutch-size-control-sm); }
+.hutch-button--md { min-height: var(--hutch-size-control-md); }
+.hutch-button--lg { min-height: var(--hutch-size-control-lg); }
+
+.hutch-button:hover:not(:disabled) { box-shadow: var(--hutch-elevation-control); }
+.hutch-button--primary:hover:not(:disabled) {
+  background-color: var(--hutch-alias-button-primary-hover) !important;
+}
+.hutch-button--ghost:hover:not(:disabled) {
+  background-color: var(--hutch-alias-interactive-bg-hover) !important;
+  border-color: var(--hutch-alias-border-l4) !important;
+}
+.hutch-button--danger:hover:not(:disabled) {
+  background-color: var(--hutch-alias-button-danger-wash) !important;
+  border-color: var(--hutch-alias-button-danger-line) !important;
+}
+.hutch-button--warn:hover:not(:disabled) {
+  box-shadow: inset 0 0 0 1px var(--hutch-alias-label-inverted), var(--hutch-elevation-control);
+}
+
+.hutch-button:active:not(:disabled) { transform: translateY(1px); }
+.hutch-button--primary:active:not(:disabled) {
+  background-color: var(--hutch-alias-button-primary-hover) !important;
+}
+.hutch-button--ghost:active:not(:disabled),
+.hutch-button--danger:active:not(:disabled) {
+  background-color: var(--hutch-alias-interactive-bg-active) !important;
+}
+
+/* Disabled ink is the documented --hutch-alias-label-dimmed role; the opacity
+   makes a control read as inert without recolouring its variant. */
+.hutch-button:disabled,
+.hutch-button[aria-disabled="true"] {
+  box-shadow: none;
+  color: var(--hutch-alias-label-dimmed) !important;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* -- approval gate --------------------------------------------------------- */
+
+.hutch-approval-gate {
+  min-width: 0;
+  position: relative;
+  transition: border-color var(--hutch-motion-duration-fast) var(--hutch-motion-ease-standard);
+}
+
+/* Redundant state rail above the card: the wash, border, status word and glyph
+   already carry the state; this adds a quiet second cue that also survives the
+   resolved ledger row. Colour comes from the four gate roles only. */
+.hutch-approval-gate::before {
+  background-color: var(--hutch-alias-label-dimmed);
+  border-start-start-radius: var(--hutch-radius-panel);
+  border-start-end-radius: var(--hutch-radius-panel);
+  content: "";
+  height: 2px;
+  inset-block-start: 0;
+  inset-inline: 0;
+  position: absolute;
+}
+.hutch-approval-gate[data-state="pending"]::before {
+  background-color: var(--hutch-alias-gate-pending);
+}
+.hutch-approval-gate[data-state="approved"]::before {
+  background-color: var(--hutch-alias-gate-approved);
+}
+.hutch-approval-gate[data-state="denied"]::before,
+.hutch-approval-gate[data-state="expired"]::before {
+  background-color: var(--hutch-alias-gate-denied);
+}
+.hutch-approval-gate[data-risk="high"][data-state="pending"]::before {
+  background-color: var(--hutch-alias-gate-risk-line);
+}
+.hutch-approval-gate--resolved::before { height: 1px; }
+
+/* Leaving the machine is a worded tag; the exact request arguments take the
+   risk rail so the content that travels is the most outlined block. */
+.hutch-approval-gate[data-outward="true"] .hutch-approval-gate__arguments {
+  outline: 1px solid var(--hutch-alias-gate-risk-line);
+  outline-offset: var(--hutch-space-1);
+}
+
+.hutch-approval-gate__head,
+.hutch-approval-gate__arguments,
+.hutch-approval-gate__tags,
+.hutch-approval-gate__actions,
+.hutch-approval-gate__resolved-row,
+.hutch-approval-gate__resolved-action { min-width: 0; }
+.hutch-approval-gate__status { flex: none; }
+.hutch-approval-gate__bot { min-width: 0; overflow-wrap: anywhere; }
+.hutch-approval-gate__deadline,
+.hutch-approval-gate__meta { font-variant-numeric: tabular-nums; }
+.hutch-approval-gate__deadline { white-space: nowrap; }
+.hutch-approval-gate__action {
+  max-width: var(--hutch-size-measure);
+  scroll-margin-block: var(--hutch-space-2);
+  text-wrap: balance;
+}
+.hutch-approval-gate__reason { max-width: var(--hutch-size-measure); }
+.hutch-approval-gate__rule { overflow-wrap: anywhere; }
+.hutch-approval-gate__rule-code,
+.hutch-run-transcript__tool,
+.hutch-run-transcript__path { font-variant-ligatures: none; }
+.hutch-approval-gate__tag { max-width: 100%; overflow-wrap: anywhere; }
+.hutch-approval-gate__arguments-label,
+.hutch-run-transcript__well-label,
+.hutch-run-transcript__prompt-label { overflow-wrap: anywhere; }
+.hutch-approval-gate__hint { max-width: var(--hutch-size-measure); }
+
+/* The decision row is separated from the request body by one hairline; the
+   primary approve action alone carries the control elevation, so the pair reads
+   as distinct without becoming loud. */
+.hutch-approval-gate__actions {
+  border-block-start: 1px solid var(--hutch-alias-border-l1);
+  padding-block-start: var(--hutch-space-3);
+}
+.hutch-approval-gate__actions .hutch-button--primary:not(:disabled) {
+  box-shadow: var(--hutch-elevation-control);
+}
+
+.hutch-approval-gate__context {
+  align-items: center;
+  display: inline-flex;
+  min-height: var(--hutch-size-control-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.hutch-approval-gate__context:hover { text-decoration-thickness: 2px; }
+.hutch-approval-gate__resolved-action,
+.hutch-approval-gate__meta { overflow-wrap: anywhere; }
+
+/* -- run transcript -------------------------------------------------------- */
+
+.hutch-run-transcript { min-width: 0; }
+.hutch-run-transcript__head,
+.hutch-run-transcript__entries,
+.hutch-run-transcript__prompt,
+.hutch-run-transcript__title-row,
+.hutch-run-transcript__facts,
+.hutch-run-transcript__fact,
+.hutch-run-transcript__fact-label,
+.hutch-run-transcript__entry,
+.hutch-run-transcript__entry-head,
+.hutch-run-transcript__diff,
+.hutch-run-transcript__groups,
+.hutch-run-transcript__group,
+.hutch-run-transcript__hits { min-width: 0; }
+
+.hutch-run-transcript__title {
+  color: var(--hutch-alias-label-primary);
+  letter-spacing: var(--hutch-font-tracking-heading);
+}
+/* A live run leads with its current state word; a finished run keeps the same
+   word one step quieter. The word, never the colour, is the state. */
+.hutch-run-transcript__status { color: var(--hutch-alias-label-secondary); }
+.hutch-run-transcript[data-active="true"] .hutch-run-transcript__status {
+  color: var(--hutch-alias-label-primary);
+}
+.hutch-run-transcript__count {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.hutch-run-transcript__flag {
+  background-color: var(--hutch-alias-bg-layer-1);
+  border: 1px solid var(--hutch-alias-border-l2);
+  border-radius: var(--hutch-radius-chip);
+  padding-inline: var(--hutch-space-2);
+  white-space: nowrap;
+}
+.hutch-run-transcript__fact-value {
+  font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
+}
+.hutch-run-transcript__prompt-text { white-space: pre-wrap; }
+
+/* Recorded status, note and error lines take a tone rail; the semantic tone is
+   assigned by the runtime and always arrives beside its visible word. */
+.hutch-run-transcript__error,
+.hutch-run-transcript__status-line {
+  border-inline-start: 2px solid var(--hutch-alias-border-l2);
+  padding-inline-start: var(--hutch-space-3);
+}
+.hutch-run-transcript__error[data-tone="danger"] {
+  border-inline-start-color: var(--hutch-alias-state-error-line);
+}
+.hutch-run-transcript__status-line[data-tone="note"] {
+  border-inline-start-color: var(--hutch-alias-border-l3);
+}
+.hutch-run-transcript__status-line[data-tone="attention"] {
+  border-inline-start-color: var(--hutch-alias-state-warn-line);
+}
+.hutch-run-transcript__status-line[data-tone="danger"] {
+  border-inline-start-color: var(--hutch-alias-state-error-line);
+}
+
+.hutch-run-transcript__entry-title {
+  color: var(--hutch-alias-label-primary);
+  overflow-wrap: anywhere;
+}
+/* Tool-result state: the icon and the visible word carry the state; the chip
+   edge only repeats the same wait / run / end / fail job. */
+.hutch-run-transcript__entry-state {
+  background-color: var(--hutch-alias-bg-layer-1);
+  border: 1px solid var(--hutch-alias-border-l2);
+  border-radius: var(--hutch-radius-chip);
+  color: var(--hutch-alias-label-primary);
+  padding-inline: var(--hutch-space-2);
+  white-space: nowrap;
+}
+.hutch-run-transcript__entry-state[data-tool-state="waiting"] {
+  border-color: var(--hutch-alias-state-warn-line);
+}
+.hutch-run-transcript__entry-state[data-tool-state="running"] {
+  border-color: var(--hutch-alias-brand-line);
+}
+.hutch-run-transcript__entry-state[data-tool-state="interrupted"] {
+  border-color: var(--hutch-alias-border-l3);
+}
+.hutch-run-transcript__entry-state[data-tool-state="success"] {
+  border-color: var(--hutch-alias-gate-approved-line);
+}
+.hutch-run-transcript__entry-state[data-tool-state="error"] {
+  border-color: var(--hutch-alias-state-error-line);
+}
+.hutch-run-transcript__entry-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Entries are separated by one hairline; a step row opens a run segment, so it
+   takes the sunken well and a control radius instead, and its number becomes a
+   mono seat inside the label hierarchy. */
+.hutch-run-transcript__entry {
+  border-block-start: 1px solid var(--hutch-alias-border-l1);
+  padding-block-start: var(--hutch-space-3);
+}
+.hutch-run-transcript__entry[data-entry="step"] {
+  background-color: var(--hutch-alias-bg-well);
+  border: 1px solid var(--hutch-alias-border-l1);
+  border-radius: var(--hutch-radius-control);
+  padding: var(--hutch-space-2) var(--hutch-space-3);
+}
+.hutch-run-transcript__step-number {
+  color: var(--hutch-alias-label-primary);
+  font: var(--hutch-font-code);
+  font-variant-numeric: tabular-nums;
+}
+
+.hutch-run-transcript__tool,
+.hutch-run-transcript__path { max-width: 100%; overflow-wrap: anywhere; }
+.hutch-run-transcript__duration,
+.hutch-run-transcript__exit { font-variant-numeric: tabular-nums; }
+.hutch-run-transcript__summary,
+.hutch-run-transcript__hint,
+.hutch-run-transcript__query {
+  max-width: var(--hutch-size-measure);
+  overflow-wrap: anywhere;
+}
+.hutch-run-transcript__message { text-wrap: pretty; }
+
+/* Diff rows keep the recorded text order; the marker and hidden word carry the
+   role, and the wash plus rail repeat it so a row scans at a glance. */
+.hutch-run-transcript__diff-line {
+  border-inline-start: 2px solid var(--hutch-alias-border-l1);
+}
+.hutch-run-transcript__diff-line[data-role="added"] {
+  background-color: var(--hutch-alias-gate-approved-wash);
+  border-inline-start-color: var(--hutch-alias-gate-approved);
+}
+.hutch-run-transcript__diff-line[data-role="removed"] {
+  background-color: var(--hutch-alias-gate-denied-wash);
+  border-inline-start-color: var(--hutch-alias-gate-denied);
+}
+.hutch-run-transcript__diff-line[data-role="context"] {
+  border-inline-start-color: var(--hutch-alias-border-l2);
+}
+
+.hutch-run-transcript__group-path {
+  border-block-end: 1px solid var(--hutch-alias-border-l1);
+  color: var(--hutch-alias-label-primary);
+  padding-block-end: var(--hutch-space-1);
+}
+.hutch-run-transcript__hit { overflow-wrap: anywhere; }
+
+/* -- responsive and coarse pointers ---------------------------------------- */
+
+@media (max-width: 640px) {
+  /* Decision controls stack into full-width rows so an explicit choice never
+     sits in a cramped half-width target. */
+  .hutch-approval-gate__actions { flex-direction: column; }
+  .hutch-approval-gate__actions .hutch-button,
+  .hutch-approval-gate__context { width: 100%; }
+  .hutch-approval-gate__context { justify-content: center; }
+
+  /* Facts keep one column so a measured value never wraps mid-value. The
+     inline auto-fit template is untouched; spanning every track forces it. */
+  .hutch-run-transcript__facts > .hutch-run-transcript__fact { grid-column: 1 / -1; }
+}
+
+/* A finger target is never smaller than the 44px touch step of the control
+   ladder, even though the desktop ladder starts at 32/36px. The inline ladder
+   height needs the important flag to be replaced at this pointer size. */
+@media (pointer: coarse) {
+  .hutch-approval-gate__actions .hutch-button {
+    min-height: var(--hutch-size-control-touch) !important;
+  }
+  .hutch-approval-gate__context { min-height: var(--hutch-size-control-touch); }
+}

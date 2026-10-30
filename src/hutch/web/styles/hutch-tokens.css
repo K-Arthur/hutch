@@ -1,0 +1,400 @@
+/* ============================================================================
+   Hutch design tokens - namespace --hutch-*
+
+   Mapping intent
+   --------------
+   This sheet mirrors the architecture of the DeepSeek Harness ui-theme token
+   layer (packages/client/ui-theme/src/styles/*) without inheriting its values:
+
+     DSH family                              Hutch family
+     --dsw-static-*      palette primitives  --hutch-static-*
+     --dsw-alias-*       semantic aliases    --hutch-alias-*
+     --dsw-font-<role>   type roles          --hutch-font-<role>
+       plus the same five longhand companions (-font-family, -font-weight,
+       -font-size, -line-height, -font-style); every size is defined with its
+       line height so no role can drift into an unpaced font-size.
+     --dsw-radius-*      corner scale        --hutch-radius-* (role-named)
+     --dsw-corner-shape  superellipse(1.5)   --hutch-corner-shape, a gentler
+                                             superellipse(1.35)
+     --dsw-elevation-*, --dsw-shadow-*       --hutch-elevation-*
+     --ds-transition-*, --ds-ease-*          --hutch-motion-*
+     --dsw-focus-ring-*                      --hutch-focus-ring-*
+     --dsw-alias-menu-icon (only icon alias) --hutch-icon-color-* family
+
+   The values come from Hutch's own shipped palette and geometry, never copied
+   from DeepSeek: website/tokens.json -> static/brand-tokens.css, the operator
+   layers in static/style.css and static/hutch.css, and DESIGN.md (colour jobs,
+   six-step type scale, rounded scale, elevation and motion). Bot identity hues
+   come from the operator app's ID_COLORS family.
+
+   Hutch is dark-first: the values below are the shipped operator theme. A light
+   scope can be added later without renaming anything. Plain CSS custom
+   properties only - no Tailwind directives and no component-library imports.
+
+   Load path: imported by app/src/input.css and compiled into the dashboard's
+   first stylesheet (static/ui.css). Definitions are inert until a component
+   consumes them; no existing component is restyled by this file.
+   ========================================================================== */
+
+:root {
+  /* -- tier 1: static palette --------------------------------------------- */
+
+  /* Ink: the layered ground. 950 is the deepest well, 350 the lightest raised
+     fill; the shipped palette deliberately has no mid greys between 350 and
+     the text family below. */
+  --hutch-static-ink-950: #060608;
+  --hutch-static-ink-900: #070709;
+  --hutch-static-ink-850: #09090b;
+  --hutch-static-ink-800: #0b0b0e;
+  --hutch-static-ink-750: #0d0d10;
+  --hutch-static-ink-700: #0f0f12;
+  --hutch-static-ink-650: #101013;
+  --hutch-static-ink-600: #141418;
+  --hutch-static-ink-550: #16161a;
+  --hutch-static-ink-500: #17171b;
+  --hutch-static-ink-450: #1c1c21;
+  --hutch-static-ink-400: #1f1f25;
+  --hutch-static-ink-350: #25252b;
+
+  /* Text: the light ink end. Each value is at least 5:1 on every ink surface
+     above (DESIGN.md, "Colours"). */
+  --hutch-static-text-100: #ededf0;
+  --hutch-static-text-200: #a3a3ae;
+  --hutch-static-text-300: #8e8e99;
+
+  /* White alphas: hairlines, control edges and quiet interaction fills. */
+  --hutch-static-white-a04: rgb(255 255 255 / 0.04);
+  --hutch-static-white-a05: rgb(255 255 255 / 0.05);
+  --hutch-static-white-a06: rgb(255 255 255 / 0.06);
+  --hutch-static-white-a07: rgb(255 255 255 / 0.07);
+  --hutch-static-white-a10: rgb(255 255 255 / 0.1);
+  --hutch-static-white-a12: rgb(255 255 255 / 0.12);
+  --hutch-static-white-a14: rgb(255 255 255 / 0.14);
+  --hutch-static-white-a22: rgb(255 255 255 / 0.22);
+  --hutch-static-white-a38: rgb(255 255 255 / 0.38);
+
+  /* Emerald: brand and the one primary action. Dark ink on the fill, never
+     white on emerald (the One-Ink Rule). */
+  --hutch-static-emerald-950: #052e21;
+  --hutch-static-emerald-900: #073d31;
+  --hutch-static-emerald-600: #10b981;
+  --hutch-static-emerald-400: #34d399;
+  --hutch-static-emerald-300: #6ee7b7;
+
+  /* Azure (interaction), amber (a person is needed now) and rose (failure)
+     are single anchors in the shipped palette; tints are mixed in the aliases
+     rather than invented as fake hue ramps. */
+  --hutch-static-azure-400: #60a5fa;
+  --hutch-static-amber-400: #fbbf24;
+  --hutch-static-rose-400: #f87171;
+
+  /* Bot identity palette (operator app ID_COLORS). Tints avatars and threads
+     only; identity never encodes status. */
+  --hutch-static-identity-1: #3de8c5;
+  --hutch-static-identity-2: #35c3f0;
+  --hutch-static-identity-3: #5b9bff;
+  --hutch-static-identity-4: #9b7cff;
+  --hutch-static-identity-5: #c77dff;
+  --hutch-static-identity-6: #ff6fa5;
+  --hutch-static-identity-7: #ffa83c;
+  --hutch-static-identity-8: #7bd85a;
+
+  /* -- tier 2: semantic aliases (dark operator theme) --------------------- */
+
+  /* Surfaces: canvas, rail, wells, panels, raised controls, overlays. */
+  --hutch-alias-bg-base: var(--hutch-static-ink-850);
+  --hutch-alias-bg-sunken: var(--hutch-static-ink-950);
+  --hutch-alias-bg-sidebar: var(--hutch-static-ink-900);
+  --hutch-alias-bg-well: var(--hutch-static-ink-800);
+  --hutch-alias-bg-layer-1: var(--hutch-static-ink-700);
+  --hutch-alias-bg-layer-2: var(--hutch-static-ink-650);
+  --hutch-alias-bg-layer-3: var(--hutch-static-ink-500);
+  --hutch-alias-bg-layer-4: var(--hutch-static-ink-400);
+  --hutch-alias-bg-overlay: var(--hutch-static-ink-600);
+  --hutch-alias-bg-skeleton: var(--hutch-static-white-a05);
+  --hutch-alias-bg-mask-1: rgb(0 0 0 / 0.32);
+  --hutch-alias-bg-mask-2: rgb(0 0 0 / 0.56);
+  --hutch-alias-bg-scrim: rgb(9 9 11 / 0.94);
+
+  /* Labels: text roles. Status is never carried by colour alone. */
+  --hutch-alias-label-primary: var(--hutch-static-text-100);
+  --hutch-alias-label-secondary: var(--hutch-static-text-200);
+  --hutch-alias-label-tertiary: var(--hutch-static-text-300);
+  --hutch-alias-label-caption: var(--hutch-static-text-300);
+  --hutch-alias-label-dimmed: var(--hutch-static-ink-350);
+  --hutch-alias-label-on-brand: var(--hutch-static-emerald-950);
+  --hutch-alias-label-inverted: var(--hutch-static-ink-950);
+
+  /* Borders: quiet card hairlines at l1-l2, stronger control lines at l3-l4;
+     edge is the WCAG 1.4.11 boundary for fields and selects (at least 3:1). */
+  --hutch-alias-border-soft: var(--hutch-static-white-a06);
+  --hutch-alias-border-l1: var(--hutch-static-white-a05);
+  --hutch-alias-border-l2: var(--hutch-static-white-a07);
+  --hutch-alias-border-l3: var(--hutch-static-white-a12);
+  --hutch-alias-border-l4: var(--hutch-static-white-a22);
+  --hutch-alias-border-edge: var(--hutch-static-white-a38);
+
+  /* Brand: emerald is the brand statement and the primary action. */
+  --hutch-alias-brand-primary: var(--hutch-static-emerald-400);
+  --hutch-alias-brand-strong: var(--hutch-static-emerald-300);
+  --hutch-alias-brand-deep: var(--hutch-static-emerald-600);
+  --hutch-alias-brand-ink: var(--hutch-static-emerald-950);
+  --hutch-alias-brand-wash: color-mix(in oklab, var(--hutch-static-emerald-400) 9%, transparent);
+  --hutch-alias-brand-line: color-mix(in oklab, var(--hutch-static-emerald-400) 32%, transparent);
+
+  /* Interaction: azure is interaction only - focus, selection, links - and is
+     never a brand statement or a status colour. */
+  --hutch-alias-interactive-bg-hover: var(--hutch-static-white-a06);
+  --hutch-alias-interactive-bg-active: var(--hutch-static-white-a10);
+  --hutch-alias-interactive-bg-hover-solid: var(--hutch-static-ink-500);
+  --hutch-alias-focus-ring: var(--hutch-static-azure-400);
+  --hutch-alias-focus-wash: color-mix(in oklab, var(--hutch-static-azure-400) 14%, transparent);
+  --hutch-alias-focus-line: color-mix(in oklab, var(--hutch-static-azure-400) 45%, transparent);
+  --hutch-alias-selection-bg: color-mix(in oklab, var(--hutch-static-azure-400) 22%, transparent);
+  --hutch-alias-link: var(--hutch-static-emerald-400);
+
+  /* Buttons: exactly one emerald primary; every other action stays quiet. */
+  --hutch-alias-button-primary-fill: var(--hutch-alias-brand-primary);
+  --hutch-alias-button-primary-hover: var(--hutch-alias-brand-strong);
+  --hutch-alias-button-primary-ink: var(--hutch-alias-brand-ink);
+  --hutch-alias-button-subtle-fill: var(--hutch-static-ink-500);
+  --hutch-alias-button-subtle-hover: var(--hutch-static-ink-400);
+  --hutch-alias-button-ghost-line: var(--hutch-alias-border-l3);
+  --hutch-alias-button-danger-line: color-mix(in oklab, var(--hutch-static-rose-400) 45%, transparent);
+  --hutch-alias-button-danger-wash: color-mix(in oklab, var(--hutch-static-rose-400) 10%, transparent);
+
+  /* States: icon and word always accompany these, never colour alone. */
+  --hutch-alias-state-success-primary: var(--hutch-static-emerald-400);
+  --hutch-alias-state-success-secondary: var(--hutch-static-emerald-300);
+  --hutch-alias-state-success-wash: var(--hutch-alias-brand-wash);
+  --hutch-alias-state-warn-primary: var(--hutch-static-amber-400);
+  --hutch-alias-state-warn-wash: color-mix(in oklab, var(--hutch-static-amber-400) 9%, transparent);
+  --hutch-alias-state-warn-line: color-mix(in oklab, var(--hutch-static-amber-400) 38%, transparent);
+  --hutch-alias-state-error-primary: var(--hutch-static-rose-400);
+  --hutch-alias-state-error-wash: color-mix(in oklab, var(--hutch-static-rose-400) 9%, transparent);
+  --hutch-alias-state-error-line: color-mix(in oklab, var(--hutch-static-rose-400) 40%, transparent);
+  --hutch-alias-state-idle-primary: var(--hutch-static-text-300);
+  --hutch-alias-state-info-primary: var(--hutch-static-azure-400);
+
+  /* Raised materials: menus, tooltips, toasts, code wells and switches. */
+  --hutch-alias-overlay-bg: var(--hutch-static-ink-600);
+  --hutch-alias-tooltip-bg: var(--hutch-static-ink-550);
+  --hutch-alias-tooltip-label: var(--hutch-static-text-100);
+  --hutch-alias-toast-bg: var(--hutch-static-ink-450);
+  --hutch-alias-toast-label: var(--hutch-static-text-100);
+  --hutch-alias-switch-thumb: var(--hutch-static-text-100);
+  --hutch-alias-code-bg: var(--hutch-static-ink-800);
+  --hutch-alias-code-line: var(--hutch-alias-border-l2);
+
+  /* Safety gates: where a thread stops until a person decides. */
+  --hutch-alias-gate-pending: var(--hutch-static-amber-400);
+  --hutch-alias-gate-pending-wash: var(--hutch-alias-state-warn-wash);
+  --hutch-alias-gate-pending-line: var(--hutch-alias-state-warn-line);
+  --hutch-alias-gate-approved: var(--hutch-static-emerald-400);
+  --hutch-alias-gate-approved-wash: var(--hutch-alias-brand-wash);
+  --hutch-alias-gate-approved-line: var(--hutch-alias-brand-line);
+  --hutch-alias-gate-denied: var(--hutch-static-rose-400);
+  --hutch-alias-gate-denied-wash: var(--hutch-alias-state-error-wash);
+  --hutch-alias-gate-denied-line: var(--hutch-alias-state-error-line);
+  --hutch-alias-gate-risk-line: var(--hutch-alias-state-error-line);
+
+  /* Local-first truth: the machine is the product boundary, so its state gets
+     first-class names instead of borrowing generic success/warning slots. */
+  --hutch-alias-local-online: var(--hutch-static-emerald-400);
+  --hutch-alias-local-idle: var(--hutch-static-text-300);
+  --hutch-alias-local-unconfirmed: var(--hutch-static-azure-400);
+
+  /* Icons: one outline family. Size is a component prop (16/20/24); the stroke
+     stays shared. Colour only restates the label or state beside it and never
+     carries meaning alone. DSH exposes a single icon alias; Hutch names the
+     whole icon colour family against its existing label and state jobs. */
+  --hutch-icon-stroke-width: 1.75;
+  --hutch-icon-color-primary: var(--hutch-alias-label-primary);
+  --hutch-icon-color-secondary: var(--hutch-alias-label-secondary);
+  --hutch-icon-color-muted: var(--hutch-alias-label-tertiary);
+  --hutch-icon-color-disabled: var(--hutch-alias-label-dimmed);
+  --hutch-icon-color-menu: var(--hutch-alias-label-secondary);
+  --hutch-icon-color-on-brand: var(--hutch-alias-label-on-brand);
+  --hutch-icon-color-attention: var(--hutch-alias-state-warn-primary);
+  --hutch-icon-color-danger: var(--hutch-alias-state-error-primary);
+  --hutch-icon-color-success: var(--hutch-alias-state-success-primary);
+
+  /* Bot management: identity tints the avatar and its thread only. */
+  --hutch-alias-bot-identity-1: var(--hutch-static-identity-1);
+  --hutch-alias-bot-identity-2: var(--hutch-static-identity-2);
+  --hutch-alias-bot-identity-3: var(--hutch-static-identity-3);
+  --hutch-alias-bot-identity-4: var(--hutch-static-identity-4);
+  --hutch-alias-bot-identity-5: var(--hutch-static-identity-5);
+  --hutch-alias-bot-identity-6: var(--hutch-static-identity-6);
+  --hutch-alias-bot-identity-7: var(--hutch-static-identity-7);
+  --hutch-alias-bot-identity-8: var(--hutch-static-identity-8);
+  --hutch-alias-bot-thread-line: color-mix(in oklab, var(--hutch-static-text-300) 35%, transparent);
+  --hutch-alias-roster-hover: var(--hutch-alias-interactive-bg-hover);
+}
+
+:root {
+  /* -- typography: families, weights and tracking ------------------------- */
+  --hutch-font-family: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --hutch-font-family-display: var(--hutch-font-family);
+  --hutch-font-family-mono: "Geist Mono", ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", Menlo, Consolas, monospace;
+  --hutch-font-weight-regular: 400;
+  --hutch-font-weight-medium: 500;
+  --hutch-font-weight-semibold: 600;
+  --hutch-font-weight-strong: 650;
+  --hutch-font-weight-bold: 700;
+  --hutch-font-tracking-display: -0.04em;
+  --hutch-font-tracking-heading: -0.022em;
+
+  /* -- type roles: DSH-style shorthand plus five longhand companions. ----- */
+  --hutch-font-display: 700 clamp(1.75rem, 3vw, 2.25rem) / 1.12 var(--hutch-font-family-display);
+  --hutch-font-display-font-family: var(--hutch-font-family-display);
+  --hutch-font-display-font-weight: 700;
+  --hutch-font-display-font-size: clamp(1.75rem, 3vw, 2.25rem);
+  --hutch-font-display-line-height: 1.12;
+  --hutch-font-display-font-style: normal;
+
+  --hutch-font-page: 700 1.5rem / 1.25 var(--hutch-font-family);
+  --hutch-font-page-font-family: var(--hutch-font-family);
+  --hutch-font-page-font-weight: 700;
+  --hutch-font-page-font-size: 1.5rem;
+  --hutch-font-page-line-height: 1.25;
+  --hutch-font-page-font-style: normal;
+
+  --hutch-font-section: 650 1.125rem / 1.25 var(--hutch-font-family);
+  --hutch-font-section-font-family: var(--hutch-font-family);
+  --hutch-font-section-font-weight: 650;
+  --hutch-font-section-font-size: 1.125rem;
+  --hutch-font-section-line-height: 1.25;
+  --hutch-font-section-font-style: normal;
+
+  --hutch-font-body: 400 1rem / 1.55 var(--hutch-font-family);
+  --hutch-font-body-font-family: var(--hutch-font-family);
+  --hutch-font-body-font-weight: 400;
+  --hutch-font-body-font-size: 1rem;
+  --hutch-font-body-line-height: 1.55;
+  --hutch-font-body-font-style: normal;
+
+  --hutch-font-reading: 400 1.0625rem / 1.65 var(--hutch-font-family);
+  --hutch-font-reading-font-family: var(--hutch-font-family);
+  --hutch-font-reading-font-weight: 400;
+  --hutch-font-reading-font-size: 1.0625rem;
+  --hutch-font-reading-line-height: 1.65;
+  --hutch-font-reading-font-style: normal;
+
+  --hutch-font-label: 500 0.875rem / 1.4 var(--hutch-font-family);
+  --hutch-font-label-font-family: var(--hutch-font-family);
+  --hutch-font-label-font-weight: 500;
+  --hutch-font-label-font-size: 0.875rem;
+  --hutch-font-label-line-height: 1.4;
+  --hutch-font-label-font-style: normal;
+
+  --hutch-font-label-strong: 600 0.875rem / 1.4 var(--hutch-font-family);
+  --hutch-font-label-strong-font-family: var(--hutch-font-family);
+  --hutch-font-label-strong-font-weight: 600;
+  --hutch-font-label-strong-font-size: 0.875rem;
+  --hutch-font-label-strong-line-height: 1.4;
+  --hutch-font-label-strong-font-style: normal;
+
+  --hutch-font-small: 400 0.8125rem / 1.5 var(--hutch-font-family);
+  --hutch-font-small-font-family: var(--hutch-font-family);
+  --hutch-font-small-font-weight: 400;
+  --hutch-font-small-font-size: 0.8125rem;
+  --hutch-font-small-line-height: 1.5;
+  --hutch-font-small-font-style: normal;
+
+  --hutch-font-caption: 400 0.75rem / 1.45 var(--hutch-font-family);
+  --hutch-font-caption-font-family: var(--hutch-font-family);
+  --hutch-font-caption-font-weight: 400;
+  --hutch-font-caption-font-size: 0.75rem;
+  --hutch-font-caption-line-height: 1.45;
+  --hutch-font-caption-font-style: normal;
+
+  --hutch-font-code: 400 0.8125rem / 1.55 var(--hutch-font-family-mono);
+  --hutch-font-code-font-family: var(--hutch-font-family-mono);
+  --hutch-font-code-font-weight: 400;
+  --hutch-font-code-font-size: 0.8125rem;
+  --hutch-font-code-line-height: 1.55;
+  --hutch-font-code-font-style: normal;
+
+  --hutch-font-code-block: 400 0.75rem / 1.6 var(--hutch-font-family-mono);
+  --hutch-font-code-block-font-family: var(--hutch-font-family-mono);
+  --hutch-font-code-block-font-weight: 400;
+  --hutch-font-code-block-font-size: 0.75rem;
+  --hutch-font-code-block-line-height: 1.6;
+  --hutch-font-code-block-font-style: normal;
+
+  /* -- spacing, sizing and structure: 4px grid and control ladder -------- */
+  --hutch-space-1: 4px;
+  --hutch-space-2: 8px;
+  --hutch-space-3: 12px;
+  --hutch-space-4: 16px;
+  --hutch-space-5: 24px;
+  --hutch-space-6: 32px;
+  --hutch-space-7: 40px;
+  --hutch-space-8: 56px;
+  --hutch-size-control-sm: 32px;
+  --hutch-size-control-md: 36px;
+  --hutch-size-control-lg: 40px;
+  --hutch-size-control-touch: 44px;
+  --hutch-size-topbar: 56px;
+  --hutch-size-sidebar: 304px;
+  --hutch-size-content: 1040px;
+  --hutch-size-measure: 72ch;
+
+  /* -- radius: role-named steps; nesting steps down, never up ------------- */
+  --hutch-radius-micro: 4px;
+  --hutch-radius-control: 8px;
+  --hutch-radius-panel: 12px;
+  --hutch-radius-chat: 20px;
+  --hutch-radius-chip: 100px;
+  --hutch-radius-round: 50%;
+
+  /* -- elevation: a top hairline plus ambient and direct shadows; depth
+     reads as light, never as a coloured glow --------------------------------- */
+  --hutch-elevation-stroke-color: var(--hutch-static-white-a04);
+  --hutch-elevation-stroke: inset 0 1px 0 var(--hutch-elevation-stroke-color);
+  --hutch-elevation-control: var(--hutch-elevation-stroke), 0 1px 2px rgb(0 0 0 / 0.5), 0 4px 14px -4px rgb(0 0 0 / 0.45);
+  --hutch-elevation-panel: inset 0 1px 0 var(--hutch-static-white-a05), 0 2px 4px rgb(0 0 0 / 0.45), 0 14px 34px -10px rgb(0 0 0 / 0.65);
+  --hutch-elevation-overlay: 0 0 0 1px var(--hutch-static-white-a07), 0 8px 16px rgb(0 0 0 / 0.45), 0 28px 64px -12px rgb(0 0 0 / 0.8);
+  --hutch-elevation-overlay-modal: 0 0 0 1px var(--hutch-static-white-a07), 0 12px 28px rgb(0 0 0 / 0.55), 0 44px 96px -16px rgb(0 0 0 / 0.85);
+  --hutch-elevation-overlay-popover: var(--hutch-elevation-overlay);
+  --hutch-elevation-overlay-dropdown: var(--hutch-elevation-panel);
+  --hutch-elevation-overlay-tooltip: var(--hutch-elevation-soft);
+  --hutch-elevation-overlay-toast: var(--hutch-elevation-overlay);
+  --hutch-elevation-soft: inset 0 1px 0 var(--hutch-static-white-a05), 0 2px 10px rgb(0 0 0 / 0.35);
+  /* -- motion: short, interruptible, state-linked; compositor properties -- */
+  --hutch-motion-duration-fast: 120ms;
+  --hutch-motion-duration-base: 180ms;
+  --hutch-motion-duration-slow: 300ms;
+  --hutch-motion-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --hutch-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --hutch-motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --hutch-motion-reveal-shift: 20px;
+
+  /* -- focus: keyboard-visible ring; components own offsets --- */
+  --hutch-focus-ring-width: 2px;
+  --hutch-focus-ring-offset: 2px;
+  --hutch-focus-ring-style: solid;
+  --hutch-focus-ring-color: var(--hutch-alias-focus-ring);
+}
+
+/* Superellipse smoothing, mirroring the DSH corner-shape strategy with a
+   gentler curve (1.35 sits between a circular arc and a squircle). Engines
+   without corner-shape keep round corners because the token exists only inside
+   the guard. Full-round shapes opt out with corner-shape: round. Consumers set
+   corner-shape: var(--hutch-corner-shape) next to border-radius. */
+@supports (corner-shape: superellipse(1.35)) {
+  :root {
+    --hutch-corner-shape: superellipse(1.35);
+    --hutch-corner-shape-round: round;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --hutch-motion-duration-fast: 0ms;
+    --hutch-motion-duration-base: 0ms;
+    --hutch-motion-duration-slow: 0ms;
+    --hutch-motion-reveal-shift: 0px;
+  }
+}

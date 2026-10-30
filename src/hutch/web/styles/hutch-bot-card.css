@@ -1,0 +1,130 @@
+/* ============================================================================
+   Hutch bot card surface - status material and control states
+
+   Hand-written companion to hutch-tokens.css for components/BotCard.tsx. The
+   TSX carries resting layout; this sheet owns interaction, focus, the status
+   chip's data-state token mapping, name overflow and the responsive /
+   coarse-pointer rules, matching hutch-surfaces.css for the other surfaces.
+
+   Colour jobs (all token reads, no colour literals): idle and paused stay quiet ink;
+   running repeats the success/brand job the run transcript uses; needs-you
+   repeats the amber gate job. Every state also carries its visible word and
+   glyph, so colour never stands alone. Radius and elevation come from the
+   shared panel/control steps; the card introduces no private colour, radius or
+   elevation value.
+   ========================================================================== */
+
+/* -- card and title link --------------------------------------------------- */
+
+.hutch-bot-card { min-width: 0; }
+
+.hutch-bot-card__title { min-width: 0; }
+
+.hutch-bot-card__name { text-decoration: none; }
+.hutch-bot-card__name:hover .hutch-bot-card__name-text,
+.hutch-bot-card__name:focus-visible .hutch-bot-card__name-text {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.hutch-bot-card__name:focus-visible {
+  border-radius: var(--hutch-radius-micro);
+  outline: var(--hutch-focus-ring-width) var(--hutch-focus-ring-style) var(--hutch-focus-ring-color);
+  outline-offset: var(--hutch-focus-ring-offset);
+}
+
+/* A long custom name shortens on one line but keeps its full text in the
+   anchor's title and accessible name. */
+.hutch-bot-card__name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -- status seat ----------------------------------------------------------- */
+
+/* The word and glyph are the state; these fills only restate the same job. */
+.hutch-bot-card__status {
+  background-color: var(--hutch-alias-bg-well);
+  border-color: var(--hutch-alias-border-l2);
+  color: var(--hutch-alias-label-secondary);
+}
+.hutch-bot-card__status[data-state="running"] {
+  background-color: var(--hutch-alias-brand-wash);
+  border-color: var(--hutch-alias-brand-line);
+  color: var(--hutch-alias-label-primary);
+}
+.hutch-bot-card__status[data-state="needs-you"] {
+  background-color: var(--hutch-alias-state-warn-wash);
+  border-color: var(--hutch-alias-state-warn-line);
+  color: var(--hutch-alias-label-primary);
+}
+.hutch-bot-card__status[data-state="paused"] {
+  background-color: var(--hutch-alias-bg-layer-2);
+  border-color: var(--hutch-alias-border-l3);
+  color: var(--hutch-alias-label-secondary);
+}
+
+.hutch-bot-card__flag {
+  color: var(--hutch-alias-state-warn-primary);
+  font: var(--hutch-font-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* -- options control ------------------------------------------------------- */
+
+/* Reuses the shared hutch-icon-button hook from Sidebar/Modal; only this
+   surface's square target and its interaction states are defined here. */
+.hutch-bot-card__options {
+  align-items: center;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--hutch-radius-control);
+  color: var(--hutch-alias-label-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  flex: none;
+  height: var(--hutch-size-control-md);
+  justify-content: center;
+  margin-inline-start: auto;
+  min-height: var(--hutch-size-control-md);
+  padding: 0;
+  transition:
+    background-color var(--hutch-motion-duration-fast) var(--hutch-motion-ease-standard),
+    border-color var(--hutch-motion-duration-fast) var(--hutch-motion-ease-standard),
+    color var(--hutch-motion-duration-fast) var(--hutch-motion-ease-standard);
+  width: var(--hutch-size-control-md);
+}
+.hutch-bot-card__options:hover {
+  background-color: var(--hutch-alias-interactive-bg-hover);
+  color: var(--hutch-alias-label-primary);
+}
+.hutch-bot-card__options:active { background-color: var(--hutch-alias-interactive-bg-active); }
+.hutch-bot-card__options:focus-visible {
+  outline: var(--hutch-focus-ring-width) var(--hutch-focus-ring-style) var(--hutch-focus-ring-color);
+  outline-offset: var(--hutch-focus-ring-offset);
+}
+
+/* -- responsive and coarse pointers ---------------------------------------- */
+
+@media (max-width: 640px) {
+  /* Named actions share the available row; the options square stays compact. */
+  .hutch-bot-card__footer .hutch-button { flex: 1 1 auto; }
+}
+
+/* The desktop control ladder starts at 32/36px; a finger target never does.
+   The name link is the card's primary navigation, so it takes the same floor. */
+@media (pointer: coarse) {
+  .hutch-bot-card__name {
+    min-height: var(--hutch-size-control-touch);
+  }
+  .hutch-bot-card__footer .hutch-button {
+    min-height: var(--hutch-size-control-touch) !important;
+  }
+  .hutch-bot-card__options {
+    height: var(--hutch-size-control-touch);
+    min-height: var(--hutch-size-control-touch);
+    width: var(--hutch-size-control-touch);
+  }
+}

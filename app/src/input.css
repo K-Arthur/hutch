@@ -10,6 +10,25 @@
 @import "tailwindcss" source(none);
 @import "open-props/style";
 @import "../../src/hutch/server/static/brand-tokens.css";
+/* Hutch design tokens: plain CSS custom properties, framework free. Compiled
+   into ui.css so the dashboard's first stylesheet owns the --hutch-* namespace. */
+@import "../../src/hutch/web/styles/hutch-tokens.css";
+/* Overlay floating-layer tokens (z order, scrim, per-category elevation and
+   enter/exit motion). Split from hutch-tokens.css to stay inside the 400-line
+   source budget; same namespace, same source of truth, mirrored for the shipped
+   server pages in static/hutch-overlays.css. */
+@import "../../src/hutch/web/styles/hutch-overlay-tokens.css";
+/* Redesign surface rules: interaction, focus, disabled, state-attribute and
+   responsive treatment for the approval-gate and run-transcript components
+   (and the Button primitive they compose). Compiled into ui.css like the tokens. */
+@import "../../src/hutch/web/styles/hutch-surfaces.css";
+/* Bot card surface rules: status-chip token jobs, hover/focus and responsive
+   treatment for components/BotCard.tsx; compiled into ui.css like the tokens. */
+@import "../../src/hutch/web/styles/hutch-bot-card.css";
+/* Theme scopes: explicit dark parity plus the derived light counterpart. Last,
+   so `:root[data-hutch-theme]` wins at equal specificity; with no attribute it
+   defines nothing that applies and the shipped dark theme renders unchanged. */
+@import "../../src/hutch/web/styles/hutch-theme-overrides.css";
 @source "../../src/hutch/server/static/*.html";
 @source "../../src/hutch/server/static/*.js";
 @source "../../src/hutch/server/templates";
@@ -33,8 +52,8 @@
 }
 .workspace .roster-head { margin-bottom: 12px; }
 .workspace .roster-section + .roster-section { margin-top: 12px; }
-.composer-toolbar .composer-tools { min-width: 0; display: flex; align-items: center; gap: 4px; }
-.composer-toolbar .composer-actions { margin-left: auto; }
+.hutch-composer__actions .hutch-composer__tools { min-width: 0; display: flex; align-items: center; gap: 4px; }
+.hutch-composer__actions .hutch-composer__trailing { margin-left: auto; }
 .connection-nickname > summary { min-height: 44px; padding-block: 12px; cursor: pointer; color: var(--text-2); font-size: var(--fs-sm); }
 .connection-nickname .field { padding-top: 8px; }
 /* Long availability labels must not squeeze product names into single letters. */
@@ -247,16 +266,14 @@
   .icon-btn:focus-visible { outline: 2px solid var(--color-secondary); outline-offset: 2px; }
   .btn.icon-btn { width: auto; min-height: 2rem; }
 
-  :where(input[type="text"], input[type="search"], input[type="number"], input[type="password"], input[type="email"], input[type="url"], input[type="date"], input[type="time"], select, textarea) {
+  :where(input[type="text"], input[type="search"], input[type="number"], input[type="password"], input[type="email"], input[type="url"], input[type="date"], input[type="time"], textarea) {
     font: 400 1rem/1.5 var(--font-body); color: var(--color-base-content);
     background: var(--color-base-100);
     border: 1px solid rgb(255 255 255 / 0.14);
     border-radius: var(--r-ctl);
     padding: 0.5rem 0.75rem; width: 100%; min-height: 2.75rem;
   }
-  select { color-scheme: dark; min-height: 2.75rem; padding-inline-end: 2rem; }
-  select option, select optgroup { color: var(--color-base-content); background: var(--color-base-300); }
-  :where(input, select, textarea):focus-visible { border-color: var(--color-secondary); box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-secondary) 30%, transparent); outline: none; }
+  :where(input, textarea):focus-visible { border-color: var(--color-secondary); box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-secondary) 30%, transparent); outline: none; }
 
   .card, .panel {
     background: var(--color-base-200);
@@ -342,7 +359,7 @@
 .channel-panel .field { display: grid; gap: 8px; min-width: 0; margin: 0; }
 .channel-panel .field > label { font-size: var(--fs-sm); font-weight: 600; line-height: 1.4; }
 .channel-privacy > p { margin-block: 8px 0; max-width: 68ch; }
-.channel-panel input:not([type=checkbox]), .channel-panel select { width: 100%; min-width: 0; min-height: 44px; font-size: 1rem; }
+.channel-panel input:not([type=checkbox]) { width: 100%; min-width: 0; min-height: 44px; font-size: 1rem; }
 .channel-sender-picker { display: grid; gap: 12px; }
 .channel-sender-picker > .btn { justify-self: start; }
 #channel-sender-choices { display: grid; gap: 8px; }
