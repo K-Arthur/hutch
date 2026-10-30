@@ -7,6 +7,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from responsive import checks, config, harness
+from responsive import states as state_capture
 
 
 class _Observer:
@@ -169,195 +170,6 @@ def _classify(record, failures, warnings, fail_on):
         (failures if "contrast" in fail_on else warnings).append(entry)
 
 
-def _capture_states(browser, app_url, options) -> tuple[list[dict], list[dict]]:
-    """Capture the interactive states the static matrix cannot express."""
-    states = []
-    failures = []
-    studio = app_url + "/#/chat/design-review"
-
-    def new_page(width: int, height: int, touch: bool):
-        context = browser.new_context(viewport={"width": width, "height": height},
-                                      has_touch=touch, reduced_motion="reduce")
-        return context, context.new_page()
-
-    def grab(page, name: str) -> None:
-        relative = Path("docs") / "responsive" / "screenshots" / options.label / ("state-%s.png" % name)
-        path = config.REPO_ROOT / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        page.screenshot(path=str(path), full_page=False, animations="disabled")
-        states.append({"name": name, "screenshot": str(relative)})
-
-    def open_studio(page) -> bool:
-        page.goto(studio, wait_until="domcontentloaded", timeout=options.timeout_ms)
-        page.locator("#chat-prompt").first.wait_for(state="visible", timeout=options.timeout_ms)
-        page.wait_for_timeout(options.settle_ms)
-        return True
-
-    def check_sidebar_open(page, name: str) -> None:
-        expanded = page.locator("#sidebar-toggle").get_attribute("aria-expanded")
-        classes = page.locator(".app-shell").get_attribute("class") or ""
-        if expanded != "true" or "collapsed" in classes:
-            failures.append({"kind": "state", "surface": "spa-studio", "viewport": name,
-                             "detail": "sidebar is not expanded on a wide viewport"})
-        grab(page, name)
-
-    for name, width, height, touch in (("spa-sidebar-open-1180", 1180, 820, False),
-                                       ("spa-sidebar-open-1366", 1366, 1024, True)):
-        context, page = new_page(width, height, touch)
-        try:
-            open_studio(page)
-            check_sidebar_open(page, name)
-        finally:
-            context.close()
-
-    context, page = new_page(375, 812, True)
-    try:
-        open_studio(page)
-        page.click("#nav-toggle")
-        page.locator("#workspace.open").wait_for(state="visible", timeout=options.timeout_ms)
-        grab(page, "spa-sheet-open-375")
-    except Exception as error:
-        failures.append({"kind": "state", "surface": "spa-studio", "viewport": "phone-375",
-                         "detail": "phone sheet did not open: %s" % str(error)[:200]})
-    finally:
-        context.close()
-
-    context, page = new_page(390, 844, True)
-    try:
-        open_studio(page)
-        page.locator("#chat-prompt").focus()
-        page.set_viewport_size({"width": 390, "height": 520})
-        page.wait_for_timeout(500)
-        probe = checks.measure_keyboard(page)
-        visual_height = probe["visual_height"]
-        composer = probe.get("composer") or {}
-        if not composer or composer.get("bottom", 10**6) > visual_height + 1:
-            failures.append({"kind": "state", "surface": "spa-studio",
-                             "viewport": "keyboard-390",
-                             "detail": "composer is not inside the shrunk visual viewport"})
-        shell = probe.get("shell") or {}
-        if shell and shell.get("height", 10**6) > visual_height + 2:
-            failures.append({"kind": "state", "surface": "spa-studio",
-                             "viewport": "keyboard-390",
-                             "detail": "app shell height does not follow the visual viewport"})
-        transcript = probe.get("transcript") or {}
-        if transcript and transcript.get("scroll_height", 0) <= transcript.get("client_height", 0):
-            failures.append({"kind": "state", "surface": "spa-studio",
-                             "viewport": "keyboard-390",
-                             "detail": "transcript lost its scroll range after the viewport shrink"})
-        grab(page, "spa-keyboard-390")
-    except Exception as error:
-        failures.append({"kind": "state", "surface": "spa-studio",
-                         "viewport": "keyboard-390",
-                         "detail": "keyboard scenario failed: %s" % str(error)[:200]})
-    finally:
-        context.close()
-
-    context, page = new_page(1440, 960, False)
-    try:
-        open_studio(page)
-        scope = checks.measure_style_scope(page)
-        states.append({"name": "style-scope-desktop", "measurement": scope})
-        if scope["preflight"]["margin_top"] != "8px" or scope["context_line"]["margin_top"] != "8px":
-            failures.append({"kind": "styles", "surface": "spa-studio",
-                             "viewport": "desktop-1440",
-                             "detail": "preflight/context rules are still phone-scoped: %s" % scope})
-        page.goto(app_url + "/models", wait_until="domcontentloaded", timeout=options.timeout_ms)
-        page.locator("main").first.wait_for(state="visible", timeout=options.timeout_ms)
-        page.wait_for_timeout(options.settle_ms)
-        server_scope = checks.measure_style_scope(page)
-        states.append({"name": "topbar-offset-desktop", "measurement": server_scope})
-        variable = server_scope["topbar_variable"]
-        sticky_top = server_scope["run_head"]["top"]
-        try:
-            measured = float(variable.replace("px", ""))
-            actual = float(sticky_top.replace("px", ""))
-        except ValueError:
-            measured = actual = -1
-        if not variable or abs(actual - measured) > 1:
-            failures.append({"kind": "styles", "surface": "pages-models",
-                             "viewport": "desktop-1440",
-                             "detail": "run-head sticky offset %s does not follow --topbar-h %s"
-                                       % (sticky_top, variable)})
-    except Exception as error:
-        failures.append({"kind": "styles", "surface": "style-scope",
-                         "viewport": "desktop-1440",
-                         "detail": "style-scope check failed: %s" % str(error)[:200]})
-    finally:
-        context.close()
-
-    rail_widths = {}
-    for width, height, touch in ((960, 720, True), (1024, 768, True),
-                                 (1180, 820, False), (1366, 1024, True)):
-        context, page = new_page(width, height, touch)
-        try:
-            open_studio(page)
-            measurement = page.evaluate("""() => {
-              const rail = document.querySelector(".workspace");
-              const shell = document.querySelector(".app-shell");
-              return {rail: Math.round(rail.getBoundingClientRect().width),
-                      collapsed: shell.classList.contains("collapsed")};
-            }""")
-            rail_widths[width] = measurement
-        except Exception as error:
-            failures.append({"kind": "styles", "surface": "spa-studio",
-                             "viewport": "rail-%d" % width,
-                             "detail": "rail measurement failed: %s" % str(error)[:200]})
-        finally:
-            context.close()
-    states.append({"name": "rail-widths", "measurement": rail_widths})
-    rail_values = {entry.get("rail") for entry in rail_widths.values() if entry}
-    if len(rail_values) > 1:
-        failures.append({"kind": "styles", "surface": "spa-studio",
-                         "viewport": "rail-widths",
-                         "detail": "rail width differs across 960/1024/1180/1366: %s" % rail_widths})
-
-    for name, width, height in (("needs-you-390", 390, 844),
-                                ("needs-you-landscape-844", 844, 390)):
-        context, page = new_page(width, height, True)
-        try:
-            open_studio(page)
-            page.evaluate("() => document.getElementById('needs-you-open')?.click()")
-            page.locator(".needs-you").first.wait_for(state="visible", timeout=options.timeout_ms)
-            grab(page, name)
-        except Exception as error:
-            failures.append({"kind": "state", "surface": "spa-needs-you",
-                             "viewport": name,
-                             "detail": "needs-you drawer did not open: %s" % str(error)[:200]})
-        finally:
-            context.close()
-
-    for name, width, height in (("pages-nav-open-375", 375, 812),
-                                ("pages-nav-open-1024", 1024, 768)):
-        context, page = new_page(width, height, True)
-        try:
-            page.goto(app_url + "/models", wait_until="domcontentloaded", timeout=options.timeout_ms)
-            page.locator("main").first.wait_for(state="visible", timeout=options.timeout_ms)
-            page.wait_for_timeout(options.settle_ms)
-            page.click("#nav-toggle")
-            page.locator("#primary-nav").first.wait_for(state="visible", timeout=options.timeout_ms)
-            grab(page, name)
-        except Exception as error:
-            failures.append({"kind": "state", "surface": "pages-models", "viewport": name,
-                             "detail": "server nav did not open: %s" % str(error)[:200]})
-        finally:
-            context.close()
-
-    for name, width, height, touch in (("spa-focus-1366", 1366, 1024, False),
-                                       ("spa-focus-375", 375, 812, True)):
-        context, page = new_page(width, height, touch)
-        try:
-            open_studio(page)
-            for _ in range(3):
-                page.keyboard.press("Tab")
-            page.wait_for_timeout(150)
-            grab(page, name)
-        finally:
-            context.close()
-
-    return states, failures
-
-
 def run(app_url: str, site_url: str, options, output_dir: Path) -> dict:
     """Measure every selected surface/viewport pair, then capture state evidence."""
     from playwright.sync_api import sync_playwright
@@ -413,8 +225,11 @@ def run(app_url: str, site_url: str, options, output_dir: Path) -> dict:
                         time.monotonic() - started, surface.label, viewport.label,
                         record["overflow_px"], record["ready"]), flush=True)
             skip_states = options.quick or getattr(options, "no_js", False)
-            states, state_failures = ([], []) if skip_states else _capture_states(
-                browser, app_url, options)
+            if skip_states:
+                state_records, state_failures = [], []
+            else:
+                state_records, state_failures = state_capture.capture_states(
+                    browser, app_url, options)
             failures.extend(state_failures)
         finally:
             browser.close()
@@ -429,7 +244,7 @@ def run(app_url: str, site_url: str, options, output_dir: Path) -> dict:
         "results": results,
         "failures": failures,
         "warnings": warnings,
-        "states": states,
+        "states": state_records,
         "screenshots": [record["screenshot"] for record in results if record["screenshot"]],
         "thresholds": {"min_target_px": config.MIN_TARGET_PX,
                        "comfort_target_px": config.COMFORT_TARGET_PX},
