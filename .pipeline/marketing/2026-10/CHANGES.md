@@ -117,10 +117,10 @@ Residual risk: public CI badge withheld until green; product e2e failures (4 dis
 Next session: re-check CI on main (new runs from merged work), then the badge; owner steps per HANDOFF.
 
 ## Session 11 - CI flakiness check + CI badge - 2026-10-30
-Files: README.md; .pipeline/marketing/2026-10/{00-BRIEF.md,EVIDENCE-session-11.md,DECISION.md,CHANGES.md,HANDOFF.md,NEXT-PROMPT.md} + evidence/ci/run-40838063314/{run.json,jobs.json,summaries.txt} + evidence/ci/run-40837883068/{run.json,jobs.json} + evidence/badge/{ci-badge-before.svg,badge-headers-before.txt,ci-badge-after.svg,readme-badge-excerpt.html}
-Commits: three docs commits on origin/main (badge commit `3980a03b` + post-push evidence/count follow-up + review corrections); see `git log -3 origin/main`.
+Files: README.md; .pipeline/marketing/2026-10/{00-BRIEF.md,EVIDENCE-session-11.md,DECISION.md,CHANGES.md,HANDOFF.md,NEXT-PROMPT.md} + evidence/ci/run-40838063314/{run.json,jobs.json,summaries.txt} + evidence/ci/run-40837883068/{run.json,jobs.json} + evidence/ci/run-41099288093/{run.json,jobs.json,failures.txt} + evidence/badge/{ci-badge-before.svg,badge-headers-before.txt,ci-badge-after.svg,readme-badge-excerpt.html}
+Commits: four docs commits on origin/main (badge commit `3980a03b` + post-push evidence/count follow-up + review corrections + red-run record); see `git log -4 origin/main`.
 What changed (user-visible): README badge row gains the CI workflow badge (first badge). Release badge unchanged on v0.1.0. No site, content, docs or claim change.
-Claims affected: none in the register. The badge is self-updating status backed by run 40838063314 (green 2026-10-29); not static copy (R11-03).
+Claims affected: none in the register. The badge is self-updating status; it was added on run 40838063314 (green 2026-10-29) and now truthfully shows red after run 41099288093 failed on 2026-10-30; not static copy (R11-03, R11-07).
 Docs updated: README only. docs/discoverability.md, docs/marketing-site.md and website/** untouched.
 Gates run (command -> result):
 - `gh api .../runs/40837883068` -> cancelled; 4 jobs cancelled + attribution success; not a result (superseded by 40838063314 101 s later).
@@ -129,11 +129,12 @@ Gates run (command -> result):
 - `curl` badge -> HTTP 200, image/svg+xml, `<title>ci - passing</title>`.
 - `gh api -H "Accept: application/vnd.github.html+json" repos/K-Arthur/hutch/readme` after push -> rendered README contains `<a href=".../actions/workflows/ci.yml"><img ... alt="CI"></a>`; post-push badge still `ci - passing` while the new run was in progress.
 - Independent review of `adddfbfd..a7b42dea` found and this commit fixes: wrong ci.yml concurrency line citation (12-14, not 9-11), stale "1 behind"/"16 commits" counts, and a badge-risk note that named shields.io instead of the GitHub Actions badge. It also confirmed the count arithmetic and the docs-only scope.
-- `curl` badge at 2026-10-30T17:25Z -> `<title>ci - failing</title>` after the cancelled run; this is a concurrency artifact, not a test failure (see EVIDENCE-session-11).
+- `curl` badge at 2026-10-30T17:25Z -> `<title>ci - failing</title>` after the cancelled run; this was initially a concurrency artifact, but run `41099288093` then failed for real on 3.11/3.13 (see below).
+- `gh api .../runs/41099288093` + `/jobs` -> failure: 3.13 `1 failed, 4161 passed` (design-system header groups at test_design_system.py:281); 3.11 `3 failed, 4159 passed` (same design-system test + passkey response timeout + `#conversation-switcher` disabled); 3.12 `4162 passed`; benchmarks/attribution success. Product/Studio owns triage; public run is on old product code (118 local commits unpushed).
 - `git diff -- README.md` -> one added line; release badge line unchanged.
-Evidence paths: EVIDENCE-session-11.md; evidence/ci/run-40838063314/; evidence/ci/run-40837883068/; evidence/badge/.
-Residual risk: the final docs commit's CI run is not awaited; a cancelled or in-progress run renders as failing on the badge until a newer run completes; the badge can flip red on recurrence of the four flaky e2e tests; B-03 (Search Console/Bing) and R9-D3 (social preview) remain owner-gated.
-Next session: check the latest CI run on main; then the deferred Search Console tag slice if the human provides the tag, or record social/Bing completion.
+Evidence paths: EVIDENCE-session-11.md; evidence/ci/run-40838063314/; evidence/ci/run-40837883068/; evidence/ci/run-41099288093/; evidence/badge/.
+Residual risk: the README badge is red (truthful latest-run status); the public run is on product code identical to `577e1154` while the product workstream's 118 local commits are unpushed; the design-system/UI tests are intermittent/brittle and product-owned; B-03 (Search Console/Bing) and R9-D3 (social preview) remain owner-gated.
+Next session: route the red run to product/Studio and check whether they push/rebase; then the deferred Search Console tag slice if the human provides the tag, or record social/Bing completion.
 
 ## Session summary
 - Slices completed: Phase 1 audit (RECON + FINDINGS + DECISION updates); Phase 2 strategy (STRATEGY + CLAIM-REGISTER + CONTENT-MAP + human sign-off)

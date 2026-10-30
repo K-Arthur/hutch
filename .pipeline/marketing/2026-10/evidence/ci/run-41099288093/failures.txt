@@ -1,0 +1,32 @@
+# CI run 41099288093 on 8db7f28e - failure excerpts (2026-10-30T18:14:09Z)
+
+## Job conclusions
+test (3.13) failure
+test (3.12) success
+test (3.11) failure
+benchmarks success
+commit attribution policy success
+
+## 3.13
+2026-10-30T18:09:21.2889999Z =========================== short test summary info ============================
+2026-10-30T18:09:21.2890518Z FAILED tests/e2e/test_design_system.py::test_assistant_settings_header_groups_secondary_actions - assert False
+2026-10-30T18:09:21.2893792Z 1 failed, 4161 passed, 86 skipped, 3 xfailed in 2278.13s (0:37:58)
+
+## 3.11
+2026-10-30T18:08:59.9243213Z E                 - Expect "to_be_enabled" locator("#conversation-switcher") with timeout 5000ms
+2026-10-30T18:09:00.8137243Z =========================== short test summary info ============================
+2026-10-30T18:09:00.8178317Z FAILED tests/e2e/test_browser.py::test_virtual_passkey_pairs_locks_and_unlocks_over_https - playwright._impl._errors.TimeoutError: Timeout 10000ms exceeded while waiting for event "response"
+2026-10-30T18:09:00.8179230Z FAILED tests/e2e/test_conversation_navigation.py::test_conversation_open_has_pending_controls_and_route_ownership[controls] - AssertionError: Locator expected to be enabled
+2026-10-30T18:09:00.8179811Z Actual value: disabled 
+2026-10-30T18:09:00.8180423Z   - Expect "to_be_enabled" locator("#conversation-switcher") with timeout 5000ms
+2026-10-30T18:09:00.8220212Z FAILED tests/e2e/test_design_system.py::test_assistant_settings_header_groups_secondary_actions - assert False
+2026-10-30T18:09:00.8223682Z 3 failed, 4159 passed, 86 skipped, 3 xfailed in 2294.31s (0:38:14)
+
+## Design-system assertion context (3.13)
+2026-10-30T18:09:21.2885093Z                 trigger = menu.locator("summary")
+2026-10-30T18:09:21.2885423Z                 assert trigger.get_attribute("aria-label") == "Assistant options"
+2026-10-30T18:09:21.2885947Z                 trigger.click()
+2026-10-30T18:09:21.2886281Z >               assert page.get_by_role("menuitem", name="Open chat", exact=True).is_visible()
+2026-10-30T18:09:21.2886624Z E               assert False
+2026-10-30T18:09:21.2886862Z E                +  where False = is_visible()
+2026-10-30T18:09:21.2887469Z E                +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:36873/#/bot/design-system-review'> selector='internal:role=menuitem[name="Open chat"s]'>.is_visible
