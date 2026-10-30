@@ -43,13 +43,25 @@ Process findings that block a clean release state:
   `bot_deletion.py` 1067 lines, `tests/test_bot_deletion.py` 771, `tests/test_commit_attribution.py`
   419, `cli.py` +2 and `store.py` +12 over their frozen caps) is therefore not attributable to HEAD.
   `bot_deletion.py` is from the committed whole-Bot deletion work and genuinely exceeds the cap.
-- Hidden-file dependencies found afterwards: `.git/info/exclude` also hides `audit_tool_contracts.py`,
-  `audit_constitution.py`, `generate_agent_map.py`, `check_commit_attribution.py`,
-  `validate_responsive.py`, `validate-responsive.sh`, `scripts/responsive/`, `.file-size-baseline.json`
-  and `.ai/`. The committed README (lines 59-61) tells readers to run `scripts/validate_responsive.py`,
-  the tracked `tests/test_commit_attribution.py` references hidden modules, and
-  `docs/agent-workflow.md` / `docs/repository-hygiene.md` (named by AGENTS.md) are untracked. A fresh
-  clone cannot follow its own README or run the repository's own gates.
+- Hidden-file dependencies, corrected. `.git/info/exclude` hid `audit_context_hygiene.py`,
+  `audit_tool_contracts.py`, `audit_constitution.py`, `generate_agent_map.py`, `.file-size-baseline.json`
+  and `.ai/`, and `docs/agent-workflow.md` / `docs/repository-hygiene.md` (named by AGENTS.md) were
+  untracked, so a fresh clone could not run `check:agent`. An earlier version of this section also
+  said the README's `scripts/validate_responsive.py` command and `tests/test_commit_attribution.py`
+  depended on hidden files; that was wrong for the README. `validate_responsive.py`,
+  `validate-responsive.sh`, `scripts/responsive/`, `check_commit_attribution.py` and `audit_emoji.py`
+  are tracked at HEAD (the exclude file only affects untracked files). Only the test's reference to
+  `generate_agent_map` was a real hidden dependency.
+- Landed 2026-10-30 (commits `27d94414`, `70e4fa09`, `d93ae7e2`, `44ed5a2c`, `2dbe4787`): the tooling
+  is tracked, the five audit findings are fixed by splitting modules (not by raising caps), and
+  `npm run check:agent` passes all four gates from the committed tree.
+- Full non-browser suite at clean HEAD (`548a2d6e`, before any of that): 3 failed, 3940 passed,
+  63 skipped, 3 xfailed in 21m31s. Two failures (`tests/test_outputs_store.py`, "no such table:
+  memory_fact_shares" from `_migrate_82`) were a test fixture that dropped tables a real v50 database
+  has; fixed in `27d94414`, production migration code unchanged. The third
+  (`tests/test_onboarding_chooser.py::test_chooser_renders_exactly_three_routes_and_keeps_the_request`)
+  passes only with the previously uncommitted dashboard changes, which is one more reason HEAD was not
+  a coherent state.
 - Known failing checks in that tree, recorded by the other sessions: `tests/test_workflow_usage_budget.py`
   (dirty, unrelated failures) and `tests/e2e/test_design_system.py::test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive`
   (40 px vs 44 px run button). Not re-run here.
