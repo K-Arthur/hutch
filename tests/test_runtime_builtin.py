@@ -702,7 +702,7 @@ def test_a_prompt_that_cannot_fit_is_refused_before_any_model_call(store, config
 
 def test_a_prompt_that_crowds_the_window_warns_but_runs(store, config, tmp_path, ollama):
     ollama.script = agent_script([{"content": "ok"}])
-    ctx, run, emitted, tools = build(store, config, tmp_path, num_ctx=4096, instructions="x" * 4_200)
+    ctx, run, emitted, tools = build(store, config, tmp_path, num_ctx=4096, instructions="x" * 2_400)  # ~75% of the usable window: warns, far from refusal
     run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
     assert any(c.get("severity") == "warn" for c in kinds(emitted, "context"))
 

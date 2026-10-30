@@ -351,16 +351,16 @@ def test_loopback_broker_rejects_authority_and_method_changes(tmp_path):
         fake.close()
 
 
-def test_loopback_broker_refuses_a_request_after_close_starts(tmp_path):
-    import http.client
-
+def test_loopback_broker_refuses_a_request_after_close_starts():
+    import http.client, tempfile
     from hutch.offline import LoopbackBroker
 
-    broker = LoopbackBroker("http://127.0.0.1:11434", str(tmp_path))
-    upstream = http.client.HTTPConnection("127.0.0.1", 11434)
-    broker.close()
-    assert broker._register(upstream) is False
-    upstream.close()
+    with tempfile.TemporaryDirectory(prefix="hutch-o-") as short:  # AF_UNIX paths max ~108 bytes; tmp_path can exceed it
+        broker = LoopbackBroker("http://127.0.0.1:11434", short)
+        upstream = http.client.HTTPConnection("127.0.0.1", 11434)
+        broker.close()
+        assert broker._register(upstream) is False
+        upstream.close()
 
 
 def test_loopback_broker_rejects_absolute_targets_and_oversized_lengths(tmp_path):
