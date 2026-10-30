@@ -1,9 +1,51 @@
 [
   {
     "path": "production/PACKAGE-MANIFEST.json",
-    "bytes": 15910,
-    "sha256_prefix": "335294ef6e60351d",
-    "sha256": "335294ef6e60351d8ad02247f6515076dc9357bf25581faff432f79082c43788"
+    "bytes": 16109,
+    "sha256_prefix": "94c855b54d2a0335",
+    "sha256": "94c855b54d2a0335f066d46d63105a0842541603d24fa61153df6cdf4dad0488"
+  },
+  {
+    "path": "production/desktop/128x128.png",
+    "bytes": 4216,
+    "sha256_prefix": "7cca93c26bc042c3",
+    "sha256": "7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf"
+  },
+  {
+    "path": "production/desktop/128x128@2x.png",
+    "bytes": 8682,
+    "sha256_prefix": "56dd8a83eb55f569",
+    "sha256": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb"
+  },
+  {
+    "path": "production/desktop/32x32.png",
+    "bytes": 1091,
+    "sha256_prefix": "000e12e9d5fe95b2",
+    "sha256": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d"
+  },
+  {
+    "path": "production/desktop/icon.icns",
+    "bytes": 104223,
+    "sha256_prefix": "330eb42e1b172e63",
+    "sha256": "330eb42e1b172e6321150e03115ece67cf2829ed26087dadc2139b08b26268c7"
+  },
+  {
+    "path": "production/desktop/icon.ico",
+    "bytes": 18481,
+    "sha256_prefix": "992bd3645c5048ff",
+    "sha256": "992bd3645c5048ffa994912731e3cecad196f3bb0c16bf7a1f017b42c0a9fdc0"
+  },
+  {
+    "path": "production/desktop/icon.png",
+    "bytes": 39016,
+    "sha256_prefix": "68196a9c02d71166",
+    "sha256": "68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5"
+  },
+  {
+    "path": "production/desktop/icon.svg",
+    "bytes": 1096,
+    "sha256_prefix": "aa7dde5779b087c7",
+    "sha256": "aa7dde5779b087c7dfcde719240d0e6e350f3cbee8e8b28f5f5e732c5b15fc5a"
   },
   {
     "path": "production/fonts/OFL-bricolage-grotesque.txt",
@@ -280,6 +322,12 @@
     "bytes": 370437,
     "sha256_prefix": "0aa61eec9b2de1b5",
     "sha256": "0aa61eec9b2de1b5e42e2b7f9f3b22f0437b26367bd6bcb2bcb74d3ff1e92c04"
+  },
+  {
+    "path": "press-kit/README.md",
+    "bytes": 4258,
+    "sha256_prefix": "a261c3f22b6d0450",
+    "sha256": "a261c3f22b6d04505caa2b4ca461ac0049003505ecebceb92c77eb2558208f41"
   },
   {
     "path": "press-kit/fonts/OFL-bricolage-grotesque.txt",

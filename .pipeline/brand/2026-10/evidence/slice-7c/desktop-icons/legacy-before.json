@@ -1,0 +1,22 @@
+{
+  "icon.icns": {
+    "path": "desktop/icons/icon.icns",
+    "bytes": 102645,
+    "sha256": "d6b63e51e3c0066dd13dc122cad67080acba922a44362c4d4d713a2f01efdf41"
+  },
+  "icon.ico": {
+    "path": "desktop/icons/icon.ico",
+    "bytes": 21880,
+    "sha256": "974b1bd7755b3c95b0168cef05d0f2a1d84d8fea07d8837c8ebb38ce78c25217"
+  },
+  "icon.png": {
+    "path": "desktop/icons/icon.png",
+    "bytes": 10306,
+    "sha256": "ce575c6f700894a823ad72b6ca21d24debf50049581c26505d7f743fec82a911"
+  },
+  "icon.svg": {
+    "path": "desktop/icons/icon.svg",
+    "bytes": 295,
+    "sha256": "550abe9084cb9367bb55e168c0d8310e29f2e544cf8def03fed255a02257e950"
+  }
+}

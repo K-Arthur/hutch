@@ -1,0 +1,19 @@
+/* Visor Hutch lockup: the dashboard's only Bricolage Grotesque rule. */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/static/fonts/bricolage-grotesque-latin-800.woff2") format("woff2");
+}
+
+/* Lockup geometry (BRAND-GUIDELINES.md 3.2): the Studio sidebar and the
+   server-rendered headers use the 22px Small-tier mark + 8px gap + 18px
+   wordmark, so mark and wordmark read as one quiet horizontal lockup. */
+.ws-brand .brand { gap: 8px; }
+.brand-wordmark {
+  font-family: "Bricolage Grotesque", var(--font-display, "Geist"), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}

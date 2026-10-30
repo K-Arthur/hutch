@@ -1,0 +1,1433 @@
+{
+  "slice": "7C",
+  "slice_name": "Hutch Colony avatars + 5-state motion, dashboard brand assets, server header lockup",
+  "date_utc": "2026-10-29",
+  "date_local": "2026-10-29 (America/Vancouver, PDT)",
+  "verifier": "verifier (independent, no product/test/desktop-icon writes)",
+  "shared_task": "task-4",
+  "repo_commit_at_verification": "135d8038 docs(brand): complete Run 6 Visor Hutch mark, guidelines, and asset package (2026-10-29 01:52:13 -0700)",
+  "working_tree": "dirty: 68 modified, 1 deleted, 82 untracked entries from a concurrent unrelated session; slice-7C writes are src/hutch/server/static/app.js, studio.css, brand.css (new), index.html, templates/base.html, static icons/manifest/font files; concurrent session writes include untracked hutch-forms.css, hutch-form-controls.css, hutch-select.css, hutch-messages.css and persona.js form migration",
+  "verdict": "PASS",
+  "verdict_detail": "PASS after two verification-found, slice-caused defects were fixed by the Lead before final sign-off. Fix 1 (SLICE-7C-F1): the SPA dashboard wordmark computed to Geist 650 because brand.css was loaded before studio.css and lost the cascade to the pre-existing .brand-name font shorthand; the Lead moved the brand.css link to the last stylesheet position in index.html. Fix 2 (SLICE-7C-F2, applied after the initial report as a follow-up on the recorded non-blocking geometry observation): the Lead aligned both dashboard lockups to 22px mark + 8px gap + 18px wordmark by adding an 8px gap rule and font-size 18px in brand.css (now 19 lines, sha256 581315bf...) and updating the content-hash refs in index.html:41 and base.html:16. Final independent capture: 65 of 65 checks pass (54 of 55 initially, 55 of 55 after fix 1, 65 of 65 after fix 2). Post-fix-2 focused reruns: avatar e2e 1 passed in 18.89s; shared-token e2e 1 passed in 26.84s. No remaining slice-caused failures; the whole-file design-system known-unrelated persona-button failure stands.",
+  "environment": {
+    "chromium": "Chromium 153.0.8010.12 (Playwright bundled chromium-1243, /home/kevina/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome)",
+    "playwright": "1.63.0",
+    "pytest": "9.1.1",
+    "python": "3.13.15",
+    "uvicorn": "0.54.0",
+    "uv": "0.13.6",
+    "browser_launch": "playwright.chromium.launch() default bundled build (no HUTCH_TEST_CHROMIUM_EXECUTABLE override)",
+    "os": "Linux",
+    "default_viewport": "1440x960, reduced_motion=reduce",
+    "uv_cache": "/tmp/hutch-uv-cache (per-command ephemeral sandbox /tmp; no artifacts written under /tmp are persisted, so all evidence logs are written under the verification directory)",
+    "artifact_root": ".pipeline/brand/2026-10/evidence/slice-7c/verification/artifacts",
+    "brand_css_at_final": {
+      "sha256": "581315bfbabe6649da7ba92e12557e51ec517e775d3125340d6e5cb829e9475f",
+      "sha8": "581315bf",
+      "lines": 19
+    }
+  },
+  "commands": [
+    {
+      "id": "CMD-1",
+      "purpose": "Shared brand tokens compile without drift and static/brand-tokens.css stays byte-identical to website/tokens.css",
+      "command": "UV_CACHE_DIR=/tmp/hutch-uv-cache uv run --frozen --no-sync pytest -q --no-header --tb=line tests/test_site_tokens.py",
+      "exit_code": 0,
+      "result": "8 passed in 1.12s",
+      "expected": true
+    },
+    {
+      "id": "CMD-2",
+      "purpose": "Repository context-hygiene drift guard",
+      "command": "UV_CACHE_DIR=/tmp/hutch-uv-cache uv run --frozen --no-sync pytest -q --no-header --tb=line tests/test_context_hygiene.py",
+      "exit_code": 1,
+      "result": "1 failed, 11 passed in 0.63s",
+      "failure": "tests/test_context_hygiene.py:194 test_real_repository_has_no_context_violations - AssertionError: ['new source file over 400 lines: tests/test_commit_attribution.py (419 lines); split it'] == []",
+      "attribution": "KNOWN-UNRELATED: tests/test_commit_attribution.py is committed at bee491d5 (2026-10-28 14:39:50 -0700), not touched by slice 7C, and was reported as a known pre-existing violation by the Lead."
+    },
+    {
+      "id": "CMD-3a",
+      "purpose": "Context-hygiene inventory report (inventory line and slice file sizes)",
+      "command": "UV_CACHE_DIR=/tmp/hutch-uv-cache uv run --frozen --no-sync python scripts/audit_context_hygiene.py --report",
+      "exit_code": 0,
+      "result": "Context hygiene report: 637 source files scanned; 118 over 400 lines; 117 frozen in .file-size-baseline.json. Policy findings (1): new source file over 400 lines: tests/test_commit_attribution.py (419 lines); split it. Top offenders include 14262 src/hutch/server/static/app.js (cap 14532), 13265 tests/e2e/test_browser.py, 12624 src/hutch/store.py, 7461 src/hutch/server/app.py, 3334 tests/e2e/test_design_system.py.",
+      "slice_file_sizes": {
+        "src/hutch/server/static/app.js": {
+          "lines": 14262,
+          "cap": 14532,
+          "bytes": 953100,
+          "status": "within frozen baseline"
+        },
+        "src/hutch/server/static/studio.css": {
+          "lines": 1016,
+          "cap": 1115,
+          "bytes": 83814,
+          "status": "within frozen baseline"
+        },
+        "src/hutch/server/static/brand.css": {
+          "lines": 14,
+          "bytes": 445,
+          "status": "new file, small"
+        },
+        "src/hutch/server/static/brand-tokens.css": {
+          "lines": 120,
+          "bytes": 4345,
+          "sha256": "7e5b0d00fb6ed8c46e3e50e6ce8c48a878a31902fb57445f988ff823305c4a86"
+        },
+        "website/tokens.css": {
+          "lines": 120,
+          "bytes": 4345,
+          "sha256": "7e5b0d00fb6ed8c46e3e50e6ce8c48a878a31902fb57445f988ff823305c4a86",
+          "status": "byte-identical to src/hutch/server/static/brand-tokens.css"
+        }
+      }
+    },
+    {
+      "id": "CMD-3b",
+      "purpose": "Context-hygiene audit without --report (policy gate)",
+      "command": "UV_CACHE_DIR=/tmp/hutch-uv-cache uv run --frozen --no-sync python scripts/audit_context_hygiene.py",
+      "exit_code": 1,
+      "result": "Context hygiene violations (1): new source file over 400 lines: tests/test_commit_attribution.py (419 lines); split it",
+      "attribution": "KNOWN-UNRELATED (same single violation as CMD-2; no slice-7C file appears in the violation list)."
+    },
+    {
+      "id": "CMD-4",
+      "purpose": "No-emoji policy audit",
+      "command": "UV_CACHE_DIR=/tmp/hutch-uv-cache uv run --frozen --no-sync python scripts/audit_emoji.py",
+      "exit_code": 0,
+      "result": "audit:emoji - clean (scanned 2901 files, 10 waiver(s))."
+    },
+    {
+      "id": "CMD-5",
+      "purpose": "Authoritative slice check: 8 colony silhouettes, two ink #0b1511 eyes each, 48-point Path2D containment, 8 distinct face rows >= 6, mirrored tilt, 44px controls, picker preview parity, no page errors",
+      "command": "HUTCH_TEST_ARTIFACTS_DIR=<verification>/artifacts UV_CACHE_DIR=/tmp/hutch-uv-cache uv run --frozen --no-sync pytest -q --no-header --tb=line tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
+      "exit_code": 0,
+      "result": "1 passed in 12.02s",
+      "expected": true
+    },
+    {
+      "id": "CMD-6",
+      "purpose": "Shared design tokens render consistently across Studio, Connections and marketing; #workspace .brand-name text is exactly 'hutch' on Studio and Connections",
+      "command": "HUTCH_TEST_ARTIFACTS_DIR=<verification>/artifacts UV_CACHE_DIR=/tmp/hutch-uv-cache uv run --frozen --no-sync pytest -q --no-header --tb=line tests/e2e/test_design_system.py::test_shared_design_tokens_render_consistently_across_all_surfaces",
+      "exit_code": 0,
+      "result": "1 passed in 15.60s",
+      "expected": true
+    },
+    {
+      "id": "CMD-7-run1",
+      "purpose": "Whole-file design-system e2e, run 1 (background job)",
+      "command": "HUTCH_TEST_ARTIFACTS_DIR=<verification>/artifacts UV_CACHE_DIR=/tmp/hutch-uv-cache uv run --frozen --no-sync pytest -q --no-header --tb=line tests/e2e/test_design_system.py",
+      "exit_code": 1,
+      "result": "2 failed, 17 passed in 204.48s",
+      "failures": [
+        {
+          "test": "tests/e2e/test_design_system.py::test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive",
+          "assertion": "tests/e2e/test_design_system.py:2514 assert button.evaluate('el => Math.round(el.getBoundingClientRect().height)') >= 44 -- got 40",
+          "attribution": "KNOWN-UNRELATED (concurrent session): working-tree persona.js added a .hutch-actions wrapper (HEAD had .btn-row); untracked concurrent-session src/hutch/server/static/hutch-form-controls.css:196-197 '.hutch-actions .btn { min-height: var(--hutch-form-height-button); }' resolves to 40px (hutch-forms.css:93) and wins equal-then-higher specificity over pre-existing style.css:2574 '.persona-live-preview button { min-height: 44px; }'. Concurrent files mtime 2026-10-28 14:56-16:30, before slice-7C writes at 2026-10-29 03:01-03:02. Reproduced deterministically in isolation (1 failed in 5.12s). Not slice 7C."
+        },
+        {
+          "test": "tests/e2e/test_design_system.py::test_answer_feedback_stays_local_revisioned_and_accessible",
+          "assertion": "wait_for_page predicate timed out after 30000 ms waiting for 2 answer-feedback rating controls with the expected data-feedback-revision and aria-disabled != true (tests/support/browser.py:33)",
+          "attribution": "FLAKY-IN-SEQUENCE, NOT REPRODUCED: passed in isolation (1 passed in 9.38s) and passed in whole-file run 2. Not slice-caused; no slice-7C code path involved in answer-feedback controls."
+        }
+      ]
+    },
+    {
+      "id": "CMD-7-run2",
+      "purpose": "Whole-file design-system e2e, run 2 (reproducibility of run-1 failures)",
+      "command": "HUTCH_TEST_ARTIFACTS_DIR=<verification>/artifacts UV_CACHE_DIR=/tmp/hutch-uv-cache uv run --frozen --no-sync pytest -q --no-header --tb=short tests/e2e/test_design_system.py > whole-file-design-system-e2e-run2.log 2>&1",
+      "exit_code": 1,
+      "result": "1 failed, 18 passed in 213.86s",
+      "failures": [
+        {
+          "test": "tests/e2e/test_design_system.py::test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive",
+          "assertion": "tests/e2e/test_design_system.py:2514 assert 40 >= 44",
+          "attribution": "KNOWN-UNRELATED (concurrent session form migration), same as run 1."
+        }
+      ],
+      "note": "test_answer_feedback_stays_local_revisioned_and_accessible passed in run 2, confirming it was a first-run sequence/load flake."
+    },
+    {
+      "id": "CMD-8",
+      "purpose": "Roster identity e2e: name-derived roster avatars distinguishable, exactly two ink eyes, no glints/outlines/masks, compact face span <= 16",
+      "command": "HUTCH_TEST_ARTIFACTS_DIR=<verification>/artifacts UV_CACHE_DIR=/tmp/hutch-uv-cache uv run --frozen --no-sync pytest -q --no-header --tb=line tests/e2e/test_browser.py::test_bot_roster_pins_persist_and_simple_mascots_stay_distinct",
+      "exit_code": 0,
+      "result": "1 passed in 12.41s",
+      "expected": true
+    },
+    {
+      "id": "CMD-9-initial",
+      "purpose": "Independent browser/asset capture, initial run (pre-fix)",
+      "command": ".venv/bin/python .pipeline/brand/2026-10/evidence/slice-7c/verification/capture_slice_7c.py",
+      "exit_code": 1,
+      "result": "54 checks passed, 1 check failed (slice-caused: SPA wordmark font cascade)",
+      "evidence_json": ".pipeline/brand/2026-10/evidence/slice-7c/verification/capture-results.json (overwritten by the post-fix rerun; the failed check detail is preserved in this report and in the Lead-fix section)"
+    },
+    {
+      "id": "CMD-10",
+      "purpose": "Post-fix-1 independent browser/asset capture (same script, same fixture, against the Lead's fixed index.html)",
+      "command": ".venv/bin/python .pipeline/brand/2026-10/evidence/slice-7c/verification/capture_slice_7c.py",
+      "exit_code": 0,
+      "result": "55 checks passed, 0 checks failed",
+      "evidence_json": ".pipeline/brand/2026-10/evidence/slice-7c/verification/capture-results.json"
+    },
+    {
+      "id": "CMD-11",
+      "purpose": "Post-fix-1 focused e2e reruns",
+      "command": "pytest -q --no-header --tb=line tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette ; ...::test_shared_design_tokens_render_consistently_across_all_surfaces",
+      "exit_code": 0,
+      "result": "avatar e2e 1 passed in 17.03s; shared-token e2e 1 passed in 23.89s",
+      "evidence_logs": [
+        ".pipeline/brand/2026-10/evidence/slice-7c/verification/postfix-rerun-avatar-e2e.log",
+        ".pipeline/brand/2026-10/evidence/slice-7c/verification/postfix-rerun-shared-token-e2e.log"
+      ]
+    },
+    {
+      "id": "CMD-12",
+      "purpose": "Post-fix whole-file design-system e2e run 3 (run alone)",
+      "command": "HUTCH_TEST_ARTIFACTS_DIR=<verification>/artifacts UV_CACHE_DIR=/tmp/hutch-uv-cache uv run --frozen --no-sync pytest -q --no-header --tb=short tests/e2e/test_design_system.py",
+      "exit_code": 1,
+      "result": "1 failed, 18 passed in 245.23s",
+      "failures": [
+        {
+          "test": "tests/e2e/test_design_system.py::test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive",
+          "assertion": "tests/e2e/test_design_system.py:2514 assert 40 >= 44",
+          "attribution": "KNOWN-UNRELATED (concurrent session form migration), unchanged by the Lead fix."
+        }
+      ],
+      "evidence_log": ".pipeline/brand/2026-10/evidence/slice-7c/verification/whole-file-design-system-e2e-postfix-run3.log"
+    },
+    {
+      "id": "CMD-13",
+      "purpose": "Extended independent browser/asset capture after Lead follow-up fix 2 (lockup geometry + content-hashed brand.css)",
+      "command": ".venv/bin/python .pipeline/brand/2026-10/evidence/slice-7c/verification/capture_slice_7c.py",
+      "exit_code": 0,
+      "result": "65 checks passed, 0 checks failed",
+      "new_checks_after_fix_2": [
+        "source brand.css content-hash is 581315bf",
+        "index.html and base.html reference brand.css?v=581315bf",
+        "SPA lockup gap is 8px",
+        "SPA wordmark font-size is 18px",
+        "SPA wordmark tracking is -0.54px (-0.03em at 18px)",
+        "SPA loads content-hashed brand.css v=581315bf and serves matching bytes",
+        "server page lockup gap is 8px",
+        "server page wordmark font-size is 18px",
+        "server page wordmark tracking is -0.54px (-0.03em at 18px)",
+        "server page loads content-hashed brand.css v=581315bf and serves matching bytes"
+      ],
+      "evidence_json": ".pipeline/brand/2026-10/evidence/slice-7c/verification/capture-results.json"
+    },
+    {
+      "id": "CMD-14",
+      "purpose": "Post-fix-2 focused e2e reruns (no whole-file design-system rerun, per Lead instruction)",
+      "command": "pytest -q --no-header --tb=line tests/e2e/test_design_system.py::test_shared_design_tokens_render_consistently_across_all_surfaces ; ...::test_flat_mascot_eyes_stay_inside_every_silhouette",
+      "exit_code": 0,
+      "result": "shared-token e2e 1 passed in 26.84s; avatar e2e 1 passed in 18.89s",
+      "evidence_logs": [
+        ".pipeline/brand/2026-10/evidence/slice-7c/verification/followup-rerun-shared-token-e2e.log",
+        ".pipeline/brand/2026-10/evidence/slice-7c/verification/followup-rerun-avatar-e2e.log"
+      ]
+    }
+  ],
+  "focused_checks": {
+    "site_tokens": {
+      "passed": 8,
+      "failed": 0,
+      "status": "PASS"
+    },
+    "context_hygiene": {
+      "passed": 11,
+      "failed": 1,
+      "status": "KNOWN-UNRELATED FAILURE"
+    },
+    "hygiene_report": {
+      "exit_code": 0,
+      "inventory": "637 source files scanned; 118 over 400 lines; 117 frozen",
+      "slice_files_within_caps": true,
+      "brand_tokens_byte_identical": true
+    },
+    "emoji_audit": {
+      "status": "PASS",
+      "result": "clean (2901 files, 10 waivers)"
+    },
+    "avatar_e2e": {
+      "passed": 1,
+      "failed": 0,
+      "status": "PASS",
+      "duration": "12.02s",
+      "post_fix": "1 passed in 17.03s",
+      "post_fix_1": "1 passed in 17.03s",
+      "post_fix_2": "1 passed in 18.89s"
+    },
+    "shared_token_e2e": {
+      "passed": 1,
+      "failed": 0,
+      "status": "PASS",
+      "duration": "15.60s",
+      "post_fix": "1 passed in 23.89s",
+      "post_fix_1": "1 passed in 23.89s",
+      "post_fix_2": "1 passed in 26.84s"
+    },
+    "roster_e2e": {
+      "passed": 1,
+      "failed": 0,
+      "status": "PASS",
+      "duration": "12.41s"
+    },
+    "whole_file_e2e": {
+      "runs": 3,
+      "run1_pre_fix": "2 failed, 17 passed in 204.48s (persona button 40px known-unrelated + answer-feedback flake)",
+      "run2_pre_fix": "1 failed, 18 passed in 213.86s (persona button known-unrelated only)",
+      "run3_post_fix": "1 failed, 18 passed in 245.23s (persona button known-unrelated only)",
+      "deterministic_slice_failures": 0,
+      "known_unrelated_failures": 1,
+      "note_fix_2": "Not rerun after fix 2, per Lead instruction; the known-unrelated persona-button failure stands."
+    },
+    "independent_capture": {
+      "initial_pre_fix": "54 passed, 1 failed (slice-caused wordmark font cascade)",
+      "post_fix_1": "55 passed, 0 failed",
+      "post_fix_2": "65 passed, 0 failed",
+      "status": "PASS"
+    }
+  },
+  "capture": {
+    "script": ".pipeline/brand/2026-10/evidence/slice-7c/verification/capture_slice_7c.py",
+    "fixture_recipe": "HUTCH_STATE_DIR=fresh temp dir, HUTCH_MAX_CONCURRENT=2, HUTCH_TESTING=1, HUTCH_SANDBOX=off, create_app(), Bot(name='design-system-review', display_name='Design Partner', model='mock/demo', tools=[]), uvicorn.Server on 127.0.0.1:0, wait server.started, Playwright Chromium 1440x960 reduced_motion=reduce",
+    "checks_total": 55,
+    "checks_passed": 65,
+    "checks_failed": 0,
+    "spa_assets": [
+      {
+        "rel": "icon",
+        "href": "/static/favicon.svg?v=cada88dd",
+        "declared_type": "image/svg+xml",
+        "status": 200,
+        "content_type": "image/svg+xml",
+        "bytes": 1054,
+        "same_origin": true
+      },
+      {
+        "rel": "icon",
+        "href": "/static/favicon-32x32.png?v=2d2d3d2c",
+        "declared_type": "image/png",
+        "status": 200,
+        "content_type": "image/png",
+        "bytes": 1124,
+        "same_origin": true,
+        "png_dimensions": "32x32"
+      },
+      {
+        "rel": "icon",
+        "href": "/static/favicon.ico?v=9096fd72",
+        "declared_type": null,
+        "status": 200,
+        "content_type": "image/vnd.microsoft.icon",
+        "bytes": 3537,
+        "same_origin": true
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "/static/apple-touch-icon.png?v=2351b1e0",
+        "declared_type": null,
+        "status": 200,
+        "content_type": "image/png",
+        "bytes": 3978,
+        "same_origin": true,
+        "png_dimensions": "180x180"
+      },
+      {
+        "rel": "manifest",
+        "href": "/static/site.webmanifest?v=187682d3",
+        "declared_type": null,
+        "status": 200,
+        "content_type": "application/manifest+json",
+        "bytes": 1064,
+        "same_origin": true
+      }
+    ],
+    "manifest_icons": [
+      {
+        "src": "icons/icon-192.png",
+        "resolved_url": "http://127.0.0.1:36307/static/icons/icon-192.png",
+        "sizes": "192x192",
+        "purpose": "any",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "192x192"
+      },
+      {
+        "src": "icons/icon-512.png",
+        "resolved_url": "http://127.0.0.1:36307/static/icons/icon-512.png",
+        "sizes": "512x512",
+        "purpose": "any",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "512x512"
+      },
+      {
+        "src": "icons/icon-192-maskable.png",
+        "resolved_url": "http://127.0.0.1:36307/static/icons/icon-192-maskable.png",
+        "sizes": "192x192",
+        "purpose": "maskable",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "192x192"
+      },
+      {
+        "src": "icons/icon-512-maskable.png",
+        "resolved_url": "http://127.0.0.1:36307/static/icons/icon-512-maskable.png",
+        "sizes": "512x512",
+        "purpose": "maskable",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "512x512"
+      },
+      {
+        "src": "icons/icon-192-monochrome.png",
+        "resolved_url": "http://127.0.0.1:36307/static/icons/icon-192-monochrome.png",
+        "sizes": "192x192",
+        "purpose": "monochrome",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "192x192"
+      },
+      {
+        "src": "icons/icon-512-monochrome.png",
+        "resolved_url": "http://127.0.0.1:36307/static/icons/icon-512-monochrome.png",
+        "sizes": "512x512",
+        "purpose": "monochrome",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "512x512"
+      }
+    ],
+    "manifest_icon_count": 6,
+    "font": {
+      "document_fonts_check_spec": "800 16px \"Bricolage Grotesque\"",
+      "check_before_explicit_load": true,
+      "check_after_explicit_load": true,
+      "declared_face": {
+        "family": "Bricolage Grotesque",
+        "weight": "800",
+        "status": "loaded"
+      },
+      "spa_wordmark_computed_font_family": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif",
+      "spa_wordmark_computed_font_weight": "800",
+      "spa_wordmark_computed_font_size": "18px",
+      "spa_wordmark_computed_letter_spacing": "-0.54px",
+      "server_wordmark_computed_font_family": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif",
+      "server_wordmark_computed_font_weight": "800",
+      "server_wordmark_computed_font_size": "16px"
+    },
+    "spa_brand_mark": {
+      "svg_count": 1,
+      "view_box": "0 0 32 32",
+      "path_count": 1,
+      "path_is_small_tier": true,
+      "fill": "var(--brand)",
+      "fill_rule": "evenodd",
+      "circle_count": 0,
+      "stroke_elements": [],
+      "rendered_size_css_px": [
+        22,
+        22
+      ],
+      "wordmark_text": "hutch",
+      "lockup_gap_css_px": 12
+    },
+    "server_page": {
+      "selected_path": "/models",
+      "candidates": [
+        {
+          "requested": "/models",
+          "final_url": "http://127.0.0.1:36307/models",
+          "final_path": "/models",
+          "status": 200
+        }
+      ],
+      "topbar_brand_svg_count": 1,
+      "mark_width_height_attr": [
+        "22",
+        "22"
+      ],
+      "path_count": 1,
+      "fill": "var(--accent)",
+      "circle_count": 0,
+      "stroke_elements": [],
+      "wordmark_text": "hutch",
+      "lockup_gap_css_px": 12
+    },
+    "network_integrity": {
+      "page_errors": [],
+      "console_errors": [],
+      "failed_responses": [],
+      "request_failures": [],
+      "non_localhost_requests": []
+    },
+    "screenshots": {
+      "spa-desktop.png": "1440x960 SPA sidebar lockup and chat shell",
+      "spa-brand-closeup.png": "83x22 SPA sidebar brand element",
+      "server-page-topbar.png": "1440x54 /models topbar",
+      "server-page-brand.png": "77x25 /models topbar brand element",
+      "server-page-full.png": "1440x3369 full /models page",
+      "artifacts/mascot-eye-review-2026-10-10/desktop.png": "1440x960 roster with 8 colony avatars",
+      "artifacts/mascot-eye-review-2026-10-10/shape-picker-desktop.png": "736x414 shape/colour picker",
+      "artifacts/mascot-eye-review-2026-10-10/face-*.png": "128x129 each, 8 reviewed face close-ups",
+      "artifacts/mascot-eye-review-2026-10-10/phone-roster.png": "390x844 phone roster"
+    },
+    "validation_json_from_tests": {
+      "avatar_run": {
+        "browser": "Chromium 153.0.8010.12",
+        "silhouettes": 8,
+        "colors": 8,
+        "minimum_eye_contrast": 5.95,
+        "page_errors": [],
+        "provider_calls": 0
+      },
+      "design_system_run": {
+        "browser": "Chromium 153.0.8010.12",
+        "playwright": "1.63.0",
+        "external_requests": [],
+        "provider_calls": 0
+      }
+    },
+    "checks": [
+      {
+        "check": "source brand.css content-hash is 581315bf",
+        "ok": true,
+        "detail": {
+          "path": "/home/kevina/CodingProjects/hutch/src/hutch/server/static/brand.css",
+          "sha256": "581315bfbabe6649da7ba92e12557e51ec517e775d3125340d6e5cb829e9475f",
+          "lines": 19
+        }
+      },
+      {
+        "check": "index.html and base.html reference brand.css?v=581315bf",
+        "ok": true,
+        "detail": {
+          "ref": "/static/brand.css?v=581315bf",
+          "index_html": true,
+          "base_html": true
+        }
+      },
+      {
+        "check": "fixture bot created",
+        "ok": true,
+        "detail": {
+          "bot": "design-system-review"
+        }
+      },
+      {
+        "check": "local Hutch preview started",
+        "ok": true,
+        "detail": {
+          "state_root": "/tmp/hutch-slice7c-state-b075dv_4"
+        }
+      },
+      {
+        "check": "SPA GET / returns HTTP 200",
+        "ok": true,
+        "detail": {
+          "status": 200
+        }
+      },
+      {
+        "check": "SPA chat shell rendered (#chat-prompt)",
+        "ok": true,
+        "detail": {
+          "title": "hutch \u2014 your personal assistant"
+        }
+      },
+      {
+        "check": "SPA head declares three rel=icon links",
+        "ok": true,
+        "detail": [
+          {
+            "rel": "icon",
+            "href": "/static/favicon.svg?v=cada88dd",
+            "type": "image/svg+xml",
+            "sizes": null
+          },
+          {
+            "rel": "icon",
+            "href": "/static/favicon-32x32.png?v=2d2d3d2c",
+            "type": "image/png",
+            "sizes": "32x32"
+          },
+          {
+            "rel": "icon",
+            "href": "/static/favicon.ico?v=9096fd72",
+            "type": null,
+            "sizes": "48x48"
+          }
+        ]
+      },
+      {
+        "check": "SPA head declares one apple-touch-icon link",
+        "ok": true,
+        "detail": [
+          {
+            "rel": "apple-touch-icon",
+            "href": "/static/apple-touch-icon.png?v=2351b1e0",
+            "type": null,
+            "sizes": "180x180"
+          }
+        ]
+      },
+      {
+        "check": "SPA head declares one rel=manifest link",
+        "ok": true,
+        "detail": [
+          {
+            "rel": "manifest",
+            "href": "/static/site.webmanifest?v=187682d3",
+            "type": null,
+            "sizes": null
+          }
+        ]
+      },
+      {
+        "check": "SPA head declares exactly five icon/manifest links",
+        "ok": true,
+        "detail": [
+          {
+            "rel": "icon",
+            "href": "/static/favicon.svg?v=cada88dd",
+            "type": "image/svg+xml",
+            "sizes": null
+          },
+          {
+            "rel": "icon",
+            "href": "/static/favicon-32x32.png?v=2d2d3d2c",
+            "type": "image/png",
+            "sizes": "32x32"
+          },
+          {
+            "rel": "icon",
+            "href": "/static/favicon.ico?v=9096fd72",
+            "type": null,
+            "sizes": "48x48"
+          },
+          {
+            "rel": "apple-touch-icon",
+            "href": "/static/apple-touch-icon.png?v=2351b1e0",
+            "type": null,
+            "sizes": "180x180"
+          },
+          {
+            "rel": "manifest",
+            "href": "/static/site.webmanifest?v=187682d3",
+            "type": null,
+            "sizes": null
+          }
+        ]
+      },
+      {
+        "check": "asset /static/favicon.svg?v=cada88dd -> HTTP 200 same-origin",
+        "ok": true,
+        "detail": {
+          "rel": "icon",
+          "href": "/static/favicon.svg?v=cada88dd",
+          "declared_type": "image/svg+xml",
+          "status": 200,
+          "content_type": "image/svg+xml",
+          "bytes": 1054,
+          "same_origin": true
+        }
+      },
+      {
+        "check": "asset /static/favicon.svg?v=cada88dd content-type image/svg+xml",
+        "ok": true,
+        "detail": {
+          "content_type": "image/svg+xml",
+          "declared_type": "image/svg+xml"
+        }
+      },
+      {
+        "check": "asset /static/favicon-32x32.png?v=2d2d3d2c -> HTTP 200 same-origin",
+        "ok": true,
+        "detail": {
+          "rel": "icon",
+          "href": "/static/favicon-32x32.png?v=2d2d3d2c",
+          "declared_type": "image/png",
+          "status": 200,
+          "content_type": "image/png",
+          "bytes": 1124,
+          "same_origin": true,
+          "png_dimensions": "32x32"
+        }
+      },
+      {
+        "check": "asset /static/favicon-32x32.png?v=2d2d3d2c content-type image/png",
+        "ok": true,
+        "detail": {
+          "content_type": "image/png",
+          "declared_type": "image/png"
+        }
+      },
+      {
+        "check": "asset /static/favicon-32x32.png?v=2d2d3d2c PNG payload decodes",
+        "ok": true,
+        "detail": {
+          "png_dimensions": "32x32"
+        }
+      },
+      {
+        "check": "asset /static/favicon.ico?v=9096fd72 -> HTTP 200 same-origin",
+        "ok": true,
+        "detail": {
+          "rel": "icon",
+          "href": "/static/favicon.ico?v=9096fd72",
+          "declared_type": null,
+          "status": 200,
+          "content_type": "image/vnd.microsoft.icon",
+          "bytes": 3537,
+          "same_origin": true
+        }
+      },
+      {
+        "check": "asset /static/favicon.ico?v=9096fd72 content-type image/vnd.microsoft.icon",
+        "ok": true,
+        "detail": {
+          "content_type": "image/vnd.microsoft.icon",
+          "declared_type": null
+        }
+      },
+      {
+        "check": "favicon.ico payload has ICO magic",
+        "ok": true,
+        "detail": {
+          "magic": "00000100"
+        }
+      },
+      {
+        "check": "asset /static/apple-touch-icon.png?v=2351b1e0 -> HTTP 200 same-origin",
+        "ok": true,
+        "detail": {
+          "rel": "apple-touch-icon",
+          "href": "/static/apple-touch-icon.png?v=2351b1e0",
+          "declared_type": null,
+          "status": 200,
+          "content_type": "image/png",
+          "bytes": 3978,
+          "same_origin": true,
+          "png_dimensions": "180x180"
+        }
+      },
+      {
+        "check": "asset /static/apple-touch-icon.png?v=2351b1e0 content-type image/png",
+        "ok": true,
+        "detail": {
+          "content_type": "image/png",
+          "declared_type": null
+        }
+      },
+      {
+        "check": "asset /static/apple-touch-icon.png?v=2351b1e0 PNG payload decodes",
+        "ok": true,
+        "detail": {
+          "png_dimensions": "180x180"
+        }
+      },
+      {
+        "check": "asset /static/site.webmanifest?v=187682d3 -> HTTP 200 same-origin",
+        "ok": true,
+        "detail": {
+          "rel": "manifest",
+          "href": "/static/site.webmanifest?v=187682d3",
+          "declared_type": null,
+          "status": 200,
+          "content_type": "application/manifest+json",
+          "bytes": 1064,
+          "same_origin": true
+        }
+      },
+      {
+        "check": "asset /static/site.webmanifest?v=187682d3 content-type application/manifest+json",
+        "ok": true,
+        "detail": {
+          "content_type": "application/manifest+json",
+          "declared_type": null
+        }
+      },
+      {
+        "check": "manifest JSON parses",
+        "ok": true,
+        "detail": {
+          "keys": [
+            "background_color",
+            "description",
+            "display",
+            "icons",
+            "name",
+            "short_name",
+            "start_url",
+            "theme_color"
+          ]
+        }
+      },
+      {
+        "check": "manifest declares six PNG icons",
+        "ok": true,
+        "detail": [
+          {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+          },
+          {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+          },
+          {
+            "src": "icons/icon-192-maskable.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+          },
+          {
+            "src": "icons/icon-512-maskable.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+          },
+          {
+            "src": "icons/icon-192-monochrome.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "monochrome"
+          },
+          {
+            "src": "icons/icon-512-monochrome.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "monochrome"
+          }
+        ]
+      },
+      {
+        "check": "manifest icon icons/icon-192.png -> HTTP 200 PNG",
+        "ok": true,
+        "detail": {
+          "src": "icons/icon-192.png",
+          "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192.png",
+          "sizes": "192x192",
+          "purpose": "any",
+          "status": 200,
+          "content_type": "image/png",
+          "png_dimensions": "192x192"
+        }
+      },
+      {
+        "check": "manifest icon icons/icon-192.png dimensions match 192x192",
+        "ok": true,
+        "detail": {
+          "src": "icons/icon-192.png",
+          "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192.png",
+          "sizes": "192x192",
+          "purpose": "any",
+          "status": 200,
+          "content_type": "image/png",
+          "png_dimensions": "192x192"
+        }
+      },
+      {
+        "check": "manifest icon icons/icon-512.png -> HTTP 200 PNG",
+        "ok": true,
+        "detail": {
+          "src": "icons/icon-512.png",
+          "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512.png",
+          "sizes": "512x512",
+          "purpose": "any",
+          "status": 200,
+          "content_type": "image/png",
+          "png_dimensions": "512x512"
+        }
+      },
+      {
+        "check": "manifest icon icons/icon-512.png dimensions match 512x512",
+        "ok": true,
+        "detail": {
+          "src": "icons/icon-512.png",
+          "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512.png",
+          "sizes": "512x512",
+          "purpose": "any",
+          "status": 200,
+          "content_type": "image/png",
+          "png_dimensions": "512x512"
+        }
+      },
+      {
+        "check": "manifest icon icons/icon-192-maskable.png -> HTTP 200 PNG",
+        "ok": true,
+        "detail": {
+          "src": "icons/icon-192-maskable.png",
+          "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192-maskable.png",
+          "sizes": "192x192",
+          "purpose": "maskable",
+          "status": 200,
+          "content_type": "image/png",
+          "png_dimensions": "192x192"
+        }
+      },
+      {
+        "check": "manifest icon icons/icon-192-maskable.png dimensions match 192x192",
+        "ok": true,
+        "detail": {
+          "src": "icons/icon-192-maskable.png",
+          "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192-maskable.png",
+          "sizes": "192x192",
+          "purpose": "maskable",
+          "status": 200,
+          "content_type": "image/png",
+          "png_dimensions": "192x192"
+        }
+      },
+      {
+        "check": "manifest icon icons/icon-512-maskable.png -> HTTP 200 PNG",
+        "ok": true,
+        "detail": {
+          "src": "icons/icon-512-maskable.png",
+          "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512-maskable.png",
+          "sizes": "512x512",
+          "purpose": "maskable",
+          "status": 200,
+          "content_type": "image/png",
+          "png_dimensions": "512x512"
+        }
+      },
+      {
+        "check": "manifest icon icons/icon-512-maskable.png dimensions match 512x512",
+        "ok": true,
+        "detail": {
+          "src": "icons/icon-512-maskable.png",
+          "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512-maskable.png",
+          "sizes": "512x512",
+          "purpose": "maskable",
+          "status": 200,
+          "content_type": "image/png",
+          "png_dimensions": "512x512"
+        }
+      },
+      {
+        "check": "manifest icon icons/icon-192-monochrome.png -> HTTP 200 PNG",
+        "ok": true,
+        "detail": {
+          "src": "icons/icon-192-monochrome.png",
+          "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192-monochrome.png",
+          "sizes": "192x192",
+          "purpose": "monochrome",
+          "status": 200,
+          "content_type": "image/png",
+          "png_dimensions": "192x192"
+        }
+      },
+      {
+        "check": "manifest icon icons/icon-192-monochrome.png dimensions match 192x192",
+        "ok": true,
+        "detail": {
+          "src": "icons/icon-192-monochrome.png",
+          "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192-monochrome.png",
+          "sizes": "192x192",
+          "purpose": "monochrome",
+          "status": 200,
+          "content_type": "image/png",
+          "png_dimensions": "192x192"
+        }
+      },
+      {
+        "check": "manifest icon icons/icon-512-monochrome.png -> HTTP 200 PNG",
+        "ok": true,
+        "detail": {
+          "src": "icons/icon-512-monochrome.png",
+          "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512-monochrome.png",
+          "sizes": "512x512",
+          "purpose": "monochrome",
+          "status": 200,
+          "content_type": "image/png",
+          "png_dimensions": "512x512"
+        }
+      },
+      {
+        "check": "manifest icon icons/icon-512-monochrome.png dimensions match 512x512",
+        "ok": true,
+        "detail": {
+          "src": "icons/icon-512-monochrome.png",
+          "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512-monochrome.png",
+          "sizes": "512x512",
+          "purpose": "monochrome",
+          "status": 200,
+          "content_type": "image/png",
+          "png_dimensions": "512x512"
+        }
+      },
+      {
+        "check": "document.fonts.check('800 16px \"Bricolage Grotesque\"') is true",
+        "ok": true,
+        "detail": {
+          "spec": "800 16px \"Bricolage Grotesque\"",
+          "checkAfter": true,
+          "checkBefore": true,
+          "fontLoadError": null,
+          "fontFamily": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif",
+          "fontWeight": "800",
+          "fontSize": "18px",
+          "letterSpacing": "-0.54px",
+          "loadedBricolageFaces": [
+            {
+              "family": "Bricolage Grotesque",
+              "weight": "800",
+              "status": "loaded"
+            }
+          ],
+          "wordmarkText": "hutch"
+        }
+      },
+      {
+        "check": "SPA .brand-wordmark computed font-family includes Bricolage Grotesque",
+        "ok": true,
+        "detail": {
+          "fontFamily": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif",
+          "fontWeight": "800",
+          "fontSize": "18px",
+          "loadedBricolageFaces": [
+            {
+              "family": "Bricolage Grotesque",
+              "weight": "800",
+              "status": "loaded"
+            }
+          ]
+        }
+      },
+      {
+        "check": "SPA .brand-wordmark text is hutch",
+        "ok": true,
+        "detail": "hutch"
+      },
+      {
+        "check": "#workspace .brand contains exactly one SVG",
+        "ok": true,
+        "detail": 1
+      },
+      {
+        "check": "Visor Hutch SPA mark is a single path",
+        "ok": true,
+        "detail": 1
+      },
+      {
+        "check": "Visor Hutch SPA mark uses the Small-tier d",
+        "ok": true,
+        "detail": {
+          "d_prefix": "M 16.00 2.80 C 23.80 2.80 29.00 7.90 29.00 14.80 L 29.00 26.80 A 2.40 2.40 0 0 1 24.20 26.80 L 24.20",
+          "expected_prefix": "M 16.00 2.80 C 23.80 2.80 29.00 7.90 29.00 14.80 L 29.00 26.80 A 2.40 2.40 0 0 1 24.20 26.80 L 24.20"
+        }
+      },
+      {
+        "check": "Visor Hutch SPA mark fill is var(--brand)",
+        "ok": true,
+        "detail": [
+          "var(--brand)"
+        ]
+      },
+      {
+        "check": "Visor Hutch SPA mark has no circle/stroke",
+        "ok": true,
+        "detail": {
+          "circles": 0,
+          "stroke_elements": []
+        }
+      },
+      {
+        "check": "Visor Hutch SPA mark renders at 22x22 CSS px",
+        "ok": true,
+        "detail": {
+          "width": 22,
+          "height": 22,
+          "viewBox": "0 0 32 32"
+        }
+      },
+      {
+        "check": "SPA lockup gap is 8px",
+        "ok": true,
+        "detail": {
+          "computed_gap": "8px",
+          "measured_gap": 8
+        }
+      },
+      {
+        "check": "SPA wordmark font-size is 18px",
+        "ok": true,
+        "detail": {
+          "fontSize": "18px",
+          "fontWeight": "800"
+        }
+      },
+      {
+        "check": "SPA wordmark tracking is -0.54px (-0.03em at 18px)",
+        "ok": true,
+        "detail": {
+          "letterSpacing": "-0.54px"
+        }
+      },
+      {
+        "check": "SPA loads content-hashed brand.css v=581315bf and serves matching bytes",
+        "ok": true,
+        "detail": {
+          "href": "/static/brand.css?v=581315bf",
+          "status": 200,
+          "sha256": "581315bfbabe6649da7ba92e12557e51ec517e775d3125340d6e5cb829e9475f"
+        }
+      },
+      {
+        "check": "SPA desktop and brand screenshots captured",
+        "ok": true,
+        "detail": [
+          "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/spa-desktop.png",
+          "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/spa-brand-closeup.png"
+        ]
+      },
+      {
+        "check": "server-rendered page from templates/base.html returns HTTP 200",
+        "ok": true,
+        "detail": [
+          {
+            "requested": "/models",
+            "final_url": "http://127.0.0.1:38135/models",
+            "final_path": "/models",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "check": "server page .topbar .brand contains one 22px single-path Small-tier mark",
+        "ok": true,
+        "detail": {
+          "topbarPresent": true,
+          "brandPresent": true,
+          "svgCount": 1,
+          "svgWidthAttr": "22",
+          "svgHeightAttr": "22",
+          "viewBox": "0 0 32 32",
+          "width": 22,
+          "height": 22,
+          "pathCount": 1,
+          "d": [
+            "M 16.00 2.80 C 23.80 2.80 29.00 7.90 29.00 14.80 L 29.00 26.80 A 2.40 2.40 0 0 1 24.20 26.80 L 24.20 25.40 A 2.90 2.90 0 0 0 18.40 25.40 L 18.40 26.80 A 2.40 2.40 0 0 1 13.60 26.80 L 13.60 25.40 A 2.90 2.90 0 0 0 7.80 25.40 L 7.80 26.80 A 2.40 2.40 0 0 1 3.00 26.80 L 3.00 14.80 C 3.00 7.90 8.20 2.80 16.00 2.80 Z M 12.00 7.60 L 20.00 7.60 A 5.80 5.80 0 0 1 25.80 13.40 L 25.80 14.80 A 3.80 3.80 0 0 1 22.00 18.60 L 10.00 18.60 A 3.80 3.80 0 0 1 6.20 14.80 L 6.20 13.40 A 5.80 5.80 0 0 1 12.00 7.60 Z M 11.63 10.63 C 12.81 10.46 13.93 11.50 14.13 12.95 C 14.33 14.40 13.54 15.71 12.37 15.87 C 11.19 16.04 10.07 15.00 9.87 13.55 C 9.67 12.10 10.46 10.79 11.63 10.63 Z M 20.37 10.38 C 21.54 10.54 22.33 11.85 22.13 13.30 C 21.93 14.75 20.81 15.79 19.63 15.62 C 18.46 15.46 17.67 14.15 17.87 12.70 C 18.07 11.25 19.19 10.21 20.37 10.38 Z"
+          ],
+          "fill": [
+            "var(--accent)"
+          ],
+          "fillRule": [
+            "evenodd"
+          ],
+          "circleCount": 0,
+          "strokeElements": [],
+          "wordmarkText": "hutch",
+          "wordmarkFontFamily": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif",
+          "wordmarkFontSize": "18px",
+          "wordmarkFontWeight": "800",
+          "wordmarkLetterSpacing": "-0.54px",
+          "brandGap": "8px",
+          "lockupGap": 8,
+          "bricolageReady": true
+        }
+      },
+      {
+        "check": "server page mark has no circle/stroke",
+        "ok": true,
+        "detail": {
+          "circles": 0,
+          "stroke_elements": []
+        }
+      },
+      {
+        "check": "server page .brand-wordmark text is hutch",
+        "ok": true,
+        "detail": "hutch"
+      },
+      {
+        "check": "server page .brand-wordmark computed font-family includes Bricolage Grotesque",
+        "ok": true,
+        "detail": {
+          "fontFamily": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif",
+          "fontSize": "18px",
+          "fontWeight": "800"
+        }
+      },
+      {
+        "check": "server page lockup gap is 8px",
+        "ok": true,
+        "detail": {
+          "computed_gap": "8px",
+          "measured_gap": 8
+        }
+      },
+      {
+        "check": "server page wordmark font-size is 18px",
+        "ok": true,
+        "detail": {
+          "fontSize": "18px",
+          "fontWeight": "800"
+        }
+      },
+      {
+        "check": "server page wordmark tracking is -0.54px (-0.03em at 18px)",
+        "ok": true,
+        "detail": {
+          "letterSpacing": "-0.54px"
+        }
+      },
+      {
+        "check": "server page loads content-hashed brand.css v=581315bf and serves matching bytes",
+        "ok": true,
+        "detail": {
+          "href": "/static/brand.css?v=581315bf",
+          "status": 200,
+          "sha256": "581315bfbabe6649da7ba92e12557e51ec517e775d3125340d6e5cb829e9475f"
+        }
+      },
+      {
+        "check": "server topbar screenshots captured",
+        "ok": true,
+        "detail": [
+          "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/server-page-topbar.png",
+          "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/server-page-full.png"
+        ]
+      },
+      {
+        "check": "no page errors",
+        "ok": true,
+        "detail": []
+      },
+      {
+        "check": "no console errors",
+        "ok": true,
+        "detail": []
+      },
+      {
+        "check": "no failed responses",
+        "ok": true,
+        "detail": []
+      },
+      {
+        "check": "no non-localhost requests",
+        "ok": true,
+        "detail": []
+      }
+    ],
+    "environment_from_script": {
+      "app_base_url": "http://127.0.0.1:38135",
+      "state_root": "/tmp/hutch-slice7c-state-b075dv_4",
+      "viewport": [
+        1440,
+        960
+      ],
+      "reduced_motion": "reduce",
+      "brand_css_sha256": "581315bfbabe6649da7ba92e12557e51ec517e775d3125340d6e5cb829e9475f",
+      "brand_css_lines": 19,
+      "browser": "Chromium 153.0.8010.12",
+      "chromium_executable": "/home/kevina/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome",
+      "playwright": "1.63.0",
+      "python": "3.13.15",
+      "pytest": "9.1.1",
+      "uvicorn": "0.54.0"
+    },
+    "verified_against_lead_fix": true,
+    "brand_css_contract": {
+      "path": "/home/kevina/CodingProjects/hutch/src/hutch/server/static/brand.css",
+      "sha256": "581315bfbabe6649da7ba92e12557e51ec517e775d3125340d6e5cb829e9475f",
+      "sha8": "581315bf",
+      "lines": 19,
+      "refs": {
+        "index_html": true,
+        "base_html": true
+      }
+    },
+    "lockup_geometry": {
+      "spa": {
+        "mark_css_px": [
+          22,
+          22
+        ],
+        "computed_gap": "8px",
+        "measured_gap": 8,
+        "wordmark_font_size": "18px",
+        "wordmark_font_weight": "800",
+        "wordmark_letter_spacing": "-0.54px",
+        "wordmark_font_family": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif"
+      },
+      "server": {
+        "mark_css_px": [
+          22,
+          22
+        ],
+        "computed_gap": "8px",
+        "measured_gap": 8,
+        "wordmark_font_size": "18px",
+        "wordmark_font_weight": "800",
+        "wordmark_letter_spacing": "-0.54px",
+        "wordmark_font_family": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif"
+      }
+    },
+    "verified_against_lead_followups": [
+      "SLICE-7C-F1",
+      "SLICE-7C-F2"
+    ],
+    "verdict": "PASS",
+    "locked_final_state": "2026-10-29: 65/65 checks PASS after Lead follow-up fixes 1 and 2"
+  },
+  "slice_caused_failures": [],
+  "observations_non_blocking": [
+    "Lockup geometry drift versus docs/brand-assets.md (server 22px mark + 12px gap + 16px wordmark; SPA 12px gap) was recorded as a non-blocking observation in the first report. The Lead resolved it after sign-off with SLICE-7C-F2 and the fix was independently re-verified: both surfaces now measure 22px mark + 8px gap + 18px Bricolage Grotesque 800 wordmark with content-hashed brand.css v=581315bf.",
+    "The capture script deliberately calls document.fonts.load() to assert font availability; post-fix the Bricolage face also loads naturally because the SPA wordmark uses it (document.fonts.check true before the explicit load).",
+    "Whole-file e2e run 1 overlapped with the verifier's first Chromium capture for part of its runtime; runs 2 and 3 ran alone. The answer-feedback timeout appeared only in run 1."
+  ],
+  "known_unrelated_issues": [
+    {
+      "id": "UNRELATED-1",
+      "description": "Context-hygiene violation: tests/test_commit_attribution.py (419 lines) over the 400-line cap.",
+      "evidence": "tests/test_context_hygiene.py::test_real_repository_has_no_context_violations; scripts/audit_context_hygiene.py exit 1; file committed at bee491d5 (2026-10-28 14:39:50 -0700), not touched by slice 7C.",
+      "blocking": false
+    },
+    {
+      "id": "UNRELATED-2",
+      "description": "Persona live preview run button is 40px high instead of the 44px asserted by tests/e2e/test_design_system.py:2514.",
+      "evidence": "Concurrent session form migration: persona.js working-tree wrapper div.hutch-actions (HEAD had div.btn-row); untracked hutch-form-controls.css:196-197 min-height 40px beats pre-existing style.css:2574 min-height 44px; concurrent files mtime 2026-10-28, slice-7C files mtime 2026-10-29 03:01-03:02. Fails deterministically in isolation and in both whole-file runs.",
+      "blocking": false,
+      "attribution_confidence": "high"
+    },
+    {
+      "id": "UNRELATED-3",
+      "description": "test_answer_feedback_stays_local_revisioned_and_accessible timed out in whole-file run 1 (30s predicate) but passed in isolation and in whole-file run 2.",
+      "evidence": "run 1 log summary; isolated rerun 1 passed in 9.38s; run2 1 failed, 18 passed. Classified as a sequence/load flake, not slice-caused.",
+      "blocking": false
+    },
+    {
+      "id": "UNRELATED-4",
+      "description": "Working tree is heavily dirty from a concurrent unrelated session (68 modified / 1 deleted / 82 untracked entries), including large CSS/JS refactors and the form-system migration; not interpreted as slice-7C failures.",
+      "evidence": "git status --porcelain; HEAD 135d8038; concurrent files mtime 2026-10-28, slice-7C files mtime 2026-10-29 03:01-03:02.",
+      "blocking": false
+    }
+  ],
+  "evidence_files": {
+    "report": ".pipeline/brand/2026-10/evidence/slice-7c/verification/VERIFICATION.md",
+    "report_json": ".pipeline/brand/2026-10/evidence/slice-7c/verification/verification-report.json",
+    "capture_script": ".pipeline/brand/2026-10/evidence/slice-7c/verification/capture_slice_7c.py",
+    "capture_results": ".pipeline/brand/2026-10/evidence/slice-7c/verification/capture-results.json (65/65 after fix 2; 55/55 after fix 1; 54/55 initially)",
+    "postfix_whole_file_log": ".pipeline/brand/2026-10/evidence/slice-7c/verification/whole-file-design-system-e2e-postfix-run3.log",
+    "pre_fix_whole_file_run2_log": ".pipeline/brand/2026-10/evidence/slice-7c/verification/whole-file-design-system-e2e-run2.log",
+    "isolated_rerun_logs": [
+      ".pipeline/brand/2026-10/evidence/slice-7c/verification/rerun-persona-preview.log",
+      ".pipeline/brand/2026-10/evidence/slice-7c/verification/rerun-answer-feedback.log"
+    ],
+    "postfix_rerun_logs": [
+      ".pipeline/brand/2026-10/evidence/slice-7c/verification/postfix-rerun-avatar-e2e.log",
+      ".pipeline/brand/2026-10/evidence/slice-7c/verification/postfix-rerun-shared-token-e2e.log"
+    ],
+    "roster_log": ".pipeline/brand/2026-10/evidence/slice-7c/verification/roster-mascot-e2e.log",
+    "screenshots_dir": ".pipeline/brand/2026-10/evidence/slice-7c/verification/",
+    "test_artifacts_dir": ".pipeline/brand/2026-10/evidence/slice-7c/verification/artifacts/",
+    "followup_rerun_logs": [
+      ".pipeline/brand/2026-10/evidence/slice-7c/verification/followup-rerun-shared-token-e2e.log",
+      ".pipeline/brand/2026-10/evidence/slice-7c/verification/followup-rerun-avatar-e2e.log"
+    ]
+  },
+  "verification_phases": {
+    "initial_verification": "2026-10-29: 54 of 55 capture checks passed; one slice-caused failure (SPA wordmark not Bricolage) reported to the Lead",
+    "post_fix_1_reverification": "2026-10-29 after Lead fix 1 (brand.css moved last in index.html): 55 of 55 capture checks passed; focused e2e reruns green; whole-file e2e unchanged known-unrelated failure",
+    "post_fix_2_reverification": "2026-10-29 after Lead fix 2 (lockup geometry + content-hashed refs): 65 of 65 capture checks passed including new lockup-geometry and brand.css content-hash checks; focused avatar and shared-token e2e reruns green; whole-file e2e deliberately not rerun"
+  },
+  "slice_caused_defect_fixed_before_signoff": {
+    "id": "SLICE-7C-F1",
+    "severity": "acceptance criterion",
+    "status": "FIXED by the Lead before sign-off; re-verified PASS",
+    "summary": "SPA dashboard wordmark was not rendered in Bricolage Grotesque.",
+    "check": "capture: SPA .brand-wordmark computed font-family includes Bricolage Grotesque",
+    "before_fix": {
+      "computed_font_family": "Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+      "computed_font_weight": "650",
+      "computed_font_size": "18px",
+      "document_fonts_check_before_explicit_load": false
+    },
+    "root_cause": "src/hutch/server/static/index.html:52 gives the wordmark span class='brand-name brand-wordmark'. brand.css:10 .brand-wordmark sets the Bricolage family, but brand.css was loaded at index.html line 18 BEFORE studio.css at line 27; the pre-existing studio.css:376 rule '.brand-name { font: 650 var(--fs-lg)/1 var(--font-ui); letter-spacing: -0.035em; }' is an equal-specificity shorthand that wins by later cascade order and resets font-family to Geist. HEAD index.html had class='brand-name' only and there was no brand.css, so this suppression of the new Bricolage rule was introduced by this slice's dashboard wiring.",
+    "after_fix": {
+      "computed_font_family": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif",
+      "computed_font_weight": "800",
+      "computed_font_size": "18px",
+      "document_fonts_check_before_explicit_load": true,
+      "bricolage_face_status": [
+        {
+          "family": "Bricolage Grotesque",
+          "weight": "800",
+          "status": "loaded"
+        }
+      ]
+    },
+    "fix": "Lead moved the brand.css link to the last stylesheet position in src/hutch/server/static/index.html (line 41, after hutch-messages.css) with an explanatory comment; brand.css itself unchanged (sha256 3b517691...).",
+    "server_pages_affected": false,
+    "evidence": [
+      ".pipeline/brand/2026-10/evidence/slice-7c/verification/capture-results.json",
+      ".pipeline/brand/2026-10/evidence/slice-7c/verification/spa-brand-closeup.png",
+      ".pipeline/brand/2026-10/evidence/slice-7c/verification/server-page-brand.png"
+    ]
+  },
+  "lead_fixes": [
+    {
+      "id": "SLICE-7C-F1",
+      "applied_by": "Lead",
+      "date": "2026-10-29",
+      "phase": "before initial sign-off",
+      "file": "src/hutch/server/static/index.html",
+      "change": "Removed the brand.css link from after style.css (old line 18) and re-inserted it as the last stylesheet in <head> (now line 41, after /static/hutch-messages.css) with a comment explaining that the lockup sheet must win over surface font shorthands.",
+      "brand_css_unchanged": true,
+      "brand_css_sha256_at_fix_1": "3b517691f9a68d41fce5608a2640e45fc1e44280ed836ffa5cae3900276a19dc",
+      "index_html_lines_after_fix": 188,
+      "frozen_line_budget": "index.html became 188 lines, still below the 400-line context-hygiene cap; index.html is not in .file-size-baseline.json",
+      "reverification": "capture 55 of 55; avatar e2e 1 passed in 17.03s; shared-token e2e 1 passed in 23.89s"
+    },
+    {
+      "id": "SLICE-7C-F2",
+      "applied_by": "Lead",
+      "date": "2026-10-29",
+      "phase": "after the initial report, before final sign-off (follow-up on the recorded non-blocking lockup-geometry observation)",
+      "files": [
+        "src/hutch/server/static/brand.css",
+        "src/hutch/server/static/index.html",
+        "src/hutch/server/templates/base.html"
+      ],
+      "change": "brand.css grew from 14 to 19 lines: added '.ws-brand .brand, .topbar .brand { gap: 8px; }' and 'font-size: 18px' on .brand-wordmark; @font-face, family, weight 800 and -0.03em tracking unchanged. References updated to /static/brand.css?v=581315bf in index.html line 41 and templates/base.html line 16.",
+      "brand_css_sha256": "581315bfbabe6649da7ba92e12557e51ec517e775d3125340d6e5cb829e9475f",
+      "brand_css_sha8": "581315bf",
+      "brand_css_lines": 19,
+      "line_counts_after_fix": {
+        "index_html": 188,
+        "base_html": 71,
+        "brand_css": 19
+      },
+      "reverification": "capture 65 of 65 (new checks: source brand.css content-hash 581315bf; both heads reference v=581315bf; SPA and server computed/measured gap 8px; SPA and server wordmark 18px; tracking -0.54px; both pages serve bytes hashing to 581315bf); avatar e2e 1 passed in 18.89s; shared-token e2e 1 passed in 26.84s; no page/console errors, no overflow"
+    }
+  ],
+  "slice_caused_defect_fixed_after_initial_signoff": {
+    "id": "SLICE-7C-F2",
+    "severity": "non-blocking geometry observation from the first report, fixed by the Lead after initial sign-off before final sign-off",
+    "status": "FIXED by the Lead before final sign-off; independently re-verified PASS",
+    "summary": "Both dashboard lockups did not match the documented 22px mark + 8px gap + 18px wordmark geometry.",
+    "before_fix": {
+      "spa": "22px mark, 12px gap, 18px wordmark",
+      "server": "22px mark, 12px gap, 16px wordmark"
+    },
+    "fix": "brand.css 19 lines: added .ws-brand .brand, .topbar .brand { gap: 8px; } and font-size: 18px on .brand-wordmark; refs updated to /static/brand.css?v=581315bf in index.html:41 and templates/base.html:16; brand.css sha256 581315bf...",
+    "after_fix": {
+      "spa": "22x22 mark, computed gap 8px, measured gap 8px, Bricolage Grotesque 800 18px wordmark, -0.54px tracking, brand.css?v=581315bf served bytes hash 581315bf...",
+      "server": "22x22 mark, computed gap 8px, measured gap 8px, Bricolage Grotesque 800 18px wordmark, -0.54px tracking, brand.css?v=581315bf served bytes hash 581315bf..."
+    },
+    "evidence": [
+      ".pipeline/brand/2026-10/evidence/slice-7c/verification/capture-results.json",
+      ".pipeline/brand/2026-10/evidence/slice-7c/verification/spa-brand-closeup.png",
+      ".pipeline/brand/2026-10/evidence/slice-7c/verification/server-page-brand.png"
+    ]
+  }
+}

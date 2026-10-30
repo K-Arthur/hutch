@@ -1,0 +1,17 @@
+# Generated (assets/production/desktop)
+000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d  .pipeline/brand/2026-10/assets/production/desktop/32x32.png
+7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf  .pipeline/brand/2026-10/assets/production/desktop/128x128.png
+56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb  .pipeline/brand/2026-10/assets/production/desktop/128x128@2x.png
+68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5  .pipeline/brand/2026-10/assets/production/desktop/icon.png
+992bd3645c5048ffa994912731e3cecad196f3bb0c16bf7a1f017b42c0a9fdc0  .pipeline/brand/2026-10/assets/production/desktop/icon.ico
+330eb42e1b172e6321150e03115ece67cf2829ed26087dadc2139b08b26268c7  .pipeline/brand/2026-10/assets/production/desktop/icon.icns
+aa7dde5779b087c7dfcde719240d0e6e350f3cbee8e8b28f5f5e732c5b15fc5a  .pipeline/brand/2026-10/assets/production/desktop/icon.svg
+
+# Staged (desktop/icons)
+000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d  desktop/icons/32x32.png
+7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf  desktop/icons/128x128.png
+56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb  desktop/icons/128x128@2x.png
+68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5  desktop/icons/icon.png
+992bd3645c5048ffa994912731e3cecad196f3bb0c16bf7a1f017b42c0a9fdc0  desktop/icons/icon.ico
+330eb42e1b172e6321150e03115ece67cf2829ed26087dadc2139b08b26268c7  desktop/icons/icon.icns
+aa7dde5779b087c7dfcde719240d0e6e350f3cbee8e8b28f5f5e732c5b15fc5a  desktop/icons/icon.svg

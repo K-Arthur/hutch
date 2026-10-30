@@ -1,0 +1,27 @@
+ICO container: .pipeline/brand/2026-10/assets/production/desktop/icon.ico
+  header: reserved=0 type=1 count=6 file_bytes=18481
+  index  size  width  height  planes  bit_count  offset  length  payload_sha256  png_magic
+  0      16    16     16     1      32        102     537     27b592526b5e39b90bd20d405b3b4b234351d3e85814c182e5f85777a7830d17  True
+  1      32    32     32     1      32        639     1091    000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d  True
+  2      48    48     48     1      32        1730    1679    8613c35870ae02cf591b0cf4b2915910ef8cc1252d6f802fc3a43152dfd8398f  True
+  3      64    64     64     1      32        3409    2174    54aedfc90b8c1c74e8c6134d415d8610993b886aec283347eafab83778c7844c  True
+  4      128   128    128    1      32        5583    4216    7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf  True
+  5      256   256    256    1      32        9799    8682    56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb  True
+  checks: count=6 sizes=[16, 32, 48, 64, 128, 256]
+  checks: all PNG magic=True actual=True declared/actual dims match=True
+
+ICNS container: .pipeline/brand/2026-10/assets/production/desktop/icon.icns
+  magic=icns declared_total_length=104223 file_bytes=104223 matches=True
+  type  width  height  offset  length  payload_length  payload_sha256  png_magic
+  icp4  16     16     8       545     537             27b592526b5e39b90bd20d405b3b4b234351d3e85814c182e5f85777a7830d17  True
+  icp5  32     32     553     1099    1091            000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d  True
+  icp6  64     64     1652    2182    2174            54aedfc90b8c1c74e8c6134d415d8610993b886aec283347eafab83778c7844c  True
+  ic07  128    128    3834    4224    4216            7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf  True
+  ic08  256    256    8058    8690    8682            56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb  True
+  ic09  512    512    16748   18240   18232           ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5  True
+  ic10  1024   1024   34988   39024   39016           68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5  True
+  ic11  32     32     74012   1099    1091            000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d  True
+  ic12  64     64     75111   2182    2174            54aedfc90b8c1c74e8c6134d415d8610993b886aec283347eafab83778c7844c  True
+  ic13  256    256    77293   8690    8682            56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb  True
+  ic14  512    512    85983   18240   18232           ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5  True
+  checks: 11 entries, all PNG magic=True, container length matches file=True

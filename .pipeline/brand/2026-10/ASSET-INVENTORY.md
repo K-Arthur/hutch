@@ -294,3 +294,21 @@ Vendor URLs appearing above are quoted from docs/brand-assets.md and were NOT fe
 verified in this run (access date for the doc statements: 2026-10-28). `docs/brand/00-PLAN.md`
 does not exist on `main`; plan line references are line numbers in
 `git show brand/plan:docs/brand/00-PLAN.md` output.
+
+---
+
+## Run 7 / Slice 7A Update (2026-10-29) — Staged Repository Wordmark Font Subset & Reconciled Notices
+
+Following maintainer authorisation (`D57`, `2026-10-29`), the production wordmark font subset and
+verbatim SIL Open Font License 1.1 text were staged into both distributed frontend font directories,
+and the bundled asset notices were reconciled across all three notice paths (`B9` resolved):
+
+| Repository Path | Bytes | SHA-256 | Licence & Status |
+|---|---|---|---|
+| `website/assets/fonts/bricolage-grotesque-latin-800.woff2` | `47,260` | `55d3acddbb67185090064db83950341bda78539dd5fbaab3cbb02c7cfd270b9c` | SIL OFL 1.1 (`OFL-bricolage-grotesque.txt` alongside); staged in Slice 7A |
+| `website/assets/fonts/OFL-bricolage-grotesque.txt` | `4,403` | `4b5a7d8f37f5602621c8a8d7358a6a2e71317e6c231c661e15aef0275d3e07ba` | Verbatim upstream SIL OFL 1.1 text (`Copyright 2022 The Bricolage Grotesque Project Authors`) |
+| `src/hutch/server/static/fonts/bricolage-grotesque-latin-800.woff2` | `47,260` | `55d3acddbb67185090064db83950341bda78539dd5fbaab3cbb02c7cfd270b9c` | Byte-identical to `website/assets/fonts/bricolage-grotesque-latin-800.woff2` |
+| `src/hutch/server/static/fonts/OFL-bricolage-grotesque.txt` | `4,403` | `4b5a7d8f37f5602621c8a8d7358a6a2e71317e6c231c661e15aef0275d3e07ba` | Byte-identical to `website/assets/fonts/OFL-bricolage-grotesque.txt` |
+| `THIRD_PARTY_NOTICES.md` | `6,073` | `8a457f7389e10364f5d26deed0dbff0c47cd75ba3dfc19a80b18d9171139a4c8` | Reconciled (`B9`): replaces stale `Archivo`/`OFL-archivo.txt` with `Geist`, `Geist Mono` (`OFL-geist.txt`), and `Bricolage Grotesque` (`OFL-bricolage-grotesque.txt`) |
+| `website/THIRD_PARTY_NOTICES.txt` | `6,073` | `8a457f7389e10364f5d26deed0dbff0c47cd75ba3dfc19a80b18d9171139a4c8` | Byte-identical mirror of `THIRD_PARTY_NOTICES.md` |
+| `src/hutch/server/static/THIRD_PARTY_NOTICES.txt` | `6,073` | `8a457f7389e10364f5d26deed0dbff0c47cd75ba3dfc19a80b18d9171139a4c8` | Byte-identical mirror of `THIRD_PARTY_NOTICES.md` |

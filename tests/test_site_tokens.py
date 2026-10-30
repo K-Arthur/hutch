@@ -85,7 +85,9 @@ def test_studio_stylesheet_references_only_defined_tokens():
     import re
 
     static = ROOT / "src/hutch/server/static"
-    definition_files = ["ui.css", "brand-tokens.css", "style.css", "studio.css", "model-switcher.css"]
+    definition_files = ["ui.css", "brand-tokens.css", "style.css", "studio.css", "model-switcher.css",
+                        # Server-page sheets: the shared nav/shell tier consumes the same tokens.
+                        "hutch.css", "hutch-nav.css", "hutch-shell.css", "responsive.css", "hutch-overlays.css"]
     inline_files = ["app.js", "model-switcher.js", "index.html"]
     defined: set[str] = set()
     for name in definition_files + inline_files:
@@ -96,7 +98,8 @@ def test_studio_stylesheet_references_only_defined_tokens():
         defined |= set(re.findall(r"(--[a-z0-9-]+)\s*:", text))
         defined |= set(re.findall(r"@property\s*(--[a-z0-9-]+)", text))
     missing: list[str] = []
-    for name in ["style.css", "studio.css", "model-switcher.css"]:
+    for name in ["style.css", "studio.css", "model-switcher.css",
+                 "hutch-nav.css", "hutch-shell.css", "no-js-nav.css"]:
         text = (static / name).read_text()
         for match in re.finditer(r"var\(\s*(--[a-z0-9-]+)\s*(,)?", text):
             token, has_fallback = match.group(1), bool(match.group(2))

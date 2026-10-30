@@ -1,0 +1,1780 @@
+{
+  "slice": "Pipeline Run 7 / Slice 7C - Tauri desktop icon family",
+  "task_id": "task-3",
+  "owner": "desktop-icons",
+  "evidence_date": "2026-10-29",
+  "generator": {
+    "path": ".pipeline/brand/2026-10/assets/build_desktop_icons.py",
+    "sha256": "3bd9c1104cdfe108e81ee6c5847123e60b71cac1cdab9429eaa1ac870b94255b",
+    "command": ".venv/bin/python .pipeline/brand/2026-10/assets/build_desktop_icons.py",
+    "deterministic": true
+  },
+  "source_assets": {
+    "mark_svg": {
+      "path": ".pipeline/brand/2026-10/assets/production/svg/hutch-mark-master.svg",
+      "sha256": "3ed493536db8be42fa940678a27ec978043965919e16c64260e70fa5efeb45ef"
+    },
+    "approved_icon_512": {
+      "path": ".pipeline/brand/2026-10/assets/production/icons/icon-512.png",
+      "sha256": "ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5",
+      "bytes": 18232
+    }
+  },
+  "composition": {
+    "plate": {
+      "full_bleed_rect": true,
+      "fill": "#09090b",
+      "rx": 7
+    },
+    "mark": {
+      "source": ".pipeline/brand/2026-10/assets/production/svg/hutch-mark-master.svg",
+      "path_d": "byte-for-byte the hutch-mark-master.svg compound path",
+      "fill": "#34d399",
+      "fill_rule": "evenodd",
+      "transform": "translate(2.88, 2.88) scale(0.82)"
+    },
+    "raster": {
+      "omit_background": true,
+      "device_scale_factor": 1,
+      "png": "8-bit RGBA, rounded-plate corners transparent outside the rx=7 plate"
+    }
+  },
+  "generated": [
+    {
+      "path": ".pipeline/brand/2026-10/assets/production/desktop/32x32.png",
+      "bytes": 1091,
+      "sha256": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+      "format": "PNG",
+      "width": 32,
+      "height": 32,
+      "identify": "32x32 srgba 4.0"
+    },
+    {
+      "path": ".pipeline/brand/2026-10/assets/production/desktop/128x128.png",
+      "bytes": 4216,
+      "sha256": "7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf",
+      "format": "PNG",
+      "width": 128,
+      "height": 128,
+      "identify": "128x128 srgba 4.0"
+    },
+    {
+      "path": ".pipeline/brand/2026-10/assets/production/desktop/128x128@2x.png",
+      "bytes": 8682,
+      "sha256": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+      "format": "PNG",
+      "width": 256,
+      "height": 256,
+      "identify": "256x256 srgba 4.0"
+    },
+    {
+      "path": ".pipeline/brand/2026-10/assets/production/desktop/icon.png",
+      "bytes": 39016,
+      "sha256": "68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5",
+      "format": "PNG",
+      "width": 1024,
+      "height": 1024,
+      "identify": "1024x1024 srgba 4.0"
+    },
+    {
+      "path": ".pipeline/brand/2026-10/assets/production/desktop/icon.ico",
+      "bytes": 18481,
+      "sha256": "992bd3645c5048ffa994912731e3cecad196f3bb0c16bf7a1f017b42c0a9fdc0",
+      "format": "ICO",
+      "container_entries": 6
+    },
+    {
+      "path": ".pipeline/brand/2026-10/assets/production/desktop/icon.icns",
+      "bytes": 104223,
+      "sha256": "330eb42e1b172e6321150e03115ece67cf2829ed26087dadc2139b08b26268c7",
+      "format": "ICNS",
+      "container_entries": 11
+    },
+    {
+      "path": ".pipeline/brand/2026-10/assets/production/desktop/icon.svg",
+      "bytes": 1096,
+      "sha256": "aa7dde5779b087c7dfcde719240d0e6e350f3cbee8e8b28f5f5e732c5b15fc5a",
+      "format": "SVG"
+    }
+  ],
+  "staged": [
+    {
+      "path": "desktop/icons/32x32.png",
+      "bytes": 1091,
+      "sha256": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+      "generated_path": ".pipeline/brand/2026-10/assets/production/desktop/32x32.png",
+      "generated_sha256": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+      "byte_identical_to_generated": true,
+      "cmp_exit": 0
+    },
+    {
+      "path": "desktop/icons/128x128.png",
+      "bytes": 4216,
+      "sha256": "7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf",
+      "generated_path": ".pipeline/brand/2026-10/assets/production/desktop/128x128.png",
+      "generated_sha256": "7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf",
+      "byte_identical_to_generated": true,
+      "cmp_exit": 0
+    },
+    {
+      "path": "desktop/icons/128x128@2x.png",
+      "bytes": 8682,
+      "sha256": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+      "generated_path": ".pipeline/brand/2026-10/assets/production/desktop/128x128@2x.png",
+      "generated_sha256": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+      "byte_identical_to_generated": true,
+      "cmp_exit": 0
+    },
+    {
+      "path": "desktop/icons/icon.png",
+      "bytes": 39016,
+      "sha256": "68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5",
+      "generated_path": ".pipeline/brand/2026-10/assets/production/desktop/icon.png",
+      "generated_sha256": "68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5",
+      "byte_identical_to_generated": true,
+      "cmp_exit": 0
+    },
+    {
+      "path": "desktop/icons/icon.ico",
+      "bytes": 18481,
+      "sha256": "992bd3645c5048ffa994912731e3cecad196f3bb0c16bf7a1f017b42c0a9fdc0",
+      "generated_path": ".pipeline/brand/2026-10/assets/production/desktop/icon.ico",
+      "generated_sha256": "992bd3645c5048ffa994912731e3cecad196f3bb0c16bf7a1f017b42c0a9fdc0",
+      "byte_identical_to_generated": true,
+      "cmp_exit": 0
+    },
+    {
+      "path": "desktop/icons/icon.icns",
+      "bytes": 104223,
+      "sha256": "330eb42e1b172e6321150e03115ece67cf2829ed26087dadc2139b08b26268c7",
+      "generated_path": ".pipeline/brand/2026-10/assets/production/desktop/icon.icns",
+      "generated_sha256": "330eb42e1b172e6321150e03115ece67cf2829ed26087dadc2139b08b26268c7",
+      "byte_identical_to_generated": true,
+      "cmp_exit": 0
+    },
+    {
+      "path": "desktop/icons/icon.svg",
+      "bytes": 1096,
+      "sha256": "aa7dde5779b087c7dfcde719240d0e6e350f3cbee8e8b28f5f5e732c5b15fc5a",
+      "generated_path": ".pipeline/brand/2026-10/assets/production/desktop/icon.svg",
+      "generated_sha256": "aa7dde5779b087c7dfcde719240d0e6e350f3cbee8e8b28f5f5e732c5b15fc5a",
+      "byte_identical_to_generated": true,
+      "cmp_exit": 0
+    }
+  ],
+  "replaced_legacy": {
+    "icon.icns": {
+      "path": "desktop/icons/icon.icns",
+      "bytes": 102645,
+      "sha256": "d6b63e51e3c0066dd13dc122cad67080acba922a44362c4d4d713a2f01efdf41"
+    },
+    "icon.ico": {
+      "path": "desktop/icons/icon.ico",
+      "bytes": 21880,
+      "sha256": "974b1bd7755b3c95b0168cef05d0f2a1d84d8fea07d8837c8ebb38ce78c25217"
+    },
+    "icon.png": {
+      "path": "desktop/icons/icon.png",
+      "bytes": 10306,
+      "sha256": "ce575c6f700894a823ad72b6ca21d24debf50049581c26505d7f743fec82a911"
+    },
+    "icon.svg": {
+      "path": "desktop/icons/icon.svg",
+      "bytes": 295,
+      "sha256": "550abe9084cb9367bb55e168c0d8310e29f2e544cf8def03fed255a02257e950"
+    }
+  },
+  "container_listings": {
+    "icon.ico": {
+      "header": {
+        "reserved": 0,
+        "type": 1,
+        "count": 6
+      },
+      "file_bytes": 18481,
+      "entries": [
+        {
+          "index": 0,
+          "declared_size": 16,
+          "bit_count": 32,
+          "offset": 102,
+          "length": 537,
+          "payload_sha256": "27b592526b5e39b90bd20d405b3b4b234351d3e85814c182e5f85777a7830d17",
+          "png_magic": true,
+          "width": 16,
+          "height": 16
+        },
+        {
+          "index": 1,
+          "declared_size": 32,
+          "bit_count": 32,
+          "offset": 639,
+          "length": 1091,
+          "payload_sha256": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+          "png_magic": true,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "index": 2,
+          "declared_size": 48,
+          "bit_count": 32,
+          "offset": 1730,
+          "length": 1679,
+          "payload_sha256": "8613c35870ae02cf591b0cf4b2915910ef8cc1252d6f802fc3a43152dfd8398f",
+          "png_magic": true,
+          "width": 48,
+          "height": 48
+        },
+        {
+          "index": 3,
+          "declared_size": 64,
+          "bit_count": 32,
+          "offset": 3409,
+          "length": 2174,
+          "payload_sha256": "54aedfc90b8c1c74e8c6134d415d8610993b886aec283347eafab83778c7844c",
+          "png_magic": true,
+          "width": 64,
+          "height": 64
+        },
+        {
+          "index": 4,
+          "declared_size": 128,
+          "bit_count": 32,
+          "offset": 5583,
+          "length": 4216,
+          "payload_sha256": "7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf",
+          "png_magic": true,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "index": 5,
+          "declared_size": 256,
+          "bit_count": 32,
+          "offset": 9799,
+          "length": 8682,
+          "payload_sha256": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+          "png_magic": true,
+          "width": 256,
+          "height": 256
+        }
+      ],
+      "declared_and_actual_dims_match": true,
+      "all_png_magic": true
+    },
+    "icon.icns": {
+      "magic": "icns",
+      "declared_total_length": 104223,
+      "file_bytes": 104223,
+      "length_matches_file": true,
+      "entries": [
+        {
+          "type": "icp4",
+          "offset": 8,
+          "length": 545,
+          "payload_sha256": "27b592526b5e39b90bd20d405b3b4b234351d3e85814c182e5f85777a7830d17",
+          "png_magic": true,
+          "width": 16,
+          "height": 16
+        },
+        {
+          "type": "icp5",
+          "offset": 553,
+          "length": 1099,
+          "payload_sha256": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+          "png_magic": true,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "type": "icp6",
+          "offset": 1652,
+          "length": 2182,
+          "payload_sha256": "54aedfc90b8c1c74e8c6134d415d8610993b886aec283347eafab83778c7844c",
+          "png_magic": true,
+          "width": 64,
+          "height": 64
+        },
+        {
+          "type": "ic07",
+          "offset": 3834,
+          "length": 4224,
+          "payload_sha256": "7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf",
+          "png_magic": true,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "type": "ic08",
+          "offset": 8058,
+          "length": 8690,
+          "payload_sha256": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+          "png_magic": true,
+          "width": 256,
+          "height": 256
+        },
+        {
+          "type": "ic09",
+          "offset": 16748,
+          "length": 18240,
+          "payload_sha256": "ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5",
+          "png_magic": true,
+          "width": 512,
+          "height": 512
+        },
+        {
+          "type": "ic10",
+          "offset": 34988,
+          "length": 39024,
+          "payload_sha256": "68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5",
+          "png_magic": true,
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "type": "ic11",
+          "offset": 74012,
+          "length": 1099,
+          "payload_sha256": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+          "png_magic": true,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "type": "ic12",
+          "offset": 75111,
+          "length": 2182,
+          "payload_sha256": "54aedfc90b8c1c74e8c6134d415d8610993b886aec283347eafab83778c7844c",
+          "png_magic": true,
+          "width": 64,
+          "height": 64
+        },
+        {
+          "type": "ic13",
+          "offset": 77293,
+          "length": 8690,
+          "payload_sha256": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+          "png_magic": true,
+          "width": 256,
+          "height": 256
+        },
+        {
+          "type": "ic14",
+          "offset": 85983,
+          "length": 18240,
+          "payload_sha256": "ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5",
+          "png_magic": true,
+          "width": 512,
+          "height": 512
+        }
+      ],
+      "all_png_magic": true
+    }
+  },
+  "payload_parity": [
+    {
+      "container": "icon.ico",
+      "entry": "0",
+      "size": 16,
+      "payload_sha256": "27b592526b5e39b90bd20d405b3b4b234351d3e85814c182e5f85777a7830d17",
+      "standalone_path": null,
+      "standalone_sha256": null,
+      "byte_identical": false
+    },
+    {
+      "container": "icon.ico",
+      "entry": "1",
+      "size": 32,
+      "payload_sha256": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+      "standalone_path": ".pipeline/brand/2026-10/assets/production/desktop/32x32.png",
+      "standalone_sha256": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+      "byte_identical": true
+    },
+    {
+      "container": "icon.ico",
+      "entry": "2",
+      "size": 48,
+      "payload_sha256": "8613c35870ae02cf591b0cf4b2915910ef8cc1252d6f802fc3a43152dfd8398f",
+      "standalone_path": null,
+      "standalone_sha256": null,
+      "byte_identical": false
+    },
+    {
+      "container": "icon.ico",
+      "entry": "3",
+      "size": 64,
+      "payload_sha256": "54aedfc90b8c1c74e8c6134d415d8610993b886aec283347eafab83778c7844c",
+      "standalone_path": null,
+      "standalone_sha256": null,
+      "byte_identical": false
+    },
+    {
+      "container": "icon.ico",
+      "entry": "4",
+      "size": 128,
+      "payload_sha256": "7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf",
+      "standalone_path": ".pipeline/brand/2026-10/assets/production/desktop/128x128.png",
+      "standalone_sha256": "7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf",
+      "byte_identical": true
+    },
+    {
+      "container": "icon.ico",
+      "entry": "5",
+      "size": 256,
+      "payload_sha256": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+      "standalone_path": ".pipeline/brand/2026-10/assets/production/desktop/128x128@2x.png",
+      "standalone_sha256": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+      "byte_identical": true
+    },
+    {
+      "container": "icon.icns",
+      "entry": "icp4",
+      "size": 16,
+      "payload_sha256": "27b592526b5e39b90bd20d405b3b4b234351d3e85814c182e5f85777a7830d17",
+      "standalone_path": null,
+      "standalone_sha256": null,
+      "byte_identical": false
+    },
+    {
+      "container": "icon.icns",
+      "entry": "icp5",
+      "size": 32,
+      "payload_sha256": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+      "standalone_path": ".pipeline/brand/2026-10/assets/production/desktop/32x32.png",
+      "standalone_sha256": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+      "byte_identical": true
+    },
+    {
+      "container": "icon.icns",
+      "entry": "icp6",
+      "size": 64,
+      "payload_sha256": "54aedfc90b8c1c74e8c6134d415d8610993b886aec283347eafab83778c7844c",
+      "standalone_path": null,
+      "standalone_sha256": null,
+      "byte_identical": false
+    },
+    {
+      "container": "icon.icns",
+      "entry": "ic07",
+      "size": 128,
+      "payload_sha256": "7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf",
+      "standalone_path": ".pipeline/brand/2026-10/assets/production/desktop/128x128.png",
+      "standalone_sha256": "7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf",
+      "byte_identical": true
+    },
+    {
+      "container": "icon.icns",
+      "entry": "ic08",
+      "size": 256,
+      "payload_sha256": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+      "standalone_path": ".pipeline/brand/2026-10/assets/production/desktop/128x128@2x.png",
+      "standalone_sha256": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+      "byte_identical": true
+    },
+    {
+      "container": "icon.icns",
+      "entry": "ic09",
+      "size": 512,
+      "payload_sha256": "ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5",
+      "standalone_path": ".pipeline/brand/2026-10/assets/production/icons/icon-512.png",
+      "standalone_sha256": "ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5",
+      "byte_identical": true
+    },
+    {
+      "container": "icon.icns",
+      "entry": "ic10",
+      "size": 1024,
+      "payload_sha256": "68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5",
+      "standalone_path": ".pipeline/brand/2026-10/assets/production/desktop/icon.png",
+      "standalone_sha256": "68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5",
+      "byte_identical": true
+    },
+    {
+      "container": "icon.icns",
+      "entry": "ic11",
+      "size": 32,
+      "payload_sha256": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+      "standalone_path": ".pipeline/brand/2026-10/assets/production/desktop/32x32.png",
+      "standalone_sha256": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+      "byte_identical": true
+    },
+    {
+      "container": "icon.icns",
+      "entry": "ic12",
+      "size": 64,
+      "payload_sha256": "54aedfc90b8c1c74e8c6134d415d8610993b886aec283347eafab83778c7844c",
+      "standalone_path": null,
+      "standalone_sha256": null,
+      "byte_identical": false
+    },
+    {
+      "container": "icon.icns",
+      "entry": "ic13",
+      "size": 256,
+      "payload_sha256": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+      "standalone_path": ".pipeline/brand/2026-10/assets/production/desktop/128x128@2x.png",
+      "standalone_sha256": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+      "byte_identical": true
+    },
+    {
+      "container": "icon.icns",
+      "entry": "ic14",
+      "size": 512,
+      "payload_sha256": "ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5",
+      "standalone_path": ".pipeline/brand/2026-10/assets/production/icons/icon-512.png",
+      "standalone_sha256": "ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5",
+      "byte_identical": true
+    }
+  ],
+  "alpha_check": {
+    "method": "ImageMagick pixel sampling: RGBA values read at the four canvas corners, the image center and a plate-only left-mid pixel for every standalone PNG and for every PNG payload extracted from the ICO and ICNS containers.",
+    "expectation": "corners fully transparent because the plate is rounded (the four standalone PNGs measure alpha=0 exactly; the 16 px container payload shows up to 12/255 residual alpha from Chromium sub-pixel antialiasing of the rx=7 arc, not a background fill; tolerance 0.05); plate pixels fully opaque #09090b (srgba(9,9,11,1)); image center exposes the plate through the mark's visor cutout.",
+    "standalone_pngs": {
+      "32x32.png": {
+        "file": ".pipeline/brand/2026-10/assets/production/desktop/32x32.png",
+        "width": 32,
+        "height": 32,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      "128x128.png": {
+        "file": ".pipeline/brand/2026-10/assets/production/desktop/128x128.png",
+        "width": 128,
+        "height": 128,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      "128x128@2x.png": {
+        "file": ".pipeline/brand/2026-10/assets/production/desktop/128x128@2x.png",
+        "width": 256,
+        "height": 256,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      "icon.png": {
+        "file": ".pipeline/brand/2026-10/assets/production/desktop/icon.png",
+        "width": 1024,
+        "height": 1024,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      }
+    },
+    "container_payloads": [
+      {
+        "file": "icon.ico entry 0 (16 px)",
+        "width": 16,
+        "height": 16,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0.00392157)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.00392157
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0.00392157)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.00392157
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0.0470588)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0470588
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0.0470588)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0470588
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0470588,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.ico entry 1 (32 px)",
+        "width": 32,
+        "height": 32,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.ico entry 2 (48 px)",
+        "width": 48,
+        "height": 48,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.ico entry 3 (64 px)",
+        "width": 64,
+        "height": 64,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.ico entry 4 (128 px)",
+        "width": 128,
+        "height": 128,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.ico entry 5 (256 px)",
+        "width": 256,
+        "height": 256,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.icns icp4 (16 px)",
+        "width": 16,
+        "height": 16,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0.00392157)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.00392157
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0.00392157)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.00392157
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0.0470588)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0470588
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0.0470588)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0470588
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0470588,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.icns icp5 (32 px)",
+        "width": 32,
+        "height": 32,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.icns icp6 (64 px)",
+        "width": 64,
+        "height": 64,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.icns ic07 (128 px)",
+        "width": 128,
+        "height": 128,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.icns ic08 (256 px)",
+        "width": 256,
+        "height": 256,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.icns ic09 (512 px)",
+        "width": 512,
+        "height": 512,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.icns ic10 (1024 px)",
+        "width": 1024,
+        "height": 1024,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.icns ic11 (32 px)",
+        "width": 32,
+        "height": 32,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.icns ic12 (64 px)",
+        "width": 64,
+        "height": 64,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.icns ic13 (256 px)",
+        "width": 256,
+        "height": 256,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      },
+      {
+        "file": "icon.icns ic14 (512 px)",
+        "width": 512,
+        "height": 512,
+        "samples": {
+          "corner_tl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_tr": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_bl": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "corner_br": {
+            "value": "srgba(0,0,0,0)",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 0.0
+          },
+          "center": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          },
+          "plate_left_mid": {
+            "value": "srgba(9,9,11,1)",
+            "r": 9.0,
+            "g": 9.0,
+            "b": 11.0,
+            "a": 1.0
+          }
+        },
+        "corner_max_alpha": 0.0,
+        "corners_transparent": true,
+        "center_plate_opaque": true,
+        "plate_left_mid_opaque": true,
+        "pass": true
+      }
+    ],
+    "all_pass": true
+  },
+  "icon_512_parity": {
+    "container": ".pipeline/brand/2026-10/assets/production/desktop/icon.icns",
+    "entry_type": "ic14",
+    "payload_size": 18232,
+    "payload_sha256": "ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5",
+    "approved_asset": ".pipeline/brand/2026-10/assets/production/icons/icon-512.png",
+    "approved_asset_sha256": "ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5",
+    "byte_identical": true
+  },
+  "determinism": {
+    "command": ".venv/bin/python .pipeline/brand/2026-10/assets/build_desktop_icons.py",
+    "runs": 2,
+    "identical_sha256": true,
+    "identical_stdout": true,
+    "run1_sha256": {
+      "32x32.png": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+      "128x128.png": "7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf",
+      "128x128@2x.png": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+      "icon.png": "68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5",
+      "icon.ico": "992bd3645c5048ffa994912731e3cecad196f3bb0c16bf7a1f017b42c0a9fdc0",
+      "icon.icns": "330eb42e1b172e6321150e03115ece67cf2829ed26087dadc2139b08b26268c7",
+      "icon.svg": "aa7dde5779b087c7dfcde719240d0e6e350f3cbee8e8b28f5f5e732c5b15fc5a"
+    },
+    "run2_sha256": {
+      "32x32.png": "000e12e9d5fe95b27149a0c4b6f9e36c01f27796d85a15698df1e0d14b370b1d",
+      "128x128.png": "7cca93c26bc042c32a2eab89d816e544bd664a73431bf2f0108f0a6673059faf",
+      "128x128@2x.png": "56dd8a83eb55f569535a6a214bcf2e032bf1d8f349c73b91d360f5200cd22afb",
+      "icon.png": "68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5",
+      "icon.ico": "992bd3645c5048ffa994912731e3cecad196f3bb0c16bf7a1f017b42c0a9fdc0",
+      "icon.icns": "330eb42e1b172e6321150e03115ece67cf2829ed26087dadc2139b08b26268c7",
+      "icon.svg": "aa7dde5779b087c7dfcde719240d0e6e350f3cbee8e8b28f5f5e732c5b15fc5a"
+    }
+  },
+  "svg_checks": {
+    "root_tag": "{http://www.w3.org/2000/svg}svg",
+    "width": "1024",
+    "height": "1024",
+    "viewBox": "0 0 32 32",
+    "rect_width": "32",
+    "rect_height": "32",
+    "rect_rx": "7",
+    "rect_fill": "#09090b",
+    "group_transform": "translate(2.88, 2.88) scale(0.82)",
+    "path_fill": "#34d399",
+    "path_fill_rule": "evenodd",
+    "path_matches_master_svg": true,
+    "tokens_expected": "<rect width=\"32\" height=\"32\" rx=\"7\" fill=\"#09090b\"/> present: True"
+  },
+  "svg_vector_parity": {
+    "method": "Chromium renders icon.svg inline at 1024x1024 (device_scale_factor=1, omit_background=True) and the screenshot is compared byte-for-byte with icon.png",
+    "rendered_sha256": "68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5",
+    "icon_png_sha256": "68196a9c02d71166ef2fdd046e04973dc81a9251e920c303ab572fa9347ed9e5",
+    "byte_identical": true
+  },
+  "validation_sheet": {
+    "path": ".pipeline/brand/2026-10/evidence/slice-7c/desktop-icons/icon-grid.png",
+    "bytes": 206117,
+    "sha256": "3f926cd4a75a00c1fe15b5cd7f682396deff8ecede3a0fd69d0c23f14d6eab0d",
+    "dimensions": "2607x1428 srgba 4.0",
+    "background": "#18181b dark (slightly lighter than the #09090b plate so the rounded plate silhouette is visible)",
+    "command": "montage -background '#18181b' ... (native 32/128/256/512/1024 + nearest-neighbour zooms)",
+    "renders_shown": [
+      "icon.png (1024)",
+      "icon.icns ic14 payload (512)",
+      "128x128@2x.png (256)",
+      "128x128.png (128)",
+      "32x32.png (32)",
+      "32 px 8x nearest-neighbour zoom",
+      "128 px 2x nearest-neighbour zoom"
+    ],
+    "inspection": {
+      "status": "inspected",
+      "method": "read_image by the desktop-icons agent",
+      "sheet_sha256": "3f926cd4a75a00c1fe15b5cd7f682396deff8ecede3a0fd69d0c23f14d6eab0d",
+      "observations": "Contact sheet inspected: row 1 shows icon.png at 1024 px, the icon.icns ic14 payload at 512 px, 128x128@2x.png at 256 px, 128x128.png at 128 px and 32x32.png at 32 px, all native size; row 2 shows an 8x nearest-neighbour zoom of the 32 px render and a 2x nearest-neighbour zoom of the 128 px render. Every render shows the same Visor Hutch master mark (#34d399) on the opaque #09090b rounded plate (rx=7) with transparent corners outside the plate, and the #18181b sheet background makes the rounded plate silhouette visible. No white corner blocks, no legacy hexagon mark, no clipping or colour drift; labels are legible and do not overlap."
+    }
+  },
+  "commands": [
+    ".venv/bin/python .pipeline/brand/2026-10/assets/build_desktop_icons.py  # run twice for determinism",
+    "sha256sum <generated 7 files>",
+    "sha256sum <staged 7 files>",
+    "cmp -s <generated file> <staged file>  # for each of the 7 staged files",
+    "file <generated files>; file <staged files>",
+    "identify -format '%wx%h %[channels]' <generated/staged PNGs and extracted container payloads>",
+    "python3: struct-parse icon.ico (count/sizes/offsets/bit counts) and icon.icns (magic/total length/type codes/lengths/PNG magic/IHDR dims)",
+    "convert <png> -format '%[pixel:p{x,y}]' info:  # corner/center/plate alpha checks",
+    ".venv/bin/python .pipeline/brand/2026-10/evidence/slice-7c/desktop-icons/build_evidence.py",
+    "montage -background '#18181b' ... icon-grid.png",
+    "Chromium icon.svg -> 1024 px render, byte-compared with icon.png (single-vector parity)",
+    "read_image .pipeline/brand/2026-10/evidence/slice-7c/desktop-icons/icon-grid.png"
+  ],
+  "environment": {
+    "python": "3.13.15",
+    "python_executable": "/home/kevina/.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/bin/python3.13",
+    "playwright": "1.63.0",
+    "chromium": "153.0.8010.12",
+    "imagemagick": "Version: ImageMagick 7.1.2-34 Q16-HDRI x86_64 c5d4ca8a0:20261014 https://imagemagick.org",
+    "renderer": "Playwright headless Chromium, device_scale_factor=1, exact viewport"
+  },
+  "decision_note": "A-vs-B/C omit_background decision: the four plated PNGs are rendered with omit_background=True (Option A). The original task wording said 'opaque plate (omit_background=False)'; with the reference recipe (transparent page body) Chromium fills the area outside the rx=7 plate with white at omit_background=False (Option B), producing white corner blocks, and a variation that sets an opaque #09090b page background (Option C) loses the rounded-plate silhouette. Lead confirmed Option A: Tauri/deb/AppImage/macOS app-icon conventions expect the opaque rounded plate as the shape with transparency outside it, and the approved production/icons/icon-512.png was itself rendered with omit_background=True (byte parity proof below). All plate pixels remain fully opaque #09090b and every PNG is 8-bit RGBA.",
+  "u07_resolution": "U07 (desktop icon family drift) is closed at source and raster level. The four legacy files (icon.svg/icon.png/icon.ico/icon.icns) used an undocumented pointy-top hexagon mark: #28cd9d stroke on a #0f151e rounded plate, geometry differing from every documented Hutch mark. They are now replaced by the maintainer-approved 'Visor Hutch' master mark (hutch-mark-master.svg, #34d399, fill-rule evenodd) centred on the documented full-bleed #09090b rx=7 plate - the exact composition already used by production/icons/icon-512.png. Seven files are generated deterministically into .pipeline/brand/2026-10/assets/production/desktop/ (32x32.png, 128x128.png, 128x128@2x.png, icon.png, icon.ico, icon.icns, icon.svg) and staged byte-identically into desktop/icons/; icon.svg is now a 1024x1024 single-vector source (viewBox 0 0 32 32) that matches the rasters, and the ICNS ic14 512 px payload is byte-identical to the approved icon-512.png (sha256 ce3da0b9be7a4ee66a168f639cc854d3493cc2f132e43a7c3120756ae5226af5), so the desktop host no longer carries a divergent mark variant. desktop/tauri.bundle.conf.json is intentionally unchanged (it lists only icons/icon.png, icons/icon.ico, icons/icon.icns).",
+  "caveats": [
+    "ImageMagick 7 in this environment has no ICNS decode delegate, so icon.icns is validated by byte-level Python parsing plus PNG payload extraction/IHDR/alpha checks, not by identify(1) on the .icns file itself.",
+    "PNG bytes are Chromium-build dependent; determinism is guaranteed for a fixed toolchain (versions recorded in environment) and was verified by two consecutive generator runs with identical sha256 for all 7 outputs.",
+    "The staged Tauri-convention PNGs 32x32.png, 128x128.png and 128x128@2x.png are not referenced by desktop/tauri.bundle.conf.json (which lists only icon.png/icon.ico/icon.icns); the config was left unchanged as required.",
+    "Legacy desktop/icons/ files were replaced in the working tree; they remain tracked so the maintainer can review/revert via git (no commit was made)."
+  ]
+}

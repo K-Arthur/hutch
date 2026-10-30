@@ -1,0 +1,49 @@
+{
+  "slice": "SLICE-7C",
+  "date": "2026-10-29",
+  "doc_source": ".pipeline/brand/2026-10/AVATAR-SYSTEM.md",
+  "doc_sha256": "30c6ef52fbc6efd40dca6b0419ef3690f83cb0f173ed6d535ea2a757dd549ae6",
+  "app_js": {
+    "path": "src/hutch/server/static/app.js",
+    "target_range_before": "1438-1461",
+    "lines_before": 14266,
+    "lines_after": 14262,
+    "line_delta": -4,
+    "frozen_baseline": 14532,
+    "sha256_before": "5610b1a6fe29539948f81d48b59a753a63ae2cf78acba1cd24ad9ed2b7b3be13",
+    "sha256_after": "eb4bcd0744b6bb005a265d00112b20d520d268be9e496a1202ebe2a1efdf24fb",
+    "inserted_block_lines": 20,
+    "inserted_block_sha256": "c56a70eb8ed8be81ac650746dd299d051e54951c6b26233f96186f2e56ff14ff",
+    "byte_identical_to_doc": true
+  },
+  "studio_css": {
+    "path": "src/hutch/server/static/studio.css",
+    "target_range_before": "21-30",
+    "lines_before": 1016,
+    "lines_after": 1016,
+    "line_delta": 0,
+    "frozen_baseline": 1115,
+    "sha256_before": "0e1b04ea34b55d41de3948b657c9115d7f034808d61c8b51a41d3ee4f3af819c",
+    "sha256_after": "b8007b0cbe389dc03f7dcc7efb0c3c7ac00f353d2d869fd31031d3868df06c8e",
+    "inserted_block_lines": 10,
+    "inserted_block_sha256": "ec64962aab23f5d6bf32844b52c473761509d16aebe267e5eb753643e19a17d4",
+    "byte_identical_to_doc": true
+  },
+  "id_heads_keys": [
+    "orb",
+    "capsule",
+    "bean",
+    "drop",
+    "pebble",
+    "shield",
+    "triangle",
+    "hex"
+  ],
+  "id_faces_entries": 8,
+  "keyframes_present": [
+    "body-work",
+    "eyes-scan",
+    "body-wait",
+    "eyes-wait"
+  ]
+}

@@ -101,7 +101,8 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ## Other bundled assets
 
 - uPlot 1.6.32: MIT; complete notice in `src/hutch/server/static/vendor/uplot/LICENSE`, with pinned provenance beside it in `README.md`.
-- Archivo variable font: SIL Open Font License 1.1; full license in `src/hutch/server/static/fonts/OFL-archivo.txt` and `website/assets/fonts/OFL-archivo.txt`.
+- Geist and Geist Mono variable fonts (`geist-latin-var.woff2`, `geist-mono-latin-var.woff2`): SIL Open Font License 1.1, Copyright (c) 2023 Vercel, in collaboration with basement.studio; full license in `src/hutch/server/static/fonts/OFL-geist.txt` and `website/assets/fonts/OFL-geist.txt`.
+- Bricolage Grotesque font subset (`bricolage-grotesque-latin-800.woff2`): SIL Open Font License 1.1, Copyright 2022 The Bricolage Grotesque Project Authors (`https://github.com/ateliertriay/bricolage`); full license in `src/hutch/server/static/fonts/OFL-bricolage-grotesque.txt` and `website/assets/fonts/OFL-bricolage-grotesque.txt`.
 - Service marks identify the actual connectors. Their vendors retain trademark and artwork rights; they are not Hutch branding or endorsement. See `docs/brand-assets.md` for exact sources and permitted presentation.
 
 ## Installed and frozen dependencies

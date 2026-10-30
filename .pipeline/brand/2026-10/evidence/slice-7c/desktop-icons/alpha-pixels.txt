@@ -1,0 +1,42 @@
+Alpha/corner pixel checks (ImageMagick pixel sampling, RGBA).
+Expectation: the four canvas corners are effectively transparent (alpha=0 exactly for
+the four standalone PNGs and every >=32 px payload; up to 12/255 sub-pixel
+antialiasing residual at the 16 px payload, tolerance 0.05), the plate pixels are
+opaque #09090b (alpha=1), and the mark's visor cutout exposes the plate at the image
+center.
+
+.pipeline/brand/2026-10/assets/production/desktop/32x32.png
+  corners: corner_tl=srgba(0,0,0,0), corner_tr=srgba(0,0,0,0), corner_bl=srgba(0,0,0,0), corner_br=srgba(0,0,0,0)
+  center=srgba(9,9,11,1) plate_left_mid=srgba(9,9,11,1)
+  corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True plate_left_mid_opaque=True pass=True
+.pipeline/brand/2026-10/assets/production/desktop/128x128.png
+  corners: corner_tl=srgba(0,0,0,0), corner_tr=srgba(0,0,0,0), corner_bl=srgba(0,0,0,0), corner_br=srgba(0,0,0,0)
+  center=srgba(9,9,11,1) plate_left_mid=srgba(9,9,11,1)
+  corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True plate_left_mid_opaque=True pass=True
+.pipeline/brand/2026-10/assets/production/desktop/128x128@2x.png
+  corners: corner_tl=srgba(0,0,0,0), corner_tr=srgba(0,0,0,0), corner_bl=srgba(0,0,0,0), corner_br=srgba(0,0,0,0)
+  center=srgba(9,9,11,1) plate_left_mid=srgba(9,9,11,1)
+  corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True plate_left_mid_opaque=True pass=True
+.pipeline/brand/2026-10/assets/production/desktop/icon.png
+  corners: corner_tl=srgba(0,0,0,0), corner_tr=srgba(0,0,0,0), corner_bl=srgba(0,0,0,0), corner_br=srgba(0,0,0,0)
+  center=srgba(9,9,11,1) plate_left_mid=srgba(9,9,11,1)
+  corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True plate_left_mid_opaque=True pass=True
+
+Container payloads (extracted from icon.ico / icon.icns):
+  icon.ico entry 0 (16 px): corner_max_alpha=0.047059 corners_transparent=True center_plate_opaque=True pass=True
+  icon.ico entry 1 (32 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.ico entry 2 (48 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.ico entry 3 (64 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.ico entry 4 (128 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.ico entry 5 (256 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.icns icp4 (16 px): corner_max_alpha=0.047059 corners_transparent=True center_plate_opaque=True pass=True
+  icon.icns icp5 (32 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.icns icp6 (64 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.icns ic07 (128 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.icns ic08 (256 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.icns ic09 (512 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.icns ic10 (1024 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.icns ic11 (32 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.icns ic12 (64 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.icns ic13 (256 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True
+  icon.icns ic14 (512 px): corner_max_alpha=0.000000 corners_transparent=True center_plate_opaque=True pass=True

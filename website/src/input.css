@@ -88,3 +88,22 @@
   --font-body: var(--font-body);
   --font-mono: var(--font-mono);
 }
+
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("assets/fonts/bricolage-grotesque-latin-800.woff2") format("woff2");
+}
+
+.brand-wordmark {
+  font-family: "Bricolage Grotesque", var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.brand-wordmark .text-brand {
+  margin-left: -0.01em;
+}
+

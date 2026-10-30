@@ -1,0 +1,12 @@
+Byte parity: generated (.pipeline/brand/2026-10/assets/production/desktop/)
+vs staged (desktop/icons/), verified with cmp -s (exit 0 == identical).
+
+cmp -s .pipeline/brand/2026-10/assets/production/desktop/32x32.png desktop/icons/32x32.png => exit 0 OK
+cmp -s .pipeline/brand/2026-10/assets/production/desktop/128x128.png desktop/icons/128x128.png => exit 0 OK
+cmp -s .pipeline/brand/2026-10/assets/production/desktop/128x128@2x.png desktop/icons/128x128@2x.png => exit 0 OK
+cmp -s .pipeline/brand/2026-10/assets/production/desktop/icon.png desktop/icons/icon.png => exit 0 OK
+cmp -s .pipeline/brand/2026-10/assets/production/desktop/icon.ico desktop/icons/icon.ico => exit 0 OK
+cmp -s .pipeline/brand/2026-10/assets/production/desktop/icon.icns desktop/icons/icon.icns => exit 0 OK
+cmp -s .pipeline/brand/2026-10/assets/production/desktop/icon.svg desktop/icons/icon.svg => exit 0 OK
+
+all 7 staged files byte-identical: True

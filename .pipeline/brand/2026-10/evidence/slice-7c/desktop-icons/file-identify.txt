@@ -1,0 +1,48 @@
+file(1) - generated:
+.pipeline/brand/2026-10/assets/production/desktop/32x32.png:      PNG image data, 32 x 32, 8-bit/color RGBA, non-interlaced
+.pipeline/brand/2026-10/assets/production/desktop/128x128.png:    PNG image data, 128 x 128, 8-bit/color RGBA, non-interlaced
+.pipeline/brand/2026-10/assets/production/desktop/128x128@2x.png: PNG image data, 256 x 256, 8-bit/color RGBA, non-interlaced
+.pipeline/brand/2026-10/assets/production/desktop/icon.png:       PNG image data, 1024 x 1024, 8-bit/color RGBA, non-interlaced
+.pipeline/brand/2026-10/assets/production/desktop/icon.ico:       MS Windows icon resource - 6 icons, 16x16 with  PNG image data, 16 x 16, 8-bit/color RGBA, non-interlaced, 32 bits/pixel, 32x32 with  PNG image data, 32 x 32, 8-bit/color RGBA, non-interlaced, 32 bits/pixel
+.pipeline/brand/2026-10/assets/production/desktop/icon.icns:      Mac OS X icon, 104223 bytes, "icp4" type
+.pipeline/brand/2026-10/assets/production/desktop/icon.svg:       SVG Scalable Vector Graphics image
+
+file(1) - staged:
+desktop/icons/32x32.png:      PNG image data, 32 x 32, 8-bit/color RGBA, non-interlaced
+desktop/icons/128x128.png:    PNG image data, 128 x 128, 8-bit/color RGBA, non-interlaced
+desktop/icons/128x128@2x.png: PNG image data, 256 x 256, 8-bit/color RGBA, non-interlaced
+desktop/icons/icon.png:       PNG image data, 1024 x 1024, 8-bit/color RGBA, non-interlaced
+desktop/icons/icon.ico:       MS Windows icon resource - 6 icons, 16x16 with  PNG image data, 16 x 16, 8-bit/color RGBA, non-interlaced, 32 bits/pixel, 32x32 with  PNG image data, 32 x 32, 8-bit/color RGBA, non-interlaced, 32 bits/pixel
+desktop/icons/icon.icns:      Mac OS X icon, 104223 bytes, "icp4" type
+desktop/icons/icon.svg:       SVG Scalable Vector Graphics image
+
+identify -format '%wx%h %[channels]' - generated PNGs:
+.pipeline/brand/2026-10/assets/production/desktop/32x32.png	32x32 srgba 4.0
+.pipeline/brand/2026-10/assets/production/desktop/128x128.png	128x128 srgba 4.0
+.pipeline/brand/2026-10/assets/production/desktop/128x128@2x.png	256x256 srgba 4.0
+.pipeline/brand/2026-10/assets/production/desktop/icon.png	1024x1024 srgba 4.0
+
+identify -format '%wx%h %[channels]' - staged PNGs:
+desktop/icons/32x32.png	32x32 srgba 4.0
+desktop/icons/128x128.png	128x128 srgba 4.0
+desktop/icons/128x128@2x.png	256x256 srgba 4.0
+desktop/icons/icon.png	1024x1024 srgba 4.0
+
+identify -format '%wx%h %[channels]' - container payloads (extracted):
+icns-ic07-0128.png	128x128 srgba 4.0
+icns-ic08-0256.png	256x256 srgba 4.0
+icns-ic09-0512.png	512x512 srgba 4.0
+icns-ic10-1024.png	1024x1024 srgba 4.0
+icns-ic11-0032.png	32x32 srgba 4.0
+icns-ic12-0064.png	64x64 srgba 4.0
+icns-ic13-0256.png	256x256 srgba 4.0
+icns-ic14-0512.png	512x512 srgba 4.0
+icns-icp4-0016.png	16x16 srgba 4.0
+icns-icp5-0032.png	32x32 srgba 4.0
+icns-icp6-0064.png	64x64 srgba 4.0
+ico-00-0016.png	16x16 srgba 4.0
+ico-01-0032.png	32x32 srgba 4.0
+ico-02-0048.png	48x48 srgba 4.0
+ico-03-0064.png	64x64 srgba 4.0
+ico-04-0128.png	128x128 srgba 4.0
+ico-05-0256.png	256x256 srgba 4.0

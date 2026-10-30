@@ -1,0 +1,980 @@
+{
+  "slice": "7C",
+  "verdict": "PASS",
+  "checks_passed": 65,
+  "checks_failed": 0,
+  "captured_at": "2026-10-29T10:32:58.740151+00:00",
+  "finished_at": "2026-10-29T10:33:08.054289+00:00",
+  "environment": {
+    "app_base_url": "http://127.0.0.1:38135",
+    "state_root": "/tmp/hutch-slice7c-state-b075dv_4",
+    "viewport": [
+      1440,
+      960
+    ],
+    "reduced_motion": "reduce",
+    "brand_css_sha256": "581315bfbabe6649da7ba92e12557e51ec517e775d3125340d6e5cb829e9475f",
+    "brand_css_lines": 19,
+    "browser": "Chromium 153.0.8010.12",
+    "chromium_executable": "/home/kevina/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome",
+    "playwright": "1.63.0",
+    "python": "3.13.15",
+    "pytest": "9.1.1",
+    "uvicorn": "0.54.0"
+  },
+  "checks": [
+    {
+      "check": "source brand.css content-hash is 581315bf",
+      "ok": true,
+      "detail": {
+        "path": "/home/kevina/CodingProjects/hutch/src/hutch/server/static/brand.css",
+        "sha256": "581315bfbabe6649da7ba92e12557e51ec517e775d3125340d6e5cb829e9475f",
+        "lines": 19
+      }
+    },
+    {
+      "check": "index.html and base.html reference brand.css?v=581315bf",
+      "ok": true,
+      "detail": {
+        "ref": "/static/brand.css?v=581315bf",
+        "index_html": true,
+        "base_html": true
+      }
+    },
+    {
+      "check": "fixture bot created",
+      "ok": true,
+      "detail": {
+        "bot": "design-system-review"
+      }
+    },
+    {
+      "check": "local Hutch preview started",
+      "ok": true,
+      "detail": {
+        "state_root": "/tmp/hutch-slice7c-state-b075dv_4"
+      }
+    },
+    {
+      "check": "SPA GET / returns HTTP 200",
+      "ok": true,
+      "detail": {
+        "status": 200
+      }
+    },
+    {
+      "check": "SPA chat shell rendered (#chat-prompt)",
+      "ok": true,
+      "detail": {
+        "title": "hutch \u2014 your personal assistant"
+      }
+    },
+    {
+      "check": "SPA head declares three rel=icon links",
+      "ok": true,
+      "detail": [
+        {
+          "rel": "icon",
+          "href": "/static/favicon.svg?v=cada88dd",
+          "type": "image/svg+xml",
+          "sizes": null
+        },
+        {
+          "rel": "icon",
+          "href": "/static/favicon-32x32.png?v=2d2d3d2c",
+          "type": "image/png",
+          "sizes": "32x32"
+        },
+        {
+          "rel": "icon",
+          "href": "/static/favicon.ico?v=9096fd72",
+          "type": null,
+          "sizes": "48x48"
+        }
+      ]
+    },
+    {
+      "check": "SPA head declares one apple-touch-icon link",
+      "ok": true,
+      "detail": [
+        {
+          "rel": "apple-touch-icon",
+          "href": "/static/apple-touch-icon.png?v=2351b1e0",
+          "type": null,
+          "sizes": "180x180"
+        }
+      ]
+    },
+    {
+      "check": "SPA head declares one rel=manifest link",
+      "ok": true,
+      "detail": [
+        {
+          "rel": "manifest",
+          "href": "/static/site.webmanifest?v=187682d3",
+          "type": null,
+          "sizes": null
+        }
+      ]
+    },
+    {
+      "check": "SPA head declares exactly five icon/manifest links",
+      "ok": true,
+      "detail": [
+        {
+          "rel": "icon",
+          "href": "/static/favicon.svg?v=cada88dd",
+          "type": "image/svg+xml",
+          "sizes": null
+        },
+        {
+          "rel": "icon",
+          "href": "/static/favicon-32x32.png?v=2d2d3d2c",
+          "type": "image/png",
+          "sizes": "32x32"
+        },
+        {
+          "rel": "icon",
+          "href": "/static/favicon.ico?v=9096fd72",
+          "type": null,
+          "sizes": "48x48"
+        },
+        {
+          "rel": "apple-touch-icon",
+          "href": "/static/apple-touch-icon.png?v=2351b1e0",
+          "type": null,
+          "sizes": "180x180"
+        },
+        {
+          "rel": "manifest",
+          "href": "/static/site.webmanifest?v=187682d3",
+          "type": null,
+          "sizes": null
+        }
+      ]
+    },
+    {
+      "check": "asset /static/favicon.svg?v=cada88dd -> HTTP 200 same-origin",
+      "ok": true,
+      "detail": {
+        "rel": "icon",
+        "href": "/static/favicon.svg?v=cada88dd",
+        "declared_type": "image/svg+xml",
+        "status": 200,
+        "content_type": "image/svg+xml",
+        "bytes": 1054,
+        "same_origin": true
+      }
+    },
+    {
+      "check": "asset /static/favicon.svg?v=cada88dd content-type image/svg+xml",
+      "ok": true,
+      "detail": {
+        "content_type": "image/svg+xml",
+        "declared_type": "image/svg+xml"
+      }
+    },
+    {
+      "check": "asset /static/favicon-32x32.png?v=2d2d3d2c -> HTTP 200 same-origin",
+      "ok": true,
+      "detail": {
+        "rel": "icon",
+        "href": "/static/favicon-32x32.png?v=2d2d3d2c",
+        "declared_type": "image/png",
+        "status": 200,
+        "content_type": "image/png",
+        "bytes": 1124,
+        "same_origin": true,
+        "png_dimensions": "32x32"
+      }
+    },
+    {
+      "check": "asset /static/favicon-32x32.png?v=2d2d3d2c content-type image/png",
+      "ok": true,
+      "detail": {
+        "content_type": "image/png",
+        "declared_type": "image/png"
+      }
+    },
+    {
+      "check": "asset /static/favicon-32x32.png?v=2d2d3d2c PNG payload decodes",
+      "ok": true,
+      "detail": {
+        "png_dimensions": "32x32"
+      }
+    },
+    {
+      "check": "asset /static/favicon.ico?v=9096fd72 -> HTTP 200 same-origin",
+      "ok": true,
+      "detail": {
+        "rel": "icon",
+        "href": "/static/favicon.ico?v=9096fd72",
+        "declared_type": null,
+        "status": 200,
+        "content_type": "image/vnd.microsoft.icon",
+        "bytes": 3537,
+        "same_origin": true
+      }
+    },
+    {
+      "check": "asset /static/favicon.ico?v=9096fd72 content-type image/vnd.microsoft.icon",
+      "ok": true,
+      "detail": {
+        "content_type": "image/vnd.microsoft.icon",
+        "declared_type": null
+      }
+    },
+    {
+      "check": "favicon.ico payload has ICO magic",
+      "ok": true,
+      "detail": {
+        "magic": "00000100"
+      }
+    },
+    {
+      "check": "asset /static/apple-touch-icon.png?v=2351b1e0 -> HTTP 200 same-origin",
+      "ok": true,
+      "detail": {
+        "rel": "apple-touch-icon",
+        "href": "/static/apple-touch-icon.png?v=2351b1e0",
+        "declared_type": null,
+        "status": 200,
+        "content_type": "image/png",
+        "bytes": 3978,
+        "same_origin": true,
+        "png_dimensions": "180x180"
+      }
+    },
+    {
+      "check": "asset /static/apple-touch-icon.png?v=2351b1e0 content-type image/png",
+      "ok": true,
+      "detail": {
+        "content_type": "image/png",
+        "declared_type": null
+      }
+    },
+    {
+      "check": "asset /static/apple-touch-icon.png?v=2351b1e0 PNG payload decodes",
+      "ok": true,
+      "detail": {
+        "png_dimensions": "180x180"
+      }
+    },
+    {
+      "check": "asset /static/site.webmanifest?v=187682d3 -> HTTP 200 same-origin",
+      "ok": true,
+      "detail": {
+        "rel": "manifest",
+        "href": "/static/site.webmanifest?v=187682d3",
+        "declared_type": null,
+        "status": 200,
+        "content_type": "application/manifest+json",
+        "bytes": 1064,
+        "same_origin": true
+      }
+    },
+    {
+      "check": "asset /static/site.webmanifest?v=187682d3 content-type application/manifest+json",
+      "ok": true,
+      "detail": {
+        "content_type": "application/manifest+json",
+        "declared_type": null
+      }
+    },
+    {
+      "check": "manifest JSON parses",
+      "ok": true,
+      "detail": {
+        "keys": [
+          "background_color",
+          "description",
+          "display",
+          "icons",
+          "name",
+          "short_name",
+          "start_url",
+          "theme_color"
+        ]
+      }
+    },
+    {
+      "check": "manifest declares six PNG icons",
+      "ok": true,
+      "detail": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any"
+        },
+        {
+          "src": "icons/icon-512.png",
+          "sizes": "512x512",
+          "type": "image/png",
+          "purpose": "any"
+        },
+        {
+          "src": "icons/icon-192-maskable.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "maskable"
+        },
+        {
+          "src": "icons/icon-512-maskable.png",
+          "sizes": "512x512",
+          "type": "image/png",
+          "purpose": "maskable"
+        },
+        {
+          "src": "icons/icon-192-monochrome.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "monochrome"
+        },
+        {
+          "src": "icons/icon-512-monochrome.png",
+          "sizes": "512x512",
+          "type": "image/png",
+          "purpose": "monochrome"
+        }
+      ]
+    },
+    {
+      "check": "manifest icon icons/icon-192.png -> HTTP 200 PNG",
+      "ok": true,
+      "detail": {
+        "src": "icons/icon-192.png",
+        "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192.png",
+        "sizes": "192x192",
+        "purpose": "any",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "192x192"
+      }
+    },
+    {
+      "check": "manifest icon icons/icon-192.png dimensions match 192x192",
+      "ok": true,
+      "detail": {
+        "src": "icons/icon-192.png",
+        "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192.png",
+        "sizes": "192x192",
+        "purpose": "any",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "192x192"
+      }
+    },
+    {
+      "check": "manifest icon icons/icon-512.png -> HTTP 200 PNG",
+      "ok": true,
+      "detail": {
+        "src": "icons/icon-512.png",
+        "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512.png",
+        "sizes": "512x512",
+        "purpose": "any",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "512x512"
+      }
+    },
+    {
+      "check": "manifest icon icons/icon-512.png dimensions match 512x512",
+      "ok": true,
+      "detail": {
+        "src": "icons/icon-512.png",
+        "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512.png",
+        "sizes": "512x512",
+        "purpose": "any",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "512x512"
+      }
+    },
+    {
+      "check": "manifest icon icons/icon-192-maskable.png -> HTTP 200 PNG",
+      "ok": true,
+      "detail": {
+        "src": "icons/icon-192-maskable.png",
+        "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192-maskable.png",
+        "sizes": "192x192",
+        "purpose": "maskable",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "192x192"
+      }
+    },
+    {
+      "check": "manifest icon icons/icon-192-maskable.png dimensions match 192x192",
+      "ok": true,
+      "detail": {
+        "src": "icons/icon-192-maskable.png",
+        "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192-maskable.png",
+        "sizes": "192x192",
+        "purpose": "maskable",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "192x192"
+      }
+    },
+    {
+      "check": "manifest icon icons/icon-512-maskable.png -> HTTP 200 PNG",
+      "ok": true,
+      "detail": {
+        "src": "icons/icon-512-maskable.png",
+        "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512-maskable.png",
+        "sizes": "512x512",
+        "purpose": "maskable",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "512x512"
+      }
+    },
+    {
+      "check": "manifest icon icons/icon-512-maskable.png dimensions match 512x512",
+      "ok": true,
+      "detail": {
+        "src": "icons/icon-512-maskable.png",
+        "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512-maskable.png",
+        "sizes": "512x512",
+        "purpose": "maskable",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "512x512"
+      }
+    },
+    {
+      "check": "manifest icon icons/icon-192-monochrome.png -> HTTP 200 PNG",
+      "ok": true,
+      "detail": {
+        "src": "icons/icon-192-monochrome.png",
+        "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192-monochrome.png",
+        "sizes": "192x192",
+        "purpose": "monochrome",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "192x192"
+      }
+    },
+    {
+      "check": "manifest icon icons/icon-192-monochrome.png dimensions match 192x192",
+      "ok": true,
+      "detail": {
+        "src": "icons/icon-192-monochrome.png",
+        "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192-monochrome.png",
+        "sizes": "192x192",
+        "purpose": "monochrome",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "192x192"
+      }
+    },
+    {
+      "check": "manifest icon icons/icon-512-monochrome.png -> HTTP 200 PNG",
+      "ok": true,
+      "detail": {
+        "src": "icons/icon-512-monochrome.png",
+        "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512-monochrome.png",
+        "sizes": "512x512",
+        "purpose": "monochrome",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "512x512"
+      }
+    },
+    {
+      "check": "manifest icon icons/icon-512-monochrome.png dimensions match 512x512",
+      "ok": true,
+      "detail": {
+        "src": "icons/icon-512-monochrome.png",
+        "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512-monochrome.png",
+        "sizes": "512x512",
+        "purpose": "monochrome",
+        "status": 200,
+        "content_type": "image/png",
+        "png_dimensions": "512x512"
+      }
+    },
+    {
+      "check": "document.fonts.check('800 16px \"Bricolage Grotesque\"') is true",
+      "ok": true,
+      "detail": {
+        "spec": "800 16px \"Bricolage Grotesque\"",
+        "checkAfter": true,
+        "checkBefore": true,
+        "fontLoadError": null,
+        "fontFamily": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif",
+        "fontWeight": "800",
+        "fontSize": "18px",
+        "letterSpacing": "-0.54px",
+        "loadedBricolageFaces": [
+          {
+            "family": "Bricolage Grotesque",
+            "weight": "800",
+            "status": "loaded"
+          }
+        ],
+        "wordmarkText": "hutch"
+      }
+    },
+    {
+      "check": "SPA .brand-wordmark computed font-family includes Bricolage Grotesque",
+      "ok": true,
+      "detail": {
+        "fontFamily": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif",
+        "fontWeight": "800",
+        "fontSize": "18px",
+        "loadedBricolageFaces": [
+          {
+            "family": "Bricolage Grotesque",
+            "weight": "800",
+            "status": "loaded"
+          }
+        ]
+      }
+    },
+    {
+      "check": "SPA .brand-wordmark text is hutch",
+      "ok": true,
+      "detail": "hutch"
+    },
+    {
+      "check": "#workspace .brand contains exactly one SVG",
+      "ok": true,
+      "detail": 1
+    },
+    {
+      "check": "Visor Hutch SPA mark is a single path",
+      "ok": true,
+      "detail": 1
+    },
+    {
+      "check": "Visor Hutch SPA mark uses the Small-tier d",
+      "ok": true,
+      "detail": {
+        "d_prefix": "M 16.00 2.80 C 23.80 2.80 29.00 7.90 29.00 14.80 L 29.00 26.80 A 2.40 2.40 0 0 1 24.20 26.80 L 24.20",
+        "expected_prefix": "M 16.00 2.80 C 23.80 2.80 29.00 7.90 29.00 14.80 L 29.00 26.80 A 2.40 2.40 0 0 1 24.20 26.80 L 24.20"
+      }
+    },
+    {
+      "check": "Visor Hutch SPA mark fill is var(--brand)",
+      "ok": true,
+      "detail": [
+        "var(--brand)"
+      ]
+    },
+    {
+      "check": "Visor Hutch SPA mark has no circle/stroke",
+      "ok": true,
+      "detail": {
+        "circles": 0,
+        "stroke_elements": []
+      }
+    },
+    {
+      "check": "Visor Hutch SPA mark renders at 22x22 CSS px",
+      "ok": true,
+      "detail": {
+        "width": 22,
+        "height": 22,
+        "viewBox": "0 0 32 32"
+      }
+    },
+    {
+      "check": "SPA lockup gap is 8px",
+      "ok": true,
+      "detail": {
+        "computed_gap": "8px",
+        "measured_gap": 8
+      }
+    },
+    {
+      "check": "SPA wordmark font-size is 18px",
+      "ok": true,
+      "detail": {
+        "fontSize": "18px",
+        "fontWeight": "800"
+      }
+    },
+    {
+      "check": "SPA wordmark tracking is -0.54px (-0.03em at 18px)",
+      "ok": true,
+      "detail": {
+        "letterSpacing": "-0.54px"
+      }
+    },
+    {
+      "check": "SPA loads content-hashed brand.css v=581315bf and serves matching bytes",
+      "ok": true,
+      "detail": {
+        "href": "/static/brand.css?v=581315bf",
+        "status": 200,
+        "sha256": "581315bfbabe6649da7ba92e12557e51ec517e775d3125340d6e5cb829e9475f"
+      }
+    },
+    {
+      "check": "SPA desktop and brand screenshots captured",
+      "ok": true,
+      "detail": [
+        "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/spa-desktop.png",
+        "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/spa-brand-closeup.png"
+      ]
+    },
+    {
+      "check": "server-rendered page from templates/base.html returns HTTP 200",
+      "ok": true,
+      "detail": [
+        {
+          "requested": "/models",
+          "final_url": "http://127.0.0.1:38135/models",
+          "final_path": "/models",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "check": "server page .topbar .brand contains one 22px single-path Small-tier mark",
+      "ok": true,
+      "detail": {
+        "topbarPresent": true,
+        "brandPresent": true,
+        "svgCount": 1,
+        "svgWidthAttr": "22",
+        "svgHeightAttr": "22",
+        "viewBox": "0 0 32 32",
+        "width": 22,
+        "height": 22,
+        "pathCount": 1,
+        "d": [
+          "M 16.00 2.80 C 23.80 2.80 29.00 7.90 29.00 14.80 L 29.00 26.80 A 2.40 2.40 0 0 1 24.20 26.80 L 24.20 25.40 A 2.90 2.90 0 0 0 18.40 25.40 L 18.40 26.80 A 2.40 2.40 0 0 1 13.60 26.80 L 13.60 25.40 A 2.90 2.90 0 0 0 7.80 25.40 L 7.80 26.80 A 2.40 2.40 0 0 1 3.00 26.80 L 3.00 14.80 C 3.00 7.90 8.20 2.80 16.00 2.80 Z M 12.00 7.60 L 20.00 7.60 A 5.80 5.80 0 0 1 25.80 13.40 L 25.80 14.80 A 3.80 3.80 0 0 1 22.00 18.60 L 10.00 18.60 A 3.80 3.80 0 0 1 6.20 14.80 L 6.20 13.40 A 5.80 5.80 0 0 1 12.00 7.60 Z M 11.63 10.63 C 12.81 10.46 13.93 11.50 14.13 12.95 C 14.33 14.40 13.54 15.71 12.37 15.87 C 11.19 16.04 10.07 15.00 9.87 13.55 C 9.67 12.10 10.46 10.79 11.63 10.63 Z M 20.37 10.38 C 21.54 10.54 22.33 11.85 22.13 13.30 C 21.93 14.75 20.81 15.79 19.63 15.62 C 18.46 15.46 17.67 14.15 17.87 12.70 C 18.07 11.25 19.19 10.21 20.37 10.38 Z"
+        ],
+        "fill": [
+          "var(--accent)"
+        ],
+        "fillRule": [
+          "evenodd"
+        ],
+        "circleCount": 0,
+        "strokeElements": [],
+        "wordmarkText": "hutch",
+        "wordmarkFontFamily": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif",
+        "wordmarkFontSize": "18px",
+        "wordmarkFontWeight": "800",
+        "wordmarkLetterSpacing": "-0.54px",
+        "brandGap": "8px",
+        "lockupGap": 8,
+        "bricolageReady": true
+      }
+    },
+    {
+      "check": "server page mark has no circle/stroke",
+      "ok": true,
+      "detail": {
+        "circles": 0,
+        "stroke_elements": []
+      }
+    },
+    {
+      "check": "server page .brand-wordmark text is hutch",
+      "ok": true,
+      "detail": "hutch"
+    },
+    {
+      "check": "server page .brand-wordmark computed font-family includes Bricolage Grotesque",
+      "ok": true,
+      "detail": {
+        "fontFamily": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "18px",
+        "fontWeight": "800"
+      }
+    },
+    {
+      "check": "server page lockup gap is 8px",
+      "ok": true,
+      "detail": {
+        "computed_gap": "8px",
+        "measured_gap": 8
+      }
+    },
+    {
+      "check": "server page wordmark font-size is 18px",
+      "ok": true,
+      "detail": {
+        "fontSize": "18px",
+        "fontWeight": "800"
+      }
+    },
+    {
+      "check": "server page wordmark tracking is -0.54px (-0.03em at 18px)",
+      "ok": true,
+      "detail": {
+        "letterSpacing": "-0.54px"
+      }
+    },
+    {
+      "check": "server page loads content-hashed brand.css v=581315bf and serves matching bytes",
+      "ok": true,
+      "detail": {
+        "href": "/static/brand.css?v=581315bf",
+        "status": 200,
+        "sha256": "581315bfbabe6649da7ba92e12557e51ec517e775d3125340d6e5cb829e9475f"
+      }
+    },
+    {
+      "check": "server topbar screenshots captured",
+      "ok": true,
+      "detail": [
+        "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/server-page-topbar.png",
+        "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/server-page-full.png"
+      ]
+    },
+    {
+      "check": "no page errors",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "check": "no console errors",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "check": "no failed responses",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "check": "no non-localhost requests",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "passed": 65,
+  "failed": 0,
+  "asset_http_table": [
+    {
+      "rel": "icon",
+      "href": "/static/favicon.svg?v=cada88dd",
+      "declared_type": "image/svg+xml",
+      "status": 200,
+      "content_type": "image/svg+xml",
+      "bytes": 1054,
+      "same_origin": true
+    },
+    {
+      "rel": "icon",
+      "href": "/static/favicon-32x32.png?v=2d2d3d2c",
+      "declared_type": "image/png",
+      "status": 200,
+      "content_type": "image/png",
+      "bytes": 1124,
+      "same_origin": true,
+      "png_dimensions": "32x32"
+    },
+    {
+      "rel": "icon",
+      "href": "/static/favicon.ico?v=9096fd72",
+      "declared_type": null,
+      "status": 200,
+      "content_type": "image/vnd.microsoft.icon",
+      "bytes": 3537,
+      "same_origin": true
+    },
+    {
+      "rel": "apple-touch-icon",
+      "href": "/static/apple-touch-icon.png?v=2351b1e0",
+      "declared_type": null,
+      "status": 200,
+      "content_type": "image/png",
+      "bytes": 3978,
+      "same_origin": true,
+      "png_dimensions": "180x180"
+    },
+    {
+      "rel": "manifest",
+      "href": "/static/site.webmanifest?v=187682d3",
+      "declared_type": null,
+      "status": 200,
+      "content_type": "application/manifest+json",
+      "bytes": 1064,
+      "same_origin": true
+    }
+  ],
+  "manifest_rows": [
+    {
+      "src": "icons/icon-192.png",
+      "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "purpose": "any",
+      "status": 200,
+      "content_type": "image/png",
+      "png_dimensions": "192x192"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "purpose": "any",
+      "status": 200,
+      "content_type": "image/png",
+      "png_dimensions": "512x512"
+    },
+    {
+      "src": "icons/icon-192-maskable.png",
+      "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192-maskable.png",
+      "sizes": "192x192",
+      "purpose": "maskable",
+      "status": 200,
+      "content_type": "image/png",
+      "png_dimensions": "192x192"
+    },
+    {
+      "src": "icons/icon-512-maskable.png",
+      "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "purpose": "maskable",
+      "status": 200,
+      "content_type": "image/png",
+      "png_dimensions": "512x512"
+    },
+    {
+      "src": "icons/icon-192-monochrome.png",
+      "resolved_url": "http://127.0.0.1:38135/static/icons/icon-192-monochrome.png",
+      "sizes": "192x192",
+      "purpose": "monochrome",
+      "status": 200,
+      "content_type": "image/png",
+      "png_dimensions": "192x192"
+    },
+    {
+      "src": "icons/icon-512-monochrome.png",
+      "resolved_url": "http://127.0.0.1:38135/static/icons/icon-512-monochrome.png",
+      "sizes": "512x512",
+      "purpose": "monochrome",
+      "status": 200,
+      "content_type": "image/png",
+      "png_dimensions": "512x512"
+    }
+  ],
+  "server_pages": [
+    {
+      "requested": "/models",
+      "final_url": "http://127.0.0.1:38135/models",
+      "final_path": "/models",
+      "status": 200
+    }
+  ],
+  "server_page_selected": "/models",
+  "spa_brand": {
+    "font": {
+      "spec": "800 16px \"Bricolage Grotesque\"",
+      "checkAfter": true,
+      "checkBefore": true,
+      "fontLoadError": null,
+      "fontFamily": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif",
+      "fontWeight": "800",
+      "fontSize": "18px",
+      "letterSpacing": "-0.54px",
+      "loadedBricolageFaces": [
+        {
+          "family": "Bricolage Grotesque",
+          "weight": "800",
+          "status": "loaded"
+        }
+      ],
+      "wordmarkText": "hutch"
+    },
+    "mark": {
+      "svgCount": 1,
+      "viewBox": "0 0 32 32",
+      "width": 22,
+      "height": 22,
+      "pathCount": 1,
+      "d": [
+        "M 16.00 2.80 C 23.80 2.80 29.00 7.90 29.00 14.80 L 29.00 26.80 A 2.40 2.40 0 0 1 24.20 26.80 L 24.20 25.40 A 2.90 2.90 0 0 0 18.40 25.40 L 18.40 26.80 A 2.40 2.40 0 0 1 13.60 26.80 L 13.60 25.40 A 2.90 2.90 0 0 0 7.80 25.40 L 7.80 26.80 A 2.40 2.40 0 0 1 3.00 26.80 L 3.00 14.80 C 3.00 7.90 8.20 2.80 16.00 2.80 Z M 12.00 7.60 L 20.00 7.60 A 5.80 5.80 0 0 1 25.80 13.40 L 25.80 14.80 A 3.80 3.80 0 0 1 22.00 18.60 L 10.00 18.60 A 3.80 3.80 0 0 1 6.20 14.80 L 6.20 13.40 A 5.80 5.80 0 0 1 12.00 7.60 Z M 11.63 10.63 C 12.81 10.46 13.93 11.50 14.13 12.95 C 14.33 14.40 13.54 15.71 12.37 15.87 C 11.19 16.04 10.07 15.00 9.87 13.55 C 9.67 12.10 10.46 10.79 11.63 10.63 Z M 20.37 10.38 C 21.54 10.54 22.33 11.85 22.13 13.30 C 21.93 14.75 20.81 15.79 19.63 15.62 C 18.46 15.46 17.67 14.15 17.87 12.70 C 18.07 11.25 19.19 10.21 20.37 10.38 Z"
+      ],
+      "fill": [
+        "var(--brand)"
+      ],
+      "fillRule": [
+        "evenodd"
+      ],
+      "circleCount": 0,
+      "strokeElements": [],
+      "brandGap": "8px",
+      "wordmarkText": "hutch",
+      "lockupGap": 8
+    }
+  },
+  "server_brand": {
+    "topbarPresent": true,
+    "brandPresent": true,
+    "svgCount": 1,
+    "svgWidthAttr": "22",
+    "svgHeightAttr": "22",
+    "viewBox": "0 0 32 32",
+    "width": 22,
+    "height": 22,
+    "pathCount": 1,
+    "d": [
+      "M 16.00 2.80 C 23.80 2.80 29.00 7.90 29.00 14.80 L 29.00 26.80 A 2.40 2.40 0 0 1 24.20 26.80 L 24.20 25.40 A 2.90 2.90 0 0 0 18.40 25.40 L 18.40 26.80 A 2.40 2.40 0 0 1 13.60 26.80 L 13.60 25.40 A 2.90 2.90 0 0 0 7.80 25.40 L 7.80 26.80 A 2.40 2.40 0 0 1 3.00 26.80 L 3.00 14.80 C 3.00 7.90 8.20 2.80 16.00 2.80 Z M 12.00 7.60 L 20.00 7.60 A 5.80 5.80 0 0 1 25.80 13.40 L 25.80 14.80 A 3.80 3.80 0 0 1 22.00 18.60 L 10.00 18.60 A 3.80 3.80 0 0 1 6.20 14.80 L 6.20 13.40 A 5.80 5.80 0 0 1 12.00 7.60 Z M 11.63 10.63 C 12.81 10.46 13.93 11.50 14.13 12.95 C 14.33 14.40 13.54 15.71 12.37 15.87 C 11.19 16.04 10.07 15.00 9.87 13.55 C 9.67 12.10 10.46 10.79 11.63 10.63 Z M 20.37 10.38 C 21.54 10.54 22.33 11.85 22.13 13.30 C 21.93 14.75 20.81 15.79 19.63 15.62 C 18.46 15.46 17.67 14.15 17.87 12.70 C 18.07 11.25 19.19 10.21 20.37 10.38 Z"
+    ],
+    "fill": [
+      "var(--accent)"
+    ],
+    "fillRule": [
+      "evenodd"
+    ],
+    "circleCount": 0,
+    "strokeElements": [],
+    "wordmarkText": "hutch",
+    "wordmarkFontFamily": "\"Bricolage Grotesque\", Geist, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif, ui-sans-serif, system-ui, sans-serif",
+    "wordmarkFontSize": "18px",
+    "wordmarkFontWeight": "800",
+    "wordmarkLetterSpacing": "-0.54px",
+    "brandGap": "8px",
+    "lockupGap": 8,
+    "bricolageReady": true
+  },
+  "network_events": {
+    "page_errors": [],
+    "console_errors": [],
+    "failed_responses": [],
+    "request_failures": [],
+    "external_requests": [],
+    "woff2_requests": [
+      "http://127.0.0.1:38135/static/fonts/geist-latin-var.woff2",
+      "http://127.0.0.1:38135/static/fonts/bricolage-grotesque-latin-800.woff2",
+      "http://127.0.0.1:38135/static/fonts/geist-latin-var.woff2",
+      "http://127.0.0.1:38135/static/fonts/bricolage-grotesque-latin-800.woff2",
+      "http://127.0.0.1:38135/static/fonts/geist-mono-latin-var.woff2"
+    ]
+  },
+  "font_requests": {
+    "spa_woff2": [
+      "http://127.0.0.1:38135/static/fonts/geist-latin-var.woff2",
+      "http://127.0.0.1:38135/static/fonts/bricolage-grotesque-latin-800.woff2"
+    ],
+    "server_woff2": [
+      "http://127.0.0.1:38135/static/fonts/geist-mono-latin-var.woff2"
+    ]
+  },
+  "brand_css_contract": {
+    "path": "/home/kevina/CodingProjects/hutch/src/hutch/server/static/brand.css",
+    "sha256": "581315bfbabe6649da7ba92e12557e51ec517e775d3125340d6e5cb829e9475f",
+    "sha8": "581315bf",
+    "lines": 19,
+    "refs": {
+      "index_html": true,
+      "base_html": true
+    }
+  },
+  "artifacts": {
+    "root": "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/artifacts",
+    "spa_desktop": "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/spa-desktop.png",
+    "spa_brand_closeup": "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/spa-brand-closeup.png",
+    "server_page_topbar": "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/server-page-topbar.png",
+    "server_page_brand": "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/server-page-brand.png",
+    "server_page_full": "/home/kevina/CodingProjects/hutch/.pipeline/brand/2026-10/evidence/slice-7c/verification/server-page-full.png"
+  }
+}

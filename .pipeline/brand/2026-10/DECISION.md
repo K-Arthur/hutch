@@ -414,3 +414,62 @@ The register probe then reached UKIPO and WIPO but not USPTO (IP-CLEARANCE secti
   the picked mark), B9 (bare-name domain/handle occupancy strategy), and B10 (confirmed UK class 9/42
   word-mark overlap; name retained under written risk ownership D38) remain active and unchanged in
   legal posture.
+
+### Run 7 session (2026-10-29, America/Vancouver) - Slice 7A execution + "The Hutch Colony" 8-resident avatar system
+
+- D57 (HUMAN AUTHORISATION, 2026-10-29, verbatim): "proceed with the next slice/phase of work we have".
+  Issued immediately after the First Response Contract presented Slice 7A (Licence, Font & Brand Docs
+  Reconciliation) as the recommended clean-path slice under continued written IP risk ownership
+  (D20/D23/D28/D38). Resolves the B6 integration gate for Slice 7A.
+- D58 (SLICE 7A EXECUTION, 2026-10-29) - Staged `bricolage-grotesque-latin-800.woff2` (`47,260 B`,
+  SHA-256 `55d3acddbb67185090064db83950341bda78539dd5fbaab3cbb02c7cfd270b9c`) and verbatim
+  `OFL-bricolage-grotesque.txt` (`4,403 B`, SHA-256 `4b5a7d8f37f5602621c8a8d7358a6a2e71317e6c231c661e15aef0275d3e07ba`)
+  into `website/assets/fonts/` and `src/hutch/server/static/fonts/`. Reconciled `THIRD_PARTY_NOTICES.md`
+  and its byte-identical mirrors (`website/THIRD_PARTY_NOTICES.txt`,
+  `src/hutch/server/static/THIRD_PARTY_NOTICES.txt`, SHA-256 `8a457f7389e10364...`) to remove stale
+  `Archivo` / `OFL-archivo.txt` notices and attribute `Geist`, `Geist Mono`, and `Bricolage Grotesque`
+  under SIL OFL 1.1 (resolves notice drift B9). Updated `docs/brand-assets.md` and
+  `docs/design-system.md` to align with `BRAND-GUIDELINES.md`, `COLOUR-SYSTEM.md`, and
+  `website/tokens.json` (resolves documentation portion of B10).
+- D59 (HUMAN INSTRUCTION, 2026-10-29, verbatim): "Please also work on improving the avatars of the
+  hutch paltofrm they are currentyl very good but there is a lot more we can do to make it unique like
+  our logo/icons is unique now thansk to your work" [sic].
+- D60 (AVATAR SYSTEM DESIGN & VERIFICATION, 2026-10-29) - Designed, mathematically verified via
+  headless Chromium `Path2D` + SVG DOM evaluation (`tests/e2e/test_design_system.py:1141-1207` and
+  `tests/e2e/test_browser.py:8614-8641` invariants), and visually inspected **"The Hutch Colony"**
+  8-resident bot avatar system (`AVATAR-SYSTEM.md`, `assets/concepts/render_avatar_family.py`,
+  `evidence/avatars/avatar-family-sheet.png`, and `BRAND-GUIDELINES.md` Section 6.2). Replaces the 8
+  generic primitives (`orb` circle, `capsule` pill, `bean` blob, `drop`, `pebble`, `shield`, `triangle`,
+  `hex`) with 8 architectural-creature resident silhouettes on the `64x64` grid (`Ghost Bell`,
+  `Gable Hutch`, `Hopper Hare`, `Lantern Cowl`, `Transceiver Pod`, `Bastion Keep`, `Beacon Spire`,
+  `Mecha Chassis`) with 8 unique vertical face-row heights (`cy = 25.6..39.8`), 100% 48-point eye
+  containment (`inHead: True`), zero visor cutouts (preserving the parent/resident distinction in
+  `DESIGN.md:400`), and zero line-count growth when dropped into `src/hutch/server/static/app.js` in
+  Slice 7C.
+- D61 (HUMAN INSTRUCTION, 2026-10-29, verbatim): "They are great did you also work on the animations for
+  them like when they are working? If so we can proceed with the next slice of work if not first finish
+  that then continue" and "also should we add two more avatars or are the current numbr okay?" [sic].
+- D62 (AVATAR 5-STATE MOTION CHOREOGRAPHY & 8-RESIDENT ROSTER DECISION, 2026-10-29) - Specified and
+  verified the 5-state operational motion choreography in `AVATAR-SYSTEM.md` Section 5 (`Idle` blink
+  `6.4s`, `Working` foraging hop + `-3.2px/+3.2px` eye scan `1.6s`, `Approval Gate` upward perk `2.2s`,
+  `Alert/Blocked` 3-cycle warning jolt + squint `0.48s`, `Paused` low rest), rendered
+  `evidence/avatars/avatar-motion-sheet.png` (`88/88` resident x keyframe-extreme `Path2D.isPointInPath`
+  checks passed), and engineered a zero-line-growth (`10` lines -> `10` lines) replacement for
+  `src/hutch/server/static/studio.css:21-30`. Recorded the architectural decision to keep **8 residents**
+  (`8 colours x 8 shapes = 64` pairs) rather than expanding to 10 because (1) the identity popover pairs
+  8 colours above 8 shapes in an aligned `8x1` desktop / `4x2` mobile grid (`style.css:664-678`),
+  (2) `tests/e2e/test_design_system.py:1182,1222,1270` hard-asserts `len == 8` and `rowCount == 2` on
+  mobile, and (3) `sigilPair(name)` uses 3-bit orthogonal hashing (`2^3 = 8`) and preserves existing
+  `localStorage["hutch:sigils"]` indices `0..7`.
+- D63 (SLICE 7B EXECUTION, 2026-10-29) - Executed Slice 7B (`website/` marketing site brand, icon,
+  manifest, social card, and wordmark integration): staged `favicon.svg`, `favicon.ico`,
+  `favicon-16x16.png`, `favicon-32x32.png`, `favicon-48x48.png`, `apple-touch-icon.png`,
+  `site.webmanifest`, `website/icons/icon-*.png`, `og-card-1200x630.png`, and
+  `github-social-preview-1280x640.png`; declared `@font-face` (`Bricolage Grotesque` 800) and
+  `.brand-wordmark` in `website/src/input.css`; wired `<head>` icon/manifest/OG links and replaced the 3
+  inline hexagon marks (`26px` navbar -> `"Visor Hutch"` Master path; `22px` mobile drawer & `22px`
+  footer -> `"Visor Hutch"` Small path) in `website/index.html`; compiled `website/app.css` and stamped
+  18 local asset URLs (`npm run build:css:site`); verified with `tests/test_site_tokens.py` (`8 passed`),
+  `tests/e2e/test_website.py` (`3 passed`), `audit_emoji.py` (`clean`), and visual inspection of
+  `website-desktop-hero.png`, `website-mobile-drawer.png`, and `website-desktop-footer.png`.
+
