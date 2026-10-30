@@ -521,6 +521,8 @@ def register_pages(app: FastAPI) -> None:
     register_model_pages(app, page, go, read_form)
     from .pages_usage import register_usage_page
     register_usage_page(app, page)
+    from .setup_check_api import install_setup_check_routes
+    install_setup_check_routes(app)
 
     # ----------------------------------------------------------- connections (CN)
 

@@ -3278,7 +3278,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
               </div>
               <button class="btn ghost small first-run-ai-retry" type="button" id="first-run-ai-retry" hidden>Check again</button>
             </aside>
-            <section class="first-run-how" aria-labelledby="first-run-how-title">
+            ${hutchSetupCheck.shell()}<section class="first-run-how" aria-labelledby="first-run-how-title">
               <h2 id="first-run-how-title" class="first-run-label">How Hutch works</h2>
               <ul class="first-run-promises">
                 <li><span class="first-run-step-ico" aria-hidden="true">${icon("chat")}</span><span>Start with a conversation</span></li>
@@ -3350,7 +3350,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
       void openOpenCodeSetupDialog(() => { void refreshFirstRunReadiness(); });
     });
     $("#first-run-manage-ai")?.addEventListener("click", () => { firstRunSubmitGeneration++; });
-    $("#first-run-ai-retry")?.addEventListener("click", () => { void refreshFirstRunReadiness(); });
+    $("#first-run-ai-retry")?.addEventListener("click", () => { void refreshFirstRunReadiness(); }); void hutchSetupCheck.mount();
     const starterRequests = {
       plan: "Help me plan my week and keep track of the follow-ups.",
       email: "Help me find the emails I need to answer and prepare drafts for me to review.",

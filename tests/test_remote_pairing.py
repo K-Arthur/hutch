@@ -356,8 +356,7 @@ def test_paired_route_inventory_is_total_and_sensitive_aliases_stay_owner_only(t
                   for method in (route.methods or ())}
     assert registered <= REMOTE_ROUTE_CAPABILITIES.keys()
     assert PUBLIC_REMOTE_ROUTES <= REMOTE_ROUTE_CAPABILITIES.keys()
-    for key in {
-        ("GET", "/legacy"),
+    for key in {   # `/legacy` is retired (it duplicated `/`), so it no longer needs an owner-only entry
         ("GET", "/api/stats"),
         ("GET", "/api/overview"),
         ("GET", "/api/runs"),
