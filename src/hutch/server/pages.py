@@ -231,39 +231,6 @@ def register_pages(app: FastAPI) -> None:
         """Pick a Bot for permanent whole-Bot deletion; the row list is server-rendered."""
         return page(request, "bot_delete_pick.html", nav="deletion", bots=store.list_bots())
 
-    @app.post("/bots", include_in_schema=False)
-    async def bot_create(request: Request):
-        import re
-        form = await read_form(request)
-        name = form.get("name").strip()
-        if not re.match(r"^[a-z0-9][a-z0-9-]{1,40}$", name):
-            return go("/bots/new", error="Name must be a lowercase slug: a-z, 0-9 and hyphens, 2-41 characters.")
-        if store.get_bot(name):
-            return go("/bots/new", error=f"An assistant named '{name}' already exists.")
-        template = form.get("template")
-        if template and template not in TEMPLATES:
-            return go("/bots/new", error=f"Unknown template '{template}'.")
-        from ..templates import instantiate
-        bot = instantiate(template, name) if template else Bot(name=name)
-        bot.description = form.get("description") or bot.description
-        from ..modelchoices import ModelNotUsable, validate_override
-        try:
-            bot.model = validate_override(config, store, bot, form.get("model"))
-        except ModelNotUsable as exc:
-            return go("/bots/new", error=f"{exc}. {exc.fix}" if exc.fix else str(exc))
-        cron = form.get("cron").strip()
-        if cron:
-            try:
-                bot.replace_primary_schedule(Schedule(cron=cron, timezone=form.get("timezone") or "UTC"))
-                scheduler.next_fire(bot)
-            except Exception:
-                return go("/bots/new", error="That cron expression is not valid (5 fields, e.g. 0 9 * * 1).")
-        store.create_bot(bot)
-        info = TEMPLATE_INFO.get(template or "")
-        hint = (f" It reads files ({info.reads}): set a working folder under Settings or it starts with nothing to look at."
-                if info and info.needs_folder and not bot.workdir else "")
-        return go(f"/bots/{name}", notice=f"Created {name}.{hint}")
-
     @app.get("/bots/{name}", response_class=HTMLResponse, include_in_schema=False)
     def bot_page(request: Request, name: str):
         bot = bot_or_404(name)

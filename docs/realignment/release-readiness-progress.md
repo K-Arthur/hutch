@@ -86,21 +86,33 @@ checked), **not run**, **open**.
 | P5 README, site and docs truth | not started | | |
 | P6 release readiness (build, install, smoke; never publish) | not started | | |
 
-## UI promises versus backend (P4 seeds)
+## UI promises versus backend (P4)
 
-| Item | State |
-|---|---|
-| "For this plan" approval control that granted a single use | fixed, regression tests (`06887b15`) |
-| Workflow spend ceiling specified by tests but unbuilt | built (`696b9f37`) |
-| Models page says no route while first run says OpenCode is ready (S2) | open |
-| Page titles `hutch — hutch`, `Models - hutch` (S3) | open |
-| `/models` and `/usage` are separate server pages with different chrome (S4) | open |
-| Overlapping history destinations (S5) | decided, not implemented |
-| First run does not offer `hutch doctor` or the background service | open |
-| `/legacy`, `/legacy/connections` and the dead body of `bots_page` | open; remove only after tests show nothing depends on them |
-| Seven merged-branch worktrees still hold uncommitted edits | not examined |
-| `agent-connections` themes (skill ZIP import, versioned effective configuration, persisted assistant identity, others) | product decision; tag `archive/agent-connections-2026-10-11` |
-| No screen-reader or axe-core pass; no live-model first-task run | not run |
+Every row is implemented, removed, labelled truthfully, or has an explicit reason. Evidence is the commit and its test.
+
+| Item | Resolution | Evidence |
+|---|---|---|
+| "For this plan" approval that granted a single use (S1) | Removed; plan-wide approvals do not exist and the API refuses `plan_scope != 0` | `06887b15`, regression tests |
+| Workflow spend ceiling specified by tests but unbuilt | Implemented (`budget.max_cost_usd`); cannot be raised by amendment | `696b9f37`, 36 budget tests |
+| Models said "no route" while first run said OpenCode was ready (S2) | Implemented: detected-service panel plus one-click use through the existing validated endpoint; empty state reworded. Detection is a fixture in tests; live detection not run | `bdb28708` |
+| **Every plain form POST on server pages was refused in Chromium** (403, `Origin: null`) | Fixed once in the shared template | `bdb28708`, `test_server_pages_keep_their_plain_forms_usable` |
+| Page titles `hutch \u2014 hutch`, `Models - hutch` (S3) | Implemented: `<View> \u2014 Hutch` everywhere, derived from the sidebar label | `0eacc863` |
+| `/models` and `/usage` outside the SPA shell (S4) | Implemented for sidebar, roster, brand label, footer, Assistants rule. **Reason kept open (not a promise defect):** the server header still has an always-visible Stop all and a "live" chip and the title sits in the body; `test_overlays.py` pins the stop control | `074e56e4`; P2 status row |
+| Global emergency stop unreachable from the SPA (C2) | Implemented: header control while work runs, confirmed; the per-Task button renamed to say its scope | `f4b4e530` |
+| Overlapping history destinations (S5) | Implemented: one Activity destination, old hashes redirect | `f0cd64ca` |
+| First run did not offer `hutch doctor` or the background service | Implemented: read-only setup check and an explicit, confirmed service offer. Install is a fixture in tests; live install not run | `b701e74b` |
+| A run whose owner process is gone showing "Working" | Verified already guaranteed by the supervisor (real exited process); chip wording "Failed" kept: the interrupted reason is in the run error. **Reason:** a distinct chip touches every `statusChip` caller | `ac29462a` |
+| `/legacy`, `/legacy/` (duplicate of `/`) | Removed with its one stale test | `d60b40a3` |
+| Dead body of `bots_page`, six unused templates | Removed | `d60b40a3` |
+| `POST /bots`: a second creation path with no form and no caller, errors lost in a redirect | Removed | this commit, `test_the_server_form_that_created_bots_is_gone` |
+| `/legacy/connections` and its form routes | **Kept:** the tested no-JavaScript path for connection keys and acknowledgements (`test_connections.py`, `test_chatgpt_integration.py`); now usable in Chromium thanks to the form fix | `bdb28708` |
+| `/bots/{name}` page (`bot.html`) | **Kept:** still reachable by bookmark and covered by the nav and deletion tests; vocabulary fixed; no UI links to it except bookmarks (Usage now links to the SPA) | `d60b40a3`, `6c888d11` |
+| Every SPA API call and template form has a backend | Verified by a permanent test over about 290 calls and every template form; no dangling control found | this commit, `tests/test_ui_endpoints_exist.py` |
+| "accepted and ignored", "never implemented", "not implemented", `NotImplementedError`, "experimental" in `src/` | Swept. Hits are truthful diagnostics (plan scope refusal, wake IPC, desktop-portal adapter, abstract base method), capability tags (`experimental` is the labelling mechanism), or a stale internal DB guard message in `fact_memory.py:55` that no UI shows (purge works by tombstone). **Kept** | grep sweep, this section |
+| Python-sourced API error text the SPA shows still says "bot" (for example "Bot settings" in six modules, `No bot named` on the API) | **Open follow-up, not a promise defect:** the UI vocabulary audit covers templates and SPA scripts, not API error strings; edits in frozen `app.py` must be line-neutral | P2.4 note |
+| Seven merged-branch worktrees with uncommitted edits | **Not examined** (triage doc). Not release-blocking; owner action | triage doc |
+| `agent-connections` themes (skill ZIP import, versioned effective configuration, persisted assistant identity, others) | **Owner product decision**; preserved at tag `archive/agent-connections-2026-10-11`; not merged | triage doc |
+| Screen-reader and axe-core pass; live-model first-task journey | **Not run** | final report |
 
 ## Known failing at the pre-change baseline
 

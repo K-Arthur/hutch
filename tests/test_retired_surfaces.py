@@ -69,3 +69,13 @@ def test_usage_links_assistants_to_the_app_not_the_old_bot_page(client):
 def test_live_pages_link_straight_to_apps_and_ai(client, path):
     text = client.get(path, headers=BROWSER).text
     assert not re.search(r'href="/connections"', text), "the redirect hop is gone; link to /#/connections"
+
+
+def test_the_server_form_that_created_bots_is_gone(client):
+    """`POST /bots` had no form and no caller, a second creation path beside `/api/bots` (X3), and its
+    errors redirected to a page that dropped the message. Creation is the governed API and the app."""
+    import re
+    token = re.search(r'<meta name="csrf" content="([^"]+)"', client.get("/models", headers=BROWSER).text).group(1)
+    response = client.post("/bots", data={"csrf": token, "name": "form-made", "template": ""}, follow_redirects=False)
+    assert response.status_code in (404, 405)
+    assert client.app.state.store.get_bot("form-made") is None
