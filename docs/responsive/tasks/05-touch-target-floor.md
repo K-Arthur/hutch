@@ -62,3 +62,20 @@ shared CSS hunk is staged from HEAD plus that hunk only.
 
 One new rule set across two new sheets plus optional single declarations: one
 session.
+## Outcome
+
+- Status: done, commit 0fa93cfe.
+- Evidence: docs/responsive/screenshots/0fa93cfe (130 measurements, 0 failures;
+  91 coarse-pointer pairs measured).
+- Measured before/after across the coarse matrix (320/375/390, 844x390,
+  768x1024, 1024x768, 1366x1024):
+  - targets below WCAG 2.5.8's 24px: 112 -> 0;
+  - targets below Hutch's 44px floor: 776 -> 110 (-86%).
+- Remaining 44px exceptions (all meet WCAG 2.2 AA 2.5.8):
+  - segmented radio filter controls inside the runs filter bar (~30px tall);
+  - inline text/list links: run-history row titles, Chats/Activity/Work history
+    nav links, date-range pill links;
+  - the sidebar More disclosure summary and the composer hidden checkbox inputs
+    whose visible label carries the larger hit area.
+- Rules apply only under (pointer: coarse), so mouse layouts keep their density.
+- Rollback: revert 0fa93cfe (source) and its evidence commit.

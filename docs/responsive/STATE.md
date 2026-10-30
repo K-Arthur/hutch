@@ -1,6 +1,6 @@
 # Responsive Adaptation - State
 
-Last updated: 2026-10-29T18:32:00-07:00 | Last commit: c5d3beb4 (task 04 source)
+Last updated: 2026-10-29T18:38:00-07:00 | Last commit: 0fa93cfe (task 05 source)
 Goal id: goal-28c56178-ce15-4d56-b317-b0f275ff75cb (revision 1) | Branch: main
 Validation runner: scripts/validate_responsive.py (single source: scripts/responsive/config.py)
 Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png}
@@ -17,8 +17,8 @@ Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png
 | 02 | server navigation model | done | 2cf2c5fe | evidence: screenshots/2cf2c5fe + 2cf2c5fe-nojs |
 | 03 | dynamic viewport and keyboard | done | 28aa02e0 | evidence: screenshots/28aa02e0 |
 | 04 | stylesheet structure and sticky offsets | done | c5d3beb4 | evidence: screenshots/c5d3beb4 |
-| 05 | touch-target floor | not-started | - | 24px AA floor + 44px coarse floor on high-use controls |
-| 06 | safe-area chrome | not-started | - | depends 01; insets on toast/drawers/header/composer |
+| 05 | touch-target floor | done | 0fa93cfe | evidence: screenshots/0fa93cfe |
+| 06 | safe-area chrome | not-started | - | insets on toast/workspace drawer/needs-you drawer |
 | 07 | 13-inch and tablet device bands | not-started | - | depends 02/03/05; rail width + 1180/1366 tuning |
 | 07b | reconcile rail width in app/src/input.css + rebuild ui.css | blocked | - | parked files: wait for the brand session to commit, then edit source and rebuild. Do not edit ui.css by hand. |
 | 08 | marketing site adaptation | not-started | - | depends 01/05; coarse targets, no-JS nav, short landscape hero |
@@ -70,7 +70,8 @@ where possible.
 - 9f74a378: task 01 viewport and safe-area contract (evidence commit c390d8f0)
 - 2cf2c5fe: task 02 server navigation model (JS on and no-JS runs; evidence commit 5818ab2b)
 - 28aa02e0: task 03 dynamic viewport and keyboard (evidence commit e0850681)
-- c5d3beb4: task 04 stylesheet structure and sticky offsets
+- c5d3beb4: task 04 stylesheet structure and sticky offsets (evidence commit 3a583128)
+- 0fa93cfe: task 05 touch-target floor (under-24 0; under-44 110)
 
 ## Handoff
 

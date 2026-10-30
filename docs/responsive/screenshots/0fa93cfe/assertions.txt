@@ -1,0 +1,93 @@
+Responsive validation: 0fa93cfe
+Generated: 2026-10-30T01:24:00+00:00
+Git: 0fa93cfe (uncommitted worktree entries: 168)
+Matrix: 13 surfaces x 10 viewports = 130 measurements
+Fail-on: errors, external, meta, nav, overflow, ready, state
+
+ASSERTIONS
+  horizontal overflow: 0/130 measuring pairs overflow
+  ready selector:      0/130 pairs did not render
+  page errors:         0/130 pairs raised
+  non-local requests:  0/130 pairs made one
+  viewport contract:   0/130 pairs missing width=device-width or viewport-fit=cover
+  server nav model:    50 pairs measured, 0 with horizontal nav overflow
+  css structure:       0 problem(s) in 0 stylesheet(s)
+  touch targets < 24px: 0/91 coarse-pointer pairs
+  touch targets < 44px: 33/91 coarse-pointer pairs (comfort warning)
+  contrast < WCAG AA:  0/26 sampled pairs
+
+FAILURES (0)
+
+WARNINGS (33): {'touch44': 33}
+
+SCREENSHOTS (53)
+  docs/responsive/screenshots/0fa93cfe/spa-studio-compact-phone-320.png
+  docs/responsive/screenshots/0fa93cfe/pages-models-compact-phone-320.png
+  docs/responsive/screenshots/0fa93cfe/spa-studio-phone-375.png
+  docs/responsive/screenshots/0fa93cfe/spa-runs-phone-375.png
+  docs/responsive/screenshots/0fa93cfe/spa-tasks-phone-375.png
+  docs/responsive/screenshots/0fa93cfe/spa-runtime-phone-375.png
+  docs/responsive/screenshots/0fa93cfe/spa-settings-phone-375.png
+  docs/responsive/screenshots/0fa93cfe/spa-bot-settings-phone-375.png
+  docs/responsive/screenshots/0fa93cfe/spa-activity-phone-375.png
+  docs/responsive/screenshots/0fa93cfe/pages-models-phone-375.png
+  docs/responsive/screenshots/0fa93cfe/pages-usage-phone-375.png
+  docs/responsive/screenshots/0fa93cfe/pages-bot-detail-phone-375.png
+  docs/responsive/screenshots/0fa93cfe/pages-login-phone-375.png
+  docs/responsive/screenshots/0fa93cfe/pages-pair-phone-375.png
+  docs/responsive/screenshots/0fa93cfe/site-home-phone-375.png
+  docs/responsive/screenshots/0fa93cfe/spa-studio-phone-390.png
+  docs/responsive/screenshots/0fa93cfe/pages-models-phone-390.png
+  docs/responsive/screenshots/0fa93cfe/spa-studio-phone-landscape-844.png
+  docs/responsive/screenshots/0fa93cfe/pages-models-phone-landscape-844.png
+  docs/responsive/screenshots/0fa93cfe/spa-studio-tablet-portrait-768.png
+  docs/responsive/screenshots/0fa93cfe/spa-runs-tablet-portrait-768.png
+  docs/responsive/screenshots/0fa93cfe/spa-tasks-tablet-portrait-768.png
+  docs/responsive/screenshots/0fa93cfe/spa-runtime-tablet-portrait-768.png
+  docs/responsive/screenshots/0fa93cfe/spa-settings-tablet-portrait-768.png
+  docs/responsive/screenshots/0fa93cfe/spa-bot-settings-tablet-portrait-768.png
+  docs/responsive/screenshots/0fa93cfe/spa-activity-tablet-portrait-768.png
+  docs/responsive/screenshots/0fa93cfe/pages-models-tablet-portrait-768.png
+  docs/responsive/screenshots/0fa93cfe/pages-usage-tablet-portrait-768.png
+  docs/responsive/screenshots/0fa93cfe/pages-bot-detail-tablet-portrait-768.png
+  docs/responsive/screenshots/0fa93cfe/pages-login-tablet-portrait-768.png
+  docs/responsive/screenshots/0fa93cfe/pages-pair-tablet-portrait-768.png
+  docs/responsive/screenshots/0fa93cfe/site-home-tablet-portrait-768.png
+  docs/responsive/screenshots/0fa93cfe/spa-studio-tablet-landscape-1024.png
+  docs/responsive/screenshots/0fa93cfe/pages-models-tablet-landscape-1024.png
+  docs/responsive/screenshots/0fa93cfe/spa-studio-laptop-1180.png
+  docs/responsive/screenshots/0fa93cfe/pages-models-laptop-1180.png
+  docs/responsive/screenshots/0fa93cfe/spa-studio-ipad-13in-1366.png
+  docs/responsive/screenshots/0fa93cfe/spa-runs-ipad-13in-1366.png
+  docs/responsive/screenshots/0fa93cfe/spa-tasks-ipad-13in-1366.png
+  docs/responsive/screenshots/0fa93cfe/spa-runtime-ipad-13in-1366.png
+  docs/responsive/screenshots/0fa93cfe/spa-settings-ipad-13in-1366.png
+  docs/responsive/screenshots/0fa93cfe/spa-bot-settings-ipad-13in-1366.png
+  docs/responsive/screenshots/0fa93cfe/spa-activity-ipad-13in-1366.png
+  docs/responsive/screenshots/0fa93cfe/pages-models-ipad-13in-1366.png
+  docs/responsive/screenshots/0fa93cfe/pages-usage-ipad-13in-1366.png
+  docs/responsive/screenshots/0fa93cfe/pages-bot-detail-ipad-13in-1366.png
+  docs/responsive/screenshots/0fa93cfe/pages-login-ipad-13in-1366.png
+  docs/responsive/screenshots/0fa93cfe/pages-pair-ipad-13in-1366.png
+  docs/responsive/screenshots/0fa93cfe/site-home-ipad-13in-1366.png
+  docs/responsive/screenshots/0fa93cfe/spa-studio-desktop-1440.png
+  docs/responsive/screenshots/0fa93cfe/pages-models-desktop-1440.png
+  docs/responsive/screenshots/0fa93cfe/spa-studio-desktop-wide-1536.png
+  docs/responsive/screenshots/0fa93cfe/pages-models-desktop-wide-1536.png
+
+STATES (10)
+  spa-sidebar-open-1180        docs/responsive/screenshots/0fa93cfe/state-spa-sidebar-open-1180.png
+  spa-sidebar-open-1366        docs/responsive/screenshots/0fa93cfe/state-spa-sidebar-open-1366.png
+  spa-sheet-open-375           docs/responsive/screenshots/0fa93cfe/state-spa-sheet-open-375.png
+  spa-keyboard-390             docs/responsive/screenshots/0fa93cfe/state-spa-keyboard-390.png
+  style-scope-desktop          (measurement only)
+  topbar-offset-desktop        (measurement only)
+  pages-nav-open-375           docs/responsive/screenshots/0fa93cfe/state-pages-nav-open-375.png
+  pages-nav-open-1024          docs/responsive/screenshots/0fa93cfe/state-pages-nav-open-1024.png
+  spa-focus-1366               docs/responsive/screenshots/0fa93cfe/state-spa-focus-1366.png
+  spa-focus-375                docs/responsive/screenshots/0fa93cfe/state-spa-focus-375.png
+
+NOTE: measurements ran against the current working tree. Uncommitted changes
+owned by another session may be present; this task never stages them.
+
+RESULT: PASS
