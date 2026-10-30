@@ -43,6 +43,13 @@ Process findings that block a clean release state:
   `bot_deletion.py` 1067 lines, `tests/test_bot_deletion.py` 771, `tests/test_commit_attribution.py`
   419, `cli.py` +2 and `store.py` +12 over their frozen caps) is therefore not attributable to HEAD.
   `bot_deletion.py` is from the committed whole-Bot deletion work and genuinely exceeds the cap.
+- Hidden-file dependencies found afterwards: `.git/info/exclude` also hides `audit_tool_contracts.py`,
+  `audit_constitution.py`, `generate_agent_map.py`, `check_commit_attribution.py`,
+  `validate_responsive.py`, `validate-responsive.sh`, `scripts/responsive/`, `.file-size-baseline.json`
+  and `.ai/`. The committed README (lines 59-61) tells readers to run `scripts/validate_responsive.py`,
+  the tracked `tests/test_commit_attribution.py` references hidden modules, and
+  `docs/agent-workflow.md` / `docs/repository-hygiene.md` (named by AGENTS.md) are untracked. A fresh
+  clone cannot follow its own README or run the repository's own gates.
 - Known failing checks in that tree, recorded by the other sessions: `tests/test_workflow_usage_budget.py`
   (dirty, unrelated failures) and `tests/e2e/test_design_system.py::test_persona_live_preview_is_explicit_isolated_cancellable_and_responsive`
   (40 px vs 44 px run button). Not re-run here.
@@ -90,10 +97,19 @@ path to the first success and in release packaging, not in feature count:
 - OpenClaw: [repository README](https://github.com/openclaw/openclaw) (search results were mostly forks and mirrors)
 - Grok Bot: [press coverage](https://www.thebridgechronicle.com/story/news/nation/xai-grok-bot-ai-teammate-everyday-work-tasks), [vendor blog](https://www.mindstudio.ai/blog/grokbot-xai-agent-app) (the sources disagree on what the product is; treat as low confidence)
 
+## Decisions (owner, 2026-10-30)
+
+- The frontend does not yet read as the product Hutch is. Product coherence is an explicit workstream,
+  not polish.
+- Merge Conversation history, Activity and Work history into one destination if the merged design is
+  better; the owner pre-approved the merge. Old hash routes must keep working as redirects.
+- Audit tooling: track it (scripts, baseline, `.ai/`, the two workflow docs and their tests) and remove
+  the matching `.git/info/exclude` lines. Rejected: deleting the references, because that removes the
+  repository's own gates and forces rewrites of the README and AGENTS.md.
+- No other agent or session is active. The uncommitted tree and the leftover worktrees are this work's
+  responsibility.
+
 ## Next-run prompt
 
-> Read `docs/realignment/start-state-audit-2026-10-30.md`. Start with P0: verify the uncommitted tree
-> (full non-browser pytest, `npm run build:css` determinism, `scripts/audit_emoji.py`), keep
-> `redesign-preview.*` out of the served `static/` directory, then commit in focused groups with explicit
-> paths and no AI-attribution trailer. Then P1 with a new fresh-state e2e module. Do not open any
-> `*.db*` file or state directory.
+The long-horizon prompt that replaces the short version kept here earlier is
+`docs/realignment/long-horizon-prompt.md`.
