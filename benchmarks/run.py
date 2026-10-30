@@ -50,8 +50,13 @@ METRICS: dict[str, tuple[str, str, float, float | None]] = {
 
 
 def _hutch_cmd() -> list[str]:
-    exe = Path(sys.executable).parent / "hutch"
-    return [str(exe)] if exe.exists() else [sys.executable, "-m", "hutch.cli"]
+    """Run the checkout under test, not whichever editable install the venv happens to point at.
+
+    Subprocess metrics (CLI cold start, idle daemon/serve) must measure this tree; in a
+    worktree the venv's console script resolves to the primary checkout, so use the module
+    entry point and let PYTHONPATH select the source tree.
+    """
+    return [sys.executable, "-m", "hutch.cli"]
 
 
 def _env(state: Path) -> dict[str, str]:
@@ -239,7 +244,7 @@ def machine() -> dict[str, str | float | bool]:
     return {"cpu": cpu, "cores": str(os.cpu_count()), "python": platform.python_version(),
             "platform": platform.platform(), "total_memory_mb": total_memory_mb or 0.0,
             "source_revision": revision, "git_head": git_head, "working_tree_dirty": dirty,
-            "benchmark_harness_sha256": harness_sha, "sample_schema": 2,
+            "benchmark_harness_sha256": harness_sha, "sample_schema": 3,  # 3: repaired PF-11 step fixture
             "measured_on": time.strftime("%Y-%m-%d")}
 
 
