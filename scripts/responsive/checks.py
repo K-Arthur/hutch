@@ -230,9 +230,36 @@ def measure_nav(page) -> dict:
     return page.evaluate(NAV_JS)
 
 
+STYLE_SCOPE_JS = r"""() => {
+  function computed(className) {
+    const element = document.createElement("div");
+    element.className = className;
+    element.style.position = "absolute";
+    element.style.left = "-9999px";
+    document.body.appendChild(element);
+    const style = getComputedStyle(element);
+    const result = {margin_top: style.marginTop, top: style.top};
+    element.remove();
+    return result;
+  }
+  return {
+    preflight: computed("preflight"),
+    context_line: computed("context-line"),
+    run_head: computed("run-head"),
+    topbar_variable: getComputedStyle(document.documentElement)
+      .getPropertyValue("--topbar-h").trim()
+  };
+}"""
+
+
 def measure_keyboard(page) -> dict:
     """Layout geometry after the visual viewport shrinks (keyboard simulation)."""
     return page.evaluate(KEYBOARD_JS)
+
+
+def measure_style_scope(page) -> dict:
+    """Check rules that used to sit inside an unclosed media block, and the sticky offset."""
+    return page.evaluate(STYLE_SCOPE_JS)
 
 
 def measure_overflow(page) -> dict:

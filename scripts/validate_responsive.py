@@ -24,7 +24,7 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from responsive import capture, config, harness, report  # noqa: E402
+from responsive import capture, config, css_structure, harness, report  # noqa: E402
 
 
 def _parse_args(argv):
@@ -79,6 +79,12 @@ def main(argv=None) -> int:
         app.stop()
         shutil.rmtree(scratch, ignore_errors=True)
 
+    problems = css_structure.check_repository(config.REPO_ROOT)
+    summary["css_structure"] = [problem.as_dict() for problem in problems]
+    summary["failures"].extend({"kind": "css", "surface": "-", "viewport": "-",
+                                "detail": "%s:%s %s" % (problem.path, problem.line,
+                                                         problem.message)}
+                               for problem in problems)
     summary["git"] = git
     summary["generated_at"] = report.utcnow_iso()
     summary["measurement_note"] = (

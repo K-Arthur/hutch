@@ -90,3 +90,14 @@
   .modal-card { max-height: min(93dvh, var(--vvh, 93dvh)); }
   .modal-card.modal-tall { max-height: min(100dvh, var(--vvh, 100dvh)); }
 }
+
+/* Sticky chrome offsets (task 04). hutch.css pins the run header at 54px and
+   scrolls focus targets clear of a 72px bar, but below 720px the topbar wraps to
+   an auto height. responsive.js publishes the measured height; the fallbacks
+   keep the no-JS/no-resize case usable instead of pinning under the bar. */
+html { scroll-padding-top: calc(var(--topbar-h, 54px) + 8px); }
+.run-head { top: var(--topbar-h, 54px); }
+@media (max-width: 720px) {
+  html { scroll-padding-top: calc(var(--topbar-h, 96px) + 8px); }
+  .run-head { top: var(--topbar-h, 96px); }
+}

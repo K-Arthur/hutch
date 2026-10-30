@@ -250,6 +250,39 @@ def _capture_states(browser, app_url, options) -> tuple[list[dict], list[dict]]:
     finally:
         context.close()
 
+    context, page = new_page(1440, 960, False)
+    try:
+        open_studio(page)
+        scope = checks.measure_style_scope(page)
+        states.append({"name": "style-scope-desktop", "measurement": scope})
+        if scope["preflight"]["margin_top"] != "8px" or scope["context_line"]["margin_top"] != "8px":
+            failures.append({"kind": "styles", "surface": "spa-studio",
+                             "viewport": "desktop-1440",
+                             "detail": "preflight/context rules are still phone-scoped: %s" % scope})
+        page.goto(app_url + "/models", wait_until="domcontentloaded", timeout=options.timeout_ms)
+        page.locator("main").first.wait_for(state="visible", timeout=options.timeout_ms)
+        page.wait_for_timeout(options.settle_ms)
+        server_scope = checks.measure_style_scope(page)
+        states.append({"name": "topbar-offset-desktop", "measurement": server_scope})
+        variable = server_scope["topbar_variable"]
+        sticky_top = server_scope["run_head"]["top"]
+        try:
+            measured = float(variable.replace("px", ""))
+            actual = float(sticky_top.replace("px", ""))
+        except ValueError:
+            measured = actual = -1
+        if not variable or abs(actual - measured) > 1:
+            failures.append({"kind": "styles", "surface": "pages-models",
+                             "viewport": "desktop-1440",
+                             "detail": "run-head sticky offset %s does not follow --topbar-h %s"
+                                       % (sticky_top, variable)})
+    except Exception as error:
+        failures.append({"kind": "styles", "surface": "style-scope",
+                         "viewport": "desktop-1440",
+                         "detail": "style-scope check failed: %s" % str(error)[:200]})
+    finally:
+        context.close()
+
     for name, width, height in (("pages-nav-open-375", 375, 812),
                                 ("pages-nav-open-1024", 1024, 768)):
         context, page = new_page(width, height, True)

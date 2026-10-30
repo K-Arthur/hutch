@@ -2756,6 +2756,7 @@ details[open] > summary .summary-row-action .icon { transform: rotate(180deg); }
 @media (max-width: 720px) {
   .evidence-split { grid-template-columns: 1fr; }
   .evidence-frames { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+}
 /* Spending bands, context meter and the preflight review (SR-2, LM-3) */
 .preflight { margin-top: 8px; }
 .preflight > summary { cursor: pointer; }

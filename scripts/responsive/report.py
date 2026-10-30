@@ -10,7 +10,7 @@ from pathlib import Path
 from responsive import config
 
 ALL_FAILURE_KINDS = ("overflow", "errors", "external", "ready", "state", "meta",
-                     "nav", "touch24", "contrast")
+                     "nav", "styles", "css", "touch24", "contrast")
 
 
 def utcnow_iso() -> str:
@@ -101,6 +101,9 @@ def _assertion_lines(summary: dict, fail_on: str) -> list[str]:
             contract_bad, len(contract)),
         "  server nav model:    %d pairs measured, %d with horizontal nav overflow" % (
             len(nav_records), nav_overflow),
+        "  css structure:       %d problem(s) in %d stylesheet(s)" % (
+            len(summary.get("css_structure", [])),
+            len({problem["path"] for problem in summary.get("css_structure", [])})),
         "  touch targets < %dpx: %d/%d coarse-pointer pairs" % (
             config.MIN_TARGET_PX, touch_min, len(touch_records)),
         "  touch targets < %dpx: %d/%d coarse-pointer pairs (comfort warning)" % (
@@ -118,7 +121,7 @@ def _assertion_lines(summary: dict, fail_on: str) -> list[str]:
     ])
     lines.extend("  %s" % path for path in summary["screenshots"][:80])
     lines.extend(["", "STATES (%d)" % len(summary["states"])])
-    lines.extend("  %-28s %s" % (state["name"], state["screenshot"])
+    lines.extend("  %-28s %s" % (state["name"], state.get("screenshot", "(measurement only)"))
                  for state in summary["states"])
     lines.extend([
         "",
