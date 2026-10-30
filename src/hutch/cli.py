@@ -12,6 +12,7 @@ from typing import Literal, Optional
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
@@ -1553,16 +1554,15 @@ def doctor(deep: bool = typer.Option(False, "--deep", help="also run each local 
            as_json: bool = typer.Option(False, "--json")) -> None:
     """Check runtimes, context size, database, permissions and the service. Each problem comes with its fix."""
     from .doctor import FAIL, INFO, OK, WARN, run_doctor, worst
-    config, store = get_config(), _store()
-    checks = run_doctor(config, store, deep=deep, online=online)
+    checks = run_doctor(get_config(), _store(), deep=deep, online=online)
     if as_json:
         console.print_json(json.dumps([c.__dict__ for c in checks]))
     else:
         mark = {OK: "[green]ok  [/green]", WARN: "[yellow]warn[/yellow]", FAIL: "[red]FAIL[/red]", INFO: "[dim]info[/dim]"}
         for c in checks:
-            console.print(f"{mark[c.status]} [bold]{c.title}[/bold]: {c.detail}")
+            console.print(f"{mark[c.status]} [bold]{c.title}[/bold]: {escape(c.detail)}")  # detail and fix are free text: `[browser]` is not markup
             if c.fix and c.status in (WARN, FAIL, INFO):
-                console.print(f"       fix: {c.fix}")
+                console.print(f"       fix: {escape(c.fix)}")
         w = worst(checks)
         console.print("\n" + {OK: "[green]everything checks out[/green]", WARN: "[yellow]warnings only[/yellow]",
                               FAIL: "[red]problems found[/red]"}[w])
@@ -1587,7 +1587,7 @@ def computer_doctor(deep: bool = typer.Option(False, "--deep", help="also launch
     for c in results:
         console.print(f"{mark.get(c.state, '[dim]unknown      [/dim]')} [bold]{c.title}[/bold]: {c.detail}", highlight=False)
         if c.fix and c.state != READY:
-            console.print(f"                 fix: {c.fix}", highlight=False)
+            console.print(f"                 fix: {escape(c.fix)}", highlight=False)
     console.print("\n" + summary(results)["note"], highlight=False)
 
 
