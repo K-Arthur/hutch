@@ -4699,7 +4699,7 @@ function subscribeRun(runId) {
     runStream = new EventSource(`/api/runs/${runId}/stream`);
     routeOwner.sources.add(runStream);
     // The server coalesces bursts; one message may carry up to a batch of events.
-    window.HutchLive ? window.HutchLive.bindRunStream(runStream, runId, scheduleFeedRender) : (runStream.onmessage = () => scheduleFeedRender());
+    runStream.onmessage = () => scheduleFeedRender();
     runStream.onerror = () => {
       // gap-free resume is Last-Event-ID based (server replays from SQLite);
       // a terminal run simply ends the stream — re-render to catch that.

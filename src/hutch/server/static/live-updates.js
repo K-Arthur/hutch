@@ -216,6 +216,8 @@
   function bindRunStream(runStream, runId, fallback) {
     try {
       if (!runStream) return false;
+      if (runStream.__hutchLiveBound) return true;
+      runStream.__hutchLiveBound = true;
       runStream.onmessage = () => fallback();   // unchanged path for unnamed/polling messages
       runStream.addEventListener("batch", event => {
         try {
@@ -248,6 +250,24 @@
           return result;
         };
       }
+      // app.js and index.html are another session's parked tree, so this module cannot add its
+      // one-line hook there. Wrap the existing global subscription function instead: the wrapped
+      // call attaches the named batch listener to the run EventSource app.js just created, and an
+      // already-open stream (first route is a run page) is attached at install time too.
+      try {
+        const originalSubscribe = window.subscribeRun;
+        if (typeof originalSubscribe === "function" && !originalSubscribe.__hutchLiveWrapped) {
+          const wrapped = function hutchLiveSubscribeRun(runId) {
+            originalSubscribe.apply(this, arguments);
+            try {
+              if (runStream) bindRunStream(runStream, runId, scheduleFeedRender);
+            } catch (error) { logError(error); }
+          };
+          wrapped.__hutchLiveWrapped = true;
+          window.subscribeRun = wrapped;
+          if (runStream && subRunId) bindRunStream(runStream, subRunId, scheduleFeedRender);
+        }
+      } catch (error) { logError(error); }
       // A change-stream refresh immediately after an applied batch would replace the whole page
       // for no new information. Skip only that narrow window; everything else stays authoritative.
       const originalRender = window.renderRunDetail;

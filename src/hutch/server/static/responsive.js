@@ -45,3 +45,19 @@
   }
   publishTopbar();
 })();
+
+/* Incremental live-update accelerator (optional, post-app.js load).
+   It lives in its own self-installing script and is discovered here rather than from
+   index.html/app.js because those shared dashboard files are another session's parked
+   tree; this existing post-app.js slot is the mergeable hook. If the script is missing
+   or blocked, the previous polling/refetch behaviour is unchanged. When the parked tree
+   lands, this small loader can move into index.html next to app.js. */
+(() => {
+  try {
+    const script = document.createElement("script");
+    script.src = "/static/live-updates.js";
+    script.async = false;
+    script.onerror = () => {};
+    document.head.appendChild(script);
+  } catch { /* optimisation only: keep the original live-update path */ }
+})();

@@ -18,9 +18,8 @@ latent bug behind that behaviour: the server streams committed batches as a *nam
 
 | File | Change |
 |---|---|
-| `src/hutch/server/static/live-updates.js` (new, 278 lines) | Binds the named `batch` event; parses the committed events; merges them into a cached authoritative `/runs/:id` snapshot; rebuilds only the transcript block with the existing `runBlockHtml` renderer; preserves scroll and `<details>` state. Loaded after `app.js` so it reuses the classic-script globals instead of duplicating rendering logic. |
-| `src/hutch/server/static/app.js` (1 line changed; frozen at 14,532 lines) | The run-stream subscription calls `window.HutchLive.bindRunStream(...)` when present, with the previous `onmessage` behaviour as fallback. |
-| `src/hutch/server/static/index.html` (1 line) | Loads `live-updates.js`. |
+| `src/hutch/server/static/live-updates.js` (new, self-installing) | Binds the named `batch` event; parses the committed events; merges them into a cached authoritative `/runs/:id` snapshot; rebuilds only the transcript block with the existing `runBlockHtml` renderer; preserves scroll and `<details>` state. Loads after `app.js` and wraps the existing global `subscribeRun` rather than editing `app.js`, reusing the classic-script globals instead of duplicating rendering logic. |
+| `src/hutch/server/static/responsive.js` (clean post-`app.js` slot, +10 loader lines) | Loads `live-updates.js` asynchronously. This file is a mergeable slot because `static/app.js` and `static/index.html` are another session's parked uncommitted tree; when that tree lands the two-line loader can move into `index.html` next to `app.js`. |
 | `tests/e2e/test_live_updates_incremental.py` (new) | Real app + Chromium journey: a safe four-event batch applies in place (no per-burst refetch) and an approval request forces the authoritative full refresh. |
 
 ## Safety model (why it is allowed to skip a full render)
@@ -58,6 +57,15 @@ change-stream -> debounce -> refetch -> full-rebuild cascade (the observed laten
 250 ms debounces plus the GET and render). A=A noise-floor run was recorded in the same session and is
 kept alongside; all raw reps, medians/p95 and the browser/machine metadata are in
 `.dsh/long-horizon/hutch-wins/artifacts/ui/paired/ui-ab-20261029-202442.json`.
+
+## Loading-path note
+
+The module is deliberately not wired from `app.js` or `index.html` in this slice: both files were
+another session's parked uncommitted work in the primary checkout, so editing them would have
+overwritten that work and blocked the merge. The existing clean post-`app.js` slot in `responsive.js`
+loads it, and the module self-installs by wrapping the global `subscribeRun`; the first route can also
+attach an already-open run stream at install time. This is a mergeable loading decision, not a
+behavioural difference; the browser journeys exercise the same path.
 
 ## Limitations
 
