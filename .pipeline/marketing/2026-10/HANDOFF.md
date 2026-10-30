@@ -1,8 +1,8 @@
 # HANDOFF - Hutch - 2026-10-30 - session 11 (CI flakiness check + CI badge)
 
 ## State
-- Repo/branch: `/home/kevina/CodingProjects/hutch` · local `main` is the product workstream's branch: 15 commits ahead of `origin/main` at first check, 108 at the last check (it committed continuously; `f0551b8b` was one mid-session tip), and dirty (153 paths at session start). Its HEAD moved mid-session (`cb8ca349` -> `f0551b8b`), confirming active work. After this session's push it is far ahead (108 at the last check) / 1 behind `origin/main`; the product workstream must rebase before its next push. Do not reset, clean, merge or stage it.
-- Origin/main: `adddfbfd` + this session's docs commits (badge commit `3980a03b` plus a post-push evidence/count follow-up; find the tip with `git log -1 origin/main` after `git fetch`). Campaign work was done in detached worktree `.worktrees/marketing-s11` at origin/main; the worktree is left in place for reading.
+- Repo/branch: `/home/kevina/CodingProjects/hutch` · local `main` is the product workstream's branch: 15 commits ahead of `origin/main` at first check, 108 at the last check (it committed continuously; `f0551b8b` was one mid-session tip), and dirty (153 paths at session start). Its HEAD moved mid-session (`cb8ca349` -> `f0551b8b`), confirming active work. After this session's pushes it is far ahead (108 at the last check) / 2 behind `origin/main`; the product workstream must rebase before its next push. Do not reset, clean, merge or stage it.
+- Origin/main: `adddfbfd` + this session's docs commits (badge commit `3980a03b`, a post-push evidence/count follow-up, and a review-correction follow-up; find the tip with `git log -1 origin/main` after `git fetch`). Campaign work was done in detached worktree `.worktrees/marketing-s11` at origin/main; the worktree is left in place for reading.
 - Site: LIVE at https://k-arthur.github.io/hutch/ on the github.io host. No `website/**` change this session, so the Pages deployment is unchanged.
 - Release: v0.1.0 source pre-release; release badge unchanged and still points at the tag.
 - CI: run `40838063314` on `adddfbfd` is GREEN (5/5 jobs; 4162 passed on each Python 3.11/3.12/3.13). Run `40837883068` on `fe263eef` was CANCELLED (superseded 101 s later), not a result. The badge commit starts a fresh run (workflow triggers on every push, no paths filter); its conclusion is not awaited here.
@@ -21,7 +21,7 @@ See `DECISION.md` "Session 11 decisions". Key: the cancelled run is not evidence
 - Acceptance table: `EVIDENCE-session-11.md`.
 - CI: `evidence/ci/run-40838063314/{run.json,jobs.json,summaries.txt}`; `evidence/ci/run-40837883068/{run.json,jobs.json}`.
 - Badge: `evidence/badge/{ci-badge-before.svg,badge-headers-before.txt}` (HTTP 200, `image/svg+xml`, `<title>ci - passing</title>`).
-- Post-push: `evidence/badge/{readme-badge-excerpt.html,ci-badge-after.svg}` - GitHub-rendered README contains the badge pair; the badge endpoint still said `ci - passing` while run `41098154819` (the badge commit's run) was in progress. That run was superseded by the follow-up docs commit; check the latest run on main.
+- Post-push: `evidence/badge/{readme-badge-excerpt.html,ci-badge-after.svg}` - GitHub-rendered README contains the badge pair. The badge commit's run `41098154819` was cancelled by the post-push follow-up (workflow concurrency), so the GitHub Actions badge temporarily showed `ci - failing` even though the only completed test-bearing run, `40838063314`, was green. Run `41098384979` (post-push follow-up) was in progress when this review-correction commit was pushed, so it was superseded too. The badge reflects the latest run; check the final run's conclusion, not just the badge color. This is a cancellation artifact, not evidence of a test failure.
 - README diff: one added line at `README.md:7`; release badge line unchanged.
 
 ## Owner-gated steps (status 2026-10-30)
@@ -35,7 +35,7 @@ See `DECISION.md` "Session 11 decisions". Key: the cancelled run is not evidence
 | ID | Risk | Impact | Owner | Next action | Trigger |
 |---|---|---|---|---|---|
 | R10-D1 | Four product e2e failures (workflow route-card forced colors; 2 browser timeouts; design-system assert) | Badge can flip red; public Actions tab shows failures | product/Studio workstream | triage recurrence; the 2026-10-29 green run on identical code makes flakiness the working explanation | next red run |
-| R11-D1 | Product workstream's local `main` is far ahead (108 at the last check) / 1 behind `origin/main` after this push | Their next push will be rejected until they rebase; dirty tree may complicate it | product/Studio workstream | fetch + rebase onto origin/main before pushing | their next push |
+| R11-D1 | Product workstream's local `main` is far ahead (108 at the last check) / 2 behind `origin/main` after this session | Their next push will be rejected until they rebase; dirty tree may complicate it | product/Studio workstream | fetch + rebase onto origin/main before pushing | their next push |
 | R9-D1 | 54 open Dependabot alerts (8 critical, 26 high) + 10 update PRs | Supply-chain risk on a public repo | maintainer | triage critical/high; review queued PRs | now |
 | B-03 | No Search Console/Bing properties | AI-performance and index measurement not started | maintainer | steps 2-3 above | now |
 | R9-D3 | Social preview not uploaded | Weaker repo unfurls | maintainer | step 1 above | now |
@@ -45,10 +45,10 @@ See `DECISION.md` "Session 11 decisions". Key: the cancelled run is not evidence
 | B-07 | Local `npm run check:agent` red: tests/test_commit_attribution.py 419 lines (as of 2026-10-29) | Local repo gate red; not CI (CI attribution job green) | git-attribution workstream | split the file | their next session |
 
 ## Next step (one only)
-- Fetch `origin/main`, then check the latest `ci` run on main (the follow-up docs commit's run; the badge commit's run `41098154819` was superseded). Green = the badge is backed by two consecutive green runs; red on the same four e2e tests = recurrence evidence for the product workstream. Do not fix product tests from a marketing session. Then, with the human, do the deferred Search Console tag slice if they provide the tag, or record social/Bing completion.
+- Fetch `origin/main`, then check the latest `ci` run on main (earlier docs-commit runs were superseded by the next push; compare the run's conclusion, not just the badge color, because a cancelled run renders as failing). Green = the badge is backed by two consecutive green runs; red on the same four e2e tests = recurrence evidence for the product workstream. Do not fix product tests from a marketing session. Then, with the human, do the deferred Search Console tag slice if they provide the tag, or record social/Bing completion.
 
 ## Environment facts
-- Campaign worktree: `/home/kevina/CodingProjects/hutch/.worktrees/marketing-s11` (detached at `adddfbfd` + this session's docs commit; gitignored). Reuse it or recreate from `origin/main`.
+- Campaign worktree: `/home/kevina/CodingProjects/hutch/.worktrees/marketing-s11` (detached at `adddfbfd` + this session's docs commits; gitignored). Reuse it or recreate from `origin/main`.
 - Main checkout is the product workstream's: do not reset/clean/stage it.
 - CI checks: `gh api repos/K-Arthur/hutch/actions/runs/<id>` and `.../jobs`; list with `gh api "repos/K-Arthur/hutch/actions/runs?branch=main&per_page=10"`.
 - Badge: `https://github.com/K-Arthur/hutch/actions/workflows/ci.yml/badge.svg`.
@@ -59,7 +59,7 @@ See `DECISION.md` "Session 11 decisions". Key: the cancelled run is not evidence
 ## Do not do
 - Do not add the GSC verification tag without the full rendered-change gate (audit_site.py + 42 website e2e + head-state evidence).
 - Do not fix the product e2e failures from a marketing session; record and route them.
-- Do not push, merge, reset or clean the product workstream's 16 commits or dirty tree; never force-push or rewrite history.
+- Do not push, merge, reset or clean the product workstream's far-ahead unpushed commits or dirty tree; never force-push or rewrite history.
 - Do not claim the badge means permanent green; it reports the latest run.
 - Do not add claims beyond the register; no superlatives, benchmarks, testimonials, star counts, "production-ready", "free forever", absolute privacy claims.
 - Do not edit llms.txt claims, downloads.json or claim-register wording without evidence.

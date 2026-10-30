@@ -1,4 +1,4 @@
-# CI run 40838063314 on adddfbfd - captured 2026-10-29T23:0xZ
+# CI run 40838063314 on adddfbfd - captured 2026-10-29T23:02Z
 
 ## Job conclusions (gh api .../jobs)
 test (3.13)  success  07:51:16Z-08:33:11Z
@@ -20,7 +20,7 @@ commit attribution policy  success  07:51:15Z-07:51:42Z
 Delta: green counts are exactly red counts + the 4 failures (4161+1=4162; 4159+3=4162).
 
 ## Product-path diff 577e1154..adddfbfd
-(empty above = identical product code and tests)
+(the git diff command exited 0 with no output; identical product code and tests)
 
 ## Commits on main between the two runs
 adddfbfd docs(marketing): name the follow-up CI run for the next session's flakiness check
