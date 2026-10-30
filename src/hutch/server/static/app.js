@@ -2735,7 +2735,7 @@ function renderWorkflow(stats) {
   // Approvals that need a person have their own surfaces (the reminder, the Needs you
   // badge and the request itself), so the header states only what is running.
   const detail = [r && `${r} working`, w && `${w} waiting`, q && `${q} queued`, p && `${p} need${p === 1 ? "s" : ""} you`].filter(Boolean).join(" · ");
-  el.innerHTML = r ? `<a class="w working" href="#/activity" title="${esc(detail)}" aria-label="${esc(detail)}. Open activity."><span class="wdot" aria-hidden="true"></span>${r} working</a>` : "";
+  el.innerHTML = r ? `<a class="w working" href="#/activity" title="${esc(detail)}" aria-label="${esc(detail)}. Open activity."><span class="wdot" aria-hidden="true"></span>${r} working</a>${hutchStopAll.control()}` : "";
   el.hidden = !r;
 }
 

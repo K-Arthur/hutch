@@ -1746,7 +1746,7 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
   .workspace-coordinator-meta { display: flex; }
   .coordinator-label-wide { display: none; }
   .coordinator-label-compact { display: inline; }
-  .app-top-status .workflow { display: none; }
+  .app-top-status .workflow .w { display: none; }  /* the emergency stop stays reachable on a phone */
   .app-top-context .ctx-actions > .btn { font-size: 0; gap: 0; padding: 0 8px; }
   .app-top-context .ctx-actions > .btn .icon { width: 16px; height: 16px; }
   .app-top-context:has(.ctx-actions-compact) { flex-wrap: nowrap; }

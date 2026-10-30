@@ -510,7 +510,8 @@ details.approval-review[open] > summary { margin: 0 -12px; padding: 4px 12px; }
 .workflow .w { gap: 8px; padding: 8px 0; margin: -6px 0; }
 .workflow .working { color: var(--brand-hi); }
 .workflow a.w:hover { text-decoration: underline; }
-@media (max-width: 1100px) { .workflow { display: none; } }
+/* Narrow screens drop the "N working" text but keep the emergency stop reachable (phone is a supervisor's device). */
+@media (max-width: 1100px) { .workflow .w { display: none; } .workflow [data-stop-all] { min-height: 44px; } }
 
 /* ── reminder bar ── */
 .attention-bar { border-color: var(--warn-line); background: color-mix(in oklab, var(--overlay) 94%, var(--warn)); box-shadow: var(--sh-pop); }

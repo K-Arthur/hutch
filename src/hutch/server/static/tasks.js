@@ -94,7 +94,7 @@
     return `<section class="task-plan" aria-label="Task: ${esc(lead.task_brief.slice(0, 60))}">
       <header class="task-plan-head"><div><strong>${items.length === 1 ? "1 specialist" : `${items.length} specialists working together`}</strong>
         <span class="hint">${tokens.toLocaleString()} tokens · ${esc(money(cost))} across this task</span></div>
-        ${live ? `<button class="btn danger small" type="button" data-task-stop-all="${esc(lead.id)}">Stop all</button>` : ""}</header>
+        ${live ? `<button class="btn danger small" type="button" data-task-stop-all="${esc(lead.id)}">Stop this task</button>` : ""}</header>
       <div class="task-assignments">${items.map(assignmentHtml).join("")}</div></section>`;
   }
 
