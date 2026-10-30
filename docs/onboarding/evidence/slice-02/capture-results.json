@@ -199,6 +199,27 @@
       "viewport": "1440x1000"
     },
     {
+      "artifact": "docs/onboarding/evidence/slice-02/chooser-saving-375-dark.png",
+      "color_scheme": "dark",
+      "forced_colors": "none",
+      "label": "375",
+      "observed": {
+        "alerts": [],
+        "bodyBackground": "rgb(9, 9, 11)",
+        "headings": 1,
+        "overflow": 0,
+        "radios": 3,
+        "state": "setup.ai_service.choose",
+        "statuses": [
+          "Saving..."
+        ],
+        "visiblePrimary": 1
+      },
+      "source": "live app route /onboarding/ai-service",
+      "state": "chooser-saving",
+      "viewport": "375x812"
+    },
+    {
       "artifact": "docs/onboarding/evidence/slice-02/chooser-recommended-320-dark.png",
       "color_scheme": "dark",
       "forced_colors": "none",

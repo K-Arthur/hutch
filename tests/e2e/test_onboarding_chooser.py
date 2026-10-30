@@ -222,6 +222,22 @@ def test_capture_chooser_and_handoff_matrix(browser, app_server):
             width, height = VIEWPORTS[label]
             snapshot(page, rows, state="chooser-default", label=label, width=width, height=height)
 
+        # Saving: in-flight submit shows aria-busy and a disabled control, never
+        # a fake success; the shared onboarding.js enhancement must apply here too.
+        page.evaluate("""() => {
+            const form = document.querySelector("form[data-onboarding-form]");
+            form.noValidate = true;
+            form.addEventListener("submit", (event) => event.preventDefault(), { once: true });
+            form.requestSubmit();
+        }""")
+        page.wait_for_selector("[data-saving-status]:not([hidden])")
+        assert page.locator("form[data-onboarding-form]").get_attribute("aria-busy") == "true"
+        assert page.locator("[data-submit]").is_disabled()
+        width, height = VIEWPORTS["375"]
+        snapshot(page, rows, state="chooser-saving", label="375", width=width, height=height)
+        page.reload(wait_until="domcontentloaded")
+        page.wait_for_selector("[data-onboarding-state]")
+
         def route_tops(width):
             page.set_viewport_size({"width": width, "height": 1000})
             return page.evaluate(
@@ -367,4 +383,4 @@ def test_capture_chooser_and_handoff_matrix(browser, app_server):
     assert not external, f"unexpected external requests: {external}"
     results = {"slice": "02", "browser": "chromium", "platform": "linux", "rows": rows}
     (EVIDENCE / "capture-results.json").write_text(json.dumps(results, indent=2, sort_keys=True))
-    assert len(rows) >= 50, f"expected the full chooser matrix, captured {len(rows)} rows"
+    assert len(rows) >= 55, f"expected the full chooser matrix, captured {len(rows)} rows"
