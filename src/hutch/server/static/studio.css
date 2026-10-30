@@ -686,8 +686,16 @@ dialog.palette::backdrop { background: rgb(0 0 0 / 0.55); }
 
 .first-run-workbench { display: grid; gap: var(--s-4); align-items: start; min-width: 0; }
 @container firstrun (min-width: 660px) {
-  .first-run-workbench { grid-template-columns: minmax(0, 1.55fr) minmax(252px, 1fr); gap: var(--s-5); }
+  /* Explicit areas: the request and its hint on the left, the rail beside both. Auto-placement
+     put the hint in the right column and the rail under the form (audit S7). */
+  .first-run-workbench { grid-template-columns: minmax(0, 1.55fr) minmax(252px, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: var(--s-2) var(--s-5); }
+  .first-run-workbench > .first-run-request { grid-column: 1; grid-row: 1; }
+  .first-run-workbench > .hutch-composer__foot { grid-column: 1; grid-row: 2; }
+  .first-run-workbench > .first-run-rail { grid-column: 2; grid-row: 1 / span 2; }
 }
+/* On first run the meta line is the trust statement ("Nothing runs until you ask."), not a keyboard
+   hint, so the composer's narrow-screen hiding must not apply to it. */
+.first-run-workbench .hutch-composer__meta { display: flex; }
 
 /* the request */
 /* The request form IS the composer shell: hutch-composer.css supplies the fill,
