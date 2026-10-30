@@ -283,6 +283,21 @@ def _capture_states(browser, app_url, options) -> tuple[list[dict], list[dict]]:
     finally:
         context.close()
 
+    for name, width, height in (("needs-you-390", 390, 844),
+                                ("needs-you-landscape-844", 844, 390)):
+        context, page = new_page(width, height, True)
+        try:
+            open_studio(page)
+            page.evaluate("() => document.getElementById('needs-you-open')?.click()")
+            page.locator(".needs-you").first.wait_for(state="visible", timeout=options.timeout_ms)
+            grab(page, name)
+        except Exception as error:
+            failures.append({"kind": "state", "surface": "spa-needs-you",
+                             "viewport": name,
+                             "detail": "needs-you drawer did not open: %s" % str(error)[:200]})
+        finally:
+            context.close()
+
     for name, width, height in (("pages-nav-open-375", 375, 812),
                                 ("pages-nav-open-1024", 1024, 768)):
         context, page = new_page(width, height, True)

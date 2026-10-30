@@ -120,6 +120,30 @@
   .modal-card.modal-tall { max-height: min(100dvh, var(--vvh, 100dvh)); }
 }
 
+/* Safe-area chrome (task 06). All three shells declare viewport-fit=cover (task
+   01); these rules keep the fixed edges clear of a cutout or the home indicator.
+   env() is 0px off-device, so desktop rectangles are unchanged. */
+.toast-root {
+  right: calc(var(--s-5, 24px) + var(--safe-right));
+  bottom: calc(var(--s-5, 24px) + var(--safe-bottom));
+}
+.workspace {
+  padding-top: var(--safe-top);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  padding-bottom: var(--safe-bottom);
+}
+.needs-you {
+  padding-bottom: calc(var(--needs-you-pad, var(--s-5, 24px)) + var(--safe-bottom));
+  padding-right: calc(var(--needs-you-pad, var(--s-5, 24px)) + var(--safe-right));
+}
+@media (max-width: 900px) {
+  .composer {
+    padding-left: calc(var(--hutch-space-3, 12px) + var(--safe-left));
+    padding-right: calc(var(--hutch-space-3, 12px) + var(--safe-right));
+  }
+}
+
 /* Sticky chrome offsets (task 04). hutch.css pins the run header at 54px and
    scrolls focus targets clear of a 72px bar, but below 720px the topbar wraps to
    an auto height. responsive.js publishes the measured height; the fallbacks
