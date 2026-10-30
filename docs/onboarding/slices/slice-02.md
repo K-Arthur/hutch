@@ -203,7 +203,7 @@ Delivered anchors:
   orchestration, explicit invalid/conflict/stale/forbidden/damaged handling.
 - `@src/hutch/server/templates/onboarding_ai_service.html` (110 lines) +
   `_onboarding_route_form.html` (32); `onboarding.html` saved-state CTA update.
-- `@src/hutch/server/static/onboarding-chooser.css` (219 lines) and
+- `@src/hutch/server/static/onboarding-chooser.css` (221 lines) and
   `onboarding.js` (114 lines: draft restore, heading focus, busy state);
   `@src/hutch/server/static/app.js:3408-3414` - the no-route primary action now
   saves the tab draft and calls `window.location.assign("/onboarding")` (one line
@@ -214,7 +214,7 @@ Delivered anchors:
   line-neutrally (file stays at 3,334 lines; no coverage deleted).
 - Tests: `@tests/test_onboarding_chooser_state.py` (271 lines),
   `@tests/test_onboarding_chooser.py` (303), `@tests/e2e/test_onboarding_chooser.py`
-  (57 live captures). Docs: `docs/onboarding/setup-record.md` section 9,
+  (386 lines; 57 live captures). Docs: `docs/onboarding/setup-record.md` section 9,
   `docs/design-system.md` chooser rules, `docs/runtime-setup.md`, changelog,
   edge-case-matrix row 02/tokens/section 8, task-plan CP2.
 
