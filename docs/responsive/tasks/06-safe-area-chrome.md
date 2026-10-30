@@ -52,3 +52,14 @@ specificity conflict cannot be resolved from the new sheet.
 ## Size check
 
 One new rule set in one file plus state captures: one session.
+## Outcome
+
+- Status: done, commit 8b24b9ba.
+- Evidence: docs/responsive/screenshots/8b24b9ba (130 measurements, 0 failures;
+  state-needs-you-390.png and state-needs-you-landscape-844.png capture the
+  fixed-side drawer in both orientations).
+- Applied: toast stack right/bottom insets, SPA workspace drawer all four edges,
+  needs-you drawer right/bottom, phone composer seat side insets. env() is 0px in
+  the Chromium harness, so the rule shape plus the confirmed unchanged desktop
+  rectangles are the evidence; a real notched-device pass is still unavailable.
+- Rollback: revert 8b24b9ba (source) and its evidence commit.

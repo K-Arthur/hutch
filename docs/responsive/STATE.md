@@ -1,6 +1,6 @@
 # Responsive Adaptation - State
 
-Last updated: 2026-10-29T18:38:00-07:00 | Last commit: 0fa93cfe (task 05 source)
+Last updated: 2026-10-29T18:45:00-07:00 | Last commit: 8b24b9ba (task 06 source)
 Goal id: goal-28c56178-ce15-4d56-b317-b0f275ff75cb (revision 1) | Branch: main
 Validation runner: scripts/validate_responsive.py (single source: scripts/responsive/config.py)
 Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png}
@@ -18,8 +18,8 @@ Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png
 | 03 | dynamic viewport and keyboard | done | 28aa02e0 | evidence: screenshots/28aa02e0 |
 | 04 | stylesheet structure and sticky offsets | done | c5d3beb4 | evidence: screenshots/c5d3beb4 |
 | 05 | touch-target floor | done | 0fa93cfe | evidence: screenshots/0fa93cfe |
-| 06 | safe-area chrome | not-started | - | insets on toast/workspace drawer/needs-you drawer |
-| 07 | 13-inch and tablet device bands | not-started | - | depends 02/03/05; rail width + 1180/1366 tuning |
+| 06 | safe-area chrome | done | 8b24b9ba | evidence: screenshots/8b24b9ba |
+| 07 | 13-inch and tablet device bands | not-started | - | unify rail width + 1024/1180/1366 header/shell tuning |
 | 07b | reconcile rail width in app/src/input.css + rebuild ui.css | blocked | - | parked files: wait for the brand session to commit, then edit source and rebuild. Do not edit ui.css by hand. |
 | 08 | marketing site adaptation | not-started | - | depends 01/05; coarse targets, no-JS nav, short landscape hero |
 | 09 | final validation, review and docs | not-started | - | depends 01-08; full --fail-on all run + diff review |
@@ -71,7 +71,8 @@ where possible.
 - 2cf2c5fe: task 02 server navigation model (JS on and no-JS runs; evidence commit 5818ab2b)
 - 28aa02e0: task 03 dynamic viewport and keyboard (evidence commit e0850681)
 - c5d3beb4: task 04 stylesheet structure and sticky offsets (evidence commit 3a583128)
-- 0fa93cfe: task 05 touch-target floor (under-24 0; under-44 110)
+- 0fa93cfe: task 05 touch-target floor (under-24 0; under-44 110; evidence commit dab0dd9f)
+- 8b24b9ba: task 06 safe-area chrome (portrait + landscape drawer states)
 
 ## Handoff
 
