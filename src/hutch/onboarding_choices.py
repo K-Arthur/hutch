@@ -47,7 +47,7 @@ ROUTE_DESCRIPTIONS = {
     ),
 }
 RECOMMENDED_ROUTE = "hosted_key"
-RECOMMENDED_QUALIFIER = "recommended only if you already have a provider key"
+RECOMMENDED_QUALIFIER = "Recommended only if you already have a provider key"
 
 STATE_AI_SERVICE_CHOOSE = "setup.ai_service.choose"
 STATE_AI_SERVICE_CHOSEN = "setup.ai_service.chosen"

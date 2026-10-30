@@ -25,6 +25,7 @@
   const SUBMIT = "[data-submit]";
   const SAVING = "[data-saving-status]";
   const ERROR_SUMMARY = "[data-error-summary]";
+  const STEP_HEADING = "[data-focus-heading]";
   const SAVING_TEXT = "Saving...";
 
   function markBusy(form) {
@@ -73,9 +74,19 @@
     document.querySelectorAll(FORM).forEach(clearBusy);
   });
 
-  document.addEventListener("DOMContentLoaded", () => {
+  /* On a step arrival the page focuses the new step heading so a screen reader
+     announces the step change; an error summary always wins over the heading,
+     and the request step (no data-focus-heading) keeps its slice-01 behaviour. */
+  function focusArrival() {
     const summary = document.querySelector(ERROR_SUMMARY);
-    if (summary instanceof HTMLElement) summary.focus();
+    const heading = document.querySelector(STEP_HEADING);
+    const target = summary instanceof HTMLElement ? summary
+      : heading instanceof HTMLElement ? heading : null;
+    if (target) target.focus();
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    focusArrival();
     announceResume();
   });
 })();

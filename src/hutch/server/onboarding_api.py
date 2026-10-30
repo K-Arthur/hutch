@@ -1,9 +1,10 @@
 """Onboarding slice 01: the dedicated request step with server-owned resume.
 
 Orchestration and rendering only. Domain decisions live in hutch.onboarding;
-persistence lives in hutch.onboarding_store. This module translates
-form/record outcomes into explicit HTML states; it makes no provider or network
-call and never reads or writes a browser draft.
+persistence lives in hutch.onboarding_store; shared page plumbing lives in
+onboarding_pagekit. This module translates form/record outcomes into explicit
+HTML states; it makes no provider or network call and never trusts a browser
+draft. The AI-service chooser step lives in onboarding_chooser_api.py.
 
 Every mutation is a plain HTML form POST gated by the shared double-submit CSRF
 check. The route inventory records these paths with a None capability, so the
@@ -12,24 +13,28 @@ existing remote-access middleware refuses paired phones.
 
 from __future__ import annotations
 
-from datetime import datetime
-from pathlib import Path
 from typing import Optional
-from urllib.parse import parse_qs, quote, unquote
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, Response
 from starlette.templating import Jinja2Templates
 
-from .. import __version__
 from ..models import utcnow
 from ..onboarding import ResumeView, empty_view, resume_view
 from ..onboarding_store import load_setup, reset_setup, save_request
+from .onboarding_chooser_api import install_chooser_routes
+from .onboarding_pagekit import (
+    TEMPLATE_DIR,
+    flash as _flash,
+    form_values as _form_values,
+    local_clock as _local_clock,
+    redirect as _redirect,
+    render as _render,
+    revision as _revision,
+)
 from .security import check_csrf
 
-TEMPLATE_DIR = Path(__file__).parent / "templates"
-FLASH, FLASH_ERR = "hutch_flash", "hutch_flash_err"
-# TEMPORARY: slice 02 replaces this bridge with /onboarding/ai-service.
+# TEMPORARY: slice 02's chooser replaces this bridge in the handoff step.
 CONTINUE_TARGET = "/#/connections"
 
 STATE_EMPTY = "setup.empty_no_route"
@@ -49,41 +54,6 @@ STALE_LABELS = {
     "requirements_version": "the setup requirements changed",
     "unknown_step": "the saved step is no longer part of the setup",
 }
-
-
-def _flash(request: Request) -> tuple[Optional[str], Optional[str]]:
-    notice, error = request.cookies.get(FLASH), request.cookies.get(FLASH_ERR)
-    return (unquote(notice) if notice else None, unquote(error) if error else None)
-
-
-def _local_clock(value: str) -> str:
-    """Render a stored UTC timestamp in the owner's local time, or blank."""
-    try:
-        return datetime.fromisoformat(value).astimezone().strftime("%Y-%m-%d %H:%M %Z").strip()
-    except (TypeError, ValueError):
-        return ""
-
-
-def _redirect(notice: str = "", error: str = "") -> RedirectResponse:
-    resp = RedirectResponse("/onboarding", status_code=303)
-    if notice:
-        resp.set_cookie(FLASH, quote(notice), max_age=15, path="/", samesite="strict")
-    if error:
-        resp.set_cookie(FLASH_ERR, quote(error), max_age=15, path="/", samesite="strict")
-    return resp
-
-
-async def _form_values(request: Request) -> dict[str, str]:
-    raw = (await request.body()).decode("utf-8", "replace")
-    return {key: values[-1] for key, values in parse_qs(raw, keep_blank_values=True).items()}
-
-
-def _revision(value: str) -> Optional[int]:
-    try:
-        parsed = int(value)
-    except (TypeError, ValueError):
-        return None
-    return parsed if parsed >= 0 else None
 
 
 def _stale_labels(view: ResumeView) -> list[str]:
@@ -109,27 +79,6 @@ def _view_fields(view: ResumeView, state: str) -> dict:
         "step_total": view.required_total,
         "step_label": "your request",
     }
-
-
-def _render(templates: Jinja2Templates, config, request: Request, fields: dict,
-            *, status_code: int = 200) -> Response:
-    """Render one request-step state on the shared chrome-less base page."""
-    notice, error = _flash(request)
-    context = {
-        "request": request, "nav": "", "nav_items": [], "chrome": False,
-        "csrf": getattr(request.state, "csrf", ""), "pending_count": 0,
-        "version": __version__, "state_dir": str(config.state_dir),
-        "notice": notice, "error": error, "continue_target": CONTINUE_TARGET,
-        **fields,
-    }
-    resp = templates.TemplateResponse(request, "onboarding.html", context, status_code=status_code)
-    # The setup record is owner-local state; never let a shared cache store it.
-    resp.headers["Cache-Control"] = "no-store"
-    if notice:
-        resp.delete_cookie(FLASH, path="/")
-    if error:
-        resp.delete_cookie(FLASH_ERR, path="/")
-    return resp
 
 
 def _forbidden(templates: Jinja2Templates, config, request: Request, submitted: str) -> Response:
@@ -234,7 +183,7 @@ async def _request_response(store, templates: Jinja2Templates, config, request: 
     return _unsaved_response(store, templates, config, request, result, submitted)
 
 
-def _unsaved_response(store, templates, config, request: Request, result, submitted: str) -> Response:
+def _unsaved_response(store, templates: Jinja2Templates, config, request: Request, result, submitted: str) -> Response:
     if result.kind == "invalid":
         fields = _editable_fields(load_setup(store), submitted=submitted, message=result.reason)
         return _render(templates, config, request, fields, status_code=422)
@@ -262,7 +211,7 @@ async def _reset_response(store, templates: Jinja2Templates, config, request: Re
 
 
 def install_onboarding_routes(app: FastAPI) -> None:
-    """Install the owner-only onboarding request step (slice 01)."""
+    """Install the owner-only onboarding steps (request + AI-service chooser)."""
     store, config = app.state.store, app.state.config
     templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
@@ -277,3 +226,5 @@ def install_onboarding_routes(app: FastAPI) -> None:
     @app.post("/onboarding/reset", include_in_schema=False)
     async def onboarding_reset(request: Request):
         return await _reset_response(store, templates, config, request)
+
+    install_chooser_routes(app, store=store, config=config, templates=templates)

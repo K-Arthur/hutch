@@ -23,6 +23,7 @@ from hutch.onboarding import (
     encode_setup,
     parse_setup,
 )
+from hutch.onboarding_store import SETUP_KEY, load_setup, save_request, save_route
 from hutch.onboarding_choices import (
     RECOMMENDED_ROUTE,
     ROUTE_KINDS,
@@ -230,6 +231,38 @@ def test_chooser_states_are_machine_assertable_tokens():
     }
     assert onboarding_choices.STATE_AI_SERVICE_INVALID == "setup.ai_service.invalid"
     assert onboarding_choices.STATE_AI_SERVICE_CONFLICT == "setup.ai_service.conflict"
+
+
+def test_store_save_route_persists_once_and_replays(store):
+    saved = save_request(store, expected_revision=0, request_text="A stored request", now=NOW)
+    assert saved.kind == "accepted"
+    chosen = save_route(store, expected_revision=saved.setup.revision,
+                        route_kind="hosted_key", now=LATER)
+    assert chosen.kind == "chosen" and chosen.setup is not None
+    loaded = load_setup(store)
+    assert loaded.kind == "present" and loaded.setup == chosen.setup
+    replay = save_route(store, expected_revision=saved.setup.revision,
+                        route_kind="hosted_key", now=NOW)
+    assert replay.kind == "replayed"
+    assert load_setup(store).setup == chosen.setup
+
+
+def test_store_save_route_does_not_overwrite_damaged_or_newer_records(store):
+    store.kv_set(SETUP_KEY, "{not-json")
+    assert save_route(store, expected_revision=0, route_kind="opencode", now=NOW).kind == "damaged"
+    assert store.kv_get(SETUP_KEY) == "{not-json"
+    future = _raw(contract_version=ONBOARDING_CONTRACT_VERSION + 1,
+                  request_text="From newer", revision=4)
+    store.kv_set(SETUP_KEY, future)
+    result = save_route(store, expected_revision=4, route_kind="opencode", now=NOW)
+    assert result.kind == "newer_version"
+    assert store.kv_get(SETUP_KEY) == future
+
+
+def test_store_save_route_without_a_request_writes_nothing(store):
+    result = save_route(store, expected_revision=0, route_kind="opencode", now=NOW)
+    assert result.kind == "no_request"
+    assert store.kv_get(SETUP_KEY) is None
 
 
 def test_pure_chooser_module_has_no_io_imports():

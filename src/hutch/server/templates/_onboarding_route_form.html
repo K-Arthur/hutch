@@ -1,0 +1,32 @@
+<form class="onboarding-form onboarding-route-form" method="post"
+      action="/onboarding/ai-service/choose" data-onboarding-form>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="revision" value="{{ revision }}">
+  <fieldset class="onboarding-routes" id="route-choices"
+            {% if field_error %}aria-invalid="true" aria-describedby="route-help route-error"{% else %}aria-describedby="route-help"{% endif %}>
+    <legend class="onboarding-routes-legend">AI service route <span class="onboarding-req" aria-hidden="true">*</span></legend>
+    <p class="onboarding-help" id="route-help">Required: choose one route. Hutch does not check or connect it on this page.</p>
+    {% for option in options %}
+    <label class="onboarding-route" data-route-kind="{{ option.kind }}">
+      <input class="onboarding-route-input" type="radio" name="route_kind" value="{{ option.kind }}" required
+             {% if selected_route == option.kind %}checked{% endif %}
+             {% if field_error %}aria-describedby="route-error"{% endif %}>
+      <span class="onboarding-route-body">
+        <span class="onboarding-route-head">
+          <span class="onboarding-route-name">{{ option.label }}</span>
+          {% if option.recommended %}<span class="onboarding-route-tag">Recommended</span>{% endif %}
+          <span class="onboarding-route-check" aria-hidden="true">Selected</span>
+        </span>
+        <span class="onboarding-route-copy">{{ option.description }}</span>
+        {% if option.recommended %}<span class="onboarding-route-qualifier">{{ recommended_qualifier }}</span>{% endif %}
+      </span>
+    </label>
+    {% endfor %}
+  </fieldset>
+  {% if field_error %}<p class="onboarding-field-error" id="route-error">{{ field_error }}</p>{% endif %}
+  <p class="onboarding-saving" role="status" aria-live="polite" data-saving-status hidden>Saving...</p>
+  <div class="onboarding-form-actions">
+    <button class="btn primary" type="submit" data-submit data-primary>Continue with this route</button>
+    <a class="btn ghost" href="/onboarding">Back to my request</a>
+  </div>
+</form>
