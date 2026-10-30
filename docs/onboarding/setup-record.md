@@ -38,6 +38,8 @@ fields ignored so later slices can add route data):
 | `resume_expires_at` | ISO-8601 UTC str | TTL end; default 30 days, refreshed on every accepted save |
 | `created_at` | ISO-8601 UTC str | first write |
 | `updated_at` | ISO-8601 UTC str | last accepted write |
+| `route_kind` | str | slice 02: `""` until a route is chosen; one of `ROUTE_KINDS`; an unknown stored value is an explicit stale reason, never damage |
+| `route_chosen_at` | ISO-8601 UTC str | slice 02: set with `route_kind` on a deliberate choice; `""` otherwise; metadata only, not a resume gate |
 
 `ONBOARDING_CONTRACT_VERSION = 1`, `ONBOARDING_REQUIREMENTS_VERSION = 1`,
 `REQUEST_MAX_CHARS = 20000`, `RESUME_TTL = timedelta(days=30)`,
@@ -235,3 +237,149 @@ delete the new modules/template/CSS/JS/tests. The kv record is inert without
 the routes and must be kept. Verify `/onboarding` returns 404, `/` and the
 pinned first-run e2e tests are unchanged, `python3 scripts/audit_context_hygiene.py`
 shows no new violation, and no migration/SCHEMA_VERSION delta exists.
+
+## 9. Slice 02 extension - the AI-service chooser
+
+Status: implemented contract for slice 02 (2026-10-29); companion to
+[the slice-02 brief](slices/slice-02.md) and [the edge-case matrix](edge-case-matrix.md).
+Sections 1-8 remain normative for the request step; this section extends them
+without changing the stored record's key or the request-step semantics.
+
+### 9.1 Record delta
+
+Two fields are added to `OnboardingSetup`; both default to `""` and neither is
+required, so a slice-01 record parses unchanged and a slice-02 record is readable
+by slice-01 code (`extra="ignore"`, and `step="ai_service"` is a known step):
+
+| Field | Type | Rule |
+|---|---|---|
+| `route_kind` | str | `""` until a route is chosen; otherwise one of `hosted_key`, `local_service`, `opencode`. Unknown stored values are a stale reason, never "damaged". |
+| `route_chosen_at` | ISO-8601 UTC str | Set with `route_kind` on a deliberate choice; `""` otherwise. Display metadata only; it is not re-validated as a resume gate. |
+
+An accepted choice writes exactly one revision bump: `revision + 1`,
+`step="ai_service"`, `route_kind`, `route_chosen_at=now`, `updated_at=now`,
+`resume_expires_at=now+RESUME_TTL`, and the active requirements/contract
+versions. `request_text` is never changed by a choice. A request edit after a
+choice keeps both route fields (model copy) and keeps the ai_service step.
+
+### 9.2 Pure chooser domain (`src/hutch/onboarding_choices.py`)
+
+No I/O, no FastAPI, no store/templates/network imports. Constants:
+`ROUTE_KINDS = ("hosted_key", "local_service", "opencode")`, `ROUTE_LABELS`,
+`ROUTE_DESCRIPTIONS`, `RECOMMENDED_ROUTE = "hosted_key"`,
+`RECOMMENDED_QUALIFIER = "Recommended only if you already have a provider key"`.
+The recommendation is static and explicitly qualified; slice 03 replaces it with
+a detected/verified route and must update this copy, not duplicate it.
+
+```python
+route_options() -> tuple[RouteOption, ...]        # exactly three, one recommended
+chooser_ready(setup) -> bool                      # a saved request exists
+chooser_view(setup, *, now, active_requirements_version=..., active_contract_version=...) -> ChooserView
+choose_route(setup, *, expected_revision, route_kind, now, ...) -> ChooseResult
+```
+
+`ChooserView` fields: `state`, `options`, `recommended`,
+`recommended_qualifier`, `selected_route` (None when no/unknown route),
+`selected_label`, `request_text`, `revision`, `step_index`,
+`required_total`, `can_choose`, `stale`, `stale_reasons`, `expired`,
+`newer_version`. `ChooseResult` kinds: `chosen`, `replayed`, `conflict`,
+`stale`, `invalid`, `no_request`.
+
+State precedence in `chooser_view`: `no_request` (blank request) > `stale`
+(version/requirements/step drift, expiry, newer contract, or a stored route no
+longer in the allowlist) > `chosen` (valid stored route) > `choose`. Stale
+reason tokens are the four slice-01 tokens plus `route_removed` and
+`expired`. `can_choose` is true for `choose`, and for a `route_removed`
+stale record (re-choice permitted); version/expiry drift sets it false and the
+page points at the request step instead.
+
+`choose_route` semantics: unknown/blank route or negative revision -> `invalid`;
+no saved request -> `no_request`; version/requirements/expiry drift -> `stale`
+(no write, current record returned); same route on a current record -> `replayed`
+(no write, even from a duplicate submit's stale revision); a different route on
+the current revision -> `chosen`; a different route from a stale revision ->
+`conflict` carrying the current record.
+
+Canonical `data-onboarding-state` tokens added by this slice:
+`setup.ai_service.choose`, `setup.ai_service.chosen`,
+`setup.ai_service.stale`, `setup.ai_service.invalid`,
+`setup.ai_service.conflict`, `setup.ai_service.no_request`. The forbidden
+state keeps the shared `auth.csrf_rejected` token.
+
+### 9.3 Persistence (`src/hutch/onboarding_store.py`)
+
+`save_route(store, *, expected_revision, route_kind, now) -> SaveResult` holds
+the same process lock as `save_request`/`reset_setup`, so a request edit in one
+tab and a route choice in another cannot both win the same revision. The adapter
+decides `damaged` and `newer_version` before the domain decision and writes on
+neither; other kinds pass through from `choose_route` (`chosen` persists the
+returned record; `replayed`, `conflict`, `stale`, `invalid` write nothing).
+`no_request` is returned when no setup record with a request exists.
+
+### 9.4 HTTP contract
+
+`GET /onboarding/ai-service` -> 200 text/html (owner session) with one of the
+chooser states above. `?change=1` renders the choice form with the saved route
+preselected. 303 `Location: /onboarding` with an error flash
+("Write your request first.") when the record has no saved request; 303 to
+`/onboarding` with an error flash when the record is damaged (the request step
+owns that recovery). 403 for a paired-phone session via the existing route
+capability middleware.
+
+`POST /onboarding/ai-service/choose` (application/x-www-form-urlencoded):
+`csrf` (required), `revision` (required integer), `route_kind` (required,
+server-side allowlist `hosted_key|local_service|opencode`).
+
+- 303 `Location: /onboarding/ai-service` for `chosen` ("Route selected.") and
+  `replayed` ("Route already selected - nothing changed."); flash uses the
+  existing one-shot cookie pattern.
+- 409 text/html for `conflict` (explicit "This setup changed in another
+  window" with both route labels and "Review latest saved setup"), and for
+  `stale`/`newer_version` (explicit stale state with the kept request).
+- 422 text/html for missing/unknown `route_kind` and malformed revision, with a
+  focused `role="alert"` error summary and the submitted selection preserved.
+- 403 text/html for missing/invalid CSRF with `auth.csrf_rejected`, nothing
+  written, submitted selection preserved.
+- 303 to `/onboarding` with an error flash for `no_request` or a `damaged`
+  record. No route redirects to a user-supplied target. Both routes are recorded
+  with a `None` capability, so paired phones are refused.
+
+### 9.5 Chooser template contract
+
+`templates/onboarding_ai_service.html` extends `base.html` with
+`chrome=False`, `nav=""`, the same `<meta name="referrer" content="same-origin">`
+opt-in as the request step (the global no-referrer policy would otherwise make
+the browser submit with `Origin: null` and the same-origin guard correctly
+refuse it), and loads `onboarding-form.css`, `onboarding.css`,
+`onboarding-chooser.css` and `onboarding.js`. The route cards are a
+`<fieldset>` of three real radio inputs wrapped in labels, so the whole card is
+the hit target and the form still works with JavaScript disabled.
+
+Template variables: `state`, `options`, `recommended`,
+`recommended_qualifier`, `selected_route`, `selected_label`,
+`submitted_route`, `request_text`, `revision`, `step_index`, `step_total`,
+`step_label` ("AI service"), `can_choose`, `stale_reasons` (user-facing
+strings), `newer_version`, `expired`, `changing`, `conflict_saved_label`,
+`conflict_submitted_label`, `continue_target` (chosen state; the interim
+`/#/connections` bridge marked TEMPORARY until slices 04-06),
+`error_summary`, `field_error`, plus the shared base fields.
+
+Shared rendering helpers moved from `onboarding_api.py` to
+`src/hutch/server/onboarding_pagekit.py` (`flash`, `local_clock`,
+`redirect`, `form_values`, `revision`, `render`). Contract for both step
+modules: any variable a template reads must be supplied by the step's fields or
+by the pagekit context; the live lane caught (and now covers) a missing
+`continue_target` that rendered an empty primary href.
+
+### 9.6 Accessibility and resilience
+
+On arrival the chooser focuses its `h1` (`tabindex="-1"`,
+`data-focus-heading`) so a screen reader announces the step change once, unless
+an error summary exists - the summary wins and receives focus instead. Selection
+is never colour-only: a checked route shows the word "Selected" plus a drawn
+tick, and the native radio carries its own checked state. Cards keep the 44 px
+coarse-pointer floor, the focus ring stays visible, there is no fixed footer, and
+the page works as a plain form POST. No animation is added; reduced motion
+removes inherited transitions. The fixed dark theme stays dark under an OS light
+preference, and forced-colours keeps boundaries, focus and selection legible.
+No provider/localhost call is made by the page, its JavaScript, or its tests.

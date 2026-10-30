@@ -12,6 +12,15 @@ is sent anywhere until you continue to an AI service. See
 [onboarding setup record](onboarding/setup-record.md) for the stored fields, the
 resume/stale-expired states, and the local reset command.
 
+After the request, the AI-service chooser asks you to pick one of three routes:
+a hosted provider key, a local model service you run, or an existing OpenCode
+login. Choosing a route only records the choice; it does not contact the provider
+yet, and the recommendation shown there is a static suggestion, not a detected or
+verified readiness state. You can change the route later, and apps, devices and
+channels can be connected after setup. Connection details for the chosen route
+arrive in a later step; until then the chosen-state link is a temporary bridge to
+the existing Apps & AI surface.
+
 ## OpenCode assistant
 
 - **Version:** Hutch requires **OpenCode V2**. It uses the V2 HTTP API (`/api/session`, `/api/model`, `/api/integration`). A V1 CLI is rejected before a private server starts.

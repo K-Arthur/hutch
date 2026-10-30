@@ -1,6 +1,6 @@
 # Slice 02 - First-run handoff and in-context AI-service chooser
 
-Status: IMPLEMENTATION BRIEF (refreshed 2026-10-29 after slice 01; not implemented). Acceptance gate: CP2; planning gate: CP0 in [task-plan.md](../task-plan.md).
+Status: ACCEPTED at CP2 (2026-10-29; commits 4c53c814, 7140d48f, 4fd5199d, 3e47330b plus the CP2 docs/evidence commit - see section 15). Acceptance gate: CP2; planning gate: CP0 in [task-plan.md](../task-plan.md).
 Depends on: slice 01 ACCEPTED at CP1 - see [slice-01 acceptance record](slice-01.md#15-acceptance-record-cp1) and [evidence](../evidence/slice-01/README.md). Planning reviewer: independent review 2026-10-29, findings resolved in task-plan section 9.
 Owner: TBD. Reviewer: TBD. Anchors re-read 2026-10-29 after slice 01; @src/hutch/server/static/app.js, @src/hutch/server/app.py and @src/hutch/server/templates/base.html still carry another session's uncommitted brand work - re-read before editing, never revert it. Use the ready-to-run [continuation prompt](../continuation-prompt-02.md) for the next agent.
 
@@ -176,3 +176,109 @@ Risk: app.js and the pinned e2e file are dirty/at their frozen cap; use targeted
 - Empty request + click: the SPA may navigate with no saved request; the chooser redirects back with a notice. Confirm this is not a loop and capture it (no-request state).
 - The temporary 'Continue to Apps & AI' bridge is a visible detour; it must be replaced in slices 04-06 and must not be linked from the marketing site.
 - Two tabs: explicit 409 conflict is required; do not add last-writer-wins autosave in this slice.
+
+## 15. Acceptance record (CP2)
+
+Status: PASS. Date: 2026-10-29. Owner: Lead implementation. Independent visual
+reviewer: fresh-context verifier (opened every image; the first pass found one
+non-blocking layout defect, which was fixed, recaptured and fully re-reviewed).
+Planning precondition: slice-03 and slice-04 briefs were written (delegated
+planning pass) and approved by the Lead in section 15 of each brief.
+
+Delivered anchors:
+
+- `@src/hutch/onboarding.py:37-52` - `route_kind`/`route_chosen_at` on
+  `OnboardingSetup` (247 lines, within the 250-line budget).
+- `@src/hutch/onboarding_choices.py:1-221` (new, pure) - `ROUTE_KINDS`,
+  labels/descriptions, `RECOMMENDED_ROUTE` + honest qualifier, chooser state
+  tokens, `route_options`, `chooser_ready`, `chooser_view`, `choose_route`.
+- `@src/hutch/onboarding_store.py:70-100` - `save_route` under the same module
+  lock as `save_request`/`reset_setup` (100 lines; deviation noted below).
+- `@src/hutch/server/onboarding_pagekit.py:1-86` (new) - shared
+  render/flash/redirect/plain-form helpers extracted from the slice-01 private
+  helpers so each step module stays bounded.
+- `@src/hutch/server/onboarding_api.py:1-231` - request step; saved-state CTA now
+  `/onboarding/ai-service`; installer calls `install_chooser_routes`.
+- `@src/hutch/server/onboarding_chooser_api.py:1-193` (new) - chooser GET/POST
+  orchestration, explicit invalid/conflict/stale/forbidden/damaged handling.
+- `@src/hutch/server/templates/onboarding_ai_service.html` (110 lines) +
+  `_onboarding_route_form.html` (32); `onboarding.html` saved-state CTA update.
+- `@src/hutch/server/static/onboarding-chooser.css` (219 lines) and
+  `onboarding.js` (114 lines: draft restore, heading focus, busy state);
+  `@src/hutch/server/static/app.js:3408-3414` - the no-route primary action now
+  saves the tab draft and calls `window.location.assign("/onboarding")` (one line
+  changed in place, net-zero growth; file is at its 14,532-line frozen baseline).
+- `@src/hutch/server/templates/_onboarding_request_form.html` - draft target and
+  honest "restored from this tab" note only in the empty state.
+- Pinned `@tests/e2e/test_design_system.py:748-1014` assertions updated
+  line-neutrally (file stays at 3,334 lines; no coverage deleted).
+- Tests: `@tests/test_onboarding_chooser_state.py` (271 lines),
+  `@tests/test_onboarding_chooser.py` (303), `@tests/e2e/test_onboarding_chooser.py`
+  (56 live captures). Docs: `docs/onboarding/setup-record.md` section 9,
+  `docs/design-system.md` chooser rules, `docs/runtime-setup.md`, changelog,
+  edge-case-matrix row 02/tokens/section 8, task-plan CP2.
+
+Commands and exact results:
+
+```
+.venv/bin/python -m pytest -q --no-header --tb=line tests/test_onboarding_chooser_state.py tests/test_onboarding_chooser.py tests/test_onboarding_page.py tests/test_onboarding_state.py
+  -> 105 passed
+.venv/bin/python -m pytest -q --no-header --tb=short tests/e2e/test_onboarding_chooser.py
+  -> 1 passed (56 PNGs + capture-results.json; layout assertions 3-up/2+1/stacked)
+.venv/bin/python -m pytest -q --no-header --tb=short tests/e2e/test_design_system.py -k first_run
+  -> 3 passed
+python3 scripts/audit_context_hygiene.py
+  -> 6 pre-existing baseline violations; no onboarding file; no new violation
+python3 scripts/audit_emoji.py
+  -> clean
+.venv/bin/python scripts/audit_tool_contracts.py        -> passed (40 tools)
+.venv/bin/python scripts/audit_constitution.py          -> passed (3 roles, 14 rules)
+.venv/bin/python scripts/generate_agent_map.py --check  -> passed after local regen (file is git-excluded)
+npm run check:agent -> blocked by the read-only shared uv cache in this environment; the four audits were run directly instead
+```
+
+Visual evidence: `docs/onboarding/evidence/slice-02/` - 56 opened-image rows, all
+APPROVED (canonical `validation.json` there; identical pointer copy under
+`docs/onboarding/artifacts/slice-02/`). The live lane captured chooser default,
+recommended, chosen, chosen-resumed, change, invalid, stale, two-tab conflict,
+forbidden, no-request redirect, keyboard focus, 200 percent text, forced colours,
+reduced motion, OS light preference at all four widths, plus the 375x812 SPA
+handoff before/after. Browser: Chromium headless on Linux; limitations recorded in
+the evidence README (no real phone, screen reader, browser zoom, Firefox/WebKit,
+or OS forced-colours setting).
+
+Independent-review findings and resolutions:
+
+| Finding | Resolution |
+|---|---|
+| First visual pass: the route fieldset grid made the help paragraph the first cell, so cards rendered 1+2 at 768 and a lopsided 2+1 at 1440 | Help now spans the full group width; the live lane asserts card top edges (3-up at 1440, 2+1 at 768, stacked at 375); the full 56-row matrix was recaptured and re-reviewed. |
+| Evidence fixture had no RTL and the light-preference rows stopped at 375 | Fixture now includes Arabic RTL alongside CJK/accented Latin; light-preference rows cover 320/375/768/1440. Re-reviewed. |
+| Saved-state primary link initially rendered an empty `href` because `continue_target` was not injected by the extracted shared renderer | Caught by the live lane before review; the request-step field map supplies it and `tests/test_onboarding_page.py` keeps covering the target. |
+| `npm run check:agent` cannot run here (read-only uv cache) | The same four audits were run directly with the project venv and recorded above; re-run the aggregate command before merging on a normal workstation. |
+
+Deviations from the planning brief:
+
+1. Evidence lives in `docs/onboarding/evidence/slice-02/` (execution directive)
+   with a pointer copy under `artifacts/slice-02/`.
+2. The brief asked for the chooser routes inside `onboarding_api.py`; that module
+   would have passed the 400-line new-module cap, so shared HTTP helpers moved to
+   `onboarding_pagekit.py` and chooser orchestration to
+   `onboarding_chooser_api.py`, installed by the same existing onboarding
+   installer. `app.py` still has exactly the slice-01 two-line registration seam.
+3. `onboarding_store.py` is 100 lines against the 80-line planning target because
+   `save_route` must share the module lock (the brief's binding requirement);
+   splitting the adapter would break the single-lock guarantee.
+4. A `no_request` POST redirects to `/onboarding` with an error flash. The brief's
+   form contract listed 303/409/422/403; the redirect is the explicit, tested
+   no-request path and GET uses the same rule.
+5. Slice-03/04 briefs were produced by a delegated planning pass and approved by
+   the Lead; their two P1 decisions are expressly deferred to their own
+   checkpoints (recorded in each brief section 15 and matrix section 8).
+
+Reviewer sign-off: CP2 PASS after the findings above were resolved and the full
+matrix was recaptured and re-opened (56 APPROVED / 0 NEEDS WORK). The slice is
+committed in `4c53c814`, `7140d48f`, `4fd5199d`, `3e47330b` plus the CP2
+docs/evidence commit.
+
+Next: slice 03 (readiness truth) - brief approved; [continuation prompt](../continuation-prompt-03.md)
+written. Slice-05/06 briefs are owed before CP4.

@@ -342,3 +342,21 @@ The request-step error summary is a server-rendered `role="alert"` with
 `tabindex="-1"`, focused on load, with one link per field and adjacent inline text;
 the resumed step announces once through a polite region filled after load. Saved is
 never called connected or verified.
+
+### AI-service chooser rules (slice 02)
+
+After the first-run request is saved, the chooser is the one next step. It offers
+exactly three routes - hosted provider key, local model service, existing
+OpenCode login - and marks one recommended with its honest qualifier. The
+recommendation is static: it is not a detected, verified or connected state, and
+the copy says the route is not checked on that page. The written request stays
+visible and read-only beside the choice, and apps, devices and channels are
+stated in words as optional and later - never rendered as a fourth route.
+Exactly one primary action appears per state. The chosen state shows the saved
+route, Change route, and a clearly marked interim bridge to Apps & AI until
+slices 04-06 add the real connection steps. A stale revision renders both
+choices and never overwrites; a removed saved route is stale but re-choosable;
+version or expiry drift returns to the request step; a missing request redirects
+with a notice rather than rendering an empty chooser. Selection is never
+colour-only (the word "Selected" plus a drawn tick), and no account, sign-up,
+download, plan, free or pricing language appears.
