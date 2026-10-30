@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from .fit import Fit, estimate_fit
+from .token_cache import MessageTokenCache, SequenceTokenCache
 from .hardware import Hardware
 from .providers.base import ChatRequest, ModelMeta, Provider, ProviderError
 
@@ -53,12 +54,39 @@ def _content_tokens(content: Any) -> int:
     return estimate_tokens(str(content or ""))
 
 
+_MESSAGE_TOKENS = MessageTokenCache()
+_TOOL_TOKENS = SequenceTokenCache()
+
+
+def _message_tokens(message: dict[str, Any]) -> int:
+    """Deterministic per-message estimate, memoized on the values the formula reads."""
+    content = message.get("content")
+    calls = message.get("tool_calls")
+
+    def compute() -> int:
+        return (_content_tokens(content) + PER_MESSAGE_OVERHEAD
+                + sum(estimate_tokens(json.dumps(tc)) for tc in (calls or [])))
+
+    return _MESSAGE_TOKENS.get(message, content, calls, compute)
+
+
+def _tool_definition_tokens(tools: list[dict[str, Any]]) -> int:
+    """One serialized-size estimate for the tool schemas, memoized by schema identity."""
+    if not tools:
+        return 0
+    return _TOOL_TOKENS.get(tuple(tools), lambda: estimate_tokens(json.dumps(tools, separators=(",", ":"))))
+
+
 def prompt_tokens(messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> tuple[int, int]:
     """(message tokens, tool-definition tokens). Tool schemas are sent with every request."""
-    msg = sum(_content_tokens(m.get("content")) + PER_MESSAGE_OVERHEAD
-              + sum(estimate_tokens(json.dumps(tc)) for tc in (m.get("tool_calls") or [])) for m in messages)
-    tool = estimate_tokens(json.dumps(tools, separators=(",", ":"))) if tools else 0
-    return msg, tool
+    msg = sum(_message_tokens(message) for message in messages)
+    return msg, _tool_definition_tokens(tools)
+
+
+def clear_token_caches() -> None:
+    """Drop cached estimates; for tests and after an intentional transcript rewrite."""
+    _MESSAGE_TOKENS.clear()
+    _TOOL_TOKENS.clear()
 
 
 @dataclass

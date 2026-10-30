@@ -27,39 +27,14 @@ network references, or evaluate regexes outside Python's engine. JSON Schema
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+import threading
+from collections import OrderedDict
 from typing import Any, Iterable, Optional
 
+from .schema_analysis import SchemaReport, analysis_for, analyze_schema
 _MAX_PROBLEMS = 8
 _MAX_REF_DEPTH = 8
 _UNIQUE_ITEMS_LIMIT = 10_000
-
-#: Keywords the bounded validator enforces.
-_BOUNDED_KEYWORDS = frozenset({
-    "type", "enum", "const",
-    "properties", "required", "additionalProperties", "minProperties", "maxProperties",
-    "items", "minItems", "maxItems", "uniqueItems",
-    "minLength", "maxLength", "pattern",
-    "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
-    "allOf", "anyOf", "oneOf", "$ref",
-})
-
-#: Keywords that carry no constraint for execution and are ignored on purpose.
-#: ``format`` is informational here: Hutch does not enforce formats unless a schema's
-#: author also encodes the constraint (pattern, enum, tool-level policy). It is still
-#: reported through ``SchemaReport.format_fields`` so nothing is silently claimed.
-_ANNOTATION_KEYWORDS = frozenset({
-    "$schema", "$id", "title", "description", "examples", "example", "default",
-    "deprecated", "readOnly", "writeOnly", "$comment", "format",
-})
-
-#: Keywords that change validation semantics the bounded validator cannot honor.
-_UNSUPPORTED_KEYWORDS = frozenset({
-    "patternProperties", "propertyNames", "unevaluatedProperties", "unevaluatedItems",
-    "if", "then", "else", "dependentSchemas", "dependentRequired",
-    "contains", "minContains", "maxContains", "prefixItems", "unevaluatedItems",
-    "$dynamicRef", "$dynamicAnchor", "$anchor", "not",
-})
 
 _JSON_TYPES = ("object", "array", "string", "integer", "number", "boolean", "null")
 
@@ -110,95 +85,6 @@ def _describe(value: Any) -> str:
     if isinstance(value, dict):
         return "object"
     return type(value).__name__
-
-
-@dataclass(frozen=True)
-class SchemaReport:
-    """Static analysis of one canonical schema for planning and diagnostics."""
-
-    unsupported: tuple[str, ...] = ()
-    refs: tuple[str, ...] = ()
-    uses_unions: bool = False
-    uses_maps: bool = False          # additionalProperties as a schema (map semantics)
-    max_depth: int = 0
-    format_fields: tuple[str, ...] = ()
-    default_fields: tuple[str, ...] = ()
-    nullable_fields: tuple[str, ...] = ()
-
-    @property
-    def certifiable(self) -> bool:
-        return not self.unsupported
-
-
-def analyze_schema(schema: Any, *, _path: str = "", _depth: int = 0,
-                   _refs: list[str] | None = None, _seen: frozenset[str] = frozenset()) -> SchemaReport:
-    """Run bounded static analysis; never resolves a reference, even a local one."""
-    unsupported: list[str] = []
-    refs: list[str] = list(_refs or [])
-    formats: list[str] = []
-    defaults: list[str] = []
-    nullable: list[str] = []
-    unions = maps_ = False
-    max_depth = _depth
-
-    def walk(node: Any, path: str, depth: int) -> None:
-        nonlocal unions, maps_, max_depth
-        max_depth = max(max_depth, depth)
-        if depth > 32:
-            unsupported.append(f"{path or '<root>'}: schema nesting exceeds 32 levels")
-            return
-        if not isinstance(node, dict):
-            return
-        if "default" in node:
-            defaults.append(path or "<root>")
-        if "format" in node:
-            formats.append(path or "<root>")
-        for key, value in node.items():
-            if key in _BOUNDED_KEYWORDS or key in _ANNOTATION_KEYWORDS:
-                continue
-            if key in _UNSUPPORTED_KEYWORDS:
-                unsupported.append(f"{path or '<root>'}: keyword {key!r} is not checked by this validator")
-            elif key.startswith("$") or key in ("definitions",):
-                continue
-            else:
-                unsupported.append(f"{path or '<root>'}: unknown schema keyword {key!r}")
-        declared = node.get("type")
-        if isinstance(declared, list) and "null" in declared:
-            nullable.append(path or "<root>")
-        if "anyOf" in node or "oneOf" in node:
-            unions = True
-        addl = node.get("additionalProperties")
-        if isinstance(addl, dict):
-            maps_ = True
-        for ref_key in ("$ref", "$dynamicRef"):
-            ref = node.get(ref_key)
-            if isinstance(ref, str):
-                refs.append(ref)
-                if not ref.startswith("#"):
-                    unsupported.append(f"{path or '<root>'}: remote reference {ref!r} is not resolved")
-        for combinator in ("allOf", "anyOf", "oneOf"):
-            for index, child in enumerate(node.get(combinator) or []):
-                walk(child, f"{path}/{combinator}/{index}", depth + 1)
-        props = node.get("properties")
-        if isinstance(props, dict):
-            for name, child in props.items():
-                walk(child, f"{path}/properties/{name}", depth + 1)
-        items = node.get("items")
-        if isinstance(items, dict):
-            walk(items, f"{path}/items", depth + 1)
-        addl = node.get("additionalProperties")
-        if isinstance(addl, dict):
-            walk(addl, f"{path}/additionalProperties", depth + 1)
-        defs = node.get("$defs") if isinstance(node.get("$defs"), dict) else node.get("definitions")
-        if isinstance(defs, dict):
-            for name, child in defs.items():
-                walk(child, f"{path}/$defs/{name}", depth + 1)
-
-    walk(schema, _path, _depth)
-    return SchemaReport(unsupported=tuple(dict.fromkeys(unsupported)), refs=tuple(refs),
-                        uses_unions=unions, uses_maps=maps_, max_depth=max_depth,
-                        format_fields=tuple(formats), default_fields=tuple(defaults),
-                        nullable_fields=tuple(nullable))
 
 
 def _resolve_local_ref(schema: dict[str, Any], ref: str) -> Optional[dict[str, Any]]:
@@ -255,27 +141,89 @@ def validate_value(schema: dict[str, Any], value: Any) -> list[str]:
     return _validate_with_jsonschema_any(schema, value) if _HAVE_JSONSCHEMA else []
 
 
-def _validate_with_jsonschema_any(schema: dict[str, Any], value: Any) -> list[str]:
+_VALIDATOR_CACHE: "OrderedDict[int, tuple[dict[str, Any], Any]]" = OrderedDict()
+_MAX_CACHED_VALIDATORS = 128
+_VALIDATOR_LOCK = threading.Lock()
+
+
+def clear_validation_cache() -> None:
+    """Drop cached compilations; for tests and after an intentional catalog replacement."""
+    with _VALIDATOR_LOCK:
+        _VALIDATOR_CACHE.clear()
+
+
+def validation_cache_info() -> dict[str, int]:
+    """Bounded observability for tests and diagnostics (not a public API)."""
+    with _VALIDATOR_LOCK:
+        return {"size": len(_VALIDATOR_CACHE)}
+
+
+def _compiled_validator(schema: dict[str, Any]) -> Optional[Any]:
+    """Compile once per immutable schema object (see ``validate_tool_call_cached``).
+
+    The cache keeps a strong reference to the schema, so a cached identity cannot be
+    recycled by a different dict while the entry is live; the LRU bounds growth.
+    """
+    if not _HAVE_JSONSCHEMA:
+        return None
+    key = id(schema)
+    with _VALIDATOR_LOCK:
+        hit = _VALIDATOR_CACHE.get(key)
+        if hit is not None and hit[0] is schema:
+            _VALIDATOR_CACHE.move_to_end(key)
+            return hit[1]
     validator = _Draft202012Validator(schema)  # type: ignore[misc]
+    with _VALIDATOR_LOCK:
+        _VALIDATOR_CACHE[key] = (schema, validator)
+        while len(_VALIDATOR_CACHE) > _MAX_CACHED_VALIDATORS:
+            _VALIDATOR_CACHE.popitem(last=False)
+    return validator
+
+
+def _jsonschema_problems(validator: Any, value: Any, label: str) -> list[str]:
+    """Draft-validator errors, formatted exactly like the pre-cache helpers."""
     out: list[str] = []
-    for error in validator.iter_errors(value):
-        location = "/".join(str(part) for part in error.absolute_path) or "<root>"
-        out.append(f"value {location!r}: {error.message}")
-        if len(out) >= _MAX_PROBLEMS:
-            break
+    with _VALIDATOR_LOCK:  # a cached validator may be used by several worker threads
+        for error in validator.iter_errors(value):
+            location = "/".join(str(part) for part in error.absolute_path) or "<root>"
+            out.append(f"{label} {location!r}: {error.message}")
+            if len(out) >= _MAX_PROBLEMS:
+                break
     return out
+
+
+def _validate_with_jsonschema_any(schema: dict[str, Any], value: Any) -> list[str]:
+    return _jsonschema_problems(_Draft202012Validator(schema), value, "value")  # type: ignore[misc]
 
 
 def _validate_with_jsonschema(schema: dict[str, Any], args: dict[str, Any]) -> list[str]:
-    validator = _Draft202012Validator(schema)  # type: ignore[misc]
-    out: list[str] = []
-    for error in validator.iter_errors(args):
-        location = "/".join(str(part) for part in error.absolute_path) or "<root>"
-        out.append(f"argument {location!r}: {error.message}")
-        if len(out) >= _MAX_PROBLEMS:
-            break
-    return out
+    return _jsonschema_problems(_Draft202012Validator(schema), args, "argument")  # type: ignore[misc]
 
+
+def validate_tool_call_cached(schema: dict[str, Any], args: Any) -> list[str]:
+    """``validate_call`` for a registered tool schema, reusing static analysis and compilation.
+
+    Preconditions: the caller treats ``schema`` as immutable once registered (tool catalogs
+    are built once; the schema is never mutated afterwards). The bounded validator still
+    decides refusal first with its exact messages; the compiled Draft validator remains an
+    additional refusal check, never an acceptance source. Without the optional jsonschema
+    package this is the same fail-closed bounded path as validate_call without re-analysis.
+    """
+    if not isinstance(args, dict):
+        return [f"arguments must be a JSON object, got {_describe(args)}"]
+    report = analysis_for(schema)
+    if report.unsupported:
+        detail = "; ".join(report.unsupported[:_MAX_PROBLEMS])
+        return [f"this tool's registered argument schema cannot be fully checked locally ({detail}); "
+                "the call was not executed"]
+    problems: list[str] = []
+    _errors(args, schema, "", schema, problems, depth=0, ref_seen=frozenset())
+    if problems:
+        return problems[:_MAX_PROBLEMS]
+    validator = _compiled_validator(schema)
+    if validator is None:
+        return []
+    return _jsonschema_problems(validator, args, "argument")
 
 def _errors(instance: Any, schema: dict[str, Any], path: str, root: dict[str, Any],
             problems: list[str], *, depth: int, ref_seen: frozenset[str]) -> None:

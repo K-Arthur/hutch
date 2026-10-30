@@ -40,6 +40,19 @@ def sse_message(event: str, payload: dict[str, Any], id_: int | str | None = Non
     return f"{head}event: {event}\ndata: {json.dumps(payload, separators=(',', ':'))}\n\n".encode()
 
 
+def global_events_message(events: list[Event], cursor: int) -> bytes:
+    """One coalesced global event batch as an SSE frame, serialized once per event.
+
+    Payload shape is identical to
+    sse_message("events", {"events": [event.model_dump() for event in events], "cursor": cursor}, cursor);
+    pydantic serializes each event directly to JSON bytes instead of building 200 intermediate
+    dicts and re-encoding them. Kept as a narrow helper so the framing contract stays in one place.
+    """
+    body = (b'{"events":[' + b",".join(event.model_dump_json().encode("utf-8") for event in events)
+            + b'],"cursor":' + str(cursor).encode() + b"}")
+    return b"id: " + str(cursor).encode() + b"\nevent: events\ndata: " + body + b"\n\n"
+
+
 def phone_change_page(page: dict[str, Any]) -> dict[str, Any]:
     """Collapse broad resource invalidations to one content-free phone refresh hint."""
     changes = page.get("changes") or []
@@ -150,7 +163,7 @@ async def global_event_stream(request: Request, store, cursor: int,
                 if auth_check is not None and not await asyncio.to_thread(auth_check):
                     yield sse_message("auth_expired", {"reason": "session_expired_or_revoked"})
                     return
-                yield sse_message("events", {"events": [event.model_dump() for event in events], "cursor": cursor}, cursor)
+                yield global_events_message(events, cursor)
                 continue
             if await request.is_disconnected():
                 return

@@ -73,13 +73,15 @@ def coerce_args(schema: dict[str, Any], args: dict[str, Any]) -> tuple[dict[str,
 
 
 def validate_args(schema: dict[str, Any], args: Any) -> list[str]:
-    """Canonical schema problems (delegates to ``toolcalling.validate``).
+    """Canonical schema problems for a registered tool argument (cached static analysis).
 
     The full registered schema is always the final validator, whatever generation mode
     produced the call. A schema this install cannot fully check yields a refusal, never a pass.
+    Tool schemas are class-level constants, so the expensive static analysis and optional
+    Draft-validator compilation are reused across calls; refusal messages are unchanged.
     """
-    from ..toolcalling.validate import validate_call
-    return validate_call(schema or {}, args)
+    from ..toolcalling.validate import validate_tool_call_cached
+    return validate_tool_call_cached(schema or {}, args)
 
 
 def repair_instruction(tool: str, problems: list[str], schema: dict[str, Any]) -> str:
