@@ -1,0 +1,250 @@
+{
+  "label": "parity-final",
+  "surfaces": [
+    "spa-studio",
+    "pages-models"
+  ],
+  "viewports": [
+    {
+      "label": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine"
+    },
+    {
+      "label": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine"
+    }
+  ],
+  "results": [
+    {
+      "surface": "spa-studio",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/parity-final/spa-studio-desktop-1440.png"
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "desktop-1440",
+      "width": 1440,
+      "height": 960,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/parity-final/pages-models-desktop-1440.png"
+    },
+    {
+      "surface": "spa-studio",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": null,
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/parity-final/spa-studio-desktop-wide-1536.png"
+    },
+    {
+      "surface": "pages-models",
+      "viewport": "desktop-wide-1536",
+      "width": 1536,
+      "height": 864,
+      "pointer": "fine",
+      "ready": true,
+      "ready_error": "",
+      "viewport_contract": {
+        "present": true,
+        "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        "width_device": true,
+        "viewport_fit_cover": true
+      },
+      "js_enabled": true,
+      "nav": {
+        "present": true,
+        "nav_visible": true,
+        "nav_display": "flex",
+        "nav_scroll_overflow": 0,
+        "visible_links": 9,
+        "total_links": 9,
+        "toggle_display": "none",
+        "toggle_expanded": "false"
+      },
+      "overflow_px": 0,
+      "overflow_offenders": [],
+      "external_requests": [],
+      "page_errors": [],
+      "screenshot": "docs/responsive/screenshots/parity-final/pages-models-desktop-wide-1536.png"
+    }
+  ],
+  "failures": [],
+  "warnings": [],
+  "states": [
+    {
+      "name": "spa-sidebar-open-1180",
+      "screenshot": "docs/responsive/screenshots/parity-final/state-spa-sidebar-open-1180.png"
+    },
+    {
+      "name": "spa-sidebar-open-1366",
+      "screenshot": "docs/responsive/screenshots/parity-final/state-spa-sidebar-open-1366.png"
+    },
+    {
+      "name": "spa-sheet-open-375",
+      "screenshot": "docs/responsive/screenshots/parity-final/state-spa-sheet-open-375.png"
+    },
+    {
+      "name": "spa-keyboard-390",
+      "screenshot": "docs/responsive/screenshots/parity-final/state-spa-keyboard-390.png"
+    },
+    {
+      "name": "style-scope-desktop",
+      "measurement": {
+        "preflight": {
+          "margin_top": "8px",
+          "top": "960px"
+        },
+        "context_line": {
+          "margin_top": "8px",
+          "top": "960px"
+        },
+        "run_head": {
+          "margin_top": "0px",
+          "top": "54px"
+        },
+        "topbar_variable": ""
+      }
+    },
+    {
+      "name": "topbar-offset-desktop",
+      "measurement": {
+        "preflight": {
+          "margin_top": "0px",
+          "top": "0px"
+        },
+        "context_line": {
+          "margin_top": "0px",
+          "top": "0px"
+        },
+        "run_head": {
+          "margin_top": "-12px",
+          "top": "54px"
+        },
+        "topbar_variable": "54.00px"
+      }
+    },
+    {
+      "name": "rail-widths",
+      "measurement": {
+        "960": {
+          "rail": 304,
+          "collapsed": false
+        },
+        "1024": {
+          "rail": 304,
+          "collapsed": false
+        },
+        "1180": {
+          "rail": 304,
+          "collapsed": false
+        },
+        "1366": {
+          "rail": 304,
+          "collapsed": false
+        }
+      }
+    },
+    {
+      "name": "needs-you-390",
+      "screenshot": "docs/responsive/screenshots/parity-final/state-needs-you-390.png"
+    },
+    {
+      "name": "needs-you-landscape-844",
+      "screenshot": "docs/responsive/screenshots/parity-final/state-needs-you-landscape-844.png"
+    },
+    {
+      "name": "pages-nav-open-375",
+      "screenshot": "docs/responsive/screenshots/parity-final/state-pages-nav-open-375.png"
+    },
+    {
+      "name": "pages-nav-open-1024",
+      "screenshot": "docs/responsive/screenshots/parity-final/state-pages-nav-open-1024.png"
+    },
+    {
+      "name": "spa-focus-1366",
+      "screenshot": "docs/responsive/screenshots/parity-final/state-spa-focus-1366.png"
+    },
+    {
+      "name": "spa-focus-375",
+      "screenshot": "docs/responsive/screenshots/parity-final/state-spa-focus-375.png"
+    }
+  ],
+  "screenshots": [
+    "docs/responsive/screenshots/parity-final/spa-studio-desktop-1440.png",
+    "docs/responsive/screenshots/parity-final/pages-models-desktop-1440.png",
+    "docs/responsive/screenshots/parity-final/spa-studio-desktop-wide-1536.png",
+    "docs/responsive/screenshots/parity-final/pages-models-desktop-wide-1536.png"
+  ],
+  "thresholds": {
+    "min_target_px": 24,
+    "comfort_target_px": 44
+  },
+  "fail_on": [
+    "none"
+  ],
+  "css_structure": [],
+  "git": {
+    "sha": "8525c208",
+    "dirty_entries": 1
+  },
+  "generated_at": "2026-10-30T01:45:34+00:00",
+  "measurement_note": "Measured the current working tree; another session's uncommitted changes may be present and are never staged by this task."
+}

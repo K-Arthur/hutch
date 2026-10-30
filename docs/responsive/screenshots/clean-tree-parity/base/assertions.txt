@@ -1,0 +1,52 @@
+Responsive validation: parity-base
+Generated: 2026-10-30T01:45:07+00:00
+Git: 8525c208 (uncommitted worktree entries: 0)
+Matrix: 2 surfaces x 2 viewports = 4 measurements
+Fail-on: none
+
+ASSERTIONS
+  horizontal overflow: 0/4 measuring pairs overflow
+  ready selector:      0/4 pairs did not render
+  page errors:         0/4 pairs raised
+  non-local requests:  0/4 pairs made one
+  viewport contract:   2/4 pairs missing width=device-width or viewport-fit=cover
+  server nav model:    2 pairs measured, 0 with horizontal nav overflow
+  css structure:       0 problem(s) in 0 stylesheet(s)
+  touch targets < 24px: 0/0 coarse-pointer pairs
+  touch targets < 44px: 0/0 coarse-pointer pairs (comfort warning)
+  contrast < WCAG AA:  0/0 sampled pairs
+
+FAILURES (5)
+  meta     pages-models     desktop-1440         viewport meta lacks viewport-fit=cover
+  meta     pages-models     desktop-wide-1536    viewport meta lacks viewport-fit=cover
+  styles   spa-studio       desktop-1440         preflight/context rules are still phone-scoped: {'preflight': {'margin_top': '0px', 'top': '960px'}, 'context_line': {'margin_top': '0px', 'top': '960px'}, 'run_head': {'margin_top': '0px', 'top': '960px'}, 'topbar_variable': ''}
+  styles   pages-models     desktop-1440         run-head sticky offset 54px does not follow --topbar-h 
+  styles   spa-studio       rail-widths          rail width differs across 960/1024/1180/1366: {960: {'rail': 272, 'collapsed': False}, 1024: {'rail': 304, 'collapsed': False}, 1180: {'rail': 304, 'collapsed': False}, 1366: {'rail': 304, 'collapsed': False}}
+
+WARNINGS (0): {}
+
+SCREENSHOTS (4)
+  docs/responsive/screenshots/parity-base/spa-studio-desktop-1440.png
+  docs/responsive/screenshots/parity-base/pages-models-desktop-1440.png
+  docs/responsive/screenshots/parity-base/spa-studio-desktop-wide-1536.png
+  docs/responsive/screenshots/parity-base/pages-models-desktop-wide-1536.png
+
+STATES (13)
+  spa-sidebar-open-1180        docs/responsive/screenshots/parity-base/state-spa-sidebar-open-1180.png
+  spa-sidebar-open-1366        docs/responsive/screenshots/parity-base/state-spa-sidebar-open-1366.png
+  spa-sheet-open-375           docs/responsive/screenshots/parity-base/state-spa-sheet-open-375.png
+  spa-keyboard-390             docs/responsive/screenshots/parity-base/state-spa-keyboard-390.png
+  style-scope-desktop          (measurement only)
+  topbar-offset-desktop        (measurement only)
+  rail-widths                  (measurement only)
+  needs-you-390                docs/responsive/screenshots/parity-base/state-needs-you-390.png
+  needs-you-landscape-844      docs/responsive/screenshots/parity-base/state-needs-you-landscape-844.png
+  pages-nav-open-375           docs/responsive/screenshots/parity-base/state-pages-nav-open-375.png
+  pages-nav-open-1024          docs/responsive/screenshots/parity-base/state-pages-nav-open-1024.png
+  spa-focus-1366               docs/responsive/screenshots/parity-base/state-spa-focus-1366.png
+  spa-focus-375                docs/responsive/screenshots/parity-base/state-spa-focus-375.png
+
+NOTE: measurements ran against the current working tree. Uncommitted changes
+owned by another session may be present; this task never stages them.
+
+RESULT: PASS
