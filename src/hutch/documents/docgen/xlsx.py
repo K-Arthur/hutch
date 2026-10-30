@@ -37,6 +37,8 @@ import xlsxwriter
 from openpyxl import load_workbook
 
 from . import DocumentGenerationError, GeneratedDocument, register
+from .native import NativeUnavailable, write_workbook as _native_write_workbook
+from .xlsx_preview import preview as _preview
 
 GENERATOR = (f"hutch docgen xlsx 1.0 (XlsxWriter {_dist_version('XlsxWriter')}"
              f" + openpyxl {_dist_version('openpyxl')})")
@@ -45,9 +47,6 @@ MAX_SHEETS = 20
 MAX_SHEET_ROWS = 100_000
 MAX_SHEET_COLS = 256
 MAX_COL_WIDTH = 255
-#: the grid sample the structure preview carries: first N rows of each sheet, header included
-PREVIEW_SAMPLE_ROWS = 8
-PREVIEW_CELL_CHARS = 120
 #: cap on source cells scanned while recomputing formulas, so a spec cannot make the gate
 #: quadratic; past it, remaining formulas are disclosed as unrecomputed warnings instead
 MAX_RECOMPUTE_CELLS = 2_000_000
@@ -349,6 +348,10 @@ def _verify_declared_values(sheets: list[_Sheet]) -> list[dict[str, str]]:
 
 
 def _write_workbook(sheets: list[_Sheet]) -> bytes:
+    try:
+        return _native_write_workbook(sheets)
+    except NativeUnavailable:
+        pass  # optional kernel not built: the reference writer below is authoritative
     buffer = io.BytesIO()
     workbook = xlsxwriter.Workbook(buffer, {"in_memory": True})
     workbook.set_calc_mode("auto")
@@ -449,30 +452,6 @@ def _verify_written_workbook(data: bytes, sheets: list[_Sheet]) -> None:
                                 f"{sheet.name}!{_address(r + offset, c)}: formula did not round-trip")
         finally:
             book.close()
-
-
-def _preview_cell(cell: Cell) -> str | int | float:
-    if cell[0] == "str":
-        text = cell[1]
-        return text if len(text) <= PREVIEW_CELL_CHARS else text[:PREVIEW_CELL_CHARS] + "…"
-    if cell[0] == "num":
-        return cell[1]
-    if cell[0] == "date":
-        return cell[1].isoformat()
-    return cell[2]
-
-
-def _preview(sheets: list[_Sheet]) -> dict[str, Any]:
-    previews = []
-    for sheet in sheets:
-        sample: list[list[str | int | float]] = []
-        if sheet.header:
-            sample.append([_preview_cell(("str", text)) for text in sheet.header])
-        for row in sheet.rows[: PREVIEW_SAMPLE_ROWS - len(sample)]:
-            sample.append([_preview_cell(cell) for cell in row])
-        previews.append({"name": sheet.name, "rows": len(sheet.rows), "cols": sheet.width,
-                         "sample": sample})
-    return {"kind": "grid", "sheets": previews}
 
 
 @register("xlsx")
