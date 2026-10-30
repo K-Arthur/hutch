@@ -117,9 +117,9 @@ more than 5x headroom; the crash-recovery contract was not weakened for throughp
 Deferred with measurements (not abandoned): lazy CLI imports (`hutch.tools` costs ~294 ms
 cumulative import even for `hutch version`), and the dashboard's per-batch refetch + full
 `innerHTML` rebuild (largest user-visible opportunity; blocked by another session's uncommitted
-UI files). A Rust XLSX-write prototype would clear the operation-level P11 gate (~28% of
-generation time) but is rejected for this release because it cannot be shipped without
-packaging changes and its end-to-end effect is small; see ADR-0024.
+UI files). A Rust XLSX-write prototype measured ~109 -> ~24 ms on the write stage but was deferred
+in that release because it could not be shipped without packaging changes; see ADR-0024 and the
+2026-10-29 section below, where it was subsequently built as an optional accelerator.
 ## 2026-10-29 dashboard live updates and optional native XLSX writer
 
 Two measured follow-ups from the earlier performance programme, with full records in
@@ -135,7 +135,10 @@ Two measured follow-ups from the earlier performance programme, with full record
   no overflow or page errors, unchanged DOM size and scroll frame time.
 - **Optional native XLSX writer.** A pinned PyO3 + rust_xlsxwriter kernel is an opt-in build artifact
   with a pure-Python fallback; the independent openpyxl read-back gate is unchanged. One-driver A/B:
-  write stage median **82.98 -> 44.34 ms** (-46.6%), full 5000-row generation p95 **343.41 -> 273.96 ms**
-  (-20.2%, the repository P11 operation-level bar including the JSON boundary). Build:
+  write stage median **82.98 -> 44.34 ms** (-46.6%) in the loaded run and a -53.4% median gain in the
+  quiet rerun; full 5000-row generation median **-18.6% to -22.2%**, p95 **-13.5% to -20.2%** depending
+  on host load, with the absolute pre-registered p95 target met on the quiet run (178 ms) but not on the
+  loaded one (274 ms). It is therefore documented as a host-dependent, operation-level accelerator rather
+  than a stable >=20% p95 replacement. Build:
   `python scripts/build_native_docgen.py --check`; disable with `HUTCH_DISABLE_NATIVE_DOCGEN=1`.
   No mandatory Rust dependency or manifest change.

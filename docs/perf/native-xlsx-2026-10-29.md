@@ -62,19 +62,28 @@ module disabled. The ordinary Python test matrix is unchanged and does not requi
 
 ## Measured result
 
-One Python driver, paired samples, same process, loadavg 3.3 at start / 5.2 at end; preflight verified
-both writers passed the unchanged openpyxl gate and decoded equal before any timing:
+One Python driver, paired samples, same process; preflight verified both writers passed the unchanged
+openpyxl gate and decoded output equal before timing. Two runs were recorded because the host is shared
+and the relative split depends on how much of the pure-Python time is the (unchanged) validation gate:
 
-| Case | Pure Python (median / p95) | Native (median / p95) | Paired effect |
-|---|---|---|---|
-| Write stage only (JSON encode + `.so` call included) | 82.98 / 161.48 ms | 44.34 / 95.68 ms | median **-46.6%**, p95 **-40.7%** |
-| Full `generate('xlsx', spec)` (independent gate included) | 291.54 / 343.41 ms | 237.26 / 273.96 ms | median **-18.6%**, p95 **-20.2%** |
+| Run (load) | Write stage median (Python -> native) | Write p95 | Full generation median | Full p95 |
+|---|---|---|---|---|
+| loaded (loadavg 3.3 start / 5.2 end), n=20 write / 15 full | 82.98 -> 44.34 ms (-46.6%) | 161.48 -> 95.68 ms (-40.7%) | 291.54 -> 237.26 ms (-18.6%) | 343.41 -> 273.96 ms (-20.2%) |
+| quiet (loadavg 2.1, n=30 write / 25 full) | 53.4% median gain (ratio 0.467) | -27.3% | 170.25 -> 132.47 ms (-22.2%) | 205.99 -> 178.16 ms (-13.5%) |
 
-The boundary is one Python<->Rust crossing per workbook: 328.8 KiB JSON payload, JSON encode 15.34 ms,
-`.so` call 24.64 ms of the native write stage. The write stage is ~28% of pure-Python full generation,
-so the full-generation gain is bounded by that share; the measured p95 gain **meets the repository P11
-operation-level bar (>=20% p95 including the boundary)**. This is an operation-level result: end-to-end
-document workflows are dominated by model drafting and by the independent validation gate, and no
-user-latency claim beyond large workbook generation is made. Artifact:
-`.dsh/long-horizon/hutch-wins/artifacts/native/ab.json` (19 samples per side for the write stage,
-15 per side for full generation; min/median/p95/max in the JSON).
+Boundary per workbook: one Python<->Rust crossing, 328.8 KiB JSON payload; JSON encode 10.7-15.3 ms and
+`.so` call 21.8-24.6 ms, i.e. the boundary is included in the numbers above. The write stage is ~28-42%
+of pure-Python full generation, so full-generation gains are bounded by that share and by the unchanged
+independent read-back gate (the largest component).
+
+**Honest reading of the pre-registered bar.** The plan's threshold was an absolute p95 <=252 ms for the
+5000-row case (20% below the 315.3 ms baseline). The quiet run meets that absolute target (native p95
+178 ms); the loaded run does not (274 ms) while its *relative* paired p95 gain is 20.2%. The relative
+gain ranged 13.5-20.2% across the two runs and is host-load dependent, so this programme does **not**
+claim a stable >=20% p95 improvement. What is consistent and large is the write-stage gain (-47% to
+-53% median) and the full-generation median gain (-19% to -22%). The kernel stays optional, is guarded
+by the parity corpus and the unchanged gate, and is documented as an experimental accelerator rather
+than as a validated replacement of the reference writer on every host.
+
+Artifacts: `.dsh/long-horizon/hutch-wins/artifacts/native/ab.json` (first run) and `ab-rerun.json`
+(second run), each with every sample, machine metadata and load average.
