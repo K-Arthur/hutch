@@ -1,6 +1,6 @@
 # Responsive Adaptation - State
 
-Last updated: 2026-10-29T17:56:00-07:00 | Last commit: e71aa045 (validation harness)
+Last updated: 2026-10-29T18:03:00-07:00 | Last commit: bb01f24d (baseline evidence)
 Goal id: goal-28c56178-ce15-4d56-b317-b0f275ff75cb (revision 1) | Branch: main
 Validation runner: scripts/validate_responsive.py (single source: scripts/responsive/config.py)
 Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png}
@@ -9,7 +9,7 @@ Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png
 
 | # | Task | Status | Commit | Next action / Blocker |
 |---|------|--------|--------|----------------------|
-| 00 | setup: goal, team, research, audit, plan, harness, baseline | in-progress | e71aa045 | commit baseline evidence (label baseline-2a89909a), then start 01 |
+| 00 | setup: goal, team, research, audit, plan, harness, baseline | done | bb01f24d | - |
 | P0 | online research report | done | 3215d755 | - |
 | P0.5 | scored inventory | done | e4dfe6ce | - |
 | P1 | responsive audit | done | e4dfe6ce | - |
@@ -26,7 +26,7 @@ Evidence: docs/responsive/screenshots/<label>/{summary.json,assertions.txt,*.png
 
 ## Baseline evidence (pre-change)
 
-Label: baseline-2a89909a. Source baseline commit 2a89909a (the docs commits after it do not change the UI).
+Status: done, commit bb01f24d. Label: baseline-2a89909a. Source baseline commit 2a89909a (the docs commits after it do not change the UI).
 Result: 13 surfaces x 10 viewports = 130 measurements, 0 assertion failures, 53 screenshots
 plus 6 state captures (sidebar open at 1180/1366, phone sheet open, server nav open at
 375, focus at 1366/375), 7.4 MB committed under docs/responsive/screenshots/baseline-2a89909a/.
