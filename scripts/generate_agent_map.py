@@ -226,10 +226,8 @@ def render(root: Path = ROOT) -> str:
         "",
         "## Regenerate",
         "",
-        "```bash",
-        "python scripts/generate_agent_map.py --write   # stage additions/removals first",
-        "python scripts/generate_agent_map.py --check   # drift check (default); also npm run audit:agent-map",
-        "```",
+        "Regenerate with python scripts/generate_agent_map.py --write after staging additions or removals; "
+        "--check (also npm run audit:agent-map) detects drift.",
     ])
     if len(lines) > MAX_LINES:
         raise AgentMapError(

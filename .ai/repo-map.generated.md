@@ -6,7 +6,7 @@ no source line counts, no unstaged or ignored files. Ordinary source edits do
 not change it; stage file additions or removals, then regenerate. Do not edit
 this file by hand.
 
-Tracked files in scope: 2183.
+Tracked files in scope: 2204.
 
 ## Top-level layout
 
@@ -23,15 +23,15 @@ Tracked files in scope: 2183.
 | `docs/` | 1104 |
 | `native/` | 9 |
 | `scripts/` | 36 |
-| `src/` | 476 |
-| `tests/` | 394 |
+| `src/` | 492 |
+| `tests/` | 399 |
 | `website/` | 66 |
 
 ## Python package: src/hutch/
 
 | Path | Tracked files |
 | --- | ---: |
-| `(root files)` | 91 |
+| `(root files)` | 92 |
 | `actions/` | 3 |
 | `channels/` | 4 |
 | `computer/` | 13 |
@@ -41,14 +41,15 @@ Tracked files in scope: 2183.
 | `gsuite/` | 4 |
 | `integrations/` | 8 |
 | `media/` | 10 |
+| `personal/` | 6 |
 | `platforms/` | 4 |
 | `providers/` | 13 |
 | `runtime/` | 15 |
-| `server/` | 194 |
+| `server/` | 202 |
 | `sources/` | 4 |
 | `synthesis/` | 7 |
 | `toolcalling/` | 10 |
-| `tools/` | 30 |
+| `tools/` | 31 |
 | `web/` | 6 |
 | `workflow/` | 16 |
 | `workspace/` | 6 |
@@ -57,8 +58,8 @@ Tracked files in scope: 2183.
 
 | Path | Tracked files |
 | --- | ---: |
-| `(root files)` | 285 |
-| `e2e/` | 77 |
+| `(root files)` | 289 |
+| `e2e/` | 78 |
 | `fixtures/` | 16 |
 | `native/` | 1 |
 | `support/` | 15 |
@@ -114,7 +115,4 @@ Tracked files in scope: 2183.
 
 ## Regenerate
 
-```bash
-python scripts/generate_agent_map.py --write   # stage additions/removals first
-python scripts/generate_agent_map.py --check   # drift check (default); also npm run audit:agent-map
-```
+Regenerate with python scripts/generate_agent_map.py --write after staging additions or removals; --check (also npm run audit:agent-map) detects drift.
