@@ -20,7 +20,7 @@ from typing import Iterable, Optional
 
 #: Tools a Strict Offline run withholds because the worker has no host network.
 OFFLINE_WITHHELD = frozenset({
-    "web_fetch", "browser", "google_calendar_events", "google_calendar_create_event",
+    "web_fetch", "browser", "vault_http_request", "google_calendar_events", "google_calendar_create_event",
     "outlook_calendar_events", "outlook_calendar_create_event", "outlook_mail_search",
     "google_mail_search",
 })
