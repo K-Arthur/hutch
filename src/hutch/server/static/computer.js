@@ -92,9 +92,16 @@
 
     if (desktop) {
       var env = state.environment || {};
+      var semantics = env.semantics === "unavailable"
+        ? " This session is reading the screen only, so actions use pixels" +
+          (env.semantics_reason ? " (" + env.semantics_reason + ")" : "") + "."
+        : env.semantics
+          ? " This session can read the application's controls directly."
+          : "";
       next.appendChild(el("p", { class: "hint computer-env",
         text: "Separate display and input from your own desktop. " + (env.boundary ? env.boundary + "." : "App containment was not recorded; this frame does not prove a sandbox boundary.") +
-              (env.applications && env.applications.length ? " Allowed applications: " + env.applications.join(", ") + "." : "") }));
+              (env.applications && env.applications.length ? " Allowed applications: " + env.applications.join(", ") + "." : "") +
+              semantics }));
     } else if (state.frame && state.frame.page && state.frame.page.url) {
       next.appendChild(el("p", { class: "hint computer-env", text: "Page: " + state.frame.page.url + (state.frame.page.id ? " (tab " + state.frame.page.id + ")" : "") }));
     }

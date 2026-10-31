@@ -71,7 +71,7 @@ def live(tmp_path, monkeypatch):
 
 
 def _seed(app, *, owner="agent", status=RunStatus.running, hostile=False, width=1280, height=800,
-          captured_at=None, with_frame_file=True):
+          captured_at=None, with_frame_file=True, semantics=None, semantics_reason=""):
     store = app.state.store
     bot = Bot(name=f"desk-{owner}", model="ollama/qwen3:4b", tools=["computer"], computer_apps=["kwrite"])
     store.upsert_bot(bot)
@@ -89,7 +89,9 @@ def _seed(app, *, owner="agent", status=RunStatus.running, hostile=False, width=
         "tool": "computer", "ok": True, "output": "observed the desktop", "frames": [frame],
         "observation": {"schema": 1, "surface": {"kind": "desktop_screen", "id": "screen-0"},
                         "captured_at": captured_at or time.strftime("%Y-%m-%dT%H:%M:%S.000+00:00", time.gmtime()),
-                        "environment": {"mode": "isolated", "applications": ["kwrite", "<b>x</b>"]}}}))
+                        "environment": {"mode": "isolated", "applications": ["kwrite", "<b>x</b>"],
+                                        **({"semantics": semantics, "semantics_reason": semantics_reason}
+                                           if semantics else {})}}}))
     if status is RunStatus.waiting_human:
         store.append_event(Event(run_id=run.id, type=EventType.human_needed, data={
             "reason": "Sign in at the page", "url": "https://example.test/login", "handoff": "Finish the step."}))
@@ -235,6 +237,23 @@ def test_page_and_application_strings_are_untrusted_text_not_markup(browser, liv
         panel = page.locator("[data-computer-panel]")
         assert panel.locator("img[src='x']").count() == 0
         assert '<img src=x onerror="window.__pwned=1">' in panel.inner_text(), "hostile text must be shown as text"
+    finally:
+        page.close()
+
+
+def test_the_panel_says_whether_the_session_can_read_controls_or_only_pixels(browser, live):
+    """A person should be able to tell why a bot is guessing coordinates: no accessibility tree in this session."""
+    base, app = live
+    page = _open(browser, base, _seed(app), 1440, 900)
+    try:
+        assert "reading the screen only" not in page.locator("[data-computer-panel]").inner_text()
+    finally:
+        page.close()
+    page = _open(browser, base, _seed(app, semantics="unavailable",
+                                      semantics_reason="at-spi2-registryd is not installed"), 1440, 900)
+    try:
+        text = page.locator("[data-computer-panel]").inner_text()
+        assert "reading the screen only" in text and "at-spi2-registryd is not installed" in text
     finally:
         page.close()
 
