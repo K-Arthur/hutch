@@ -13,7 +13,7 @@
       "session_header": "x-opencode-session",
       "get_key_url": "https://opencode.ai/console",
       "signin_guidance": "Open the OpenCode Console, sign in and subscribe to Go if needed, then copy its API key into Hutch. This is an API-key connection, not the full OpenCode assistant sign-in. For the complete OpenCode agent, use the OpenCode setup instead.",
-      "source": "https://opencode.ai/v2/docs/console/go",
+      "source": "https://opencode.ai/v2/docs/console/go/",
       "models_endpoint": true,
       "terms": {
         "url": "https://opencode.ai/docs/go/",
@@ -21,7 +21,8 @@
         "notice": "OpenCode Go asks third-party clients to send 'typical coding agent traffic', to identify themselves with their own User-Agent, and to send a stable session id; it says traffic is monitored for abuse. Hutch sends its own User-Agent and reuses a conversation id across runs in a conversation; standalone scheduled runs use their run id. Whether UNATTENDED, SCHEDULED bot runs count as typical coding-agent traffic is OpenCode's call, not Hutch's - read their terms before scheduling bots on this plan, and keep an allowance below so you stop before they do."
       },
       "quota_hint": "Usage is capped as monthly dollar amounts with a 5-hour sub-limit of 20% and a weekly sub-limit of 50% (docs, 2026-10-07). The dollar value per token varies by model, so declare your allowance in tokens (a rough proxy) and calibrate it against the OpenCode console.",
-      "model_protocol_hint": "OpenCode publishes a model-specific endpoint: most models use OpenAI Chat Completions, some (Claude Haiku, MiniMax, Qwen) use Anthropic Messages, and a few (Grok, GPT Luna, Muse Spark) use OpenAI Responses, which this direct route does not implement. Set `hutch connections set-protocol opencode-go <model> anthropic` for an Anthropic-served model, or use the full OpenCode assistant for Responses-only models."
+      "model_protocol_hint": "OpenCode Go serves chat at .../go/openai/v1 and .../go/anthropic, but the model catalogue lives at .../go/v1/models, which is why this template declares a separate catalogue URL. The vendor lists a native API per model: GLM, Kimi, DeepSeek, MiMo, MiniMax M3.1 Flash, Step and the free models speak OpenAI Chat Completions; Claude Haiku, MiniMax M3, Qwen3.8 and Qwen3.7 speak Anthropic Messages; Gemini 4 Argon speaks Gemini; Grok, GPT Luna and Muse Spark speak OpenAI Responses, which Hutch does not offer on a generic connection. Set a model's protocol with `hutch connections set-protocol <name> <model> anthropic` when it is not Chat Completions.",
+      "models_base_url": "https://opencode.ai/inference/go/v1"
     },
     "openai-api": {
       "title": "OpenAI API",

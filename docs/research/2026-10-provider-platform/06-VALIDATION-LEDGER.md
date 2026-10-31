@@ -311,3 +311,42 @@ by 316 px. The committed page measures the same 316 px (verified by stashing thi
 re-measuring), and the widest element is a header `btn btn-primary btn-sm`, not anything in the provider
 section. It is a site-wide reflow gap, not a regression from this slice, and it is left unfixed here
 because changing the site's global header is outside this slice's ownership.
+
+## OpenCode Go discovery path (2026-10-31)
+
+The installed OpenCode credential store (`~/.local/share/opencode/auth.json`, read in memory only,
+never copied into the repository) holds an `opencode-go` key and a `xiaomi-token-plan-sgp` key. Both
+were probed against their live `/models` endpoints.
+
+| Route | Observation | Meaning |
+|---|---|---|
+| OpenCode Go, `/go/openai/v1/models` | HTTP 404 | the chat base is not where the catalogue lives |
+| OpenCode Go, `/go/v1/models` | HTTP 401 `authentication_error / api_key_expired` | the documented path is right; this key is expired |
+| OpenCode Go, `POST /go/openai/v1/chat/completions` | HTTP 400 `MissingSessionID` | the chat path and the `x-opencode-session` requirement are both real |
+| Xiaomi Token Plan SGP, `/v1/models` | HTTP 200, 6 models (`mimo-v2.5-asr`, `-tts`, `-tts-voiceclone`, `-tts-voicedesign`, ...) | the stored key authenticates and the regional endpoint answers |
+
+The 404 matters. Hutch built its OpenCode Go connection from the chat base URL, so model discovery asked
+`.../go/openai/v1/models`, which does not exist, and reported `opencode-go returned HTTP 404`. The vendor
+documents the catalogue at `https://opencode.ai/inference/go/v1/models`. A user with a perfectly valid Go
+key would have seen a 404 and concluded the connection was broken.
+
+Fixed by letting a connection declare where its catalogue lives, separately from where chat lives:
+
+- `Connection.models_base_url` (optional, validated as an absolute HTTP(S) URL with no embedded
+  credentials) carries it; the adapter builds `GET <models_base_url>/models` when it is set.
+- It is a template default that only applies to the template's own host. If `base_url` is overridden to a
+  different origin the catalogue URL is dropped, so chat and discovery can never point at two different
+  services. The existing fake-server test caught exactly this hazard on the first run.
+- `tests/test_provider_routes.py` pins the path, the origin rule and the credential-embedding refusal.
+
+Live check through Hutch's own code path afterwards: `probe_models()` returns
+`reachable, but the API key was rejected` instead of the 404, and `health()` agrees. That is the truthful
+message for an expired key, and it is the provider's own wording, not a guess.
+
+Not established: no inference was run on OpenCode Go (the key is expired, and `probe_models` spends no
+tokens by design), no model list was retrieved for this account, and the Xiaomi models were listed but not
+called. Both routes keep their existing status; neither is live-verified for inference.
+
+Housekeeping: the Xiaomi key authenticating is a new, dated fact about an endpoint Hutch already shipped.
+It does not upgrade any capability claim - a model list is not a working chat request, and the six models
+listed are speech and transcription models rather than chat models.

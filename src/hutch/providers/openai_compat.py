@@ -20,6 +20,7 @@ from typing import Any, Optional
 
 from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall,
                    Watchdog, abort_response, parse_tool_args_state, record_adapter_receipt)
+from .model_list import parse_catalog_ids
 from .openrouter_policy import validate_policy
 
 PRESET_URLS = {
@@ -29,9 +30,6 @@ PRESET_URLS = {
     "llama.cpp": "http://localhost:8080/v1",
     "vllm": "http://localhost:8000/v1",
 }
-
-_MODEL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,159}$")
-_MAX_DISCOVERED_MODELS = 10000
 
 # Official image-input model table, checked 2026-10-11. Unknown/custom endpoints remain semantic-only.
 _VISION_MODELS = {"gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-5.1", "gpt-5.2",
@@ -55,9 +53,12 @@ class OpenAICompatProvider(Provider):
 
     def __init__(self, base_url: str, api_key: str = "", provider_name: str = "openai-compatible",
                  headers: Optional[dict[str, str]] = None, session_header: str = "", auth_hint: str = "",
-                 openrouter: Optional[bool] = None, routing_policy: Optional[dict] = None):
+                 openrouter: Optional[bool] = None, routing_policy: Optional[dict] = None,
+                 catalog_url: str = ""):
         from .registry import is_official_endpoint, reject_endpoint_credentials
         self.base_url = reject_endpoint_credentials(base_url).rstrip("/")
+        # A plan may publish its catalogue on a different path than chat (OpenCode Go).
+        self.catalog_url = reject_endpoint_credentials(catalog_url).rstrip("/") if catalog_url else ""
         self._official_openai = is_official_endpoint("openai", self.base_url)
         self._openrouter = provider_name == "openrouter" if openrouter is None else openrouter
         self.reports_billed_cost = self._openrouter
@@ -143,10 +144,14 @@ class OpenAICompatProvider(Provider):
 
     # ------------------------------------------------------------- metadata
 
+    def _catalog(self) -> str:
+        """Where the model list lives. An absolute URL overrides the chat base path."""
+        return f"{self.catalog_url}/models" if self.catalog_url else "/models"
+
     def health(self) -> Health:
         t = time.perf_counter()
         try:
-            r = self._http().get("/models", timeout=self._timeout(read=5.0))
+            r = self._http().get(self._catalog(), timeout=self._timeout(read=5.0))
             if r.status_code in (401, 403):
                 return Health(ok=False, detail="reachable, but the API key was rejected")
             r.raise_for_status()
@@ -199,7 +204,7 @@ class OpenAICompatProvider(Provider):
                 parts.append("free tier")
             account = "; ".join(parts)
         try:
-            r = self._http().get("/models", timeout=self._timeout(read=8.0))
+            r = self._http().get(self._catalog(), timeout=self._timeout(read=8.0))
         except Exception as exc:
             return False, self._wrap_exc(exc).args[0], []
         if r.status_code in (401, 403):
@@ -217,7 +222,7 @@ class OpenAICompatProvider(Provider):
 
     def list_models(self) -> list[ModelMeta]:
         try:
-            r = self._http().get("/models", timeout=self._timeout(read=10.0))
+            r = self._http().get(self._catalog(), timeout=self._timeout(read=10.0))
             if r.status_code >= 400:
                 raise self._error_from_response(r)
             return [ModelMeta(name=name) for name in self._catalog_ids(r.json())]
@@ -227,14 +232,7 @@ class OpenAICompatProvider(Provider):
             raise self._wrap_exc(exc)
 
     def _catalog_ids(self, payload: Any) -> list[str]:
-        if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
-            raise ProviderError("other", f"{self.name} returned an invalid model catalog", provider=self.name)
-        if len(payload["data"]) > _MAX_DISCOVERED_MODELS:
-            raise ProviderError("other", f"{self.name}'s model catalog exceeded Hutch's discovery limit",
-                                provider=self.name)
-        ids = {row.get("id") for row in payload["data"] if isinstance(row, dict)
-               and isinstance(row.get("id"), str) and _MODEL_ID.fullmatch(row["id"])}
-        return sorted(ids)
+        return parse_catalog_ids(payload, self.name)
 
     def list_openrouter_catalog(self, query: str = "", limit: int = 40) -> list[dict[str, Any]]:
         """Read OpenRouter's text-model catalog for the model picker; never makes an inference request."""

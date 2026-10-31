@@ -31,7 +31,8 @@ def provider_for_connection(book: ConnectionBook, name: str, model: str, *, reso
     if protocol == "openai-chat":
         from .openai_compat import OpenAICompatProvider
         return OpenAICompatProvider(base, key, provider_name=name, headers=headers, session_header=conn.session_header,
-                                    openrouter=conn.template == "openrouter", routing_policy=conn.openrouter_policy)
+                                    openrouter=conn.template == "openrouter", routing_policy=conn.openrouter_policy,
+                                    catalog_url=conn.models_base_url)
     if protocol == "anthropic":
         from .claude import ClaudeProvider
         return ClaudeProvider(api_key=key, base_url=base, provider_name=name, headers=headers,

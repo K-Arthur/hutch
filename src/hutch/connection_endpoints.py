@@ -1,0 +1,74 @@
+"""Validation of the URLs a connection declares.
+
+Kept out of ``connections.py`` so that module stays a store rather than a URL validator, and so the
+rules below can be read and tested on their own. Two rules matter for safety:
+
+* a connection endpoint may never embed credentials (a key is a reference, never part of a URL);
+* plain HTTP is allowed only for a loopback service, because a hosted endpoint over plain HTTP would
+  put the bearer key on the wire.
+"""
+
+from __future__ import annotations
+
+import ipaddress
+from typing import Any
+from urllib.parse import urlsplit
+
+#: Fields a connection may declare a URL in. ``models_base_url`` is separate from the chat base because
+#: some plans publish their model catalogue on a different path (OpenCode Go: chat under
+#: ``/inference/go/openai/v1``, catalogue under ``/inference/go/v1``).
+ENDPOINT_FIELDS = ("base_url", "anthropic_base_url", "models_base_url")
+
+
+def _parts(endpoint: str):
+    try:
+        parts = urlsplit(endpoint)
+        if parts.username is not None or parts.password is not None:
+            raise ValueError("connection endpoints cannot embed credentials; use a key reference")
+        host = (parts.hostname or "").lower()
+        port = parts.port
+    except ValueError:
+        raise ValueError("connection endpoint is malformed or contains embedded credentials") from None
+    return parts, host, port
+
+
+def validate_endpoints(merged: dict[str, Any]) -> None:
+    """Refuse a malformed, credential-bearing or non-loopback plain-HTTP endpoint."""
+    for field_name in ENDPOINT_FIELDS:
+        endpoint = merged.get(field_name)
+        if not endpoint:
+            continue
+        parts, host, port = _parts(endpoint)
+        if (parts.scheme not in {"http", "https"} or not host or parts.query or parts.fragment or
+                (port is not None and not 1 <= port <= 65535) or "%" in host):
+            raise ValueError("connection endpoint must be an absolute HTTP(S) URL without query or fragment")
+        if parts.scheme == "http":
+            try:
+                loopback = ipaddress.ip_address(host).is_loopback
+            except ValueError:
+                loopback = host == "localhost"
+            if not loopback:
+                raise ValueError("connection endpoints must use HTTPS except for a loopback HTTP service")
+
+
+def origin(url: str) -> tuple[str, str, int | None]:
+    """(scheme, host, port) for a validated endpoint."""
+    parts, host, port = _parts(url)
+    return parts.scheme, host, port
+
+
+def models_base(merged: dict[str, Any]) -> str:
+    """The catalogue base URL, only when it belongs to the same service as ``base_url``.
+
+    A template ships ``models_base_url`` for its own host. If a caller points ``base_url`` somewhere else,
+    keeping the template's catalogue URL would send discovery to a different service than chat - and, in a
+    test, to the vendor's real host instead of the local fake. In that case the catalogue falls back to the
+    chat base, which is the ordinary layout.
+    """
+    declared = str(merged.get("models_base_url") or "").rstrip("/")
+    if not declared:
+        return ""
+    base = str(merged.get("base_url") or "")
+    if not base or origin(declared) != origin(base):
+        return ""
+    return declared

@@ -454,6 +454,11 @@ non-OpenAI host merely because the route speaks the OpenAI wire format.
   or override that asks for it is rejected with a clear message rather than failing at run time. The OpenCode docs list Claude Haiku, MiniMax and Qwen families on
   the Anthropic endpoint and Grok / Muse Spark on Responses, while models.dev lists every model as
   OpenAI-compatible; the two sources conflict, so Hutch ships no per-model overrides and tells you how to set one.
+- **Catalogue location** (`CN-10`). A plan may serve chat and its model list on different paths. OpenCode Go does:
+  chat at `.../inference/go/openai/v1`, catalogue at `.../inference/go/v1`. A connection can carry
+  `models_base_url`, and Hutch asks that host for `/models` instead of assuming the chat base answers. It is
+  a template default tied to the template's own host - if you override `base_url` to a different origin the
+  catalogue URL is dropped, because chat and discovery must never point at two different services.
 - **Billing** (`CN-4`). `per_token` is priced from `prices.json`; with no price row a hosted model **cannot run
   while a Hutch currency limit is set** (Hutch refuses rather than guess). `subscription` and `free` cost nothing per call, but every
   call still lands in the usage ledger.

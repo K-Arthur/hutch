@@ -27,7 +27,6 @@ scope and request restrictions; OpenAI's Sign in with ChatGPT is currently an el
 from __future__ import annotations
 
 import hashlib
-import ipaddress
 import json
 import math
 import os
@@ -36,6 +35,8 @@ from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 from typing import Any, Optional
+
+from .connection_endpoints import models_base, validate_endpoints
 
 WINDOWS = {"5h": 5 * 3600, "day": 24 * 3600, "week": 7 * 24 * 3600, "month": 30 * 24 * 3600}
 PROTOCOLS = ("openai-chat", "anthropic", "gemini")
@@ -80,6 +81,7 @@ class Connection:
     account_id: str
     account_daily_cost_cap_usd: float = 0.0
     anthropic_base_url: str = ""
+    models_base_url: str = ""
     session_header: str = ""
     user_agent: str = ""
     headers: dict[str, str] = field(default_factory=dict)
@@ -150,28 +152,10 @@ class ConnectionBook:
     def _build(self, name: str, row: dict[str, Any]) -> Connection:
         tpl = dict(self._templates.get(row.get("template", ""), {}))
         merged = {**tpl, **{k: v for k, v in row.items() if v is not None}}
-        from urllib.parse import urlsplit
-        for field_name in ("base_url", "anthropic_base_url"):
-            if endpoint := merged.get(field_name):
-                try:
-                    parts = urlsplit(endpoint)
-                    if parts.username is not None or parts.password is not None:
-                        raise ValueError("connection endpoints cannot embed credentials; use a key reference")
-                    host = (parts.hostname or "").lower()
-                    port = parts.port
-                except ValueError:
-                    raise ValueError("connection endpoint is malformed or contains embedded credentials") from None
-                if (parts.scheme not in {"http", "https"} or not host or parts.query or parts.fragment or
-                        (port is not None and not 1 <= port <= 65535) or "%" in host):
-                    raise ValueError("connection endpoint must be an absolute HTTP(S) URL without query or fragment")
-                if parts.scheme == "http":
-                    try:
-                        loopback = ipaddress.ip_address(host).is_loopback
-                    except ValueError:
-                        loopback = host == "localhost"
-                    if not loopback:
-                        raise ValueError("connection endpoints must use HTTPS except for a loopback HTTP service")
+        validate_endpoints(merged)
         terms = {**tpl.get("terms", {}), **row.get("terms", {})}
+        # A separate catalogue URL is a template default that only holds for the template's own host.
+        models_base_url = models_base(merged)
         q = row.get("quota") or {}
         auth_type = merged.get("auth_type", "api_key")
         if auth_type not in ("api_key", "chatgpt-siws"):
@@ -221,6 +205,7 @@ class ConnectionBook:
             base_url=merged["base_url"].rstrip("/"), api_key_env=merged.get("api_key_env", ""), billing=billing,
             account_id=account_id, account_daily_cost_cap_usd=account_cap, openrouter_policy=routing,
             anthropic_base_url=(merged.get("anthropic_base_url") or "").rstrip("/"),
+            models_base_url=models_base_url,
             session_header=merged.get("session_header", ""),
             user_agent=(merged.get("user_agent") or f"hutch/{_version()}").replace("{version}", _version()),
             headers=dict(merged.get("headers") or {}), model_protocols=dict(merged.get("model_protocols") or {}),

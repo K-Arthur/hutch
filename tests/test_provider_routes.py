@@ -135,3 +135,33 @@ def test_every_catalogue_status_has_a_readable_label(catalogue):
             assert "no live account" in meaning, provider.id
         if provider.integration_status in ("blocked", "retired"):
             assert "does not" in meaning or "not " in meaning, provider.id
+
+
+def test_a_connection_can_declare_a_separate_catalogue_url(tmp_path):
+    """OpenCode Go serves chat at /go/openai/v1 but documents its model list at /go/v1."""
+    book = ConnectionBook(tmp_path / "state")
+    book.add("opencode-go", "go")
+    book.set_key("go", "test-key")
+    conn = book.get("go")
+    assert conn.models_base_url == "https://opencode.ai/inference/go/v1"
+    provider = provider_for_connection(book, "go", "glm-5.3")
+    assert provider.base_url == "https://opencode.ai/inference/go/openai/v1"
+    assert provider.catalog_url == "https://opencode.ai/inference/go/v1"
+    assert provider._catalog() == "https://opencode.ai/inference/go/v1/models"
+
+
+def test_an_overridden_base_url_takes_the_catalogue_with_it(tmp_path):
+    """Chat and discovery must never point at different hosts."""
+    book = ConnectionBook(tmp_path / "state")
+    book.add("opencode-go", "local-go", base_url="https://gateway.example.test/v1")
+    conn = book.get("local-go")
+    assert conn.models_base_url == "", "a template catalogue URL must not survive a different base host"
+    book.set_key("local-go", "test-key")
+    provider = provider_for_connection(book, "local-go", "glm-5.3")
+    assert provider._catalog() == "/models"
+
+
+def test_the_catalogue_url_cannot_embed_credentials(tmp_path):
+    with pytest.raises(ValueError):
+        ConnectionBook(tmp_path / "state").add(
+            "opencode-go", "bad", models_base_url="https://user:pass@opencode.ai/inference/go/v1")
