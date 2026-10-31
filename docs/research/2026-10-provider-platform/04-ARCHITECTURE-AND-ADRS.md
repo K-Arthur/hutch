@@ -25,7 +25,7 @@ Date: 2026-10-30. Status: first implementation slices landed on branch provider-
 6. Oversized frozen files (server/app.py create_app 5,307 lines; runtime/builtin.py execute 774;
    Store class 9,990) forbid growth. New abstractions must be new modules with additive seams.
 
-## Decisions (see ADR-0025 for the formal record)
+## Decisions (see ADR-0026 for the formal record)
 
 - D1: Add a validated, bundled provider identity catalogue (providers/catalog.py +
   data/providers.json). It answers what a provider is, which services and auth methods it offers and
@@ -76,4 +76,4 @@ Date: 2026-10-30. Status: first implementation slices landed on branch provider-
 
 - drafts/04-current-state.md (repo archaeology with file:line references)
 - drafts/01-core-providers.md, 02-hosting-gateway-local.md, 03-media-speech-search.md (dated sources)
-- ADR-0025 (docs/adr/0025-provider-identity-accounts-capabilities-and-runtimes.md)
+- ADR-0026 (docs/adr/0026-provider-identity-accounts-capabilities-and-runtimes.md)

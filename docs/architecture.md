@@ -580,5 +580,5 @@ connection store gains optional provider/auth_method metadata resolved into acco
 (providers/accounts.py); capability evidence records levels with a dated source
 (providers/capabilities.py); explicit readiness comes from local facts (providers/readiness.py); and
 runtime/registry.py describes runtime boundaries without enabling new executors. See
-provider-platform.md and ADR-0025.
+provider-platform.md and ADR-0026.
 

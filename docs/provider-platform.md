@@ -1,8 +1,8 @@
 # Provider platform: identities, accounts, evidence and runtimes
 
 Added 2026-10-30. This is the current guide to Hutch's provider layer. The dated research that supports
-it lives in docs/research/2026-10-provider-platform/README.md, and the formal decision is ADR-0025 in
-docs/adr/0025-provider-identity-accounts-capabilities-and-runtimes.md.
+it lives in docs/research/2026-10-provider-platform/README.md, and the formal decision is ADR-0026 in
+docs/adr/0026-provider-identity-accounts-capabilities-and-runtimes.md.
 
 ## The separation
 
