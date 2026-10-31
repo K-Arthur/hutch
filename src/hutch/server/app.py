@@ -67,6 +67,7 @@ from ..store import (ActiveRunConflict, AuthChallengeLimitExceeded, BotConflict,
                      PersonaConflict, RevisionConflict, Store)
 from ..state_snapshot import ExecutionHeld
 from ..skills import MAX_SKILLS_PER_BOT, SkillError
+from ..route_problem import run_is_legacy
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
 from .security import (DEVICE_COOKIE, ENROLLMENT_COOKIE, FLOW_COOKIE, SESSION_COOKIE,
@@ -2188,6 +2189,7 @@ def create_app() -> FastAPI:
         unresolved = store.count_unresolved_actions(run.id)
         return {**run.model_dump(), "bot_name": bot.name if bot else "?",
                 "bot_display_name": bot.display_name if bot else "?",
+                "legacy": run_is_legacy(run, bot),
                 "receipt_review_required": bool(unresolved), "unresolved_action_count": unresolved,
                 "needs_person": run.needs_person or bool(unresolved)}
 

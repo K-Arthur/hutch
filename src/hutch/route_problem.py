@@ -15,7 +15,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from .models import Bot, RuntimeKind
+from .models import Bot, Run, RunStatus, RuntimeKind
+
+LEGACY_ERROR_MARKERS = ("mock runtime was removed", "retired demo route", "retired demo runtime")
 
 
 def route_problem(bot: Bot) -> Optional[str]:
@@ -39,3 +41,17 @@ def route_problem(bot: Bot) -> Optional[str]:
     elif provider.lower() == "opencode":
         return "its saved model route belongs to the OpenCode runtime, but this assistant uses the Hutch built-in runtime"
     return None
+
+
+def run_is_legacy(run: Run, bot: Optional[Bot] = None) -> bool:
+    """True for a finished failure caused by a retired demo runtime or an unusable saved route.
+
+    Legacy failures are history, not current work: Activity keeps them out of "Needs you", History labels
+    them, and the installation review counts them. Computed on read; nothing is rewritten.
+    """
+    if run.status is not RunStatus.failed:
+        return False
+    if bot is not None and route_problem(bot):
+        return True
+    error = (run.error or "").lower()
+    return any(marker in error for marker in LEGACY_ERROR_MARKERS)

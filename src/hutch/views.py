@@ -199,8 +199,7 @@ def explain_outcome(run: Run, bot: Optional[Bot] = None) -> Optional[Wait]:
     lim = bot.limits if bot else None
     r = run.exit_reason
     if run.status is RunStatus.stopped or r == "stopped":
-        return Wait("You (or a plan) stopped this run before it finished.",
-                    "Re-run it when ready. Child processes were killed; the workspace is kept.", kind="wait")
+        return Wait("You (or a plan) stopped this run before it finished.", "Re-run it when ready. Child processes were killed; the workspace is kept.", kind="wait")
     if r == "timeout":
         return Wait(f"The run hit its wall-clock limit ({lim.timeout_seconds if lim else '?'}s) and was killed.",
                     "Raise timeout_seconds, lower max_steps, or give the bot a smaller task.", kind="error")
@@ -225,8 +224,9 @@ def explain_outcome(run: Run, bot: Optional[Bot] = None) -> Optional[Wait]:
     for needle, cause, fix in _ERROR_HINTS:
         if needle in text:
             return Wait(cause, fix, href="/models", link_text="Models", kind="error")
-    return Wait(f"The run ended with an error: {(run.error or r or 'unknown')[:200]}",
-                "Open the transcript for the failing step.", kind="error")
+    detail = (run.error or r or "unknown").strip()
+    cause = detail[:200] if detail.lower().startswith("the run ended with an error:") else f"The run ended with an error: {detail[:200]}"
+    return Wait(cause, "Open the transcript for the failing step.", kind="error")
 
 
 # ------------------------------------------------------------------ staleness

@@ -22,6 +22,7 @@ from .. import __version__
 from ..approvals import resolve_approval
 from ..engine import bot_prompt_for_schedule
 from ..models import ApprovalStatus, Bot, CatchUpPolicy, EventType, RunStatus, Schedule, iso, utcnow
+from ..route_problem import run_is_legacy
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
 from .. import views
@@ -37,6 +38,9 @@ TEMPLATE_DIR = Path(__file__).parent / "templates"
 PAGE_WINDOW = 200            # transcript events rendered on first paint (PF-9)
 RUNS_PAGE = 50
 FLASH, FLASH_ERR = "hutch_flash", "hutch_flash_err"
+LEGACY_CAUSE = ("This run was recorded by a retired demo runtime or an unusable saved route; "
+                "it is history, not a current failure.")
+LEGACY_FIX = "Choose a real model route for this assistant in its settings."
 
 class RV:
     """A Run plus its bot's name, so templates read ``run.bot_name`` like the JSON API does."""
@@ -187,25 +191,41 @@ def register_pages(app: FastAPI) -> None:
     def api_overview():
         """The triage data the studio's Overview view renders (same source as /overview)."""
         h = home_ctx()
+        bots_by_id = {b.id: b for b in store.list_bots()}
 
-        def rj(run, name, wait=None):
+        def rj(run, name, wait=None, *, legacy=False):
             d = {"id": run.id, "bot_name": name, "status": run.status.value, "status_label": run.status_label,
                  "exit_reason": run.exit_reason, "terminal": run.terminal, "prompt": run.prompt,
                  "steps": run.steps, "tokens": run.tokens, "cost_usd": run.cost_usd,
                  "created_at": run.created_at, "finished_at": run.finished_at,
                  "started_at": run.started_at}
-            if wait:
-                d["wait"] = {"cause": wait.cause, "fix": wait.fix, "kind": wait.kind,
+            if legacy:
+                d["legacy"] = True
+                d["wait"] = {"cause": LEGACY_CAUSE, "fix": LEGACY_FIX, "kind": "error",
+                             "href": f"/#/bot/{name}", "link_text": "Open the assistant", "deadline": None}
+            elif wait:
+                cause, doubled = wait.cause, "The run ended with an error: The run ended with an error:"
+                if cause.startswith(doubled):    # the stored error already carried the display prefix
+                    cause = cause.replace(doubled, "The run ended with an error:", 1)
+                d["wait"] = {"cause": cause, "fix": wait.fix, "kind": wait.kind,
                              "href": wait.href, "link_text": wait.link_text, "deadline": wait.deadline}
             return d
 
+        def failure(run, name, wait):
+            legacy = run_is_legacy(run, bots_by_id.get(run.bot_id))
+            return rj(run, name, None if legacy else wait, legacy=legacy)
+
+        failures = [failure(*item) for item in h.failures]
+        current = [item for item in failures if not item.get("legacy")]
+        legacy = [item for item in failures if item.get("legacy")]
         return {
-            "stats": h.stats, "needs_count": h.needs_count,
+            "stats": h.stats, "needs_count": h.needs_count - len(legacy),
             "approvals": [{"id": a.id, "bot_name": name, "action": a.action, "tool": a.tool,
                            "risk": a.risk, "outward": a.outward, "expires_at": a.expires_at}
                           for a, name in h.approvals],
             "humans": [rj(r, n, w) for r, n, w in h.humans],
-            "failures": [rj(r, n, w) for r, n, w in h.failures],
+            "failures": current,
+            "legacy_failures": legacy,
             "running": [rj(r, n, w) for r, n, w in h.running],
             "stale": [{"bot_name": s.bot.name, "cause": s.cause, "fix": s.fix,
                        "last_success": s.last_success,

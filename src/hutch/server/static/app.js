@@ -6903,6 +6903,7 @@ async function renderOverview(preservePosition = false) {
   const needsCount = Number(o.needs_count || 0);
   const running = o.running || [];
   const stale = o.stale || [];
+  const legacy = o.legacy_failures || [];
   const sections = [];
   if (needsCount) sections.push(`
     <section class="ov-col loud">
@@ -6914,6 +6915,11 @@ async function renderOverview(preservePosition = false) {
         </a>`).join("")}
       ${(o.humans || []).map(r => `<div class="ov-item">${row(r)}${waitBox(r.wait)}</div>`).join("")}
       ${(o.failures || []).map(r => `<div class="ov-item">${row(r)}${waitBox(r.wait)}</div>`).join("")}
+    </section>`);
+  if (legacy.length) sections.push(`
+    <section class="ov-col">
+      <h2 class="ov-h">${icon("clock")} Legacy runs <span class="count">${legacy.length}</span></h2>
+      ${legacy.map(r => `<div class="ov-item">${row(r)}${waitBox(r.wait)}</div>`).join("")}
     </section>`);
   if (running.length) sections.push(`
     <section class="ov-col">
@@ -7579,7 +7585,7 @@ async function renderRuns(query = "") {
             return `<a class="run-card" href="#/run/${esc(r.id)}">
               <div class="run-card-head">
                 <span class="run-card-bot">${botAvatar(r.bot_name, 28)}<b title="${esc(r.bot_name)}">${esc(displayName)}</b></span>
-                ${statusChip(r.status, r.status_label, r.exit_reason)}
+                ${statusChip(r.status, r.status_label, r.exit_reason)}${r.legacy ? '<span class="tag">Legacy</span>' : ""}
               </div>
               <p class="run-card-prompt">${esc(r.prompt || "No task description saved.")}</p>
               <div class="run-card-foot"><time datetime="${esc(r.created_at || "")}">${timeAgo(r.created_at)}</time><span class="run-card-open">See what happened ${icon("arrow")}</span></div>
@@ -9118,7 +9124,7 @@ async function renderRunDetail(runId, params = new URLSearchParams()) {
   if (!stillCurrent() || window.HutchComputer?.hasControl(runId)) return;
   setTopContext(`
     <div class="ctx-id"><h1>Task details</h1>
-      <div class="ctx-meta">${statusChip(r.status, r.status_label, r.exit_reason)}</div></div>
+      <div class="ctx-meta">${statusChip(r.status, r.status_label, r.exit_reason)}${r.legacy ? '<span class="tag">Legacy</span>' : ""}</div></div>
     <div class="ctx-actions">
       ${ACTIVE.has(r.status) ? `<button class="btn danger small" id="stop-this-run" ${r.status === "cancelling" ? "disabled" : ""}>${icon("stop")} ${r.status === "cancelling" ? "Stopping" : "Stop"}</button>` : ""}
       <a class="btn ghost small" href="#/activity/history">${icon("arrowLeft")} History</a>
