@@ -154,3 +154,27 @@ def test_without_the_opencode_tool_first_run_says_what_to_install_and_offers_the
         assert page.locator("#first-run-ai-retry").is_visible()
     finally:
         page.context.close()
+
+
+def test_an_assistant_on_a_free_hosted_model_keeps_the_reminder_on_its_model_tab(browser, tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:9")
+    from hutch.models import RuntimeKind
+    app = create_app()
+    app.state.store.create_bot(Bot(name="trial", display_name="Trial", runtime=RuntimeKind.opencode,
+                                   model="opencode/opencode/glm-flash-free", tools=[]))
+    app.state.store.create_bot(Bot(name="private", display_name="Private", model="ollama/llama3.2:3b", tools=[]))
+    with serve(app) as url:
+        page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
+        try:
+            page.goto(f"{url}/#/bot/trial", wait_until="domcontentloaded")
+            page.get_by_role("tab", name="AI model").click()
+            note = page.locator("#settings-pane-model .route-notice")
+            note.wait_for(timeout=20_000)
+            assert "Free starter model" in note.inner_text() and "Settings" in note.inner_text()
+            page.goto(f"{url}/#/bot/private", wait_until="domcontentloaded")
+            page.get_by_role("tab", name="AI model").click()
+            page.locator("#assistant-model").wait_for(timeout=20_000)
+            assert page.locator("#settings-pane-model .route-notice").count() == 0, "a model on this computer needs no notice"
+        finally:
+            page.context.close()
