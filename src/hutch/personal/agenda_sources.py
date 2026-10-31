@@ -16,7 +16,7 @@ from ..google_calendar import GoogleCalendarBook, GoogleCalendarError
 from ..google_mail import GoogleMailBook, validate_local_gmail_bot
 from ..google_oauth_config import resolve_google_oauth_client_id
 from ..models import iso
-from .agenda import AgendaSource, AgendaUnavailable
+from .agenda import AgendaSource, AgendaUnavailable, clean
 
 MAIL_QUERY = "newer_than:1d"
 
@@ -68,7 +68,9 @@ def calendar_source(store, config, bot_id: str) -> Optional[AgendaSource]:
             reason="grant_missing",
             detail="This assistant has no Google Calendar grant. Grant one calendar in Connections.",
             bot_id=bot.id, bot_label=label)
-    calendar_name = str(grant.get("calendar_name") or "Calendar")
+    # The calendar name comes from the provider, so it is bounded and stripped like any other
+    # provider text before it becomes part of a label the owner reads.
+    calendar_name = clean(grant.get("calendar_name"), 120) or "Calendar"
     selected = AgendaSource(
         kind="calendar", source="google_calendar",
         source_label=f"Google Calendar · {calendar_name}",

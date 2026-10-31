@@ -91,7 +91,7 @@
     function alertRows(items) {
     if (!items || !items.length) return "";
     return '<ul class="pd-list">' + items.map(row => {
-      const state = row.delivery === "not queued" ? "Not sent"
+      const state = row.delivery === "not_queued" ? "Not sent"
         : row.delivery === "sent" ? "Sent" : row.delivery === "uncertain" ? "Delivery unconfirmed"
         : row.delivery === "pending" ? "Queued" : row.delivery;
       return '<li class="pd-item"><div class="pd-item-head"><a class="pd-title" href="' + P().esc(row.href) + '">' +
@@ -313,7 +313,7 @@
     }
 
     if (sections.alerts && sections.alerts.length) {
-      parts.push(section("alerts", "Alerts Hutch sent", sections.alerts.length,
+      parts.push(section("alerts", "Alerts", sections.alerts.length,
         "What Hutch told your connected channel, with its delivery state. Delivery is not proof it was read.",
         alertRows(sections.alerts)));
     }

@@ -142,6 +142,47 @@ def test_an_expired_grant_is_unavailable_and_never_read():
     assert source["items"] == [] and body["counts"]["unavailable"] == 1
 
 
+def test_revoking_a_grant_discards_the_snapshot_immediately():
+    """The owner's decision to stop sharing must not wait for a snapshot to age out."""
+    cache: dict = {}
+    good = calendar_source(events=[{"summary": "Private salary review", "start": "2026-10-31T09:00:00-07:00"}])
+    build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=good, cache=cache)
+    assert cache, "a successful read is remembered so a transient failure can be labelled stale"
+    for reason in ("grant_expired", "grant_missing", "mail_requires_local"):
+        later = NOW + timedelta(minutes=5)
+        revoked = AgendaSource(**{**good.__dict__, "fetch": None, "unavailable": reason})
+        body = build_agenda(now=later, timezone_name="America/Vancouver", calendar=revoked, cache=cache)
+        source = body["sources"]["calendar"]
+        assert source["status"] == "unavailable", reason
+        assert source["items"] == [], reason
+        assert source["reason_kind"] == reason
+        assert not cache, "a revoked grant must not leave provider text in memory"
+        build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=good, cache=cache)
+
+
+def test_a_grant_that_fails_mid_read_is_unavailable_not_stale():
+    cache: dict = {}
+    good = calendar_source(events=[{"summary": "Private salary review"}])
+    build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=good, cache=cache)
+    broken = calendar_source(error=AgendaUnavailable("grant_expired", "Reconnect this account."))
+    body = build_agenda(now=NOW + timedelta(minutes=1), timezone_name="America/Vancouver",
+                        calendar=broken, cache=cache)
+    assert body["sources"]["calendar"]["status"] == "unavailable"
+    assert body["sources"]["calendar"]["items"] == []
+    assert body["sources"]["calendar"]["reason_kind"] == "grant_expired"
+
+
+def test_a_snapshot_is_not_kept_past_the_hour_it_can_be_shown():
+    cache: dict = {}
+    good = calendar_source(events=[{"summary": "Design review"}])
+    build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=good, cache=cache)
+    broken = calendar_source(error=AgendaUnavailable("provider_error", "unreachable"))
+    body = build_agenda(now=NOW + timedelta(hours=2), timezone_name="America/Vancouver",
+                        calendar=broken, cache=cache)
+    assert body["sources"]["calendar"]["status"] == "unavailable"
+    assert not cache, "an unshowable snapshot is dropped, not retained"
+
+
 def test_an_unselected_source_is_named_not_configured():
     body = build_agenda(now=NOW, timezone_name="America/Vancouver")
     for name in ("calendar", "mail"):

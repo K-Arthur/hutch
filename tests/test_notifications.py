@@ -311,6 +311,45 @@ def test_an_alert_goes_to_the_person_who_started_the_work_when_they_are_allowed(
     assert [recipient for recipient, _text in sent] == ["456"]
 
 
+def test_a_malformed_document_skips_the_alert_instead_of_failing_the_fact(store):
+    """A corrupt legacy doc must not turn a status write into an error at the trigger."""
+    bot = store.create_bot(Bot(name="notify-me", approval_mode=ApprovalMode.ask))
+    run = start_run(store, bot)
+    with store._tx() as db:
+        db.execute("UPDATE runs SET doc='not json' WHERE id=?", (run.id,))
+        db.execute("UPDATE runs SET status='failed' WHERE id=?", (run.id,))
+    assert store._db.execute("SELECT status FROM runs WHERE id=?", (run.id,)).fetchone()[0] == "failed"
+    assert notifications(store) == []
+    # A well-formed document still notifies: the guard skips only what it cannot read.
+    other = start_run(store, bot)
+    store.transition_run(other.id, RunStatus.failed, exit_reason="model_unavailable")
+    assert [row["subject_id"] for row in notifications(store)] == [other.id]
+
+
+def test_a_deleted_assistant_is_not_listed_on_either_surface(client):
+    bot = client.store.create_bot(Bot(name="notify-me", approval_mode=ApprovalMode.ask))
+    run = start_run(client.store, bot)
+    pending_approval(client.store, bot, run)
+    assert client.get("/api/v1/notifications").json()["items"]
+    assert client.store.delete_bot(bot.id)
+    assert client.get("/api/v1/notifications").json()["items"] == []
+    today = client.get("/api/v1/today", params={"timezone": "America/Vancouver"}).json()
+    assert today["sections"]["alerts"] == []
+    with client.store._lock:
+        assert client.store._db.execute("SELECT COUNT(*) FROM notifications").fetchone()[0] == 1
+
+
+def test_both_surfaces_report_the_same_delivery_state(client):
+    bot = client.store.create_bot(Bot(name="notify-me", approval_mode=ApprovalMode.ask))
+    run = start_run(client.store, bot)
+    pending_approval(client.store, bot, run)
+    api_item = client.get("/api/v1/notifications").json()["items"][0]
+    today = client.get("/api/v1/today", params={"timezone": "America/Vancouver"}).json()
+    today_item = today["sections"]["alerts"][0]
+    assert api_item["delivery"]["state"] == today_item["delivery"] == "not_queued"
+    assert api_item["id"] == today_item["subject_id"] or api_item["subject_id"] == today_item["subject_id"]
+
+
 def test_the_notification_api_lists_receipts_without_message_bodies(client):
     bot = client.store.create_bot(Bot(name="notify-me", approval_mode=ApprovalMode.ask))
     run = start_run(client.store, bot)
@@ -321,6 +360,6 @@ def test_the_notification_api_lists_receipts_without_message_bodies(client):
     assert body["counts"]["approval_needs_you"] == 1
     item = body["items"][0]
     assert item["kind"] == "approval_needs_you" and item["subject_id"] == approval.id
-    assert item["delivery"]["state"] == "pending"
+    assert item["delivery"]["state"] == "not_queued"
     assert "Send the signed contract" not in response.text
     assert client.get("/api/v1/notifications", params={"kind": "nope"}).status_code == 422

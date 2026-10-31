@@ -49,9 +49,11 @@ Each source is reported with five things a reader needs to trust it:
   `mail_requires_local`, `provider_error`) instead of an empty day;
 - `not_included` text saying what the view does not read.
 
-An expired or revoked grant is never a silent empty list. A failed refresh reuses the last
-successful snapshot for up to an hour, clearly marked stale, then falls back to
-unavailable; it never invents an event. Events are limited to the owner's local day and
+An expired or revoked grant is never a silent empty list, and it is never a stale one
+either: revoking access discards the last reading immediately, so nothing keeps rendering
+after you decide to stop sharing. Only a provider failure reuses the last successful
+snapshot, for at most an hour and clearly marked stale, and the snapshot is dropped once it
+is older than that. The view never invents an event. Events are limited to the owner's local day and
 mail to the last 24 hours, at most 25 events and 10 messages.
 
 Mailbox previews keep the same rule as the Gmail tool: the granting assistant must use

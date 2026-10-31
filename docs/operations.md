@@ -612,11 +612,14 @@ the assistant tools use (`GET /api/v1/personal/agenda/sources` and `GET /api/v1/
 
 Operational properties to preserve:
 
-- No write path, no schema change, no provider text in SQLite. A bounded snapshot lives in process memory for
-  at most one hour so a failed refresh can be labelled stale instead of looking like an empty day.
+- No write path, no schema change, no provider text in SQLite. A bounded snapshot lives in process memory and is
+  discarded once it is more than an hour old, so a failed refresh can be labelled stale instead of looking like
+  an empty day without becoming an archive.
 - Every source and every item carries its source label and fetch time; a failed refresh marks the re-used
   snapshot `stale` on both. An unusable grant returns an explicit reason code (`grant_missing`,
-  `grant_expired`, `mail_requires_local`, `provider_error`) and never an empty list.
+  `grant_expired`, `mail_requires_local`, `provider_error`) and never an empty list. A grant reason
+  (`grant_missing`, `grant_expired`, `mail_requires_local`) also discards the snapshot in the same request: only a
+  provider failure may show a stale reading.
 - Mailbox previews keep the Gmail tool's rule: the granting assistant must use Local inference. Operators
   should expect `mail_requires_local` for hybrid or hosted assistants instead of mailbox content.
 - Provider text is untrusted data. It is stripped of control characters, bounded per field, marked
@@ -639,7 +642,9 @@ supervisors cannot duplicate a send. A decided approval is skipped, so nothing a
 matters. There is no exactly-once claim: an unconfirmed send stays `uncertain` for explicit reconciliation
 and is never resent automatically. With no enabled connection the alert is recorded and Today shows it as
 not sent. `GET /api/v1/notifications` and Today's "Alerts Hutch sent" section expose the same content-free
-facts (kind, subject id, machine reason code, outbox state).
+facts (kind, subject id, machine reason code, outbox state; an alert that has not been queued reads
+`not_queued`, never `pending`). The triggers skip a row whose JSON document cannot be parsed rather than failing
+the status write, and both read paths omit alerts whose assistant no longer exists.
 
 Schema v86 adds `notifications` and rebuilds `channel_deliveries` to reference either an inbound event or a
 notification (each row has exactly one). The rebuild copies every existing reply delivery with its channel

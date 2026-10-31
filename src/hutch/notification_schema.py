@@ -85,7 +85,7 @@ def _install_triggers(db: sqlite3.Connection) -> None:
     # Silence is not consent: an expired or denied approval is a distinct, visible fact.
     db.execute(f"""CREATE TRIGGER IF NOT EXISTS notification_approval_resolved
         AFTER UPDATE OF status ON approvals
-        WHEN OLD.status = 'pending' AND NEW.status IN ('expired','denied')
+        WHEN OLD.status = 'pending' AND NEW.status IN ('expired','denied') AND json_valid(NEW.doc)
         BEGIN
             INSERT OR IGNORE INTO notifications(id, kind, bot_id, subject_kind, subject_id, detail, created_at)
             VALUES ({NEW_ID},
@@ -96,7 +96,7 @@ def _install_triggers(db: sqlite3.Connection) -> None:
     origins = ",".join(repr(origin) for origin in UNATTENDED_ORIGINS)
     # Failures always matter. A success only notifies for work nobody was watching.
     db.execute(f"""CREATE TRIGGER IF NOT EXISTS notification_run_outcome AFTER UPDATE OF status ON runs
-        WHEN NEW.status <> OLD.status AND (
+        WHEN NEW.status <> OLD.status AND json_valid(NEW.doc) AND (
             NEW.status IN ('failed','outcome_unknown')
             OR (NEW.status = 'succeeded' AND json_extract(NEW.doc, '$.origin') IN ({origins})))
         BEGIN
