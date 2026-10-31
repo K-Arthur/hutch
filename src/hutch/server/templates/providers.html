@@ -28,7 +28,7 @@
     <div class="plain-list" aria-label="Accounts for {{ group.provider.title if group.provider else group.provider_id }}">
       <h3 class="card-title">{{ group.provider.title if group.provider else group.provider_id }}
         {% if group.provider %}<span class="tag">{{ group.provider.category | replace("_", " ") }}</span>
-        <span class="tag">{{ group.provider.integration_status | replace("_", " ") }}</span>{% endif %}
+        <span class="tag" title="{{ group.provider.status_meaning }}">{{ group.provider.status_label }}</span>{% endif %}
       </h3>
       {% for row in group.accounts %}
       <div class="list-row">
@@ -126,10 +126,11 @@
     <h3 class="section">{{ section.label }}</h3>
     <div class="card-grid">
       {% for item in section.providers %}
-      <article class="card" data-provider-card data-category="{{ section.category }}" data-search="{{ item.provider.title | lower }} {{ item.provider.id }} {{ item.provider.services | join(' ') }} {{ item.provider.integration_status }} {{ item.provider.auth_methods | map(attribute='label') | join(' ') | lower }}">
+      <article class="card" data-provider-card data-category="{{ section.category }}" data-search="{{ item.provider.title | lower }} {{ item.provider.id }} {{ item.provider.services | join(' ') }} {{ item.provider.integration_status }} {{ item.provider.status_label }} {{ item.provider.auth_methods | map(attribute='label') | join(' ') | lower }}">
         <h4 class="card-title">{{ item.provider.title }}
-          <span class="chip {% if item.provider.integration_status == 'implemented' %}st-succeeded{% elif item.provider.integration_status in ('implemented-unverified', 'experimental') %}st-waiting_approval{% elif item.provider.integration_status in ('blocked', 'retired') %}st-failed{% else %}st-stopped{% endif %}">{{ item.provider.integration_status | replace("_", " ") }}</span>
+          <span class="chip {% if item.provider.integration_status == 'implemented' %}st-succeeded{% elif item.provider.integration_status in ('implemented-unverified', 'experimental') %}st-waiting_approval{% elif item.provider.integration_status in ('blocked', 'retired') %}st-failed{% else %}st-stopped{% endif %}" title="{{ item.provider.status_meaning }}">{{ item.provider.status_label }}</span>
         </h4>
+        <p class="hint">{{ item.provider.status_meaning }}</p>
         <div class="tags"><span class="tag mono">{{ item.provider.id }}</span>{% if item.account_count %}<span class="tag">{{ item.account_count }} account(s)</span>{% endif %}</div>
         {% if item.provider.notes %}<p class="hint">{{ item.provider.notes }}</p>{% endif %}
         <p class="hint"><strong>Services:</strong> {{ item.provider.services | join(", ") }}</p>

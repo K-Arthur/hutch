@@ -118,3 +118,20 @@ def test_templates_match_the_recorded_reachability_evidence():
         # A probe that never reached the host (0) or failed server-side cannot back a template.
         assert probed[provider]["status"] not in (0,), provider
         assert probed[provider]["status"] < 500, provider
+
+
+def test_every_catalogue_status_has_a_readable_label(catalogue):
+    """A person reading the page must not get the stored slug, and the label must say what it claims."""
+    from hutch.providers.catalog import INTEGRATION_STATUSES, STATUS_TEXT
+
+    assert set(STATUS_TEXT) == set(INTEGRATION_STATUSES), "every stored status needs a label and a meaning"
+    for provider in catalogue.providers:
+        label, meaning = provider.status_label, provider.status_meaning
+        assert label and meaning, provider.id
+        assert label != provider.integration_status, provider.id
+        assert "-" not in label, f"{provider.id}: label still reads like a slug ({label!r})"
+        # "route only, untested" must never read as a working integration.
+        if provider.integration_status == "implemented-unverified":
+            assert "no live account" in meaning, provider.id
+        if provider.integration_status in ("blocked", "retired"):
+            assert "does not" in meaning or "not " in meaning, provider.id

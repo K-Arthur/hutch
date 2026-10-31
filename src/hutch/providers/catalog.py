@@ -81,6 +81,25 @@ INTEGRATION_STATUSES = (
     "deferred",               # requested, in scope, not delivered in this package
 )
 
+#: (short label, one-line meaning) for a person reading a page, not for a schema. The status ids above
+#: stay the stored vocabulary; a raw id like "implemented-unverified" is not shown as a badge title.
+STATUS_TEXT: dict[str, tuple[str, str]] = {
+    "implemented": ("works",
+                    "Hutch has a real code path for this route and a dated live account exercised it."),
+    "implemented-unverified": ("route only, untested",
+                               "Hutch can reach this service, but no live account has run a request through it."),
+    "experimental": ("experimental, gated",
+                     "Implemented and gated: expected to work, not production-ready, and may change."),
+    "documented": ("not built",
+                   "Researched only. Hutch has no code path, so there is nothing to connect yet."),
+    "blocked": ("blocked by provider",
+                "The provider forbids or no longer supports this for Hutch. The reason is recorded; it is not imitated."),
+    "retired": ("retired by provider",
+                "The provider removed this flow. Hutch does not recreate a retired route."),
+    "deferred": ("deferred, not built",
+                 "Requested and in scope, but not delivered in this package."),
+}
+
 MAX_CATALOG_BYTES = 512 * 1024
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")
 _DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
@@ -133,6 +152,16 @@ class Provider:
     @property
     def implemented(self) -> bool:
         return self.integration_status in ("implemented", "implemented-unverified", "experimental")
+
+    @property
+    def status_label(self) -> str:
+        """Short human label for the integration status; never the stored id."""
+        return STATUS_TEXT.get(self.integration_status, (self.integration_status, ""))[0]
+
+    @property
+    def status_meaning(self) -> str:
+        """One sentence saying what the label claims, so a badge cannot read as a support promise."""
+        return STATUS_TEXT.get(self.integration_status, (self.integration_status, ""))[1]
 
     def auth(self, auth_id: str) -> Optional[AuthMethod]:
         return next((method for method in self.auth_methods if method.id == auth_id), None)
