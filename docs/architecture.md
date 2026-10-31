@@ -208,6 +208,13 @@ progress beside interactive chat. The dashboard's Schedules overview lists next 
 pause affects future schedule admission only; queued/running work and Bot-specific pause settings
 remain independent.
 
+A Bot also carries one lifecycle state that is not a permission: `archived`. It answers only "may
+this assistant be given new work?". One predicate inside the admitting transaction refuses
+messages, legacy runs, task runs and scheduled occurrences; the store keeps every conversation, run,
+event and memory record in both directions; and the scheduler skips an archived Bot the same way it
+skips a paused one. Archiving is refused while a run is active and for the workspace coordinator,
+and an archived Bot is not offered as a specialist. See ADR-0026.
+
 ### D3: Scheduling correctness is a feature, not a detail
 
 All timestamps are ISO-8601 UTC-with-offset. Calendar cron math happens in the task's IANA zone via
