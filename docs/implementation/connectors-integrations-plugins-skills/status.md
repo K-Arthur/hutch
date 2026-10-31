@@ -160,19 +160,35 @@ Not delivered in this pass, and the reason is a real dependency rather than an o
   disablement, uninstall, version/license/compatibility metadata, declared tool and connection
   requirements, and readiness reporting for all of it. Three gaps were real and are closed:
   skills could not require an MCP tool (2.6), an update could not say what differed (2.8), and a
-  skill could not depend on another skill (2.9). Still not implemented, each for a stated reason:
-  remote registry discovery and registry-backed installation (a marketplace is a product decision
-  with trust consequences, and the brief forbids turning Hutch into a generic package manager
-  without demonstrated need), and package security scanning beyond the existing structural checks
-  (bounds, symlink refusal, hash verification, staging re-read) which the brief classes as
-  supplementary rather than an authorization boundary.
-- **Plugins**: no plugin runtime was built. The research found that every surveyed platform that
-  executes third-party plugin code has paid for it with containment and permission bugs, and that
-  Hutch's honest position is that a plugin that contributes connectors, skills and tool
-  definitions needs no new execution path: it can be expressed as a reviewed connector definition
-  plus a skill package. Building a package manager or an in-process plugin loader without a
-  demonstrated need would violate AGENTS.md's "do not turn Hutch into a general-purpose package
-  manager". This is a deliberate deferral with a stated alternative, not a shipped feature.
+  skill could not depend on another skill (2.9). Content review (2.11) and URL installation with
+  provenance (2.12) close the two gaps that were about a package arriving from somewhere the owner
+  did not prepare. Still not implemented, each for a stated reason: a browsable marketplace (a
+  product decision with trust and moderation consequences, and the brief forbids turning Hutch into
+  a generic package manager without demonstrated need), skill-to-skill dependency *resolution* (the
+  declarations are checked; nothing installs a dependency for you), and package signing (no surveyed
+  platform documents verifying skill signatures, so there is no format to interoperate with).
+
+- **Plugins: a decision, not a deferral.** No plugin runtime is built, and that is the answer
+  rather than a gap. Consider what a plugin would have to contribute:
+
+  * connectors: already a reviewed definition, installed and granted through the connector plane;
+  * skills: already a reviewed package with content review and staged updates;
+  * tool definitions: already connector tools, or a first-party tool, which is a code change;
+  * executable code: the only thing none of the above covers, and the one thing the research
+    found every surveyed platform has paid for with containment and permission bugs.
+
+  So a plugin would either bundle reviewable material that already has its own review path, or it
+  would execute third-party code. The first adds a second install path over the same material,
+  which `AGENTS.md` forbids ("no second registry, no duplicated enforcement") and which would let a
+  bundle's provenance stand in for review the owner never did. The second has no demonstrated need
+  and no proposed containment that the connector sandbox does not already provide to a program the
+  owner named explicitly.
+
+  If a bundle ever is justified, the shape that fits this architecture is already clear: a manifest
+  that names connector definitions and skill packages, validated against the schemas that exist, and
+  installed as *staged references* that each still go through their own review. That is a small
+  addition to what is here, and it must not become a way to skip a review step. Nothing in this
+  delivery claims plugin support.
 
 ## 4. Verification
 
