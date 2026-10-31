@@ -662,3 +662,99 @@ site-wide 316 px header gap already recorded above, not a regression from this s
 `artifacts/visual/tts-2026-10-31/`.
 
 Artifact: `artifacts/live-verification/xiaomi-speech-live-2026-10-31.json`.
+
+## Provider-native search: search_web (2026-10-31)
+
+Hutch had one kind of search: `live_search`, its own bounded grounding fan-out, where Hutch fetches
+public origins, stores the evidence rows and writes the citation brief. It had no way to use a
+provider's own search plugin, so a model that the vendor serves with native grounding was queried
+without it. This slice adds that route and, just as importantly, keeps the two distinct.
+
+### What was built
+
+| Piece | File | What it owns |
+|---|---|---|
+| Route declaration | `src/hutch/data/connections.json` (4 xiaomi templates) | `search.protocol/model/max_keyword/results_per_keyword/force_search/source`; a connection only offers the route when its bundled template declares it |
+| Route and wire rules | `src/hutch/providers/search.py` | template validation, query bounds, the documented `tools: [{type: web_search, ...}]` body, `url_citation` parsing, usage extraction, redirect refusal, typed errors |
+| Tool | `src/hutch/tools/search.py` | `search_web`: account selection, approval detail, no retry, `kind=search` usage row, sources rendered as labelled untrusted data |
+| Registry | `src/hutch/tools/__init__.py`, `src/hutch/integrations/catalog.py` | `search_web` in the catalogue, its own `search` group, Strict Offline withholding |
+| Data | `src/hutch/data/providers.json` | Xiaomi `services` gains `search` |
+
+The wire contract was read from the vendor's page, not inferred:
+<https://mimo.mi.com/static/docs/quick-start/usage-guide/text-generation/tool-calling/web-search.md>.
+The answer is `choices[0].message.content`; sources are `message.annotations[]` entries with
+`type: "url_citation"`; billing is `usage.web_search_usage = {tool_usage, page_usage}`, where one
+search round fans out across keywords, so `tool_usage` counts billable plugin calls rather than
+queries.
+
+### Honesty rules encoded, not left to callers
+
+- An empty answer is an error, never an empty success.
+- A missing `web_search_usage` is reported as **unknown, not zero**. A zero would read as a free
+  request, and the plugin is explicitly billed per call.
+- A reply with no citations and no reported plugin call is labelled as **not grounded**. The vendor
+  documents exactly this failure mode - the model may decide the query needs no search - so an
+  ungrounded answer must not inherit the credibility of a search.
+- Annotation types Hutch does not understand are counted and reported, never dropped in silence.
+- Citation URLs that are not absolute http(s) are dropped and counted; nothing is fetched, and the
+  source list is presented to the model as untrusted data.
+- A different answered model is named in the notes.
+
+### The live run, and what it actually found
+
+The run did not produce a citation. It produced a precise blocker, which is the more useful result.
+
+| Probe | Result |
+|---|---|
+| Baseline: same host, same model, no tools | HTTP 200; the model answered "I don't have real-time access to the current date" - exactly the gap search exists for |
+| The documented `web_search` tool payload | HTTP 400, `Param Incorrect` |
+| `error.param` from that body | `web search tool found in the request body, but webSearchEnabled is false` |
+| The same key against the documented public host | HTTP 401 `Invalid API Key` (the key is bound to its Token Plan region) |
+
+So the request Hutch builds reaches the vendor's own validator and is refused **only** on account
+entitlement: the web-search plugin is not activated for this account. No search executed; nothing was
+charged, because the vendor refuses before searching.
+
+**This exposed a defect in Hutch's error reporting.** The adapter had been reading only
+`error.message`, which was the generic string "Param Incorrect", and had been *guessing* at the cause
+in the hint ("check that the plugin is active and that the model supports it"). These vendors put the
+actionable reason in `error.param`, which Hutch was discarding. `_error_from_response` now includes
+`param` verbatim and, when it names `webSearchEnabled is false`, says plainly that the account has not
+activated the plugin and that this is an account entitlement rather than a Hutch setting.
+`tests/test_provider_search.py` pins the real observed body as its fixture.
+
+### What this establishes and what it does not
+
+Established: the approval prompt names connection, endpoint, model, account, billing route, forced-search
+flag and keyword cap before any query leaves the machine; the payload matches the vendor's documented
+shape and is accepted by the vendor's validator; the refusal is surfaced verbatim with no retry, no
+fallback to another provider and no account switch; the route keeps to its template endpoint, which
+matters because the same key is rejected by the public host.
+
+Not established, and not claimed: a real citation list parsed from a live reply, live
+`tool_usage`/`page_usage`, whether the model searches without `force_search` on this route, and the
+cost per search round. Those need the plugin activated, which is an owner billing decision in the
+vendor console.
+
+### Focused checks for this slice
+
+| Check | Command | Result |
+|---|---|---|
+| Route, wire, citations and tool behaviour | `uv run --frozen --no-sync pytest -q tests/test_provider_search.py` | 37 passed |
+| Capability evidence registry | `uv run --frozen --no-sync pytest -q tests/test_provider_capabilities.py` | 5 passed |
+| Provider and connection regressions | `uv run --frozen --no-sync pytest -q tests/test_providers.py tests/test_connections.py tests/test_provider_catalog.py tests/test_tool_contracts.py` | 125 passed |
+| Tool contract audit | `uv run --frozen --no-sync python scripts/audit_tool_contracts.py` | passed (46 tools) |
+| Context hygiene | `uv run --frozen --no-sync python scripts/audit_context_hygiene.py` | passed |
+| Research package honesty | `python3 scripts/audit_provider_research.py` | PASS |
+
+Artifact: `artifacts/live-verification/xiaomi-search-live-2026-10-31.json`.
+
+### Visual check for the changed website sentence
+
+One sentence on the marketing site had become false ("provider-native search is research-tracked, not
+shipped"), so it was rewritten to say the route is implemented but its live run was blocked. Captured
+at 1440x960, 1280x720, 900x1024, 390x844 and 320x740, plus 1280x720 at 200 percent text: the sentence
+renders at every width, the provider section reports 0 px horizontal overflow, and there were no
+console errors. No badge was added, deliberately: the marketing-claims record in
+`docs/marketing-site.md` says a badge needs an account that has returned real citations. Evidence:
+`artifacts/visual/search-2026-10-31/`.

@@ -80,9 +80,15 @@ were not exercised anywhere.
   and recorded, not silently assumed safe.
 - Media expansion is partly shipped: speech-to-text and connection-scoped speech synthesis are
   implemented and live-verified against one account, and the synthesized clip was round-trip
-  transcribed. The two-host audio-overview pipeline remains for podcast rendering. Video, music, image
-  editing, streaming synthesis, mp3/pcm output and provider-native search adapters remain
+  transcribed. The two-host audio-overview pipeline remains for podcast rendering. Provider-native
+  search is implemented but **blocked on account entitlement**: the vendor refused the documented
+  request because the account's web-search plugin is not activated, so no live citation was ever
+  parsed. Video, music, image editing, streaming synthesis, mp3/pcm output remain
   research-complete and deferred rather than stubbed, and no demo fixtures exist.
+- `live_search` (Hutch's own grounding fan-out) and `search_web` (a provider's search plugin) are
+  different capabilities with different evidence. Nothing upgrades one from the other: the local
+  fan-out needs no provider entitlement, and the provider route stays unverified until an account
+  with the plugin runs it.
 
 ## Live evidence (2026-10-30 and 2026-10-31)
 

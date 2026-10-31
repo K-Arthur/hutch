@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-31",
+  "verification": "search_web tool -> providers/search.py -> Xiaomi MiMo Token Plan (Singapore) web-search plugin",
+  "status": "implemented, live run BLOCKED by account entitlement",
+  "authorization": "Owner-authorized live testing used the Token Plan key already configured in this environment (the installed OpenCode account's credential), read in memory only. The key was never printed or stored in this artifact; the temporary state tree was deleted. No console setting, plan change or plugin activation was performed.",
+  "route": {
+    "connection": "mimo-live",
+    "template": "xiaomi-token-plan-sgp",
+    "provider": "xiaomi",
+    "endpoint": "https://token-plan-sgp.xiaomimimo.com/v1",
+    "billing": "subscription credits; the search plugin additionally bills per call",
+    "model": "mimo-v2.6-flash",
+    "force_search": true,
+    "max_keyword": 2,
+    "results_per_keyword": 1
+  },
+  "query": "What is today's date in UTC?",
+  "probes": [
+    {
+      "name": "baseline: no tools, same host and model",
+      "purpose": "prove the host accepts the credential and the model answers",
+      "request": {
+        "model": "mimo-v2.6-flash",
+        "max_completion_tokens": 24
+      },
+      "http_status": 200,
+      "response_model": "mimo-v2.6-flash",
+      "usage": {
+        "completion_tokens": 24,
+        "prompt_tokens": 15,
+        "total_tokens": 39,
+        "completion_tokens_details": {
+          "reasoning_tokens": 23
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "conclusion": "host and model work"
+    },
+    {
+      "name": "the documented web_search tool payload",
+      "purpose": "show that the request Hutch builds reaches the vendor's own validation and is refused only on entitlement",
+      "request_shape": {
+        "tools": [
+          {
+            "type": "web_search",
+            "max_keyword": 2,
+            "force_search": true,
+            "limit": 1
+          }
+        ],
+        "tool_choice": "auto"
+      },
+      "http_status": 400,
+      "error_body": {
+        "error": {
+          "code": "400",
+          "message": "Param Incorrect",
+          "param": "web search tool found in the request body, but webSearchEnabled is false",
+          "type": ""
+        }
+      },
+      "provider_reason": "web search tool found in the request body, but webSearchEnabled is false"
+    },
+    {
+      "name": "the same key against the documented public host",
+      "purpose": "confirm the key is bound to its Token Plan region, so the route must keep using the template's own endpoint",
+      "http_status": 401,
+      "error_body": {
+        "error": {
+          "message": "Invalid API Key",
+          "param": "Please provide valid API Key",
+          "code": "401",
+          "type": "invalid_key"
+        }
+      }
+    }
+  ],
+  "governed_tool_run": {
+    "ok": false,
+    "elapsed_seconds": 0.811,
+    "approval": {
+      "tool": "web_search",
+      "outward": true,
+      "detail": {
+        "connection": "mimo-live",
+        "provider": "xiaomi",
+        "endpoint": "https://token-plan-sgp.xiaomimimo.com/v1",
+        "model": "mimo-v2.6-flash",
+        "account": "mimo-live",
+        "billing": "subscription",
+        "force_search": true,
+        "max_keyword": 2,
+        "results_per_keyword": 1,
+        "query_chars": 28,
+        "note": "the query leaves this machine; the provider's search plugin bills per search round in addition to tokens"
+      }
+    },
+    "output": "error: search failed: mimo-live refused the search request: Param Incorrect (web search tool found in the request body, but webSearchEnabled is false). The account has not activated the provider's web-search plugin; activate it in the provider console, then retry. This is an account entitlement, not a Hutch setting.\nHutch did not retry, so this query was not sent twice.",
+    "ledger_rows": []
+  },
+  "established": [
+    "the approval prompt names connection, endpoint, model, account, billing route, forced-search flag and keyword cap before any query leaves the machine",
+    "Hutch builds the vendor's documented tool object and sends it to the configured endpoint; the vendor's validator accepts the payload shape and refuses only the entitlement",
+    "the refusal is reported verbatim, naming the account's plugin as the cause, with no retry and no fallback to another provider or account",
+    "no search was performed and no plugin charge was incurred: the vendor refuses before searching",
+    "the route keeps to its template endpoint; the same key is rejected by the public host, so a global default would have been wrong"
+  ],
+  "not_established": [
+    "a real citation list parsed from a live reply: the account's web-search plugin is not activated, so no live search was ever executed",
+    "page_usage/tool_usage on a live reply",
+    "whether the model chooses to search without force_search on this route",
+    "cost per search round on this plan"
+  ],
+  "blocker": {
+    "kind": "account_entitlement",
+    "detail": "web search tool found in the request body, but webSearchEnabled is false",
+    "unblock": "activate the Web Search plugin for this account in the provider's console (Console -> Plugin Management), then re-run tests-independent live check; the plugin bills per search call, so activation is an owner billing decision"
+  }
+}

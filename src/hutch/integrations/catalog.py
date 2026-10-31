@@ -39,7 +39,9 @@ BROWSER_TOOL_NAME = "browser"
 #: requests from that worker. Document tools are local and correctly not withheld.
 OFFLINE_WITHHELD_TOOLS = frozenset({
     "web_fetch", BROWSER_TOOL_NAME,
+    "vault_http_request",
     "computer", "live_search", "render_audio_overview", "transcribe_audio", "run_workspace_plan",
+    "search_web",
     "google_calendar_events", "google_calendar_create_event",
     "outlook_calendar_events", "outlook_calendar_create_event",
     "outlook_mail_search", "outlook_mail_send", "google_mail_send", "google_mail_search",

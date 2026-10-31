@@ -589,6 +589,7 @@
       "summary": "",
       "services": [
         "chat",
+        "search",
         "speech",
         "transcription"
       ],

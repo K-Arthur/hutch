@@ -87,8 +87,8 @@ ROUTE_CAPABILITIES: dict[str, tuple[str, ...]] = {
 
 #: Live-verified evidence from owner-authorized real provider requests. Entries are added only after a
 #: real account, route and model produced the recorded result; nothing here is derived from fixtures.
-#: Current evidence covers text generation only. It does not establish streaming, tools, images, usage
-#: reporting or any other capability.
+#: Each entry names exactly what it exercised; a capability absent from this table stays unverified, and
+#: an entry never implies the neighbouring capabilities came with it.
 
 
 @dataclass(frozen=True)
@@ -190,6 +190,16 @@ LIVE_VERIFIED_EVIDENCE: tuple[CapabilityEvidence, ...] = (
                 "stream chunk. Content, tool-call arguments and reasoning deltas were assembled from multiple "
                 "chunks. Hutch consumes the stream server-side; it does not render progressive tokens in the "
                 "dashboard, and cancellation mid-stream was not exercised."),
+    ),
+    CapabilityEvidence(
+        capability="speech", level="live-verified", scope_kind="model", scope="xiaomi/mimo-v2.5-tts",
+        source=("Hutch live verification 2026-10-31: create_media(kind=audio) tool -> "
+                "media/providers/speech.py, Xiaomi Token Plan (sgp)"),
+        observed_on="2026-10-31",
+        detail=("One utterance produced a 176,684-byte, 3.68 s wav that the media store accepted and "
+                "hash-verified; the stored clip was transcribed back through transcribe_audio as the same "
+                "sentence (the ASR heard Hutch as Hatch). mp3/pcm output, streaming synthesis, the "
+                "voice-design and voice-clone models and the cn/ams hosts were not exercised."),
     ),
 )
 

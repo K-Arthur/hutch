@@ -27,12 +27,14 @@ _SPECS: dict[str, tuple[str, str]] = {
     "list_commitments": ("commitments", "ListCommitmentsTool"),
     "report_commitment_done": ("commitments", "ReportCommitmentDoneTool"),
     "web_fetch": ("webfetch", "WebFetchTool"),
+    "vault_http_request": ("vault_http", "VaultHttpTool"),
     "create_document": ("documents", "CreateDocumentTool"),
     "revise_document": ("documents", "ReviseDocumentTool"),
     "inspect_document": ("documents", "InspectDocumentTool"),
     "create_media": ("media", "CreateMediaTool"),
     "render_diagram": ("media", "RenderDiagramTool"),
     "transcribe_audio": ("transcribe", "TranscribeAudioTool"),
+    "search_web": ("search", "SearchWebTool"),
     "run_python": ("python_exec", "RunPythonTool"),
     "reset_workspace": ("python_exec", "ResetWorkspaceTool"),
     "delegate_task": ("delegation", "DelegateTaskTool"),
@@ -94,6 +96,10 @@ GROUPS: dict[str, list[str]] = {
     "documents": ["create_document", "revise_document", "inspect_document"],
     "media": ["create_media", "render_diagram"],
     "audio": ["transcribe_audio"],
+    # Provider-native search is its own group: it is a billed external call to a provider's
+    # search plugin, not the local grounding fan-out in ``grounding``.
+    "search": ["search_web"],
+    "vault": ["vault_http_request"],
     "workspace": ["run_python", "reset_workspace"],
     # Keep account-backed workspace actions opt-in. The existing ``workspace`` group
     # predates these tools and is used by Bots that should only get local scratch access.

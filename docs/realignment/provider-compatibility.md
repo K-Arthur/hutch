@@ -34,8 +34,11 @@ route matrix (added 2026-10-30). The validated catalogue in src/hutch/data/provi
 requested provider with its category, documented auth methods, implementation status and sources;
 src/hutch/providers/accounts.py groups configured connections by that identity without merging their
 credentials; capability evidence is recorded with a level, scope and date. Live verification covers the
-DeepSeek direct route, the managed OpenCode runtime, and Xiaomi MiMo (text, speech-to-text, tool calling
-and the streamed transport path); every other hosted route above remains fixture-tested at best.
+DeepSeek direct route, the managed OpenCode runtime, and Xiaomi MiMo (text, speech-to-text, speech
+synthesis, tool calling and the streamed transport path); every other hosted route above remains
+fixture-tested at best. Provider-native search is implemented on the same route but its live run was
+refused by the provider because the account's web-search plugin is not activated, so it is not
+live-verified; `live_search` remains Hutch's own grounding path and needs no provider entitlement.
 Research and dated sources: docs/research/2026-10-provider-platform/. See ADR-0026.
 
 ### Hosted OpenAI-compatible routes (2026-10-31)

@@ -42,6 +42,7 @@ def test_live_verified_evidence_covers_exactly_the_exercised_routes():
         ("xiaomi/mimo-v2.6-flash", "text"),
         ("xiaomi/mimo-v2.6-pro", "text"),
         ("xiaomi/mimo-v2.5-asr", "transcription"),
+        ("xiaomi/mimo-v2.5-tts", "speech"),
         ("xiaomi/mimo-v2.6-flash", "tool_calls"),
         ("xiaomi/mimo-v2.6-flash", "streaming"),
     }
@@ -57,7 +58,8 @@ def test_live_verified_evidence_covers_exactly_the_exercised_routes():
         elif report.provider_id == "opencode":
             assert live_scopes == {"opencode/deepseek/deepseek-flash"}
         elif report.provider_id == "xiaomi":
-            assert live_scopes == {"xiaomi/mimo-v2.6-flash", "xiaomi/mimo-v2.6-pro", "xiaomi/mimo-v2.5-asr"}
+            assert live_scopes == {"xiaomi/mimo-v2.6-flash", "xiaomi/mimo-v2.6-pro",
+                                   "xiaomi/mimo-v2.5-asr", "xiaomi/mimo-v2.5-tts"}
         else:
             assert live_scopes == set()
     assert capability_report("deepseek", model="deepseek-flash").level("text") == "live-verified"

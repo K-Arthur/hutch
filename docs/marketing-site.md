@@ -471,6 +471,23 @@ cn/ams hosts, or any other speech vendor: none were exercised. It must not call 
 plan bills in credits), and the existing OpenAI/Gemini TTS sentence stays labelled protocol-tested,
 not live-verified.
 
+### Provider-native search claim (2026-10-31)
+
+The capability paragraph previously ended "Video, music and provider-native search are
+research-tracked, not shipped." That stopped being true when `search_web` landed, so the sentence now
+says provider-native search is implemented for routes that declare it but that its one live run was
+blocked because the test account had not activated the provider's search plugin.
+
+Evidence, and the reason there is no badge: the live request reached the vendor's validator and was
+refused with `webSearchEnabled is false`; no search executed and no citation was parsed from a live
+reply. Artifact:
+`docs/research/2026-10-provider-platform/artifacts/live-verification/xiaomi-search-live-2026-10-31.json`.
+
+This route must not be advertised as a shipped capability, must not be merged with `live_search` in
+any copy (that is Hutch's own local grounding and works without a provider entitlement), and must not
+imply that activating the plugin is something Hutch can do. A badge may be added only after an account
+with the plugin activated returns real citations.
+
 ### Tool calling and streaming claim (2026-10-31)
 
 The capability paragraph now says the Xiaomi route ran two tool calls in a single streamed turn and that

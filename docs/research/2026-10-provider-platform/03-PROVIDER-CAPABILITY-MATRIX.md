@@ -2,8 +2,10 @@
 
 Date: 2026-10-30. Live verification: text generation was exercised through three owner-authorized
 routes (DeepSeek direct, the managed OpenCode runtime, and Xiaomi MiMo on 2026-10-31), and on Xiaomi
-also tool calling, streaming, speech-to-text and speech synthesis (2026-10-31). Image input, video,
-music, image editing, provider-native search and every other provider were not live-exercised. The column exists so a code path is never
+also tool calling, streaming, speech-to-text and speech synthesis (2026-10-31). Provider-native search
+was attempted on Xiaomi the same day and is **blocked by account entitlement**: the vendor refused the
+tool before searching, so it is implemented but not live-verified. Image input, video, music, image
+editing and every other provider were not live-exercised. The column exists so a code path is never
 mistaken for a working provider account. Research detail and dated sources are in
 drafts/01-core-providers.md, drafts/02-hosting-gateway-local.md and drafts/03-media-speech-search.md.
 
@@ -34,7 +36,7 @@ How to read the columns:
 | qwen | vendor | chat, tools, coding_cli | openai-chat, anthropic | api-key [per_token; documented]; coding-plan [subscription; documented]; portal-oauth [subscription; retired] | documented | 01-core | not live-verified |
 | stepfun | vendor | chat, speech, transcription | openai-chat | api-key [per_token; implemented] | implemented-unverified | 02-hosted | not live-verified |
 | xai | vendor | chat, search, code_execution, images, video, speech, transcription | openai-chat, custom | api-key [per_token; implemented]; oauth [subscription; documented] | implemented-unverified | 01-core | not live-verified |
-| xiaomi | vendor | chat, speech, transcription | openai-chat, anthropic | api-key [credits; implemented] | implemented | 02-hosted | live-verified 2026-10-31 (text: mimo-v2.6-flash, mimo-v2.6-pro, built-in runtime, reasoning capture and truncation reporting; tool calling: two calls in one streamed turn dispatched and executed; streaming: every step via SSE with no non-streaming retry; speech-to-text: mimo-v2.5-asr through `transcribe_audio`, wav only; speech synthesis: mimo-v2.5-tts through `create_media(kind=audio)`, wav only, stored through the media pipeline and round-trip transcribed. Vision, cancellation and the cn/ams hosts are not live-verified) |
+| xiaomi | vendor | chat, search, speech, transcription | openai-chat, anthropic | api-key [credits; implemented] | implemented | 02-hosted | live-verified 2026-10-31 (text: mimo-v2.6-flash, mimo-v2.6-pro, built-in runtime, reasoning capture and truncation reporting; tool calling: two calls in one streamed turn dispatched and executed; streaming: every step via SSE with no non-streaming retry; speech-to-text: mimo-v2.5-asr through `transcribe_audio`, wav only; speech synthesis: mimo-v2.5-tts through `create_media(kind=audio)`, wav only, stored through the media pipeline and round-trip transcribed. **Provider-native search: implemented, live run BLOCKED** - the account has not activated the vendor's web-search plugin (`webSearchEnabled is false`), so no search executed and no citation was ever parsed from a live reply. Vision, cancellation and the cn/ams hosts are not live-verified) |
 | zai | vendor | chat, tools, coding_cli | openai-chat, anthropic | api-key [per_token; implemented]; coding-plan [subscription; documented] | implemented-unverified | 01-core | not live-verified |
 | alibaba-model-studio | serving_platform | chat, embeddings, images, tools | openai-chat | api-key [per_token; documented] | documented | 02-hosted | not live-verified |
 | qianfan | serving_platform | chat, embeddings, images | custom | api-key [per_token; documented]; oauth [per_token; documented] | documented | 02-hosted | not live-verified |
@@ -92,6 +94,7 @@ How to read the columns:
 | OpenCode managed runtime, private profile connected to the owner's DeepSeek key | Hutch managed OpenCode 2.2.0 | opencode/deepseek/deepseek-flash | succeeded; reply matched requested token | 4452 prompt / 8 completion tokens; provider-reported cost $0.0006726 | artifacts/live-verification/opencode-managed-runtime-deepseek-live.json |
 | OpenCode CLI external reference | OpenCode CLI 2.2.0 | deepseek/deepseek-flash | succeeded | not reported by the CLI JSON stream | artifacts/live-verification/opencode-cli-deepseek.json |
 | Xiaomi MiMo speech synthesis (owner-authorized), `create_media(kind=audio)` | Hutch built-in, media job ledger + media store | mimo-v2.5-tts, voice mimo_default | succeeded; 176,684-byte wav (3.68 s) stored, sha256 verified, round-trip transcribed by mimo-v2.5-asr | 166 prompt / 25 completion tokens (speech); 45 / 15 (round-trip transcription); credits, unpriced | artifacts/live-verification/xiaomi-speech-live-2026-10-31.json |
+| Xiaomi MiMo provider-native search, `search_web` | Hutch built-in, provider web-search plugin | mimo-v2.6-flash, force_search, max_keyword 2 | **BLOCKED**: the vendor refused the tool with `webSearchEnabled is false`; the payload shape was accepted and only the account entitlement was missing, so no search ran and nothing was charged | none: refused before searching | artifacts/live-verification/xiaomi-search-live-2026-10-31.json |
 | OpenCode Go stored API key | Hutch managed OpenCode 2.2.0 | opencode/opencode-go/iceman-contributor-free | failed explicitly: provider reported the key expired; no retry, cost 0.0 | none | artifacts/live-verification/opencode-managed-runtime-live.json |
 
 ## Blocked, retired and deferred routes (summary)

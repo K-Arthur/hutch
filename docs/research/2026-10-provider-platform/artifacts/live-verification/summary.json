@@ -117,6 +117,22 @@
         "cost_note": "Token Plan bills in credits; unpriced, not a free-service claim"
       },
       "artifact": "xiaomi-speech-live-2026-10-31.json"
+    },
+    {
+      "provider": "xiaomi",
+      "route": "search_web -> providers/search.py -> Xiaomi MiMo Token Plan (Singapore) web-search plugin",
+      "checked_on": "2026-10-31",
+      "result": "blocked",
+      "model": "mimo-v2.6-flash",
+      "capability_exercised": "provider-native search: payload accepted by the vendor validator, refused on account entitlement",
+      "blocker": "webSearchEnabled is false (the account has not activated the web-search plugin)",
+      "usage": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cost_usd": 0.0,
+        "cost_note": "the vendor refused before searching, so no plugin charge was incurred"
+      },
+      "artifact": "xiaomi-search-live-2026-10-31.json"
     }
   ]
 }

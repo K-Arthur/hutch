@@ -261,9 +261,12 @@ readiness. Shipped: validated provider catalogue, provider-grouped accounts, cap
 explicit route readiness, runtime boundary registry, bounded loopback discovery, the Providers page, the
 Gemini API-key chat route, 25 hosted OpenAI-compatible routes, speech-to-text (`transcribe_audio`)
 for connections that declare a transcription block, and speech synthesis
-(`create_media(kind="audio")`) for connections that declare a speech block.
+(`create_media(kind="audio")`) for connections that declare a speech block. Provider-native search
+(`search_web`) is implemented for connections that declare a search block, but its one live run was
+blocked by account entitlement: the vendor's web-search plugin was not activated for the test account,
+so it stays unverified rather than shipped-and-proven.
 Next, still research-only or deferred: video/music/image-edit adapters with real job contracts,
-streaming synthesis, mp3/pcm output, voice cloning, provider-native search attribution, and new
+streaming synthesis, mp3/pcm output, voice cloning, and new
 runtime executors that need an approval/usage/lifecycle contract first. Live verification covers
 DeepSeek text, the managed OpenCode runtime, and Xiaomi text, tool calling, the streamed transport
 path, speech-to-text and speech synthesis (2026-10-30/31); every other hosted route remains unverified for want of a usable credential, and the

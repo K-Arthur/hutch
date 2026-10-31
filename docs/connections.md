@@ -443,6 +443,31 @@ text to speak travels in the `assistant` message, and an optional style instruct
   output, streaming synthesis, the voice-design and voice-clone models, and the cn/ams hosts are not offered
   or not live-verified. A stored clip was synthesized and round-trip transcribed on 2026-10-31.
 
+### Provider-native search routes (2026-10-31)
+
+A connection can also declare a `search` block. When it does, the `search_web` tool asks that account's
+**own** search plugin a question and returns the answer with the sources the provider cites. This is not
+`live_search`: `live_search` is Hutch's local grounding fan-out, where Hutch fetches public origins and
+keeps the evidence rows. Here the provider searches and summarises, so the sources carry the provider's
+claim rather than Hutch's verification, and the tool says so in its output.
+
+The four Xiaomi MiMo templates declare `mimo-v2.6-flash` with `force_search`, `max_keyword` 2 and one
+result per keyword. The keyword cap is configuration, not a per-call argument, because it is what
+multiplies the plugin's per-search charge.
+
+- The approval prompt names the connection, endpoint, model, account, billing route, forced-search flag
+  and keyword cap before the query leaves the machine.
+- The provider bills each search round separately from tokens. The output reports the search call count, and
+  a missing count is reported as unknown rather than zero.
+- An answer with no citations and no reported search call is labelled *not grounded*, because the vendor
+  documents that the model may decide a query needs no search.
+- The route needs the provider's search plugin activated for the account. Without it the provider refuses
+  the request before searching, and Hutch reports that reason verbatim.
+
+Activation status matters more than the code path here: on 2026-10-31 this account had **not** activated
+the plugin, so search is implemented but not live-verified on it. `live_search` remains the route that needs
+no provider entitlement.
+
 OpenAI, Anthropic, Ollama, LM Studio and llama.cpp keep their built-in provider names and need no connection.
 
 ### Hosted OpenAI-compatible routes (2026-10-31)
