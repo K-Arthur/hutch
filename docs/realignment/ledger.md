@@ -4932,3 +4932,32 @@ was deleted, and `scripts/prune_validation_tmp.py --apply` was **not** run becau
   onboarding, the catalog, and the migration for leftover demo assistants are not done.
 - The published `origin/main` is 148 commits behind and its latest CI run concluded `failure`; the current tree has
   never run in CI.
+
+## 2026-10-30 (late): review of the previous agent's work, starter route, page audit
+
+Owner asked this session to review and fix what another agent had done, continue to a complete release product,
+audit every page for behaviour and redundancy, simplify model selection and assistant creation, and start new
+people on a free or keyless model with a data-sharing notice instead of the removed demo route.
+
+**Reviewed and fixed (the other agent's 23 commits).** A clean-worktree run of the full non-browser suite at
+`48dbbb2e` found three failures: two load-timing tests that pass alone, and a race between a test and the new ghost
+recovery (now held off in the test). Before that, a targeted run found a grown `mock` allowlist and an overview test
+whose seeded assistant had no route (so its run was correctly classed legacy). Code review found: recovery settled any
+second unverifiable cleanup, closing process records of possibly-live processes and failing open where process
+inspection is unavailable (now only unverifiable survivors, only where inspection works; 4 tests, mutation-checked);
+URL catalog manifests were never checked against the hash and id their index published; entry ids reached a file path
+unvalidated; an invalid edited manifest was a 500; local entries were found by file name, not id.
+
+**Shipped.** A shared, tested starting-route decision with a data-sharing notice; creation in one step; reuse of the main
+assistant's route; guidance when no OpenCode tool is present. A page-by-page audit, Skills folded into the Catalog,
+interrupted runs explained honestly, skill discovery locations disclosed.
+
+**Process incidents, recorded.** Three actors edited one checkout concurrently. Two commits by another actor
+(`d0ccc541`, `b688db02`) swept up in-progress edits that were staged or uncommitted here; each was completed in
+the following commit so HEAD never stayed inconsistent, and later commits used explicit paths in one step.
+
+**Limits, recorded rather than hidden.** The fresh-clone full-suite gate was not re-run after these commits (it
+covers `48dbbb2e`); the later work is covered by focused suites listed in the progress log. Not run: a live
+OpenCode journey on the new first-run page (the browser tests use labelled fixtures; the earlier live run covered the
+route itself), a screen-reader pass, axe, native builds, macOS and Windows. The known baseline browser failures stand.
+
