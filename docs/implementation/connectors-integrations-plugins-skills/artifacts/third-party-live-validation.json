@@ -1,0 +1,61 @@
+{
+  "server": {
+    "definition": {
+      "transport": "mcp_stdio",
+      "command": "/usr/bin/python3",
+      "args": [
+        "-m",
+        "mcp_server_time",
+        "--local-timezone",
+        "UTC"
+      ],
+      "read_only_paths": [
+        "/home/kevina/mcp-connectors/time/venv/lib/python3.14/site-packages"
+      ],
+      "env": {
+        "PYTHONPATH": "/home/kevina/mcp-connectors/time/venv/lib/python3.14/site-packages"
+      }
+    }
+  },
+  "configure": {
+    "revision": "dd2ffc6b28cb227292e45048ec658a63c1e89169f56f7dbacf8515e817501ea6",
+    "invalidated": false
+  },
+  "discovery": {
+    "tool_count": 2,
+    "tools": [
+      "convert_time",
+      "get_current_time"
+    ],
+    "supported": {
+      "convert_time": true,
+      "get_current_time": true
+    },
+    "schemas": {
+      "convert_time": "Convert time between timezones",
+      "get_current_time": "Get current time in a specific timezones"
+    }
+  },
+  "build_tools": {
+    "connector_tools": [
+      "mcp__time__get_current_time"
+    ]
+  },
+  "call": {
+    "ok": true,
+    "output": "{\n  \"timezone\": \"Europe/London\",\n  \"datetime\": \"2026-10-31T10:45:42+00:00\",\n  \"day_of_week\": \"Saturday\",\n  \"is_dst\": false\n}",
+    "data": {
+      "integration_id": "time",
+      "server_tool": "get_current_time"
+    }
+  },
+  "ungranted_tool": {
+    "ok": false,
+    "output": "error: unknown tool 'mcp__time__convert_time' \u2014 available: ['mcp__time__get_current_time']"
+  },
+  "schema_refusal": {
+    "ok": false,
+    "output": "error: `mcp__time__get_current_time` was rejected: missing required argument 'timezone'. Nothing was run."
+  },
+  "state_dir": "/home/kevina/.hutch-tmp/mcp-live-1tnkftoj"
+}

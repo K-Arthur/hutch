@@ -970,7 +970,8 @@ class Engine:
                 granted_connections = available_connection_services(self.store, bot)
                 resolved_skills = SkillRegistry(self.config.state_dir).effective_for_bot(
                     bot, activation=list(run.skill_activation), runtime=bot.runtime.value,
-                    connections=granted_connections)
+                    connections=granted_connections,
+                    connector_tools=set(self.store.integration_tool_names(bot.id)))
             except Exception as exc:  # noqa: BLE001 - a skill-resolution bug must fail closed, not crash the worker
                 self._fail_skill_unavailable(run, f"skills could not be resolved: {exc}")
                 return
@@ -1361,6 +1362,7 @@ class Engine:
         """
         recovered: list[Run] = []
         self.store.release_expired_claims()
+        recovery.release_settled_process_rows(self.store, self._threads, self._pid_alive)
         no_lease = self.store.legacy_live_runs(grace_seconds=0)
         dead = [r for r in no_lease if r.id not in self._threads and r.owner and not self._pid_alive(r.owner)]
         candidates = [r for r in self.store.expired_runs() + dead + self.store.legacy_live_runs()
@@ -1585,7 +1587,7 @@ class Engine:
         interpreter pass skips every node record that already settled. A previous attempt that
         was cancelled means the person stopped the workflow, so it is left stopped.
         """
-        from .workflow import persistence as wfstore
+        from .workflow import holds as wfholds, persistence as wfstore
 
         admitted = 0
         for candidate in wfstore.workflow_runs_needing_attempt(self.store, limit=limit):
@@ -1619,10 +1621,7 @@ class Engine:
                 continue
             workflow_bot = self.store.get_bot(str(candidate["bot_id"]))
             if workflow_bot is None or workflow_bot.archived:
-                held = workflow_bot is not None
-                wfstore.update_workflow_run(
-                    self.store, wf_id, status="waiting" if held else "failed", finished=not held,
-                    reason="the assistant is archived; restore it to continue" if held else "the Bot no longer exists")
+                wfholds.hold_parked_workflow(self.store, wf_id, archived=workflow_bot is not None)
                 continue
             try:
                 run = wfstore.admit_workflow_continuation(self.store, wf_id)

@@ -219,6 +219,20 @@ class ModelMeta:
     tokenizer_hash: str = ""               # tokenizer metadata fingerprint when reported
     license: str = ""
     digest: str = ""
+    #: Measurements the runtime reports for a *loaded* model, as opposed to the
+    #: arithmetic above. A tag on disk and the same tag resident in memory are
+    #: different facts: ``applied_context`` is the window actually in effect (which
+    #: need not be the one requested) and ``vram_bytes`` is how much of it is on the
+    #: GPU. Both stay None until the runtime reports them, so "unknown" is never
+    #: rendered as "zero" or as a guess.
+    applied_context: Optional[int] = None
+    vram_bytes: Optional[int] = None
+    resident_bytes: Optional[int] = None
+
+    @property
+    def wants_gpu(self) -> bool:
+        """True when the runtime reported some of this model resident on the GPU."""
+        return bool(self.vram_bytes)
 
 
 @dataclass

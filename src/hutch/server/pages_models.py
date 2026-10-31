@@ -5,16 +5,33 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from .. import routes
 from ..modelview import build_models_view
+from ..providers.base import ProviderError
+from ..providers.model_install import ModelInstaller
 from ..providers.pricing import PriceBook
+from .security import check_csrf
 
 
 def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: Callable) -> None:
     config, store = app.state.config, app.state.store
+
+    def require_csrf(request: Request) -> None:
+        """These routes are called by script with the page's token in a header, like every other write from a server page."""
+        if not check_csrf(request, request.headers.get("x-csrf-token")):
+            raise HTTPException(403, "the page's security token did not match; reload the page and try again")
+
+    def installer() -> ModelInstaller:
+        """One installer per server process: it owns the bounded job registry."""
+        existing = getattr(app.state, "model_installer", None)
+        if existing is None:
+            from ..runtime.ladder import get_provider
+            existing = ModelInstaller(get_provider("ollama", None))
+            app.state.model_installer = existing
+        return existing
 
     def workspace_default() -> str:
         """The one parser for the route that seeds new built-in assistants (hutch.routes)."""
@@ -36,6 +53,59 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
         # the template overrides the base flash and renders it inside #prices.
         return page(request, "models.html", nav="models", v=view, readiness=readiness,
                     authority=routes.authority(store, config))
+
+    @app.get("/api/models/install")
+    def model_install_list() -> dict:
+        """Every install this process knows about, newest first."""
+        return {"jobs": [job.to_json() for job in installer().jobs()]}
+
+    @app.post("/api/models/install")
+    async def model_install_start(request: Request) -> dict:
+        """Begin downloading a model from the runtime's own registry.
+
+        This is the only path that starts a download: selecting a model never does.
+        """
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise HTTPException(422, "expected a JSON object with a 'model' field")
+        require_csrf(request)
+        try:
+            job = installer().start(str(body.get("model") or ""),
+                                    allow_existing=bool(body.get("reinstall")))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        except ProviderError as exc:
+            raise HTTPException(409, str(exc)) from None
+        return job.to_json()
+
+    @app.get("/api/models/install/{job_id}")
+    def model_install_status(job_id: str) -> dict:
+        job = installer().job(job_id)
+        if job is None:
+            raise HTTPException(404, "no install with that id (the server may have restarted)")
+        return job.to_json()
+
+    @app.delete("/api/models/install/{job_id}")
+    def model_install_cancel(job_id: str, request: Request) -> dict:
+        """Ask a running install to stop. Verified blobs are kept, so re-running resumes."""
+        require_csrf(request)
+        if not installer().cancel(job_id):
+            raise HTTPException(404, "no running install with that id")
+        return {"cancelling": job_id}
+
+    @app.post("/api/models/remove")
+    async def model_remove(request: Request) -> dict:
+        """Delete a model from the runtime. A JSON body is used because model names contain ':' and '/'."""
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise HTTPException(422, "expected a JSON object with a 'model' field")
+        require_csrf(request)
+        try:
+            return {"removed": installer().remove(str(body.get("model") or ""))}
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        except ProviderError as exc:
+            raise HTTPException(404 if exc.kind == "model_missing" else 409, str(exc)) from None
 
     @app.post("/models/prices/save", include_in_schema=False)
     async def price_save(request: Request):

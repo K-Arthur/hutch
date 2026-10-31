@@ -72,7 +72,27 @@ Schema v85 (`src/hutch/mcp_schema.py`) adds `mcp_servers`, `integration_tool_cat
 ADR-0017 carry dated corrections. The site has a connectors section whose claims document
 (`docs/marketing-site.md`) states what it may and may not say.
 
-### 2.5 Fixes from independent review (commit `64c63561`)
+### 2.5 Live validation against a real third-party server
+
+`mcp-server-time==2025.9.25` from PyPI, installed in its own virtual environment, registered
+through the review path, discovered (2 tools), granted one, and called successfully through the
+sandbox. An ungranted tool was absent from the built tool set, and a call with arguments the
+server's own schema rejects was refused before dispatch. Evidence in
+`artifacts/third-party-live-validation.json`, run by `live_validate_third_party.py`.
+
+The install also produced a real instance of the compatibility failure class the research
+predicted: the server is built against SDK 1.x and cannot import against the pinned 2.x. Details
+in `validation.md` section 6.
+
+### 2.6 Skills that require a connector tool
+
+A skill may now declare `mcp__<integration>__<tool>` in `hutch.requires-tools`. The check reads
+the connector grant as well as the Bot's allowlist, the runtime and the readiness report share
+one implementation (`src/hutch/skill_requirements.py`), a missing connector tool reports its own
+code and names Connectors, and a Strict Offline Bot cannot satisfy the requirement because its
+worker has no host network.
+
+### 2.7 Fixes from independent review (commit `64c63561`)
 
 A read-only review found four guarantees that existed only in prose. All four are fixed and
 tested: the effect receipt for non-read calls, per-call approval despite a standing allow, the
@@ -83,13 +103,15 @@ hygiene in argv and in literal definition values.
 
 Not delivered in this pass, and the reason is a real dependency rather than an omission:
 
-- **Skills**: `src/hutch/skills.py` (1460 lines) already implements discovery, install, content
-  hashing, trust, assignment, activation and the install/trust/assign separation the brief asks
-  to preserve. The improvements the brief lists for skills (remote registry, update previews,
-  dependency declarations, readiness) are additive work on that module. They were not started
-  because the connector plane and its enforcement were the blocking foundation, and because
-  `agent-connections` contains a partially built version of exactly those changes that would
-  conflict. Nothing in this delivery claims skill changes.
+- **Skills**: the module already covered far more of the brief than it assumed. `skills.py`
+  implements discovery, install, content hashing, trust, per-assistant assignment, run-level
+  activation, staged updates with `apply_update` re-hashing the staged bytes, rollback,
+  disablement, uninstall, version/license/compatibility metadata, declared tool and connection
+  requirements, and readiness reporting for all of it. What was actually missing was the seam
+  between skills and connectors: a skill could not require an MCP tool, because the requirement
+  check read only the Bot's allowlist. That is fixed (section 2.6), with readiness naming
+  Connectors as the place to grant it. Still not implemented: remote registry discovery,
+  dependency resolution between skills, and any security scanning of packages.
 - **Plugins**: no plugin runtime was built. The research found that every surveyed platform that
   executes third-party plugin code has paid for it with containment and permission bugs, and that
   Hutch's honest position is that a plugin that contributes connectors, skills and tool
@@ -104,8 +126,9 @@ See `validation.md` in this directory for exact commands, results and the live-v
 
 ## 5. Known limitations
 
-- No third-party MCP server has been exercised. Every connector test uses the repository's own
-  fixture server, launched through the real sandbox.
+- One third-party MCP server has been exercised end to end (`mcp-server-time`). General
+  third-party compatibility is not claimed: a server built against a different SDK generation
+  needs its own pinned environment, as `validation.md` section 6 records.
 - The remote HTTP transport has unit coverage of endpoint screening and pinning, and no live
   endpoint has been contacted.
 - OAuth for MCP endpoints is not implemented; only `none` and a bearer token from an environment
@@ -128,3 +151,4 @@ See `validation.md` in this directory for exact commands, results and the live-v
 | `5dd3d067` | Guide reconciled with the page and readiness reporting |
 | `7d1cf1b7` | Marketing site connectors section and claims rules |
 | `64c63561` | Review findings fixed and covered by tests |
+| (carried by `a4b2377f`) | Skills resolve connector grants; third-party live validation |
