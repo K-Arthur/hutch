@@ -309,3 +309,41 @@ def test_revoking_one_assistant_leaves_others_intact(store):
     assert result["remaining_grants"] == 1
     assert not store.integration_tool_granted(first.id, "acme", "search")
     assert store.integration_tool_granted(second.id, "acme", "search")
+
+
+# --------------------------------------------------------------------------- readiness
+
+
+def test_readiness_separates_granted_connector_tools_from_installed_ones(store, config):
+    """An assistant's readiness names what it may call, and what exists but was never granted."""
+    from hutch.readiness import bot_readiness
+    from hutch.integrations.mcp import config as mcp_config
+
+    bot = store.create_bot(Bot(name="readiness-bot", model="mock/demo", tools=[],
+                               approval_mode=ApprovalMode.auto))
+    report = bot_readiness(store, config, bot)
+    area = next(a for a in report["areas"] if a["id"] == "connectors")
+    assert area["status"] == "ok"
+    assert area["items"][0]["detail"] == "no connectors installed or granted"
+
+    definition = {"transport": "mcp_stdio", "command": "/usr/bin/python3", "args": [], "env": {},
+                  "read_only_paths": [], "command_sha256": "0" * 64, "read_only_fingerprints": {}}
+    revision = mcp_config.definition_revision(definition)
+    with store._tx() as db:
+        persistence.save_definition(db, integration_id="acme", title="Acme",
+                                    definition=definition, revision=revision)
+        [tool_one] = discovery.normalize_mcp_tools("acme", [_tool()])
+        persistence.save_catalog(db, "acme", [tool_one])
+
+    report = bot_readiness(store, config, bot)
+    area = next(a for a in report["areas"] if a["id"] == "connectors")
+    assert "installed but not granted to this assistant: Acme" in area["items"][0]["detail"]
+
+    with store._tx() as db:
+        persistence.grant_tools(db, integration_id="acme", bot_id=bot.id, tool_names=["search"],
+                                operation_classes={"search": "read"}, expected_revision=revision)
+    report = bot_readiness(store, config, bot)
+    area = next(a for a in report["areas"] if a["id"] == "connectors")
+    by_name = {item["name"]: item for item in area["items"]}
+    assert by_name["mcp__acme__search"]["status"] == "ok"
+    assert "read effect" in by_name["mcp__acme__search"]["detail"]

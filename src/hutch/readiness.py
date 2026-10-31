@@ -6,6 +6,7 @@ Readiness is deliberately not one boolean. Each area reports its own state,
 * ``tools``       every enabled tool exists, is supported by the runtime, and offline mode's removed tools are shown
 * ``skills``      each bound skill is installed, reviewed, enabled, compatible, and has the tools and connections it declares
 * ``connections`` required accounts are granted for the tools and skills this Bot actually uses
+* ``connectors``  reviewed MCP connector tools this Bot may use, and configured connectors it may not
 
 The frontend renders the same structure the API returns, so what a person sees is what the
 backend enforces. ``missing`` marks something that blocks the configured workflow; ``warning``
@@ -168,6 +169,37 @@ def bot_readiness(store, config, bot: Bot) -> dict:
         connection_items = [{"name": "connections", "status": "ok",
                              "detail": "no external accounts required by the enabled tools or skills"}]
     areas.append(_area("connections", "Connections", _status_of(connection_items), connection_items))
+
+    # ------------------------------------------------------------ connectors
+    # A connector the owner installed is not authority for this Bot. Listing both halves makes the
+    # difference visible where a person configures an assistant, rather than only on the connectors
+    # page: what this Bot may call, and what is installed but not granted to it.
+    connector_items: list[dict] = []
+    try:
+        from .integrations.mcp import service as mcp_service
+        granted_tools = mcp_service.tools_for(store, bot.id)
+        configured = mcp_service.overview(store)
+    except Exception as exc:  # noqa: BLE001 - a connector read must not break the settings page
+        granted_tools, configured = [], []
+        connector_items.append({"name": "connectors", "status": "warning",
+                                "detail": f"connector state could not be read: {exc}"})
+    for row in granted_tools:
+        connector_items.append({
+            "name": row["canonical_name"], "status": "ok",
+            "detail": (f"{row['account_label'] or row['integration_id']} connector tool, "
+                       f"{row['operation_class']} effect"
+                       + ("" if row["operation_class"] == "read" else "; each call needs approval"))})
+    granted_ids = {row["integration_id"] for row in granted_tools}
+    unavailable = [row for row in configured if row["integration_id"] not in granted_ids]
+    if unavailable:
+        names = ", ".join(row["title"] or row["integration_id"] for row in unavailable[:6])
+        connector_items.append({
+            "name": "installed connectors", "status": "ok",
+            "detail": f"installed but not granted to this assistant: {names}"})
+    if not connector_items:
+        connector_items = [{"name": "connectors", "status": "ok",
+                             "detail": "no connectors installed or granted"}]
+    areas.append(_area("connectors", "Connectors", _status_of(connector_items), connector_items))
 
     blocked = [area["id"] for area in areas if area["status"] == "missing"]
     return {
