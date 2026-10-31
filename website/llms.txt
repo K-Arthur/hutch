@@ -2,7 +2,7 @@
 
 > Hutch is a local-first, MIT-licensed platform for personal AI assistants that run on your own Linux computer. You choose the models and connected apps; assistants ask for your approval before important actions. The source is public and MIT-licensed on GitHub; there are no packaged desktop installers.
 
-Hutch keeps its control state — conversations, memory, logs, schedules and files — in one local state directory on the machine you control. Model calls go to whichever route you configured: a local runtime (Ollama, llama.cpp, LM Studio) or a hosted provider (OpenAI, Anthropic, OpenRouter, OpenAI-compatible endpoints, or OpenCode). Hosted providers receive the prompts and context Hutch sends them; network tools contact their own destinations.
+Hutch keeps its control state — conversations, memory, logs, schedules and files — in one local state directory on the machine you control. Model calls go to the route you confirm for each assistant: a local runtime (Ollama, llama.cpp, LM Studio) or a hosted provider (OpenAI, Anthropic, OpenRouter, OpenAI-compatible endpoints, or OpenCode). On first run Hutch may preselect a free OpenCode model as a disclosed starting point; free hosted models can keep or learn from what you send, and nothing is saved until you create the assistant. Hosted providers receive the prompts and context Hutch sends them; network tools contact their own destinations.
 
 ## Key facts
 

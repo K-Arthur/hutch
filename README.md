@@ -107,7 +107,7 @@ Hutch fits technical builders on Linux who want repeat AI work (scheduled briefi
 **A good fit if you:**
 
 - run Linux and are comfortable with a terminal and a source checkout
-- already run a local model (for example Ollama, llama.cpp or LM Studio) or hold a hosted provider key
+- already run a local model (for example Ollama, llama.cpp or LM Studio), hold a hosted provider key, or have the OpenCode CLI installed (Hutch can preselect one of its free models as a disclosed starting point)
 - want assistants that ask before consequential actions and leave reviewable transcripts
 - prefer estimated spend ceilings and local evidence to a vendor dashboard
 
@@ -115,7 +115,7 @@ Hutch fits technical builders on Linux who want repeat AI work (scheduled briefi
 
 - need macOS or Windows execution (not implemented)
 - want a packaged desktop installer or a hosted sign-up (neither exists)
-- do not want to configure a model route yourself
+- have no model runtime and do not want to install one: Hutch bundles no model or runtime, and its free starting model needs the OpenCode CLI
 - need production-grade guarantees or a support contract
 
 | | Today |
@@ -130,17 +130,20 @@ Hutch fits technical builders on Linux who want repeat AI work (scheduled briefi
 
 ## Setup details
 
-**Requirements:** Linux, Python 3.11+ and [uv](https://docs.astral.sh/uv/). Real runs also need a model route you configure (a local runtime or a hosted provider account); runtime prerequisites are documented in [docs/runtime-setup.md](docs/runtime-setup.md).
+**Requirements:** Linux, Python 3.11+ and [uv](https://docs.astral.sh/uv/). Real runs also need a model: a local runtime, a hosted provider account, or a free OpenCode model (install the OpenCode CLI; Hutch bundles no model or runtime); runtime prerequisites are documented in [docs/runtime-setup.md](docs/runtime-setup.md).
 
 On Linux with systemd, `uv run hutch service install` can start the same loopback-only dashboard in your user session
 and bring it back at the next login. It does not enable remote access or change your data. Hutch does not enable
 systemd linger for you; if you want background work to continue after logout, review your own systemd user-session
 policy first. `uv run hutch service status` and `uv run hutch service uninstall` inspect or remove the unit without deleting data.
 
-Configure a real model route in **Apps & AI**. Save a workspace model default if you want the
-one-screen New Bot flow to reuse it; without a configured model, setup asks you to choose one
-instead of silently switching providers. For a local
-Ollama install, for example:
+On first run Hutch preselects a starting model for the new assistant, most private first: a ready model on
+this computer, then a provider you already connected, then a free OpenCode model. A hosted starter always
+comes with a notice that whatever you send it leaves the computer and that free hosted models can keep or
+learn from it, so use it for nothing private. The starter is only preselected: nothing is saved until you
+create the assistant. Change the default for new assistants in **Settings**, or one assistant's model on its
+**AI model** tab; add providers and connections in **Apps & AI**. A second assistant starts on the main
+assistant's route. For a local Ollama install, for example:
 
 ```bash
 hutch bot create research-briefing --display-name "Research Briefing" --model ollama/llama3.2 --tools files,web_fetch --approvals ask
@@ -262,11 +265,11 @@ The software itself is free and MIT-licensed: there is no subscription, hosted t
 
 ### What runs where?
 
-Hutch's control state stays local: conversations, memory, logs, schedules and files live in one state directory on the machine you control. Model calls go to whichever route you configured. A hosted model receives the prompts and context Hutch sends to it; network tools connect to their own destinations. A local runtime such as Ollama, llama.cpp or LM Studio keeps model calls on your machine, while configured tools can still use the network.
+Hutch's control state stays local: conversations, memory, logs, schedules and files live in one state directory on the machine you control. Model calls go to the route you confirm for each assistant; Hutch may preselect a starting route and says so. A hosted model receives the prompts and context Hutch sends to it; network tools connect to their own destinations. A local runtime such as Ollama, llama.cpp or LM Studio keeps model calls on your machine, while configured tools can still use the network.
 
 ### Does Hutch need a GPU or an API key?
 
-Hutch connects to a model route you configure. It does not bundle model runtimes, model weights or hosted inference. A local runtime such as Ollama, llama.cpp or LM Studio runs on your hardware, and whether a given model fits is estimated, not guaranteed. A hosted route uses an account with that provider, connected by key or a supported sign-in. There is no product demo runtime or simulated model.
+Hutch connects to a model route. It does not bundle model runtimes, model weights or hosted inference. A free OpenCode model can be the starting route without an API key, but it is hosted: what you send leaves your computer, and free hosted models can keep or learn from it. A local runtime such as Ollama, llama.cpp or LM Studio runs on your hardware, and whether a given model fits is estimated, not guaranteed. A hosted route uses an account with that provider, connected by key or a supported sign-in. There is no product demo runtime or simulated model.
 
 ### Is Hutch ready for production use?
 
