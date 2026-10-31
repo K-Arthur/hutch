@@ -29,10 +29,21 @@ class Events:
 
     def __init__(self):
         self.fail = False
+        self.credential_fail = False
         self.calls = 0
 
     def accounts(self):
         return [{"id": ACCOUNT, "label": "Work", "status": "connected"}]
+
+    def access_token(self, account_id):
+        """The credential exchange the adapter performs around every read.
+
+        ``fail`` leaves the credential working, so a failed refresh is a provider
+        problem (the stale path); ``credential_fail`` models an unusable grant.
+        """
+        if self.credential_fail:
+            raise RuntimeError("The Google Calendar refresh credential is missing")
+        return "synthetic-access-token"
 
     def list_events(self, account_id, calendar_id, time_min, time_max, *, query="", limit=25):
         self.calls += 1

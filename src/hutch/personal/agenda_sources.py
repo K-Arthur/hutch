@@ -47,12 +47,35 @@ def _connected_account(book, account_id: str) -> dict[str, Any]:
     return account
 
 
-def _provider_failure(exc: Exception) -> AgendaUnavailable:
-    """Classify only Hutch's own error copy, never provider-controlled text."""
-    message = str(exc)
-    if "reconnect" in message.lower() or "refresh credential" in message.lower():
-        return AgendaUnavailable("grant_expired", message)
-    return AgendaUnavailable("provider_error", message)
+def _renew(book, account_id: str) -> None:
+    """Obtain an access token *before* reading, so a credential failure is identifiable.
+
+    Classifying by call site beats classifying by message text: a revoked or expired
+    refresh token is whatever the provider chooses to answer with (Google's canonical
+    answer is HTTP 400 ``invalid_grant``), and matching on Hutch's own error copy would
+    silently miss any status that has not been seen yet.
+    """
+    try:
+        book.access_token(account_id)
+    except AgendaUnavailable:
+        raise
+    except Exception:
+        raise AgendaUnavailable(
+            "grant_expired",
+            "This account's saved permission is no longer usable; reconnect it in Connections.") from None
+
+
+def _read_failure(book, account_id: str, exc: Exception) -> AgendaUnavailable:
+    """Decide whether a failed read was really a failed credential.
+
+    The probe asks the client for a token: if the credential no longer works, the owner
+    must reconnect, and the reading is not merely delayed by a flaky provider.
+    """
+    try:
+        book.access_token(account_id)
+    except Exception:
+        return AgendaUnavailable("grant_expired", str(exc))
+    return AgendaUnavailable("provider_error", str(exc))
 
 
 def calendar_source(store, config, bot_id: str) -> Optional[AgendaSource]:
@@ -80,13 +103,14 @@ def calendar_source(store, config, bot_id: str) -> Optional[AgendaSource]:
     def fetch(start: datetime, end: datetime) -> list[dict[str, Any]]:
         book = calendar_book(config, store)
         _connected_account(book, selected.account_id)
+        _renew(book, selected.account_id)
         try:
             return book.list_events(selected.account_id, selected.calendar_id, iso(start), iso(end),
                                     limit=25)
         except AgendaUnavailable:
             raise
         except GoogleCalendarError as exc:
-            raise _provider_failure(exc) from None
+            raise _read_failure(book, selected.account_id, exc) from None
 
     return replace(selected, fetch=fetch)
 
@@ -117,12 +141,13 @@ def mail_source(store, config, bot_id: str) -> Optional[AgendaSource]:
     def fetch(start: datetime, end: datetime) -> list[dict[str, Any]]:
         book = mail_book(config, store)
         _connected_account(book, selected.account_id)
+        _renew(book, selected.account_id)
         try:
             return book.list_messages(selected.account_id, MAIL_QUERY, limit=10)
         except AgendaUnavailable:
             raise
         except GoogleCalendarError as exc:
-            raise _provider_failure(exc) from None
+            raise _read_failure(book, selected.account_id, exc) from None
 
     return replace(selected, fetch=fetch)
 
