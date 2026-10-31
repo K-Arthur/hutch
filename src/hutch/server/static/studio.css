@@ -430,7 +430,7 @@ details.approval-review[open] > summary { margin: 0 -12px; padding: 4px 12px; }
 .roster-entry.is-archived .roster-name { color: var(--text-2); }
 .roster-entry.is-archived .roster-row:hover { background: var(--raised); }
 .roster-archived-details { margin-top: 8px; }
-.hutch-composer__notice--archived { color: var(--text-1); }
+.hutch-composer__notice--archived { color: var(--text-2); }
 .roster-entry { grid-template-columns: minmax(0, 1fr) 28px; }
 .roster-options { color: var(--text-2); }
 /* the coordinator is the home card, as the pinned assistant is in Muse */
