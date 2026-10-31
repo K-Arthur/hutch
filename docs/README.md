@@ -15,12 +15,14 @@ Where a document and the running code disagree, the code and the current
 
 | Document | Contents |
 |---|---|
+| [Getting Started](getting-started.md) | prerequisites, 5-step onboarding, model options and troubleshooting |
 | [Architecture](architecture.md) | component map, storage schema, control plane and concurrency model |
 | [Safety model](safety.md) | deny/ask/allow rules, approval flow and honest limits |
 | [Operating Hutch locally](operations.md) | Linux service setup, sandbox requirements, backups, restore and phone supervision |
 | [Bot configuration](bot-config.md) | bot fields, model specs, schedules, limits, YAML preview and reviewed import |
 | [Models](models.md) | chat model switcher, fit, model slots, prices and `hutch doctor` |
 | [Connections](connections.md) | provider plans, keys, OAuth app connections, unsupported integrations and limits |
+| [Provider platform](provider-platform.md) | provider identities, named accounts, capability evidence, readiness states and runtime boundaries |
 | [Runtime setup](runtime-setup.md) | prerequisites for OpenCode, Ollama and other optional runtimes |
 | [Marketing site claims](marketing-site.md) | claim and evidence rules for the static site |
 | [Brand assets](brand-assets.md) | third-party service marks, Hutch identity assets and typefaces |

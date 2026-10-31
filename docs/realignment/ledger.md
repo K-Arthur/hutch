@@ -4961,3 +4961,43 @@ covers `48dbbb2e`); the later work is covered by focused suites listed in the pr
 OpenCode journey on the new first-run page (the browser tests use labelled fixtures; the earlier live run covered the
 route itself), a screen-reader pass, axe, native builds, macOS and Windows. The known baseline browser failures stand.
 
+
+## 2026-10-31: personal operations slice (commitments, Today, shared spaces)
+
+Owner asked for a long-horizon improvement of personal operations, family/shared workflows, coding orchestration,
+shipped deliverables and persistent automations, with research first, real testing, visual validation and an
+independent review. This slice delivered the personal-operations foundation; coding orchestration, multimodal
+deliverables and duplicate-external-action acceptance were inspected and are documented as deferred/blocked in
+`.pipeline/personal-operations/2026-10/HANDOFF.md` rather than claimed as done.
+
+**Shipped.** Durable commitments (schema v84) with immutable provenance, confirmed/proposed distinction,
+reported/verified completion kinds, dependency edges, revision CAS and an append-only event trail; shared spaces
+with recorded members/roles and explicit revocable per-assistant grants; three canonical tools (capture, list,
+report) with no way for a model to confirm a proposal or verify a completion; a deterministic Today projection
+(no model call) and Today/Shared dashboard surfaces; user and operator docs, ADR-0025, and an accurate marketing
+section plus claims rules. Commits: `003c4365`, `1c454c32`, `dd8d59b3`, `a2fb4137`, `adb5e296`, `023bf47c`,
+`ee8ea3be`, `f879019b`, `02cf968b`, `4f23c591`, `e1d4e016`.
+
+**Verification.** Focused suites (commitments, spaces, API, tools, migration, nav, bot-deletion schema, personal
+pages e2e) 87 passed at the integrated HEAD. Full non-e2e suite in six disjoint batches: 4,429 passed, 99 skipped,
+3 xfailed, 4 failed, all attributable: three reproduce on a clean HEAD worktree in this sandbox (process-group
+inspection under the sandbox pid namespace; two remote-pairing tests binding an occupied port), one is caused by
+another session's uncommitted model-route changes and passes on clean HEAD. The one real regression from this
+slice (a test pinning SCHEMA_VERSION to 83) was fixed and its batch re-ran green. Real dashboard on isolated
+state validated at 1440/834/390/320 plus 200 percent zoom with zero overflow/console errors; capture,
+complete-with-evidence, verification and proposal confirmation asserted through the persisted API rows. A real
+interval schedule survived a dashboard restart and fired at its computed instant, recording a run that failed
+honestly with model_unavailable (no configured route). Evidence: `.pipeline/personal-operations/2026-10/`.
+
+**Process incident, recorded.** The shared checkout advanced during this slice: another session committed the
+provider-platform series, which edited `website/index.html` and added the MCP migration after the personal one
+(current schema 85; v84 is this slice). All slice commits are on main; the other session's work builds on them
+up to `02cf968b`, then this slice's final commit sits on top. The session's staged `app.py` and uncommitted
+model-picker files were never staged, reverted or reformatted here. `npm run check:agent` currently reports one
+file-size violation in `tests/test_mcp_plane.py` (402 lines, added by the other session's `934e1b69`); it was not
+edited from this session.
+
+**Limits, recorded rather than hidden.** No multi-user authentication (spaces scope data for assistants and
+record people; the server remains single-owner); no live model-driven commitment capture because no model route
+was configured; calendar/mail are not read for Today; no live coding-orchestration or multimodal deliverable run
+in this environment; no exactly-once claim for external effects, and this slice adds none.

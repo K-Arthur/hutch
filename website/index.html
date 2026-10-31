@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Hutch — local-first AI assistants that run on your machine</title>
-  <meta name="description" content="Local-first, MIT-licensed AI assistants that run on your own Linux computer. Choose the models; assistants ask before important actions. Development preview.">
+  <meta name="description" content="Local-first, MIT-licensed AI assistants that run on your own Linux computer. Choose the provider, plan and account; assistants ask before important actions. Development preview.">
   <link rel="alternate" type="application/json" href="downloads.json?v=34dc6a4b" title="Hutch desktop release manifest">
   <meta name="theme-color" content="#09090b">
   <link rel="canonical" href="https://k-arthur.github.io/hutch/">
   <meta property="og:url" content="https://k-arthur.github.io/hutch/">
   <meta property="og:title" content="Hutch — local-first AI assistants that run on your machine">
-  <meta property="og:description" content="Personal AI assistants that run on your own computer, with the models you choose and approvals before important actions. Local-first, MIT-licensed, development preview.">
+  <meta property="og:description" content="Personal AI assistants that run on your own computer, with the provider, plan and account you choose, and approvals before important actions. Local-first, MIT-licensed, development preview.">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Hutch">
   <meta property="og:image" content="https://k-arthur.github.io/hutch/assets/og-card-1200x630.png?v=2cf67f59">
@@ -52,9 +52,10 @@
       "Local or hosted model routes: Ollama, llama.cpp, LM Studio, OpenAI, Anthropic, OpenRouter, OpenAI-compatible and OpenCode",
       "Estimated spend ceilings, usage reservations and run budgets",
       "Hash-verified transcripts and locally stored, versioned document files",
+      "A validated provider catalogue with multiple named accounts, explicit readiness states and separated execution runtimes",
       "Recurring tasks with IANA-timezone schedules that catch up after sleep"
     ],
-    "dateModified": "2026-10-28"
+    "dateModified": "2026-10-30"
   }
   </script>
   <script type="application/ld+json">
@@ -91,7 +92,7 @@
         "name": "Do I need an API key, a credit card, or a GPU?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Hutch does not include hosted inference. Connect OpenCode with a provider account, use a compatible hosted provider, or run a local model service you already control; available models vary, and live paid-provider checks have not been performed for this preview."
+          "text": "Hutch does not include hosted inference. Connect OpenCode with a provider account, use a compatible hosted provider, or run a local model service you already control; available models vary, and live paid-provider checks are limited to the two owner-authorized DeepSeek text routes dated 2026-10-30."
         }
       },
       {
@@ -196,6 +197,14 @@
         "acceptedAnswer": {
           "@type": "Answer",
           "text": "OpenCode can connect a provider through an API key or a sign-in method its installed server reports, inside a private profile managed by Hutch; it does not import your regular OpenCode profile. Hutch reserves usage before the prompt and settles the provider-reported totals. OpenCode Go is also available as a user-supplied API key route. Sign in with ChatGPT is an opt-in local-app preview; eligibility for Hutch is unconfirmed and its Responses API does not enforce Hutch's output-token allowance. Scheduled or coordinator-assigned work needs your express permission for each Bot and connected account; the permission follows that Bot's current provider routes and can be revoked. Hutch never reuses consumer-app cookies or sessions, and no plan is silently upgraded or selected as a fallback."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I use more than one model provider or account?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Providers, plans, accounts and runtimes are separate choices. Add a named account for each API project or subscription, and every model route names the account it uses, so you always know which service receives data and which account pays. The in-app Providers page lists the provider catalogue with its real status (shipped, experimental, research-only, blocked or retired), the accounts configured on this machine, explicit readiness states such as needs authentication or capability unverified, the local inference services detected on loopback, and the execution runtimes with their boundaries. Hutch does not switch the provider, plan, account, endpoint or runtime on its own, and a provider being listed is not a support claim; only routes marked shipped are usable today. Two DeepSeek text routes were live-tested with owner authorization on 2026-10-30; every other provider and capability remains unverified."
         }
       },
       {
@@ -566,7 +575,7 @@
           <div class="card-body">
             <span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 1.8v2.7M15 1.8v2.7M9 19.5v2.7M15 19.5v2.7M1.8 9h2.7M1.8 15h2.7M19.5 9h2.7M19.5 15h2.7"/></svg></span>
             <h3 class="card-title">Inference</h3>
-            <p>Hutch supports configured OpenCode, OpenAI, Anthropic, OpenRouter, other OpenAI-compatible and Ollama routes. OpenCode can use a provider API key or a sign-in method its own server reports, in a private Hutch-managed profile. OpenRouter’s searchable model catalog is loaded when you open model choice; model availability and listed prices can change. In Studio, review the selected route, draft context and current spend policy before sending; choose an exact route for the next message, assign manual routes to task roles, or select <b>Save as Bot default</b> for future chats and scheduled runs. Strict OpenRouter USD ceilings require fresh endpoint pricing and block when Hutch cannot establish a safe estimate. Estimates are not provider billing guarantees; live inference and model-quality checks have not been performed for this preview.</p>
+            <p>Hutch supports configured OpenCode, OpenAI, Anthropic, OpenRouter, other OpenAI-compatible and Ollama routes. OpenCode can use a provider API key or a sign-in method its own server reports, in a private Hutch-managed profile. OpenRouter’s searchable model catalog is loaded when you open model choice; model availability and listed prices can change. In Studio, review the selected route, draft context and current spend policy before sending; choose an exact route for the next message, assign manual routes to task roles, or select <b>Save as Bot default</b> for future chats and scheduled runs. Strict OpenRouter USD ceilings require fresh endpoint pricing and block when Hutch cannot establish a safe estimate. Estimates are not provider billing guarantees; live inference was exercised only for the two DeepSeek text routes dated 2026-10-30, and model-quality checks remain unperformed.</p>
           </div>
         </article>
         <article class="card feature border border-line bg-surface">
@@ -671,6 +680,117 @@
         </ul>
         <figcaption id="rd-cap">Conceptual, not measured traffic.</figcaption>
       </figure>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============================================================= PROVIDERS -->
+  <section class="section" id="providers">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="section-heading">Not tied to one model vendor.</h2>
+        <p class="section-desc">Hutch keeps the provider, the plan, the account and the execution runtime as separate choices. Pick a direct API account, a subscription plan with an issued key, a gateway, a local model server or a custom compatible endpoint - and keep that choice visible while work runs.</p>
+      </div>
+
+      <div class="choice-grid">
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-ai" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="16" r="11"/><path d="M5 16h22M16 5c4 3.6 4 18 0 22M16 5c-4 3.6-4 18 0 22"/></svg></span><h3>Choose the account, not just the provider</h3></div>
+          <p>One provider can have several named accounts - a personal API project, a work project, a subscription plan - and every model route names the account it uses. Each account shows its authentication method, whether the credential is local, the billing relationship and what is missing.</p>
+          <p>Keys stay on your machine: Hutch shows where a credential comes from, never the value, and removing a local key is reported separately from provider-side revocation.</p>
+        </article>
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-apps" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h22M5 16h22M5 23h22"/><circle cx="10" cy="9" r="2"/><circle cx="22" cy="16" r="2"/><circle cx="14" cy="23" r="2"/></svg></span><h3>Kinds of route, all explicit</h3></div>
+          <p>Direct API keys, gateway accounts, subscription plans that issue their own provider key, local model servers and custom compatible endpoints are different routes. A gateway can answer with a different upstream model than the requested catalogue entry; Hutch records the model the provider reports instead of pretending the requested one answered.</p>
+          <p>Similar APIs are not assumed identical: tools, streaming, image input, context controls, usage reporting and cancellation are recorded per route and model, with dated sources.</p>
+        </article>
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-home" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="24" height="18" rx="3"/><path d="M4 13h24M9 17h6M9 21h10"/></svg></span><h3>Bring your own runtime</h3></div>
+          <p>The execution runtime is not the provider. The built-in runtime reserves provider usage before a model call and applies Hutch approvals and sandbox rules; the managed OpenCode runtime keeps its own tools and credentials; documented vendor CLIs stay documented until an approval, budget and process-lifecycle contract exists. Registering an engine never silently enables it.</p>
+        </article>
+      </div>
+
+      <details class="page-details technical-details">
+        <summary>See route categories, capability status and research-tracked providers</summary>
+        <div class="details-copy">
+          <div class="choice-grid">
+            <article class="choice-card">
+              <div class="choice-heading"><h3>Shipped model routes</h3></div>
+              <p>OpenAI Platform API key, Anthropic Console API key, OpenRouter, custom OpenAI- and Anthropic-compatible endpoints, local Ollama, LM Studio, llama.cpp and vLLM, and the managed OpenCode runtime. OpenCode Go and Xiaomi Token Plan are shipped but experimental subscription-key routes; Sign in with ChatGPT is an opt-in local preview.</p>
+            </article>
+            <article class="choice-card">
+              <div class="choice-heading"><h3>Capabilities, not vendor promises</h3></div>
+              <p>On 2026-10-30 the owner-authorized DeepSeek direct route and the managed OpenCode runtime with a DeepSeek model completed real text requests; only text was exercised. Image input is implemented and gated on the selected route and model; a route that cannot receive an attachment refuses it instead of dropping it. Image generation ships through OpenAI Images and ComfyUI. Speech synthesis ships through OpenAI and Gemini TTS engines (protocol-tested, not live-verified). Local grounding streams from public sources. Video, music and provider-native search are research-tracked, not shipped.</p>
+            </article>
+            <article class="choice-card">
+              <div class="choice-heading"><h3>No silent substitution</h3></div>
+              <p>Hutch does not change the model, provider, account, endpoint, region, runtime or billing route on its own. There is no automatic fallback to another paid service and no consumer-session reuse or unsupported subscription bridge. A blocked or retired route is labelled, with the documented alternative, instead of being imitated.</p>
+            </article>
+          </div>
+
+          <div class="routes">
+            <span class="routes-k">shipped route families</span>
+            <ul class="routes-list">
+              <li class="badge badge-outline">openai api</li><li class="badge badge-outline">anthropic api</li><li class="badge badge-outline">openrouter</li><li class="badge badge-outline">deepseek api (live-verified 2026-10-30)</li><li class="badge badge-outline">openai-compatible</li><li class="badge badge-outline">anthropic-compatible</li><li class="badge badge-outline">opencode go (experimental)</li><li class="badge badge-outline">xiaomi token plan (experimental)</li><li class="badge badge-outline">ollama</li><li class="badge badge-outline">lm studio</li><li class="badge badge-outline">llama.cpp</li><li class="badge badge-outline">vllm</li><li class="badge badge-outline">openai images</li><li class="badge badge-outline">comfyui</li><li class="badge badge-outline">openai / gemini tts</li>
+            </ul>
+          </div>
+
+          <div class="routes">
+            <span class="routes-k">research-tracked, not shipped</span>
+            <ul class="routes-list">
+              <li class="badge badge-outline">google gemini</li><li class="badge badge-outline">vertex ai</li><li class="badge badge-outline">amazon bedrock</li><li class="badge badge-outline">bedrock mantle</li><li class="badge badge-outline">anthropic on vertex</li><li class="badge badge-outline">microsoft foundry</li><li class="badge badge-outline">minimax</li><li class="badge badge-outline">moonshot / kimi</li><li class="badge badge-outline">qwen</li><li class="badge badge-outline">xai grok</li><li class="badge badge-outline">z.ai glm</li><li class="badge badge-outline">mistral</li><li class="badge badge-outline">alibaba model studio</li><li class="badge badge-outline">stepfun</li><li class="badge badge-outline">volcengine</li><li class="badge badge-outline">tencent cloud</li><li class="badge badge-outline">baidu qianfan</li><li class="badge badge-outline">cohere</li><li class="badge badge-outline">synthetic</li><li class="badge badge-outline">venice</li><li class="badge badge-outline">arcee</li><li class="badge badge-outline">vydra</li><li class="badge badge-outline">gmi cloud</li><li class="badge badge-outline">byteplus</li><li class="badge badge-outline">cloudflare ai gateway</li><li class="badge badge-outline">vercel ai gateway</li><li class="badge badge-outline">clawrouter</li><li class="badge badge-outline">litellm</li><li class="badge badge-outline">groq</li><li class="badge badge-outline">cerebras</li><li class="badge badge-outline">together</li><li class="badge badge-outline">fireworks</li><li class="badge badge-outline">nvidia nim</li><li class="badge badge-outline">hugging face</li><li class="badge badge-outline">deepinfra</li><li class="badge badge-outline">chutes</li><li class="badge badge-outline">novita</li><li class="badge badge-outline">kilocode</li><li class="badge badge-outline">ollama cloud</li><li class="badge badge-outline">sglang</li><li class="badge badge-outline">inferrs</li><li class="badge badge-outline">ds4</li><li class="badge badge-outline">fal</li><li class="badge badge-outline">runway</li><li class="badge badge-outline">pixverse</li><li class="badge badge-outline">deepgram</li><li class="badge badge-outline">elevenlabs</li><li class="badge badge-outline">claude code cli</li><li class="badge badge-outline">codex cli</li><li class="badge badge-outline">gemini cli</li>
+            </ul>
+          </div>
+
+          <p class="details-note">This is a research catalogue, not a support claim. Some routes are blocked by provider policy (for example a Claude subscription API proxy or GitHub Copilot subscription reuse), and some flows are retired (for example the old Qwen portal OAuth and 2026 Gemini consumer CLI authentication). No vendor partnership or endorsement is implied. Each in-app provider entry shows its category, authentication methods, integration status and dated sources; the full research record ships in the repository under docs/research/2026-10-provider-platform/.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ====================================================== CONNECTORS -->
+  <section class="section" id="connectors">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="section-heading">Connect a tool without handing over the account.</h2>
+        <p class="section-desc">Hutch is a client for connectors that speak MCP. You install one, read the tools it offers, and then grant specific tools to specific assistants. Each of those is a separate act, and installing something authorizes nothing.</p>
+      </div>
+
+      <div class="choice-grid">
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-apps" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="9" height="9" rx="2"/><rect x="18" y="5" width="9" height="9" rx="2"/><rect x="5" y="18" width="9" height="9" rx="2"/><path d="M18 22.5h9M22.5 18v9"/></svg></span><h3>Read first, grant second</h3></div>
+          <p>Reading a connector's tool list starts it once and calls no tool. You see every tool it offers, what the server says each one does, and any tool Hutch refuses to run because its description cannot be checked safely.</p>
+          <p>A tool is only visible to an assistant you named, and the grant records which version of that tool's definition you approved. If the server later changes it, the grant is withdrawn rather than silently carried over.</p>
+        </article>
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-home" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4 26 9v7c0 6-4.2 10.2-10 13-5.8-2.8-10-7-10-13V9l10-5Z"/><path d="m11.5 16 3 3 6-6"/></svg></span><h3>Local servers run contained</h3></div>
+          <p>A local connector is third-party code, so Hutch runs it the way it runs a shell command: no host network, no inherited environment, one writable folder, and read-only access to the paths you reviewed. The program and those paths are fingerprinted at review time; if either changes, Hutch refuses to start it until you look again.</p>
+          <p>Hutch refuses a credential in a definition and never stores one it has recognised. A definition names an environment variable instead, and Hutch reads it when the server starts, outside the process argument list.</p>
+        </article>
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-ai" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16h6l3-8 3 16 3-8h5"/></svg></span><h3>The effect class is yours to set</h3></div>
+          <p>A connector is not read-only because its server says so. You classify each tool as read, write, destructive or unknown, and only read runs without asking. Every other class brings you the exact tool, account and arguments before anything is sent.</p>
+          <p>Revoking a tool takes effect on that assistant's next tool call, not its next task. Removing a connector removes its grants with it.</p>
+        </article>
+      </div>
+
+      <details class="page-details technical-details">
+        <summary>What is shipped, and what has not been verified</summary>
+        <div class="details-copy">
+          <div class="choice-grid">
+            <article class="choice-card">
+              <div class="choice-heading"><h3>Shipped</h3></div>
+              <p>Local stdio connectors and remote Streamable HTTP endpoints, tool discovery with a stored schema revision per tool, per-assistant grants with an operation class, approval on non-read calls, and a connectors page alongside a machine-readable API. The connector tool runs through the same registry, the same argument validation and the same receipt path as a built-in tool.</p>
+            </article>
+            <article class="choice-card">
+              <div class="choice-heading"><h3>Deliberately narrow</h3></div>
+              <p>Only tools are exposed, not prompts or resources. Remote endpoints support no authentication or a bearer token read from an environment variable; OAuth for a connector endpoint is not shipped. There is no connector marketplace and no automatic installation from a registry listing.</p>
+            </article>
+            <article class="choice-card">
+              <div class="choice-heading"><h3>Not yet verified</h3></div>
+              <p>The connector path has been exercised against Hutch's own test server through the real sandbox, including its containment boundary. It has not been run against a third-party connector on this machine, and the remote HTTP path has not been run against a live endpoint. Treat third-party connectors as experimental in this preview.</p>
+            </article>
+          </div>
         </div>
       </details>
     </div>
@@ -839,7 +959,7 @@
               <tr><th scope="row" class="av-area"><span class="av-k">Public source</span><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Available</span></th><td class="av-v">MIT-licensed development source is <a href="https://github.com/K-Arthur/hutch">public on GitHub</a>. There are no packaged desktop installers or hosted sign-up today.</td></tr>
               <tr><th scope="row" class="av-area"><span class="av-k">Core app</span><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></th><td class="av-v">The Linux executor, local SQLite state, and lifecycle/control flows have fixture coverage. To run a task, configure a model route.</td></tr>
               <tr><th scope="row" class="av-area"><span class="av-k">Documents</span><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></th><td class="av-v">Local generation of PDF, DOCX, XLSX, PPTX, CSV, JSON, Markdown, YAML and ZIP bundles from reviewed content, with SHA-256-verified downloads, versioned revisions and in-app previews. PDF previews use page images; other formats use extracted structure. Office layout renders need LibreOffice on the host.</td></tr>
-              <tr><th scope="row" class="av-area"><span class="av-k">Workflows</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Owner-started saved workflows are in the development preview. An owner can link an activated saved method to an existing routine; it pins the exact revision and checked inputs, and enabling the routine stays separate. Run now starts one copy without advancing the schedule; the existing local supervisor and host must be running. Chat route cards and Auto starts of activated saved methods require selector qualification for the exact model profile; the two local profiles tested did not qualify. Auto does not create new plans, and live provider execution remains unverified.</td></tr>
+              <tr><th scope="row" class="av-area"><span class="av-k">Workflows</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Owner-started saved workflows are in the development preview. An owner can link an activated saved method to an existing routine; it pins the exact revision and checked inputs, and enabling the routine stays separate. Run now starts one copy without advancing the schedule; the existing local supervisor and host must be running. Chat route cards and Auto starts of activated saved methods require selector qualification for the exact model profile; the two local profiles tested did not qualify. Auto does not create new plans; workflow execution itself remains unverified beyond the two dated DeepSeek text checks.</td></tr>
               <tr><th scope="row" class="av-area"><span class="av-k">Campaign metrics</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Preview a same-unit campaign CSV in chat, then save checked local draft metrics and report notes. Deterministic calculations use no model calls, preserve undefined values and require an explicit reporting window for budget comparisons. This does not connect to Google Ads or change campaigns. Live reporting and complete marketing workflows remain unverified.</td></tr>
               <tr><th scope="row" class="av-area"><span class="av-k">Chat image input</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Chat accepts PNG, JPEG or WebP attachments (up to 4 images, 1.5&nbsp;MB each). Staged images stay in the conversation workspace and travel with every message until removed. Built-in runtimes need a vision-capable model route and refuse unsupported sends before a run starts; the OpenCode runtime checks the selected model’s image support and names a text-only model in its refusal. Preflight estimates remain text-only.</td></tr>
               <tr><th scope="row" class="av-area"><span class="av-k">AI services</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></th><td class="av-v">Configured hosted and local model routes are available in preview. OpenCode supports provider keys and supported sign-ins in a private Hutch-managed profile, plus OpenCode Go API keys. Sign in with ChatGPT is an opt-in local preview; eligibility for Hutch is unconfirmed and its Responses API does not enforce Hutch's output-token allowance.</td></tr>
@@ -899,7 +1019,7 @@
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Do I need an API key, a credit card, or a GPU?</summary>
-          <div class="collapse-content"><p>Hutch does not include hosted inference. Connect OpenCode with a provider account, use a compatible hosted provider, or run a local model service you already control; available models vary, and live paid-provider checks have not been performed for this preview.</p></div>
+          <div class="collapse-content"><p>Hutch does not include hosted inference. Connect OpenCode with a provider account, use a compatible hosted provider, or run a local model service you already control; available models vary, and live paid-provider checks are limited to the two owner-authorized DeepSeek text routes dated 2026-10-30.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Can I choose how Hutch answers?</summary>
@@ -952,6 +1072,10 @@
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Can I run it on my ChatGPT or Claude subscription?</summary>
           <div class="collapse-content"><p>OpenCode can connect a provider through an API key or a sign-in method its installed server reports, inside a private profile managed by Hutch; it does not import your regular OpenCode profile. Hutch reserves usage before the prompt and settles the provider-reported totals. OpenCode Go is also available as a user-supplied API key route. Sign in with ChatGPT is an opt-in local-app preview; eligibility for Hutch is unconfirmed and its Responses API does not enforce Hutch's output-token allowance. Scheduled or coordinator-assigned work needs your express permission for each Bot and connected account; the permission follows that Bot's current provider routes and can be revoked. Hutch never reuses consumer-app cookies or sessions, and no plan is silently upgraded or selected as a fallback.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can I use more than one model provider or account?</summary>
+          <div class="collapse-content"><p>Yes. Providers, plans, accounts and runtimes are separate choices. Add a named account for each API project or subscription, and every model route names the account it uses, so you always know which service receives data and which account pays. The in-app Providers page lists the provider catalogue with its real status (shipped, experimental, research-only, blocked or retired), the accounts configured on this machine, explicit readiness states such as needs authentication or capability unverified, the local inference services detected on loopback, and the execution runtimes with their boundaries. Hutch does not switch the provider, plan, account, endpoint or runtime on its own, and a provider being listed is not a support claim; only routes marked shipped are usable today. Two DeepSeek text routes were live-tested with owner authorization on 2026-10-30; every other provider and capability remains unverified.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">What does a runaway bot cost me?</summary>

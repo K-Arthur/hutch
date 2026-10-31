@@ -1,0 +1,56 @@
+{
+  "test": "hutch_managed_opencode_runtime_live",
+  "date": "2026-10-31T00:09:50-0700",
+  "provider": "deepseek",
+  "opencode_version": "2.2.0",
+  "deepseek_integration_before": {
+    "id": "deepseek",
+    "connected": false
+  },
+  "deepseek_integration_after": {
+    "id": "deepseek",
+    "connected": true
+  },
+  "deepseek_models": [
+    {
+      "spec": "opencode/deepseek/deepseek-flash",
+      "name": "DeepSeek V4.1 Flash 1017",
+      "context": 1048576,
+      "output": 393216
+    },
+    {
+      "spec": "opencode/deepseek/deepseek-v4-pro",
+      "name": "DeepSeek V4 Pro",
+      "context": 1048576,
+      "output": 393216
+    }
+  ],
+  "chosen_model": "opencode/deepseek/deepseek-flash",
+  "run_id": "run_8329c364de64",
+  "run": {
+    "status": "succeeded",
+    "exit_reason": "completed",
+    "error": "",
+    "steps": 1,
+    "prompt_tokens": 4452,
+    "completion_tokens": 8,
+    "cost_usd": 0.0006726,
+    "model_used": "opencode/deepseek/deepseek-flash",
+    "started_at": "2026-10-31T07:09:53.263505+00:00",
+    "finished_at": "2026-10-31T07:09:56.967314+00:00",
+    "origin": "manual"
+  },
+  "event_types": [
+    "log",
+    "message",
+    "status",
+    "step"
+  ],
+  "texts": [
+    {
+      "event": "message",
+      "key": "content",
+      "text": "HUTCH_HUTCH_OK"
+    }
+  ]
+}

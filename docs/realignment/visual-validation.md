@@ -2138,3 +2138,18 @@ desktop, tablet, and phone sizes. Per-size JSON, source hashes, and traces are
 in [`artifacts/reply-quote-polish-2026-10-10/`](artifacts/reply-quote-polish-2026-10-10/).
 Attachments, long histories, human waits, and other open surfaces remain in
 the broader review queue.
+
+## Provider platform surfaces (2026-10-30)
+
+Captured the provider platform on branch provider-platform with Playwright Chromium: /providers,
+/models and /legacy/connections at 1440x960, 1280x720, 900x1024, 390x844 and 320x740; the marketing
+#providers section collapsed and expanded at the same widths; and a 200 percent text reflow check at
+1280x720. All app responses were HTTP 200, the run recorded zero console errors/warnings, and no
+horizontal overflow was detected. Real, unauthenticated accounts (two OpenAI, one Anthropic, one
+OpenRouter) and two saved model routes were the only seeded state, so every account truthfully rendered
+needs-authentication; no provider credential existed and no authenticated provider state is claimed.
+Three defects were found by inspection and fixed before the accepted run: website status cards that
+broke at phone width when expanded, runtime-table column clipping, and a CLI version probe that leaked a
+filesystem path into a rendered tag. Artifacts and the capture manifest:
+docs/research/2026-10-provider-platform/artifacts/visual/. Remaining gaps: no physical device or
+screen-reader session, and no native browser zoom gesture (CSS font-size 200 percent used instead).

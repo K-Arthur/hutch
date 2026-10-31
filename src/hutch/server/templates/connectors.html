@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Connectors{% endblock %}
+{% block header_context %}<div class="ctx-id"><h1>Connectors</h1></div>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="sub">A connector is a program or endpoint that gives an assistant tools for another service. Installing a connector authorizes nothing: it becomes available only when you grant one of its tools to a named assistant.</p>
+  </div>
+  <div class="card-actions">
+    <a href="/legacy/connections" class="btn small ghost">{{ icon("layers", 14) }}<span>Provider accounts</span></a>
+    <a href="/models" class="btn small ghost">{{ icon("cpu", 14) }}<span>Model routes</span></a>
+  </div>
+</div>
+
+<div class="banner wait">{{ icon("shield", 18) }}<div class="banner-body">
+  <p><strong>Local connectors run inside Hutch's sandbox.</strong> A local server starts with no host network, no inherited environment, one writable directory and read-only access to the paths you reviewed. Its executable and every reviewed path are fingerprinted when you save the definition; if either changes, Hutch refuses to start it until you review it again.</p>
+  <p class="muted">Hutch refuses a credential in a definition and never stores one it has recognised. A definition names an environment variable instead, and Hutch reads it when the server starts, outside the process argument list.</p></div></div>
+
+<section class="panel" aria-labelledby="installed-h">
+  <header class="conn-head"><div>
+    <h2 id="installed-h" class="card-title">{{ icon("layers", 18) }} Installed connectors</h2>
+    <p class="hint">Each connector reports its own state. "Capabilities discovered" means Hutch has read the server's tool list; it does not mean any assistant may use it.</p>
+  </div></header>
+  {% if not connectors %}
+  <p class="hint">No connectors are installed. Add one below, or read <a href="/legacy/connections">Apps &amp; AI</a> for provider accounts, which are a different thing.</p>
+  {% else %}
+  {% for item in connectors %}
+  <details class="plain-list" {% if item.open %}open{% endif %}>
+    <summary>
+      <strong>{{ item.title }}</strong>
+      <span class="mono small">{{ item.integration_id }}</span>
+      <span class="tag">{{ item.transport | replace("mcp_", "") }}</span>
+      <span class="chip {% if item.state == 'operation_authorized' %}st-succeeded{% elif item.state == 'capabilities_discovered' %}st-waiting_approval{% else %}st-stopped{% endif %}">{{ item.state | replace("_", " ") }}</span>
+      <span class="hint">{{ item.tool_count }} tool{{ "" if item.tool_count == 1 else "s" }}{% if item.grant_count %}, {{ item.grant_count }} granted{% endif %}</span>
+    </summary>
+
+    <div class="card-actions">
+      <form method="post" action="/connectors/{{ item.integration_id }}/test" class="hutch-form hutch-inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="btn small">Read tool list</button>
+      </form>
+      <form method="post" action="/connectors/{{ item.integration_id }}/remove" class="hutch-form hutch-inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="btn small danger">Remove connector</button>
+      </form>
+    </div>
+    <p class="hint">Reading the tool list starts the server once and never calls a tool. Removing a connector deletes its definition and every assistant grant derived from it.</p>
+
+    {% if item.diagnostics %}
+    <div class="banner bad" role="alert">{{ icon("alert", 18) }}<div class="banner-body">
+      <p><strong>Review notes</strong></p>
+      <ul>{% for note in item.diagnostics %}<li>{{ note }}</li>{% endfor %}</ul></div></div>
+    {% endif %}
+
+    {% if item.catalog %}
+    <h3 class="card-title">Tools this connector offers</h3>
+    <form method="post" action="/connectors/{{ item.integration_id }}/grant" class="hutch-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="revision" value="{{ item.revision }}">
+      <div class="plain-list">
+        {% for tool in item.catalog %}
+        <div class="list-row">
+          <div>
+            <strong>{{ tool.title or tool.server_tool_name }}</strong>
+            <span class="mono small">{{ tool.server_tool_name }}</span>
+            {% if not tool.supported %}<span class="chip st-failed">cannot run as described</span>{% endif %}
+            <p class="hint">{{ tool.description or "The server did not describe this tool." }}</p>
+            {% if tool.diagnostics %}<p class="hint">Refused because: {{ tool.diagnostics | join("; ") }}</p>{% endif %}
+          </div>
+          <div>
+            {% if tool.supported %}
+            <label class="hint"><input type="checkbox" name="tools" value="{{ tool.server_tool_name }}" {% if tool.granted %}checked{% endif %}> Allow</label>
+            <label class="hint">Effect
+              <select name="class_{{ tool.server_tool_name }}">
+                {% for option in ["read", "write", "destructive", "unknown"] %}
+                <option value="{{ option }}" {% if option == tool.operation_class %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            {% else %}
+            <span class="hint">Not selectable</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="hint">"Read" runs without asking. Every other effect asks for your approval on each call, and "unknown" is the safe default. A connector is not read-only because its server says so; this is your classification.</p>
+      <label>Assistant
+        <select name="bot" required>
+          <option value="">Choose an assistant</option>
+          {% for bot in bots %}<option value="{{ bot.id }}">{{ bot.label }}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="card-actions">
+        <button class="btn small primary">Grant selected tools</button>
+      </div>
+    </form>
+
+    {% if item.grants %}
+    <h3 class="card-title">Assistant access</h3>
+    <div class="plain-list" aria-label="Connector grants">
+      {% for grant in item.grants %}
+      <div class="list-row">
+        <div><strong>{{ grant.bot_name }}</strong> <span class="mono small">{{ grant.canonical_name }}</span>
+          <span class="tag">{{ grant.operation_class }}</span></div>
+        <div class="card-actions">
+          <form method="post" action="/connectors/{{ item.integration_id }}/revoke" class="hutch-form hutch-inline">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="bot" value="{{ grant.bot_id }}">
+            <button class="btn small danger">Revoke</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="hint">Revocation applies to the next tool call, not the next run.</p>
+    {% endif %}
+    {% else %}
+    <p class="hint">No tool list yet. Choose "Read tool list" to start the connector once and read what it offers.</p>
+    {% endif %}
+  </details>
+  {% endfor %}
+  {% endif %}
+</section>
+
+<section class="panel" aria-labelledby="add-h">
+  <header class="conn-head"><div>
+    <h2 id="add-h" class="card-title">{{ icon("plus", 18) }} Add a connector</h2>
+    <p class="hint">A local server must be an executable under <span class="mono">/usr</span> or inside a read-only path you name. Inside the sandbox the run workspace appears as <span class="mono">/workspace</span>, so any argument that names a workspace file must use that path.</p>
+  </div></header>
+  <form method="post" action="/connectors/add" class="hutch-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Connector id <span class="hint">lowercase slug, for example acme</span>
+      <input name="integration_id" required pattern="[a-z][a-z0-9_\-]{0,63}" autocomplete="off"></label>
+    <label>Name <input name="title" required maxlength="120" autocomplete="off"></label>
+    <label>Kind
+      <select name="transport">
+        <option value="mcp_stdio">Local program (stdio)</option>
+        <option value="mcp_http">Remote endpoint (Streamable HTTP)</option>
+      </select>
+    </label>
+    <fieldset>
+      <legend>Local program</legend>
+      <label>Executable <input name="command" placeholder="/usr/bin/uvx" autocomplete="off"></label>
+      <label>Arguments <span class="hint">one per line</span>
+        <textarea name="args" rows="3" spellcheck="false" placeholder="mcp-server-fetch"></textarea></label>
+      <label>Read-only paths <span class="hint">one absolute path per line; choose the narrowest folder that contains the server</span>
+        <textarea name="read_only_paths" rows="2" spellcheck="false"></textarea></label>
+      <label>Environment <span class="hint">one NAME=value per line. A value written as @NAME reads that environment variable when the server starts; credential-looking names must use that form.</span>
+        <textarea name="env" rows="2" spellcheck="false" placeholder="LOG_LEVEL=info"></textarea></label>
+    </fieldset>
+    <fieldset>
+      <legend>Remote endpoint</legend>
+      <label>URL <input name="url" placeholder="https://mcp.example.com/mcp" autocomplete="off"></label>
+      <label>Credential variable <span class="hint">optional; the name of an environment variable holding a bearer token</span>
+        <input name="bearer_env" placeholder="MCP_TOKEN" autocomplete="off"></label>
+    </fieldset>
+    <div class="card-actions"><button class="btn primary">Save connector</button></div>
+  </form>
+  <p class="hint">Saving does not start the connector and does not authorize anything.</p>
+</section>
+{% endblock %}

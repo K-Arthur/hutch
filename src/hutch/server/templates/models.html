@@ -17,6 +17,7 @@
   <div class="card-actions">
     <a href="/#/connections" class="btn small primary">{{ icon("layers", 14) }}<span>Add or repair a service</span></a>
     <a href="/#/settings" class="btn small ghost">{{ icon("settings", 14) }}<span>Set the default</span></a>
+    <a href="/providers" class="btn small ghost">{{ icon("layers", 14) }}<span>Provider catalogue</span></a>
   </div>
 </div>
 
@@ -30,6 +31,25 @@
 {% if notice and not request.query_params.get('price') %}<div class="flash notice" role="status">{{ icon("check", 16) }}<span>{{ notice }}</span></div>{% endif %}
 
 
+
+{% if readiness %}
+<section class="panel" id="route-readiness" aria-labelledby="route-readiness-h">
+  <header class="conn-head"><div>
+    <h2 id="route-readiness-h" class="card-title">{{ icon("layers", 18) }} Route readiness</h2>
+    <p class="hint">States come from local configuration only (no request, no token refresh). Capability unverified is not a failure: it means no dated evidence exists for this exact route and model in this build. See <a href="/providers">Providers</a> for accounts and evidence.</p>
+  </div></header>
+  <div class="plain-list" aria-label="Configured route readiness">
+    {% for row in readiness %}
+    <div class="list-row"><div>
+      <strong class="mono">{{ row.spec }}</strong>
+      <span class="chip {% if row.readiness.state == 'available' %}st-succeeded{% elif row.readiness.state == 'blocked_by_policy' %}st-failed{% elif row.readiness.state in ('needs_authentication', 'authentication_expired', 'capability_unverified', 'subscription_restricted') %}st-waiting_approval{% else %}st-stopped{% endif %}">{{ row.readiness.state | replace("_", " ") }}</span>
+      <p class="hint">{{ row.readiness.detail }}</p>
+      {% if row.readiness.next_action %}<p class="hint">{{ row.readiness.next_action }}</p>{% endif %}
+    </div></div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 {% if not v.configured_routes %}
 <section class="panel" id="detected-service" aria-labelledby="detected-h" data-no-routes="1" data-csrf="{{ csrf }}" hidden>

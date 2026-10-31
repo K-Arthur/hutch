@@ -250,3 +250,14 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
 
 CAPTCHA solving, bot-detection evasion, acting as a hosted service, or autonomy without
 supervision. These conflict with the product's premise.
+
+## Provider platform direction (2026-10-30)
+
+The provider layer now separates identity, named accounts, protocol, runtime, capability evidence and
+readiness. Shipped: validated provider catalogue, provider-grouped accounts, capability evidence levels,
+explicit route readiness, runtime boundary registry, bounded loopback discovery, and the Providers page.
+Next, still research-only or deferred: Gemini/Responses protocol generalisation, media and speech
+adapters with real job contracts, provider-native search attribution, and new runtime executors that
+need an approval/usage/lifecycle contract first. Hosted live verification remains blocked without
+credentials; the research package records that boundary.
+

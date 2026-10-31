@@ -1,0 +1,594 @@
+[
+  {
+    "name": "01-request-step-1440x1000.png",
+    "viewport": "1440x1000",
+    "width": 1440,
+    "height": 1000,
+    "url": "http://127.0.0.1:46239/onboarding",
+    "mode": "standard"
+  },
+  {
+    "name": "02-chooser-step-1440x1000.png",
+    "viewport": "1440x1000",
+    "width": 1440,
+    "height": 1000,
+    "url": "http://127.0.0.1:46239/onboarding/ai-service",
+    "mode": "standard"
+  },
+  {
+    "name": "03-hosted-key-step-1440x1000.png",
+    "viewport": "1440x1000",
+    "width": 1440,
+    "height": 1000,
+    "url": "http://127.0.0.1:46239/onboarding/hosted-key?provider=openai",
+    "mode": "standard"
+  },
+  {
+    "name": "04-local-service-step-1440x1000.png",
+    "viewport": "1440x1000",
+    "width": 1440,
+    "height": 1000,
+    "url": "http://127.0.0.1:46239/onboarding/local-service",
+    "mode": "standard"
+  },
+  {
+    "name": "05-opencode-step-1440x1000.png",
+    "viewport": "1440x1000",
+    "width": 1440,
+    "height": 1000,
+    "url": "http://127.0.0.1:46239/onboarding/opencode",
+    "mode": "standard"
+  },
+  {
+    "name": "06-assistant-step-1440x1000.png",
+    "viewport": "1440x1000",
+    "width": 1440,
+    "height": 1000,
+    "url": "http://127.0.0.1:46239/onboarding/assistant",
+    "mode": "standard"
+  },
+  {
+    "name": "07-first-request-step-1440x1000.png",
+    "viewport": "1440x1000",
+    "width": 1440,
+    "height": 1000,
+    "url": "http://127.0.0.1:46239/onboarding/first-request",
+    "mode": "standard"
+  },
+  {
+    "name": "01-request-step-1280x800.png",
+    "viewport": "1280x800",
+    "width": 1280,
+    "height": 800,
+    "url": "http://127.0.0.1:46239/onboarding",
+    "mode": "standard"
+  },
+  {
+    "name": "02-chooser-step-1280x800.png",
+    "viewport": "1280x800",
+    "width": 1280,
+    "height": 800,
+    "url": "http://127.0.0.1:46239/onboarding/ai-service",
+    "mode": "standard"
+  },
+  {
+    "name": "03-hosted-key-step-1280x800.png",
+    "viewport": "1280x800",
+    "width": 1280,
+    "height": 800,
+    "url": "http://127.0.0.1:46239/onboarding/hosted-key?provider=openai",
+    "mode": "standard"
+  },
+  {
+    "name": "04-local-service-step-1280x800.png",
+    "viewport": "1280x800",
+    "width": 1280,
+    "height": 800,
+    "url": "http://127.0.0.1:46239/onboarding/local-service",
+    "mode": "standard"
+  },
+  {
+    "name": "05-opencode-step-1280x800.png",
+    "viewport": "1280x800",
+    "width": 1280,
+    "height": 800,
+    "url": "http://127.0.0.1:46239/onboarding/opencode",
+    "mode": "standard"
+  },
+  {
+    "name": "06-assistant-step-1280x800.png",
+    "viewport": "1280x800",
+    "width": 1280,
+    "height": 800,
+    "url": "http://127.0.0.1:46239/onboarding/assistant",
+    "mode": "standard"
+  },
+  {
+    "name": "07-first-request-step-1280x800.png",
+    "viewport": "1280x800",
+    "width": 1280,
+    "height": 800,
+    "url": "http://127.0.0.1:46239/onboarding/first-request",
+    "mode": "standard"
+  },
+  {
+    "name": "01-request-step-1024x768.png",
+    "viewport": "1024x768",
+    "width": 1024,
+    "height": 768,
+    "url": "http://127.0.0.1:46239/onboarding",
+    "mode": "standard"
+  },
+  {
+    "name": "02-chooser-step-1024x768.png",
+    "viewport": "1024x768",
+    "width": 1024,
+    "height": 768,
+    "url": "http://127.0.0.1:46239/onboarding/ai-service",
+    "mode": "standard"
+  },
+  {
+    "name": "03-hosted-key-step-1024x768.png",
+    "viewport": "1024x768",
+    "width": 1024,
+    "height": 768,
+    "url": "http://127.0.0.1:46239/onboarding/hosted-key?provider=openai",
+    "mode": "standard"
+  },
+  {
+    "name": "04-local-service-step-1024x768.png",
+    "viewport": "1024x768",
+    "width": 1024,
+    "height": 768,
+    "url": "http://127.0.0.1:46239/onboarding/local-service",
+    "mode": "standard"
+  },
+  {
+    "name": "05-opencode-step-1024x768.png",
+    "viewport": "1024x768",
+    "width": 1024,
+    "height": 768,
+    "url": "http://127.0.0.1:46239/onboarding/opencode",
+    "mode": "standard"
+  },
+  {
+    "name": "06-assistant-step-1024x768.png",
+    "viewport": "1024x768",
+    "width": 1024,
+    "height": 768,
+    "url": "http://127.0.0.1:46239/onboarding/assistant",
+    "mode": "standard"
+  },
+  {
+    "name": "07-first-request-step-1024x768.png",
+    "viewport": "1024x768",
+    "width": 1024,
+    "height": 768,
+    "url": "http://127.0.0.1:46239/onboarding/first-request",
+    "mode": "standard"
+  },
+  {
+    "name": "01-request-step-900x1024.png",
+    "viewport": "900x1024",
+    "width": 900,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding",
+    "mode": "standard"
+  },
+  {
+    "name": "02-chooser-step-900x1024.png",
+    "viewport": "900x1024",
+    "width": 900,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding/ai-service",
+    "mode": "standard"
+  },
+  {
+    "name": "03-hosted-key-step-900x1024.png",
+    "viewport": "900x1024",
+    "width": 900,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding/hosted-key?provider=openai",
+    "mode": "standard"
+  },
+  {
+    "name": "04-local-service-step-900x1024.png",
+    "viewport": "900x1024",
+    "width": 900,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding/local-service",
+    "mode": "standard"
+  },
+  {
+    "name": "05-opencode-step-900x1024.png",
+    "viewport": "900x1024",
+    "width": 900,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding/opencode",
+    "mode": "standard"
+  },
+  {
+    "name": "06-assistant-step-900x1024.png",
+    "viewport": "900x1024",
+    "width": 900,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding/assistant",
+    "mode": "standard"
+  },
+  {
+    "name": "07-first-request-step-900x1024.png",
+    "viewport": "900x1024",
+    "width": 900,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding/first-request",
+    "mode": "standard"
+  },
+  {
+    "name": "01-request-step-768x1024.png",
+    "viewport": "768x1024",
+    "width": 768,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding",
+    "mode": "standard"
+  },
+  {
+    "name": "02-chooser-step-768x1024.png",
+    "viewport": "768x1024",
+    "width": 768,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding/ai-service",
+    "mode": "standard"
+  },
+  {
+    "name": "03-hosted-key-step-768x1024.png",
+    "viewport": "768x1024",
+    "width": 768,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding/hosted-key?provider=openai",
+    "mode": "standard"
+  },
+  {
+    "name": "04-local-service-step-768x1024.png",
+    "viewport": "768x1024",
+    "width": 768,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding/local-service",
+    "mode": "standard"
+  },
+  {
+    "name": "05-opencode-step-768x1024.png",
+    "viewport": "768x1024",
+    "width": 768,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding/opencode",
+    "mode": "standard"
+  },
+  {
+    "name": "06-assistant-step-768x1024.png",
+    "viewport": "768x1024",
+    "width": 768,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding/assistant",
+    "mode": "standard"
+  },
+  {
+    "name": "07-first-request-step-768x1024.png",
+    "viewport": "768x1024",
+    "width": 768,
+    "height": 1024,
+    "url": "http://127.0.0.1:46239/onboarding/first-request",
+    "mode": "standard"
+  },
+  {
+    "name": "01-request-step-390x844.png",
+    "viewport": "390x844",
+    "width": 390,
+    "height": 844,
+    "url": "http://127.0.0.1:46239/onboarding",
+    "mode": "standard"
+  },
+  {
+    "name": "02-chooser-step-390x844.png",
+    "viewport": "390x844",
+    "width": 390,
+    "height": 844,
+    "url": "http://127.0.0.1:46239/onboarding/ai-service",
+    "mode": "standard"
+  },
+  {
+    "name": "03-hosted-key-step-390x844.png",
+    "viewport": "390x844",
+    "width": 390,
+    "height": 844,
+    "url": "http://127.0.0.1:46239/onboarding/hosted-key?provider=openai",
+    "mode": "standard"
+  },
+  {
+    "name": "04-local-service-step-390x844.png",
+    "viewport": "390x844",
+    "width": 390,
+    "height": 844,
+    "url": "http://127.0.0.1:46239/onboarding/local-service",
+    "mode": "standard"
+  },
+  {
+    "name": "05-opencode-step-390x844.png",
+    "viewport": "390x844",
+    "width": 390,
+    "height": 844,
+    "url": "http://127.0.0.1:46239/onboarding/opencode",
+    "mode": "standard"
+  },
+  {
+    "name": "06-assistant-step-390x844.png",
+    "viewport": "390x844",
+    "width": 390,
+    "height": 844,
+    "url": "http://127.0.0.1:46239/onboarding/assistant",
+    "mode": "standard"
+  },
+  {
+    "name": "07-first-request-step-390x844.png",
+    "viewport": "390x844",
+    "width": 390,
+    "height": 844,
+    "url": "http://127.0.0.1:46239/onboarding/first-request",
+    "mode": "standard"
+  },
+  {
+    "name": "01-request-step-375x812.png",
+    "viewport": "375x812",
+    "width": 375,
+    "height": 812,
+    "url": "http://127.0.0.1:46239/onboarding",
+    "mode": "standard"
+  },
+  {
+    "name": "02-chooser-step-375x812.png",
+    "viewport": "375x812",
+    "width": 375,
+    "height": 812,
+    "url": "http://127.0.0.1:46239/onboarding/ai-service",
+    "mode": "standard"
+  },
+  {
+    "name": "03-hosted-key-step-375x812.png",
+    "viewport": "375x812",
+    "width": 375,
+    "height": 812,
+    "url": "http://127.0.0.1:46239/onboarding/hosted-key?provider=openai",
+    "mode": "standard"
+  },
+  {
+    "name": "04-local-service-step-375x812.png",
+    "viewport": "375x812",
+    "width": 375,
+    "height": 812,
+    "url": "http://127.0.0.1:46239/onboarding/local-service",
+    "mode": "standard"
+  },
+  {
+    "name": "05-opencode-step-375x812.png",
+    "viewport": "375x812",
+    "width": 375,
+    "height": 812,
+    "url": "http://127.0.0.1:46239/onboarding/opencode",
+    "mode": "standard"
+  },
+  {
+    "name": "06-assistant-step-375x812.png",
+    "viewport": "375x812",
+    "width": 375,
+    "height": 812,
+    "url": "http://127.0.0.1:46239/onboarding/assistant",
+    "mode": "standard"
+  },
+  {
+    "name": "07-first-request-step-375x812.png",
+    "viewport": "375x812",
+    "width": 375,
+    "height": 812,
+    "url": "http://127.0.0.1:46239/onboarding/first-request",
+    "mode": "standard"
+  },
+  {
+    "name": "01-request-step-320x740.png",
+    "viewport": "320x740",
+    "width": 320,
+    "height": 740,
+    "url": "http://127.0.0.1:46239/onboarding",
+    "mode": "standard"
+  },
+  {
+    "name": "02-chooser-step-320x740.png",
+    "viewport": "320x740",
+    "width": 320,
+    "height": 740,
+    "url": "http://127.0.0.1:46239/onboarding/ai-service",
+    "mode": "standard"
+  },
+  {
+    "name": "03-hosted-key-step-320x740.png",
+    "viewport": "320x740",
+    "width": 320,
+    "height": 740,
+    "url": "http://127.0.0.1:46239/onboarding/hosted-key?provider=openai",
+    "mode": "standard"
+  },
+  {
+    "name": "04-local-service-step-320x740.png",
+    "viewport": "320x740",
+    "width": 320,
+    "height": 740,
+    "url": "http://127.0.0.1:46239/onboarding/local-service",
+    "mode": "standard"
+  },
+  {
+    "name": "05-opencode-step-320x740.png",
+    "viewport": "320x740",
+    "width": 320,
+    "height": 740,
+    "url": "http://127.0.0.1:46239/onboarding/opencode",
+    "mode": "standard"
+  },
+  {
+    "name": "06-assistant-step-320x740.png",
+    "viewport": "320x740",
+    "width": 320,
+    "height": 740,
+    "url": "http://127.0.0.1:46239/onboarding/assistant",
+    "mode": "standard"
+  },
+  {
+    "name": "07-first-request-step-320x740.png",
+    "viewport": "320x740",
+    "width": 320,
+    "height": 740,
+    "url": "http://127.0.0.1:46239/onboarding/first-request",
+    "mode": "standard"
+  },
+  {
+    "name": "01-request-step-zoom-200.png",
+    "viewport": "1280x800",
+    "mode": "zoom-200",
+    "url": "http://127.0.0.1:46239/onboarding"
+  },
+  {
+    "name": "02-chooser-step-zoom-200.png",
+    "viewport": "1280x800",
+    "mode": "zoom-200",
+    "url": "http://127.0.0.1:46239/onboarding/ai-service"
+  },
+  {
+    "name": "03-hosted-key-step-zoom-200.png",
+    "viewport": "1280x800",
+    "mode": "zoom-200",
+    "url": "http://127.0.0.1:46239/onboarding/hosted-key?provider=openai"
+  },
+  {
+    "name": "04-local-service-step-zoom-200.png",
+    "viewport": "1280x800",
+    "mode": "zoom-200",
+    "url": "http://127.0.0.1:46239/onboarding/local-service"
+  },
+  {
+    "name": "05-opencode-step-zoom-200.png",
+    "viewport": "1280x800",
+    "mode": "zoom-200",
+    "url": "http://127.0.0.1:46239/onboarding/opencode"
+  },
+  {
+    "name": "06-assistant-step-zoom-200.png",
+    "viewport": "1280x800",
+    "mode": "zoom-200",
+    "url": "http://127.0.0.1:46239/onboarding/assistant"
+  },
+  {
+    "name": "07-first-request-step-zoom-200.png",
+    "viewport": "1280x800",
+    "mode": "zoom-200",
+    "url": "http://127.0.0.1:46239/onboarding/first-request"
+  },
+  {
+    "name": "01-request-step-text-spacing.png",
+    "viewport": "1280x800",
+    "mode": "text-spacing",
+    "url": "http://127.0.0.1:46239/onboarding"
+  },
+  {
+    "name": "02-chooser-step-text-spacing.png",
+    "viewport": "1280x800",
+    "mode": "text-spacing",
+    "url": "http://127.0.0.1:46239/onboarding/ai-service"
+  },
+  {
+    "name": "03-hosted-key-step-text-spacing.png",
+    "viewport": "1280x800",
+    "mode": "text-spacing",
+    "url": "http://127.0.0.1:46239/onboarding/hosted-key?provider=openai"
+  },
+  {
+    "name": "04-local-service-step-text-spacing.png",
+    "viewport": "1280x800",
+    "mode": "text-spacing",
+    "url": "http://127.0.0.1:46239/onboarding/local-service"
+  },
+  {
+    "name": "05-opencode-step-text-spacing.png",
+    "viewport": "1280x800",
+    "mode": "text-spacing",
+    "url": "http://127.0.0.1:46239/onboarding/opencode"
+  },
+  {
+    "name": "06-assistant-step-text-spacing.png",
+    "viewport": "1280x800",
+    "mode": "text-spacing",
+    "url": "http://127.0.0.1:46239/onboarding/assistant"
+  },
+  {
+    "name": "07-first-request-step-text-spacing.png",
+    "viewport": "1280x800",
+    "mode": "text-spacing",
+    "url": "http://127.0.0.1:46239/onboarding/first-request"
+  },
+  {
+    "name": "01-request-step-reduced-motion.png",
+    "viewport": "1280x800",
+    "mode": "reduced-motion",
+    "url": "http://127.0.0.1:46239/onboarding"
+  },
+  {
+    "name": "02-chooser-step-reduced-motion.png",
+    "viewport": "1280x800",
+    "mode": "reduced-motion",
+    "url": "http://127.0.0.1:46239/onboarding/ai-service"
+  },
+  {
+    "name": "03-hosted-key-step-reduced-motion.png",
+    "viewport": "1280x800",
+    "mode": "reduced-motion",
+    "url": "http://127.0.0.1:46239/onboarding/hosted-key?provider=openai"
+  },
+  {
+    "name": "04-local-service-step-reduced-motion.png",
+    "viewport": "1280x800",
+    "mode": "reduced-motion",
+    "url": "http://127.0.0.1:46239/onboarding/local-service"
+  },
+  {
+    "name": "05-opencode-step-reduced-motion.png",
+    "viewport": "1280x800",
+    "mode": "reduced-motion",
+    "url": "http://127.0.0.1:46239/onboarding/opencode"
+  },
+  {
+    "name": "06-assistant-step-reduced-motion.png",
+    "viewport": "1280x800",
+    "mode": "reduced-motion",
+    "url": "http://127.0.0.1:46239/onboarding/assistant"
+  },
+  {
+    "name": "07-first-request-step-reduced-motion.png",
+    "viewport": "1280x800",
+    "mode": "reduced-motion",
+    "url": "http://127.0.0.1:46239/onboarding/first-request"
+  },
+  {
+    "name": "01-request-step-keyboard-focus.png",
+    "viewport": "1280x800",
+    "mode": "keyboard-focus",
+    "url": "http://127.0.0.1:46239/onboarding"
+  },
+  {
+    "name": "desktop-startup-healthy.png",
+    "viewport": "800x600",
+    "mode": "desktop",
+    "url": "desktop/web/index.html"
+  },
+  {
+    "name": "desktop-startup-error.png",
+    "viewport": "800x600",
+    "mode": "desktop-error",
+    "url": "desktop/web/index.html"
+  }
+]

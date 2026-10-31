@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Connect your AI service{% endblock %}
+
+{% block head %}
+<meta name="referrer" content="same-origin">
+<link rel="stylesheet" href="/static/onboarding-form.css">
+<link rel="stylesheet" href="/static/onboarding.css">
+<link rel="stylesheet" href="/static/onboarding-readiness.css">
+<script src="/static/onboarding.js" defer></script>
+<script src="/static/onboarding-readiness.js" defer></script>
+{% endblock %}
+
+{% block content %}
+<section class="onboarding onboarding-connection" aria-labelledby="onboarding-title"
+         data-onboarding-state="{{ state }}">
+  <p class="onboarding-kicker">First run <span aria-hidden="true">&middot;</span> Step {{ step_index }} of {{ step_total }}: {{ step_label }}</p>
+
+  <h1 id="onboarding-title" class="onboarding-title" tabindex="-1" data-focus-heading>
+    {% if connection_name %}Connection ready{% else %}Connect your route{% endif %}
+  </h1>
+
+  <p class="onboarding-lede">
+    Hutch verified that your configuration is saved locally. You can run an explicit test or continue directly to create your assistant.
+  </p>
+
+  {% include "_onboarding_request_text.html" %}
+
+  <div class="onboarding-connection-summary">
+    <div class="summary-card">
+      <p class="summary-label">Selected route</p>
+      <p class="summary-value"><code>{{ route_kind }}</code></p>
+    </div>
+    {% if connection_name %}
+      <div class="summary-card">
+        <p class="summary-label">Connection profile</p>
+        <p class="summary-value"><strong>{{ connection_name }}</strong></p>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if connection_name %}
+    {# Dynamic route partial based on route_kind #}
+    {% if route_kind == "hosted_key" %}
+      {% include "_onboarding_route_hosted_key.html" ignore missing %}
+    {% elif route_kind == "local_service" %}
+      {% include "_onboarding_route_local_service.html" ignore missing %}
+    {% elif route_kind == "opencode" %}
+      {% include "_onboarding_route_opencode.html" ignore missing %}
+    {% endif %}
+
+    {# Embed live readiness panel fragment #}
+    <div id="readiness-panel-container"
+         hx-get="/onboarding/readiness?target={{ connection_name }}"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+      <p class="readiness-loading" role="status" aria-live="polite">Loading readiness check...</p>
+    </div>
+  {% else %}
+    <div class="onboarding-banner onboarding-banner-warning">
+      <p class="onboarding-banner-title">No connection configured yet</p>
+      <p>Configure your credentials or local service settings to test reachability.</p>
+    </div>
+    <div class="onboarding-actions">
+      {% if route_kind == "hosted_key" %}
+        <a class="btn primary" href="/onboarding/hosted-key">Configure API key</a>
+      {% elif route_kind == "local_service" %}
+        <a class="btn primary" href="/onboarding/local-service">Configure local service</a>
+      {% elif route_kind == "opencode" %}
+        <a class="btn primary" href="/onboarding/opencode">Configure OpenCode</a>
+      {% else %}
+        <a class="btn primary" href="/onboarding/ai-service">Choose AI service</a>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="onboarding-actions">
+    {% if connection_name %}
+      <a class="btn primary" href="{{ continue_target }}" data-primary>Continue to assistant setup</a>
+      <a class="btn ghost" href="/onboarding/ai-service?change=1">Change route</a>
+    {% endif %}
+    <a class="onboarding-quiet-link" href="/onboarding">Back to my request</a>
+  </div>
+</section>
+{% endblock %}

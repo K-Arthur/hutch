@@ -1,0 +1,84 @@
+{
+  "test": "hutch_managed_opencode_runtime_live",
+  "date": "2026-10-31T00:08:40-0700",
+  "provider": "opencode-go",
+  "opencode_version": "2.2.0",
+  "integration_before": {
+    "id": "opencode-go",
+    "connected": false
+  },
+  "local_logins": [
+    {
+      "provider_id": "opencode-go",
+      "reusable": true,
+      "detail": "Use this API login"
+    }
+  ],
+  "integration_after": {
+    "id": "opencode-go",
+    "connected": true
+  },
+  "models_count": 30,
+  "models_sample": [
+    {
+      "spec": "opencode/opencode-go/iceman-contributor-free",
+      "name": "Iceman Contributor Free",
+      "context": 262144,
+      "output": 131072
+    },
+    {
+      "spec": "opencode/opencode-go/kimi-k3.1-pro",
+      "name": "Kimi K3.1 Pro",
+      "context": 1048576,
+      "output": 131072
+    },
+    {
+      "spec": "opencode/opencode-go/minimax-m3.1-flash",
+      "name": "MiniMax M3.1 Flash",
+      "context": 1000000,
+      "output": 512000
+    },
+    {
+      "spec": "opencode/opencode-go/gemini-4-argon",
+      "name": "Gemini 4 Argon",
+      "context": 1048576,
+      "output": 65536
+    },
+    {
+      "spec": "opencode/opencode-go/claude-haiku-5-5",
+      "name": "Claude Haiku 5.5",
+      "context": 1000000,
+      "output": 128000
+    },
+    {
+      "spec": "opencode/opencode-go/beam-free",
+      "name": "Beam Free",
+      "context": 1048576,
+      "output": 131072
+    }
+  ],
+  "chosen_model": "opencode/opencode-go/iceman-contributor-free",
+  "run_id": "run_5a1ab47b96b9",
+  "bot": "opencode-go-live-1793430522",
+  "run": {
+    "status": "failed",
+    "exit_reason": "error",
+    "error": "OpenCode's model call failed: This API key has expired. Create a new API key in OpenCode Console and replace it in your client or secret store. Signing in again will not renew this key.",
+    "steps": 1,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "cost_usd": 0.0,
+    "model_used": "opencode/opencode-go/iceman-contributor-free",
+    "started_at": "2026-10-31T07:08:42.546522+00:00",
+    "finished_at": "2026-10-31T07:08:45.683107+00:00",
+    "origin": "manual"
+  },
+  "event_count": 6,
+  "event_types": [
+    "error",
+    "log",
+    "status",
+    "step"
+  ],
+  "texts": []
+}

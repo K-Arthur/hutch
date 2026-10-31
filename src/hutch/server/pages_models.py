@@ -26,9 +26,15 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
     @app.get("/models", response_class=HTMLResponse, include_in_schema=False)
     def models_page(request: Request):
         view = build_models_view(config, store)
+        # Explicit readiness for the saved routes: local facts only, no inference and no token refresh.
+        from ..connections import ConnectionBook
+        from ..providers.readiness import route_readiness
+        book = ConnectionBook(config.state_dir)
+        readiness = [{"spec": row.spec, "status": row.status, "readiness": route_readiness(book, row.spec)}
+                     for row in view.configured_routes]
         # Price errors belong beside the price form, not above the page head;
         # the template overrides the base flash and renders it inside #prices.
-        return page(request, "models.html", nav="models", v=view,
+        return page(request, "models.html", nav="models", v=view, readiness=readiness,
                     authority=routes.authority(store, config))
 
     @app.post("/models/prices/save", include_in_schema=False)

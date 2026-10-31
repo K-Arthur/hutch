@@ -28,6 +28,29 @@ single stage term is "development preview" everywhere (footer badge, availabilit
 "private preview" and "private alpha" are retired. The site says "assistant" for the user-facing entity and notes that
 the command-line tools call it a bot; internal docs and the CLI keep "bot".
 
+## Connector claims
+
+The homepage has a connectors section between the provider section and the approvals band. It
+may say that Hutch is a client for connectors that speak MCP, that installing, reading the tool
+list and granting a tool to a named assistant are three separate acts, that a local connector
+runs contained with no host network and no inherited environment, that credential values are
+never stored, and that the effect class of a tool is an owner decision.
+
+It must not claim:
+
+- that any third-party connector has been verified on a real machine, because none has; the
+  section says so explicitly;
+- that the remote HTTP connector path has been exercised against a live endpoint, because it has
+  not;
+- that connectors expose prompts or resources, or that OAuth is available for a connector
+  endpoint, because only tools and the `none`/bearer cases ship;
+- that a connector marketplace exists, or that anything installs automatically from a registry;
+- that read-only classification is provided by the server, because the owner sets it and
+  `unknown` requires approval.
+
+The accompanying page in the application is `/connectors`. Screenshots of it are not used on the
+site, because no captured viewport has been reviewed for it yet.
+
 ## Capability language
 
 | State shown publicly | Evidence and limit |
@@ -353,3 +376,24 @@ marketing check, not live model-quality evidence. The headless runner cannot app
 
 Known gaps: no physical-device or screen-reader session; contrast is computed for declared token pairs, with rendered surfaces
 checked by eye at the two review widths; the frame grid is untested on very low-end GPUs.
+
+## Provider ecosystem section (2026-10-30)
+
+website/index.html gained a "Not tied to one model vendor" section with three route/account/runtime
+cards, a collapsed status panel containing shipped route families, capability status and a
+research-tracked provider list. Claims are deliberately split: the shipped list names only routes that
+exist in the product; the research list is labelled as a research catalogue, not a support claim, and
+names blocked and retired examples. No vendor marks are used in this section and no partnership is
+implied. The two owner-authorized DeepSeek text routes are called out with their live-verified date;
+nothing else is claimed as live-verified. The page was rebuilt from its CSS sources
+and captured at the five review widths; see the provider research package and
+docs/realignment/visual-validation.md for the evidence.
+
+### Live verification note (2026-10-30)
+
+The site now lists the DeepSeek direct API route among shipped routes with an explicit live-verified date.
+The underlying evidence is two owner-authorized real text requests: DeepSeek direct through the built-in
+runtime and the managed OpenCode runtime with a DeepSeek model. Only text generation was exercised; the
+site does not claim tool, streaming, vision, audio, video, music or search verification, and every other
+provider remains research-tracked or blocked. The OpenCode Go attempt surfaced an expired provider key and
+is recorded as a failure, not a success.

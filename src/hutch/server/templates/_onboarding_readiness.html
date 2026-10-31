@@ -1,0 +1,72 @@
+<div class="onboarding-readiness-panel"
+     data-readiness-state="{{ state }}"
+     data-readiness-mode="{{ mode }}"
+     data-attempt="{{ attempt }}"
+     {% if running %}hx-get="/onboarding/readiness?target={{ target }}" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
+  
+  <div class="readiness-header">
+    <p class="readiness-title">Route readiness: {{ target }}</p>
+    {% if running %}
+      <span class="readiness-badge checking" role="status" aria-live="polite">Checking...</span>
+    {% elif state == "setup.saved_unverified" %}
+      <span class="readiness-badge saved">Saved (unverified)</span>
+    {% elif state == "setup.verified" %}
+      <span class="readiness-badge verified">Verified</span>
+    {% else %}
+      <span class="readiness-badge attention">Attention required</span>
+    {% endif %}
+  </div>
+
+  <div class="readiness-body">
+    <p class="readiness-detail">{{ detail }}</p>
+
+    {% if still_waiting %}
+      <p class="readiness-notice">Still waiting for response from {{ target }}. Hutch will stop checking after {{ deadline }} seconds.</p>
+    {% endif %}
+
+    {% if models and models|length > 0 %}
+      <div class="readiness-models">
+        <p class="readiness-models-label">Available models ({{ models|length }}):</p>
+        <ul class="readiness-models-list">
+          {% for m in models[:6] %}
+            <li><code>{{ m }}</code></li>
+          {% endfor %}
+          {% if models|length > 6 %}
+            <li class="readiness-more">+ {{ models|length - 6 }} more</li>
+          {% endif %}
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="readiness-actions">
+    {% if state == "setup.saved_unverified" or state == "setup.verified" %}
+      <form method="post" action="/onboarding/readiness/verify" class="readiness-action-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="target" value="{{ target }}">
+        {% if models and models|length > 0 %}
+          <input type="hidden" name="model" value="{{ models[0] }}">
+        {% endif %}
+        <button type="submit" class="btn ghost btn-sm">
+          {% if state == "setup.verified" %}Test again{% else %}Run a small test generation{% endif %}
+        </button>
+      </form>
+    {% endif %}
+
+    {% if retry_allowed %}
+      <form method="post" action="/onboarding/readiness/retry" class="readiness-action-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="target" value="{{ target }}">
+        <button type="submit" class="btn ghost btn-sm" {% if retry_wait > 0 %}disabled{% endif %}>
+          {% if retry_wait > 0 %}
+            Retry in {{ retry_wait }}s
+          {% else %}
+            Retry check
+          {% endif %}
+        </button>
+      </form>
+    {% endif %}
+
+    <a href="/onboarding/ai-service?change=1" class="btn ghost btn-sm">Switch route</a>
+  </div>
+</div>

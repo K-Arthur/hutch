@@ -34,7 +34,8 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from .config import hutchConfig, get_config
-from . import action_receipts, bot_deletion_schema, bot_lifecycle, durable_changes, fact_purge_schema, personal_schema
+from . import action_receipts, admission_gate, bot_deletion_schema, bot_lifecycle, durable_changes, fact_purge_schema, mcp_schema, personal_schema
+from .integrations.grants import integration_tool_granted, integration_tool_names
 from .workflow import usage_budget as workflow_usage_budget
 from .money import format_usd
 from .lifecycle import TERMINAL, IllegalTransition, LeaseLost, allowed
@@ -2441,14 +2442,6 @@ def _migrate_81(db: sqlite3.Connection) -> None:
     migrate(db)
 
 
-def _integration_tool_names(db: sqlite3.Connection, bot_id: str) -> list[str]:
-    """Return sorted names for grants on enabled, operation-authorized integrations only."""
-    rows = db.execute("SELECT g.canonical_name FROM integration_tool_grants g "
-                      "JOIN integrations i USING (integration_id) "
-                      "WHERE g.bot_id = ? AND i.enabled = 1 AND i.state = 'operation_authorized' "
-                      "ORDER BY g.canonical_name", (bot_id,)).fetchall()
-    return [str(row["canonical_name"]) for row in rows]
-
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -2457,7 +2450,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76, _migrate_77, _migrate_78, _migrate_79, _migrate_80, _migrate_81, fact_purge_schema.migrate, bot_deletion_schema.migrate, personal_schema.migrate]
+               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76, _migrate_77, _migrate_78, _migrate_79, _migrate_80, _migrate_81, fact_purge_schema.migrate, bot_deletion_schema.migrate, personal_schema.migrate, mcp_schema.migrate]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 EVENT_OUTBOX_SCHEMA_VERSION = 71
 
@@ -2715,16 +2708,11 @@ class Store:
 
     @staticmethod
     def _execution_hold(db: sqlite3.Connection) -> Optional[str]:
-        row = db.execute("SELECT id FROM state_restores WHERE activated_at IS NULL AND superseded_by = '' LIMIT 1").fetchone()
-        return row[0] if row else None
+        return admission_gate.restore_hold(db)
 
     @classmethod
     def _assert_execution_ready(cls, db: sqlite3.Connection, bot_id: str = "") -> None:
-        """The one admission check every run insert passes: restore hold, then retired assistant."""
-        from .state_snapshot import ExecutionHeld
-        if restore_id := cls._execution_hold(db):
-            raise ExecutionHeld(restore_id)
-        bot_lifecycle.assert_accepts_work(db, bot_id)
+        admission_gate.assert_ready(db, bot_id)
 
     def assert_execution_ready(self) -> None:
         """Fail early with the restore hold before validating a request's execution details."""
@@ -3452,7 +3440,19 @@ class Store:
         if bot is None:
             return []
         with self._lock:
-            return _integration_tool_names(self._db, bot.id)
+            return integration_tool_names(self._db, bot.id)
+
+    def integration_tool_granted(self, bot_ref: str, integration_id: str, server_tool_name: str) -> bool:
+        """Whether one tool is still granted, enabled and operation-authorized for this Bot.
+
+        The execution boundary reads this before every dispatch (``runtime.dispatch``); see
+        ``integrations.grants`` for why configuration and enforcement share one query.
+        """
+        bot = self.get_bot(bot_ref)
+        if bot is None:
+            return False
+        with self._lock:
+            return integration_tool_granted(self._db, bot.id, integration_id, server_tool_name)
 
     def workspace_coordinator(self) -> Optional[dict[str, str]]:
         """Return the current named coordinator Bot, if the owner selected one."""

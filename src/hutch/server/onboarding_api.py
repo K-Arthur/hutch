@@ -22,7 +22,14 @@ from starlette.templating import Jinja2Templates
 from ..models import utcnow
 from ..onboarding import ResumeView, empty_view, resume_view
 from ..onboarding_store import load_setup, reset_setup, save_request
+from .getting_started import install_getting_started_routes
+from .onboarding_assistant_api import install_assistant_routes
 from .onboarding_chooser_api import install_chooser_routes
+from .onboarding_first_request_api import install_first_request_routes
+from .onboarding_hosted_key_api import install_hosted_key_routes
+from .onboarding_local_service_api import install_local_service_routes
+from .onboarding_opencode_api import install_opencode_routes
+from .onboarding_readiness_api import install_readiness_routes
 from .onboarding_pagekit import (
     TEMPLATE_DIR,
     flash as _flash,
@@ -229,3 +236,10 @@ def install_onboarding_routes(app: FastAPI) -> None:
         return await _reset_response(store, templates, config, request)
 
     install_chooser_routes(app, store=store, config=config, templates=templates)
+    install_readiness_routes(app, store=store, config=config, templates=templates)
+    install_hosted_key_routes(app, store=store, config=config, templates=templates)
+    install_local_service_routes(app, store=store, config=config, templates=templates)
+    install_opencode_routes(app, store=store, config=config, templates=templates)
+    install_assistant_routes(app, store=store, config=config, templates=templates)
+    install_first_request_routes(app, store=store, config=config, templates=templates)
+    install_getting_started_routes(app, store=store, config=config)

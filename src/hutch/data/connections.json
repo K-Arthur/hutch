@@ -3,6 +3,8 @@
   "templates": {
     "opencode-go": {
       "title": "OpenCode Go (flat subscription)",
+      "provider": "opencode-go",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://opencode.ai/inference/go/openai/v1",
       "anthropic_base_url": "https://opencode.ai/inference/go/anthropic",
@@ -23,6 +25,8 @@
     },
     "openai-api": {
       "title": "OpenAI API",
+      "provider": "openai",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://api.openai.com/v1",
       "api_key_env": "OPENAI_API_KEY",
@@ -33,11 +37,17 @@
       "quick_setup": true,
       "provider_mark": "openai",
       "setup_description": "Connect an OpenAI API account. This is separate from a ChatGPT sign-in or subscription.",
-      "terms": {"url": "https://openai.com/policies/terms-of-use", "requires_ack": false, "notice": ""},
+      "terms": {
+        "url": "https://openai.com/policies/terms-of-use",
+        "requires_ack": false,
+        "notice": ""
+      },
       "quota_hint": "OpenAI API usage is billed to the API account. Hutch records provider-reported usage, but configured token allowances are estimates and not provider-enforced currency caps."
     },
     "anthropic-api": {
       "title": "Anthropic API",
+      "provider": "anthropic",
+      "auth_method": "api_key",
       "protocol": "anthropic",
       "base_url": "https://api.anthropic.com",
       "api_key_env": "ANTHROPIC_API_KEY",
@@ -48,11 +58,17 @@
       "quick_setup": true,
       "provider_mark": "anthropic",
       "setup_description": "Connect an Anthropic API account. Models are read from this account's live catalog.",
-      "terms": {"url": "https://support.anthropic.com/en/articles/8114521-how-can-i-access-the-anthropic-api", "requires_ack": false, "notice": ""},
+      "terms": {
+        "url": "https://support.anthropic.com/en/articles/8114521-how-can-i-access-the-anthropic-api",
+        "requires_ack": false,
+        "notice": ""
+      },
       "quota_hint": "Anthropic API usage is billed to the API account. Hutch records provider-reported usage where available; estimates do not cap provider charges."
     },
     "chatgpt-plan": {
       "title": "ChatGPT plan (Sign in with ChatGPT preview)",
+      "provider": "openai",
+      "auth_method": "pkce",
       "protocol": "openai-responses",
       "base_url": "https://api.openai.com/v1",
       "api_key_env": "",
@@ -71,6 +87,8 @@
     },
     "xiaomi-token-plan-sgp": {
       "title": "Xiaomi MiMo Token Plan - Singapore (subscription credits)",
+      "provider": "xiaomi",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://token-plan-sgp.xiaomimimo.com/v1",
       "anthropic_base_url": "https://token-plan-sgp.xiaomimimo.com/anthropic",
@@ -88,6 +106,8 @@
     },
     "xiaomi-token-plan-cn": {
       "title": "Xiaomi MiMo Token Plan - China (subscription credits)",
+      "provider": "xiaomi",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
       "anthropic_base_url": "https://token-plan-cn.xiaomimimo.com/anthropic",
@@ -96,12 +116,17 @@
       "get_key_url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription",
       "source": "https://docs.openclaw.ai/providers/xiaomi",
       "models_endpoint": true,
-      "terms": {"url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription", "requires_ack": true,
-                "notice": "Same Token Plan terms as the Singapore endpoint: confirm that automated, unattended use is allowed on your plan before scheduling bots."},
+      "terms": {
+        "url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription",
+        "requires_ack": true,
+        "notice": "Same Token Plan terms as the Singapore endpoint: confirm that automated, unattended use is allowed on your plan before scheduling bots."
+      },
       "quota_hint": "Credits, not tokens, are the unit; declare a token allowance as a rough proxy."
     },
     "xiaomi-token-plan-ams": {
       "title": "Xiaomi MiMo Token Plan - Amsterdam (subscription credits)",
+      "provider": "xiaomi",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://token-plan-ams.xiaomimimo.com/v1",
       "anthropic_base_url": "https://token-plan-ams.xiaomimimo.com/anthropic",
@@ -110,23 +135,34 @@
       "get_key_url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription",
       "source": "https://docs.openclaw.ai/providers/xiaomi",
       "models_endpoint": true,
-      "terms": {"url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription", "requires_ack": true,
-                "notice": "Same Token Plan terms as the Singapore endpoint: confirm that automated, unattended use is allowed on your plan before scheduling bots."},
+      "terms": {
+        "url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription",
+        "requires_ack": true,
+        "notice": "Same Token Plan terms as the Singapore endpoint: confirm that automated, unattended use is allowed on your plan before scheduling bots."
+      },
       "quota_hint": "Credits, not tokens, are the unit; declare a token allowance as a rough proxy."
     },
     "xiaomi": {
       "title": "Xiaomi MiMo - pay as you go (per token)",
+      "provider": "xiaomi",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://api.xiaomimimo.com/v1",
       "api_key_env": "XIAOMI_API_KEY",
       "billing": "per_token",
       "source": "https://docs.openclaw.ai/providers/xiaomi",
       "models_endpoint": true,
-      "terms": {"url": "https://mimo.mi.com/", "requires_ack": false, "notice": ""},
+      "terms": {
+        "url": "https://mimo.mi.com/",
+        "requires_ack": false,
+        "notice": ""
+      },
       "quota_hint": "Per-token billing needs a price row in prices.json (Settings > Prices) before Hutch can estimate currency use; provider billing can differ."
     },
     "openrouter": {
       "title": "OpenRouter",
+      "provider": "openrouter",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://openrouter.ai/api/v1",
       "api_key_env": "OPENROUTER_API_KEY",
@@ -137,28 +173,64 @@
       "quick_setup": true,
       "provider_mark": "openrouter",
       "setup_description": "One API key reaches a live catalog from multiple model providers. Model routing and final price can depend on upstream availability.",
-      "terms": {"url": "https://openrouter.ai/terms", "requires_ack": false, "notice": ""},
+      "terms": {
+        "url": "https://openrouter.ai/terms",
+        "requires_ack": false,
+        "notice": ""
+      },
       "quota_hint": "OpenRouter prices vary by model and can change. Hutch shows the provider's catalog price, but currency-limited admission requires a reviewed price row in Settings > Prices. Hutch token allowances are separate estimates.",
       "model_protocol_hint": "OpenRouter model ids come from its authenticated catalog. Chat Completions and tool support vary by model and upstream provider; the catalog does not prove a model will work for every task."
     },
+    "deepseek": {
+      "title": "DeepSeek",
+      "provider": "deepseek",
+      "auth_method": "api_key",
+      "protocol": "openai-chat",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_key_env": "DEEPSEEK_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": true,
+      "source": "https://api-docs.deepseek.com/",
+      "get_key_url": "https://platform.deepseek.com/api_keys",
+      "quick_setup": true,
+      "terms": {
+        "url": "https://platform.deepseek.com/",
+        "requires_ack": false,
+        "notice": ""
+      },
+      "quota_hint": "Per-token billing. Add a reviewed price row in Settings > Prices before relying on currency admission; provider billing remains authoritative.",
+      "model_protocol_hint": "DeepSeek serves an OpenAI-shaped chat API. The vendor states legacy model names are re-pointed to the current served model with the same calling method, so record the model reported in responses."
+    },
     "custom-openai": {
       "title": "Custom OpenAI-compatible endpoint",
+      "provider": "custom-compatible",
+      "auth_method": "custom_endpoint",
       "protocol": "openai-chat",
       "base_url": "https://",
       "api_key_env": "CUSTOM_API_KEY",
       "billing": "per_token",
       "models_endpoint": true,
-      "terms": {"url": "", "requires_ack": false, "notice": ""},
+      "terms": {
+        "url": "",
+        "requires_ack": false,
+        "notice": ""
+      },
       "quota_hint": "Any server exposing /v1/chat/completions: OpenRouter, Together, Groq, DeepInfra, a company gateway, vLLM. Add a price row for per-token billing, or choose 'subscription' if it is flat-rate."
     },
     "custom-anthropic": {
       "title": "Custom Anthropic-compatible endpoint",
+      "provider": "custom-compatible",
+      "auth_method": "custom_endpoint",
       "protocol": "anthropic",
       "base_url": "https://",
       "api_key_env": "CUSTOM_API_KEY",
       "billing": "per_token",
       "models_endpoint": false,
-      "terms": {"url": "", "requires_ack": false, "notice": ""},
+      "terms": {
+        "url": "",
+        "requires_ack": false,
+        "notice": ""
+      },
       "quota_hint": "Any server exposing /v1/messages. The URL is the root WITHOUT /v1/messages (the Anthropic SDK appends it)."
     }
   }

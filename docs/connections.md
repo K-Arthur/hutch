@@ -307,6 +307,25 @@ settlement. An exhausted credit balance or explicitly exhausted quota is not
 retried as a transient throttle; switching to a different paid route still uses
 the normal authorization and budget checks.
 
+## Connectors are not provider connections (2026-10-30)
+
+This page is about **provider connections**: a hosted or local endpoint that runs a model, with its own key,
+protocol, billing, allowance and terms notice. A **connector** is a different surface. It is an MCP (Model
+Context Protocol) server, local or remote, whose tools a named assistant can be granted. A connector does
+not provide a model route, and a provider connection never adds a tool.
+
+The two are reviewed separately. Installing a connector runs nothing and authorizes nothing. Its tools
+become available only after the server is tested (the test reads the tool list and never calls a tool) and
+each tool is granted to a named assistant with an operation class. A local connector runs as contained
+third-party code inside the same bubblewrap sandbox as a shell command; a remote connector is reached through
+pinned egress, and its authentication is either none or a bearer token read from an environment variable,
+not one of the OAuth account connections described here. Connector routes are local-owner only, so a paired
+phone cannot administer them. Connectors have their own page in the main navigation; Apps & AI does not list
+them, and the assistant settings report which connector tools each assistant may call.
+
+See [Connectors](connectors.md) for the definition format, the sandbox a local server runs in, the five
+consent states, grant and revocation semantics, the HTTP API, troubleshooting and current limits.
+
 ## Connect a model provider in one step
 
 On a device that has never installed OpenCode or Ollama, use a hosted API-key route first; Hutch does not bundle either runtime. OpenCode requires the **V2** CLI on `PATH`, and Ollama requires a running local server plus downloaded models. See [runtime prerequisites](runtime-setup.md). From **Apps & AI → AI model providers → Connect a provider**, choose OpenAI API,
@@ -707,3 +726,13 @@ validation is still required, and this does not make the full desktop ports avai
 Hutch chooses the OS backend explicitly, ignores ambient keyring configuration, and
 uses no plaintext fallback. Unlock/permission/quota failures remain explicit errors.
 See [ADR 0022](adr/0022-host-platform-adapters.md#native-credential-contract-v1).
+
+## Provider identities, account profiles and readiness (2026-10-30)
+
+Each connection template now declares a provider identity and authentication method. Existing saved
+connections load unchanged; when the metadata is absent it is derived from the template at read time.
+The Providers page groups accounts by provider, shows authentication method, billing relationship,
+credential source (never the value) and a readiness state, and lets the owner rename a label or remove
+Hutch's local key. Disconnect distinguishes local key removal from provider-side revocation. Renaming
+does not change the connection name used in model specs. See provider-platform.md.
+

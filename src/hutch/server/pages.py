@@ -515,6 +515,8 @@ def register_pages(app: FastAPI) -> None:
 
     from .pages_models import register_model_pages
     register_model_pages(app, page, go, read_form)
+    from .pages_providers import register_provider_pages
+    register_provider_pages(app, page, go, read_form)
     from .pages_usage import register_usage_page
     register_usage_page(app, page)
     from .setup_check_api import install_setup_check_routes
@@ -548,6 +550,9 @@ def register_pages(app: FastAPI) -> None:
                 "level": ("hot" if c.quota.tokens and projected / c.quota.tokens >= 0.9 else
                           "warn" if c.quota.tokens and projected / c.quota.tokens >= c.quota.warn_at else "ok")}))
         return out
+
+    from .connectors_page import install_connectors_page
+    install_connectors_page(app, store, page=page, go=go, read_form=read_form)
 
     @app.get("/connections", response_class=HTMLResponse, include_in_schema=False)
     def connections_page():

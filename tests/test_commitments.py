@@ -131,3 +131,45 @@ def test_migration_is_additive_and_repeatable():
             db.execute("UPDATE commitment_events SET kind = 'rewritten'")
     finally:
         db.close()
+
+
+def test_commitments_spaces_and_a_schedule_survive_a_store_restart(config):
+    """Reopen the same state directory: committed rows, grants and schedule timing persist."""
+    from datetime import timedelta
+
+    from hutch.models import Bot, Schedule, TriggerKind, iso, utcnow
+    from hutch.scheduler import Scheduler
+    from hutch.personal import Space, SpaceMember, SpaceRole
+    from hutch.store import Store
+
+    now = utcnow()
+    first = Store(config)
+    try:
+        personal = PersonalStore(first)
+        bot = first.create_bot(Bot(name="restart-bot", tools=["commitments"]))
+        space = personal.spaces.create(Space(name="Restart household"))
+        personal.spaces.add_member(space.id, SpaceMember(display_name="Kevin", role=SpaceRole.owner))
+        personal.spaces.grant(space.id, bot.id)
+        saved, _ = personal.commitments.create(_commitment(title="Restart task", space_id=space.id), actor="owner")
+        schedule = Schedule(name="Restart check", trigger=TriggerKind.interval, interval_seconds=3600,
+                            timezone="America/Vancouver", anchor_at=iso(now - timedelta(minutes=10)),
+                            prompt="check the shared list")
+        bot = first.upsert_bot(bot, primary_schedule_update=schedule)
+        next_before = Scheduler(first).next_fire(bot, now, bot.schedules[0])
+        assert next_before is not None
+    finally:
+        first.close()
+
+    second = Store(config)
+    try:
+        personal = PersonalStore(second)
+        restored = personal.commitments.get(saved.id)
+        assert restored is not None and restored.title == "Restart task" and restored.space_id == space.id
+        assert personal.spaces.bot_space_ids(bot.id) == {space.id}
+        assert [member.display_name for member in personal.spaces.members(space.id)] == ["Kevin"]
+        reopened = second.get_bot("restart-bot")
+        next_after = Scheduler(second).next_fire(reopened, now, reopened.schedules[0])
+        assert next_after == next_before
+        assert reopened.schedules[0].name == "Restart check"
+    finally:
+        second.close()

@@ -1,0 +1,2055 @@
+{
+  "version": 1,
+  "reviewed_on": "2026-10-30",
+  "providers": [
+    {
+      "id": "openai",
+      "title": "OpenAI",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat",
+        "responses",
+        "embeddings",
+        "images",
+        "speech",
+        "transcription",
+        "tools",
+        "batch"
+      ],
+      "protocols": [
+        "openai-chat",
+        "openai-responses"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "Platform API key",
+          "billing": "per_token",
+          "status": "implemented",
+          "docs": []
+        },
+        {
+          "id": "chatgpt-sign-in",
+          "type": "pkce",
+          "label": "Sign in with ChatGPT (plan use)",
+          "billing": "subscription",
+          "status": "experimental",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "openai-api",
+        "chatgpt-plan"
+      ],
+      "regions": [
+        "global"
+      ],
+      "notes": "Platform API billing and ChatGPT plan allowance stay separate routes. The ChatGPT preview is opt-in and eligibility-gated."
+    },
+    {
+      "id": "anthropic",
+      "title": "Anthropic",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat",
+        "tools",
+        "coding_cli"
+      ],
+      "protocols": [
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "Console API key",
+          "billing": "per_token",
+          "status": "implemented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "anthropic-api"
+      ],
+      "regions": [
+        "global"
+      ],
+      "notes": "A Claude subscription is not an API key; no unofficial Max API proxy is implemented."
+    },
+    {
+      "id": "google",
+      "title": "Google (Gemini)",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat",
+        "images",
+        "video",
+        "speech",
+        "transcription",
+        "search",
+        "grounding",
+        "tools",
+        "coding_cli"
+      ],
+      "protocols": [
+        "gemini"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "Gemini API key (AI Studio)",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        },
+        {
+          "id": "oauth-consumer",
+          "type": "oauth",
+          "label": "Consumer account sign-in",
+          "billing": "unknown",
+          "status": "blocked",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ],
+      "notes": "Consumer CLI authentication arrangements changed in 2026; no retired consumer OAuth flow is implemented. Vertex AI is a separate catalogue identity."
+    },
+    {
+      "id": "minimax",
+      "title": "MiniMax",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat",
+        "images",
+        "image_editing",
+        "video",
+        "music",
+        "speech",
+        "transcription"
+      ],
+      "protocols": [
+        "openai-chat",
+        "anthropic",
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        },
+        {
+          "id": "coding-plan-oauth",
+          "type": "oauth",
+          "label": "Coding Plan authorization (where offered)",
+          "billing": "subscription",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global",
+        "cn"
+      ],
+      "notes": "International and China endpoints are distinct; region switching, refresh expiry and account mismatch need explicit recovery."
+    },
+    {
+      "id": "moonshot",
+      "title": "Moonshot / Kimi",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat",
+        "tools",
+        "coding_cli"
+      ],
+      "protocols": [
+        "openai-chat",
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "Moonshot API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        },
+        {
+          "id": "kimi-coding-key",
+          "type": "api_key",
+          "label": "Kimi Coding API key",
+          "billing": "subscription",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global",
+        "cn"
+      ],
+      "notes": "General Moonshot models and Kimi Coding use different endpoints, model namespaces and billing; they stay separate routes."
+    },
+    {
+      "id": "qwen",
+      "title": "Qwen (Alibaba)",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat",
+        "tools",
+        "coding_cli"
+      ],
+      "protocols": [
+        "openai-chat",
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "Qwen Cloud API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        },
+        {
+          "id": "coding-plan",
+          "type": "api_key",
+          "label": "Alibaba Cloud Coding Plan key",
+          "billing": "subscription",
+          "status": "documented",
+          "docs": []
+        },
+        {
+          "id": "portal-oauth",
+          "type": "oauth",
+          "label": "Qwen Portal OAuth",
+          "billing": "subscription",
+          "status": "retired",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global",
+        "cn"
+      ],
+      "notes": "The old Qwen Portal OAuth flow is retired and must not be recreated. Coding-plan entitlements can forbid unattended workloads; scheduling admission must respect that."
+    },
+    {
+      "id": "xai",
+      "title": "xAI (Grok)",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat",
+        "search",
+        "code_execution",
+        "images",
+        "video",
+        "speech",
+        "transcription"
+      ],
+      "protocols": [
+        "openai-chat",
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "xAI API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        },
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Official subscription OAuth (where permitted)",
+          "billing": "subscription",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ],
+      "notes": "Provider-side search and code execution are separately billed tools; they must be shown as such, not folded into model price."
+    },
+    {
+      "id": "zai",
+      "title": "Z.AI (GLM)",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat",
+        "tools",
+        "coding_cli"
+      ],
+      "protocols": [
+        "openai-chat",
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "GLM API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        },
+        {
+          "id": "coding-plan",
+          "type": "api_key",
+          "label": "GLM Coding Plan key",
+          "billing": "subscription",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global",
+        "cn"
+      ],
+      "notes": "Coding subscription and general API access are independent billing and authentication routes."
+    },
+    {
+      "id": "opencode",
+      "title": "OpenCode",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "coding_runtime",
+        "coding_cli",
+        "chat"
+      ],
+      "protocols": [
+        "openai-chat",
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "managed-session",
+          "type": "cli_managed",
+          "label": "Managed OpenCode server session",
+          "billing": "subscription",
+          "status": "implemented",
+          "docs": []
+        },
+        {
+          "id": "cli-sign-in",
+          "type": "cli_managed",
+          "label": "OpenCode CLI sign-in (coding handoff)",
+          "billing": "subscription",
+          "status": "experimental",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "implemented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ],
+      "notes": "Hutch owns a private server process for the managed runtime; the CLI coding handoff is a separate feature that uses its own sign-in. Live-verified 2026-10-30: the managed runtime completed a real step against deepseek/deepseek-flash with matching output and provider-reported tokens and cost."
+    },
+    {
+      "id": "opencode-go",
+      "title": "OpenCode Go",
+      "category": "subscription_service",
+      "summary": "",
+      "services": [
+        "chat"
+      ],
+      "protocols": [
+        "openai-chat",
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "OpenCode-issued provider API key",
+          "billing": "subscription",
+          "status": "experimental",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "experimental",
+      "connection_templates": [
+        "opencode-go"
+      ],
+      "regions": [
+        "global"
+      ],
+      "notes": "A subscription-backed provider API key, not OAuth session reuse. Unattended eligibility is the provider's call and remains unestablished."
+    },
+    {
+      "id": "mistral",
+      "title": "Mistral AI",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "code_execution"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "deepseek",
+      "title": "DeepSeek",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat",
+        "tools"
+      ],
+      "protocols": [
+        "openai-chat",
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "implemented",
+          "docs": []
+        }
+      ],
+      "docs": [
+        {
+          "title": "DeepSeek API documentation",
+          "url": "https://api-docs.deepseek.com/",
+          "observed_on": "2026-10-30"
+        }
+      ],
+      "integration_status": "implemented",
+      "connection_templates": [
+        "deepseek"
+      ],
+      "regions": [
+        "global"
+      ],
+      "notes": "OpenAI-shaped chat route at https://api.deepseek.com/v1. The vendor documents legacy model names being re-pointed to a newer served model with unchanged calling method, so the returned model is recorded and never silently assumed. Anthropic-shaped DeepSeek endpoint is not implemented as a separate route."
+    },
+    {
+      "id": "github-copilot",
+      "title": "GitHub Copilot",
+      "category": "subscription_service",
+      "summary": "",
+      "services": [
+        "coding_cli",
+        "chat"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "GitHub/Copilot sign-in",
+          "billing": "subscription",
+          "status": "blocked",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "blocked",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ],
+      "notes": "No supported third-party API or CLI authentication contract for Hutch's intended use was established; no unofficial client impersonation is implemented. GitHub documents a Copilot SDK; OpenCode's subscription reuse is not authorized by any GitHub page read and is not implemented."
+    },
+    {
+      "id": "alibaba-model-studio",
+      "title": "Alibaba Model Studio",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "images",
+        "tools"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global",
+        "cn"
+      ],
+      "notes": "Workspace-scoped endpoint https://{WorkspaceId}.{region}.maas.aliyuncs.com/compatible-mode/v1; legacy dashscope hosts are migration sources. Keys are region-bound."
+    },
+    {
+      "id": "xiaomi",
+      "title": "Xiaomi MiMo",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat"
+      ],
+      "protocols": [
+        "openai-chat",
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "Token Plan or pay-as-you-go key",
+          "billing": "credits",
+          "status": "implemented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "xiaomi-token-plan-sgp",
+        "xiaomi-token-plan-cn",
+        "xiaomi-token-plan-ams",
+        "xiaomi"
+      ],
+      "regions": [
+        "sgp",
+        "cn",
+        "ams"
+      ],
+      "notes": "Regional Token Plan endpoints and pay-as-you-go billing are separate; a region switch is an explicit account change."
+    },
+    {
+      "id": "stepfun",
+      "title": "StepFun",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat",
+        "speech",
+        "transcription"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global",
+        "cn"
+      ]
+    },
+    {
+      "id": "volcengine",
+      "title": "Volcengine Ark",
+      "category": "enterprise_cloud",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "images"
+      ],
+      "protocols": [
+        "openai-chat",
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "cn"
+      ]
+    },
+    {
+      "id": "tencent-cloud",
+      "title": "Tencent Cloud",
+      "category": "enterprise_cloud",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "TokenPlan or API credential",
+          "billing": "credits",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "cn"
+      ],
+      "notes": "TokenPlan entitlement is distinct from general Tencent API access."
+    },
+    {
+      "id": "qianfan",
+      "title": "Baidu Qianfan",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "images"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        },
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Baidu OAuth credential",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "cn"
+      ]
+    },
+    {
+      "id": "cohere",
+      "title": "Cohere",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "synthetic",
+      "title": "Synthetic",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "venice",
+      "title": "Venice AI",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "images"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "arcee",
+      "title": "Arcee AI",
+      "category": "vendor",
+      "summary": "",
+      "services": [
+        "chat"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "vydra",
+      "title": "Vydra",
+      "category": "media_platform",
+      "summary": "",
+      "services": [
+        "images",
+        "video"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ],
+      "notes": "Media-only provider (no chat route); no adapter is implemented in this package."
+    },
+    {
+      "id": "gmi-cloud",
+      "title": "GMI Cloud",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "images"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "claude-max-proxy",
+      "title": "Claude Max API proxy (community)",
+      "category": "compatible_endpoint",
+      "summary": "",
+      "services": [
+        "chat"
+      ],
+      "protocols": [
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "unofficial-proxy",
+          "type": "custom_endpoint",
+          "label": "Community subscription proxy",
+          "billing": "subscription",
+          "status": "blocked",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "blocked",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ],
+      "notes": "A community integration that bridges a consumer subscription into an API shape. Not first-party, not implemented; policy and security implications unresolved."
+    },
+    {
+      "id": "bedrock",
+      "title": "Amazon Bedrock",
+      "category": "enterprise_cloud",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "images",
+        "tools"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "aws-credentials",
+          "type": "service_account",
+          "label": "AWS credentials (SigV4)",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "us-east-1",
+        "eu-west-1",
+        "ap-northeast-1"
+      ],
+      "notes": "Authentication is the AWS credential chain (SigV4) or short- and long-term Bedrock API keys, not a generic provider API key."
+    },
+    {
+      "id": "bedrock-mantle",
+      "title": "Amazon Bedrock Mantle",
+      "category": "enterprise_cloud",
+      "summary": "",
+      "services": [
+        "chat",
+        "tools"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "aws-credentials",
+          "type": "service_account",
+          "label": "AWS credentials",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "us-east-1"
+      ]
+    },
+    {
+      "id": "google-vertex",
+      "title": "Google Vertex AI",
+      "category": "enterprise_cloud",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "images",
+        "video",
+        "speech",
+        "transcription",
+        "grounding",
+        "tools"
+      ],
+      "protocols": [
+        "gemini"
+      ],
+      "auth": [
+        {
+          "id": "service-account",
+          "type": "service_account",
+          "label": "Service account / ADC",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global",
+        "us-central1",
+        "europe-west4"
+      ],
+      "notes": "Authentication is gcloud/ADC with an explicit project and region; it is not an Anthropic-style API key."
+    },
+    {
+      "id": "anthropic-vertex",
+      "title": "Anthropic on Vertex AI",
+      "category": "enterprise_cloud",
+      "summary": "",
+      "services": [
+        "chat",
+        "tools"
+      ],
+      "protocols": [
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "service-account",
+          "type": "service_account",
+          "label": "Google Cloud service account",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "cloudflare-ai-gateway",
+      "title": "Cloudflare AI Gateway",
+      "category": "gateway",
+      "summary": "",
+      "services": [
+        "chat",
+        "images",
+        "embeddings"
+      ],
+      "protocols": [
+        "openai-chat",
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ],
+      "notes": "A gateway in front of an upstream provider; actual model and upstream route must be recorded from the response. The vendor deprecated the unified /compat API on 2026-10-02; only provider-native routes are documented for single-model calls."
+    },
+    {
+      "id": "vercel-ai-gateway",
+      "title": "Vercel AI Gateway",
+      "category": "gateway",
+      "summary": "",
+      "services": [
+        "chat",
+        "images",
+        "embeddings"
+      ],
+      "protocols": [
+        "openai-chat",
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ],
+      "notes": "A unified gateway; a single price or capability claim cannot apply to every model behind it. BYOK requests can fall back to gateway system credentials and bill Vercel credits; routing metadata records the final provider, model and credential type, so it must be captured."
+    },
+    {
+      "id": "openrouter",
+      "title": "OpenRouter",
+      "category": "gateway",
+      "summary": "",
+      "services": [
+        "chat",
+        "images"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "OpenRouter API key",
+          "billing": "per_token",
+          "status": "implemented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "openrouter"
+      ],
+      "regions": [
+        "global"
+      ],
+      "notes": "Provider-side routing and fallbacks can answer with a different upstream model than the requested catalogue entry; the returned identity is recorded. The gateway can serve a different final model and bills the served model. Its usage.include parameter is reportedly deprecated while Hutch still sends it: an open compatibility issue, not silently changed."
+    },
+    {
+      "id": "clawrouter",
+      "title": "ClawRouter",
+      "category": "gateway",
+      "summary": "",
+      "services": [
+        "chat"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "litellm",
+      "title": "LiteLLM",
+      "category": "gateway",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings"
+      ],
+      "protocols": [
+        "openai-chat",
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "Gateway key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        },
+        {
+          "id": "custom-endpoint",
+          "type": "custom_endpoint",
+          "label": "Self-hosted endpoint",
+          "billing": "unknown",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "self-hosted"
+      ],
+      "notes": "model_name is a gateway alias and /v1/models lists aliases; the served upstream model may differ from the requested id."
+    },
+    {
+      "id": "microsoft-foundry",
+      "title": "Microsoft Foundry",
+      "category": "enterprise_cloud",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "images",
+        "tools"
+      ],
+      "protocols": [
+        "openai-chat",
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "Foundry API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        },
+        {
+          "id": "service-account",
+          "type": "service_account",
+          "label": "Microsoft Entra service principal",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ],
+      "notes": "The model field is a deployment name and auth is an API key or Entra ID; the deployment may not match a public model id."
+    },
+    {
+      "id": "groq",
+      "title": "Groq",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "tools",
+        "speech",
+        "transcription"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "cerebras",
+      "title": "Cerebras",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "tools"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "together",
+      "title": "Together AI",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "images",
+        "video",
+        "tools"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "fireworks",
+      "title": "Fireworks AI",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "images",
+        "tools"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "nvidia",
+      "title": "NVIDIA NIM",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "images"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "huggingface",
+      "title": "Hugging Face",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "images"
+      ],
+      "protocols": [
+        "openai-chat",
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "deepinfra",
+      "title": "DeepInfra",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "images"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "chutes",
+      "title": "Chutes",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "images"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "novita",
+      "title": "Novita AI",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "images",
+        "video"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "kilocode",
+      "title": "Kilocode",
+      "category": "gateway",
+      "summary": "",
+      "services": [
+        "chat",
+        "coding_cli"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "Kilocode API key",
+          "billing": "subscription",
+          "status": "documented",
+          "docs": []
+        },
+        {
+          "id": "cli-sign-in",
+          "type": "cli_managed",
+          "label": "Kilocode CLI sign-in",
+          "billing": "subscription",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "byteplus",
+      "title": "BytePlus",
+      "category": "enterprise_cloud",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "images",
+        "video"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global",
+        "cn"
+      ]
+    },
+    {
+      "id": "ollama-cloud",
+      "title": "Ollama Cloud",
+      "category": "serving_platform",
+      "summary": "",
+      "services": [
+        "chat",
+        "tools"
+      ],
+      "protocols": [
+        "openai-chat",
+        "ollama-native"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ],
+      "notes": "Hosted inference is not local inference; a cloud-tagged model served by a local daemon stays a hosted route."
+    },
+    {
+      "id": "ollama",
+      "title": "Ollama",
+      "category": "local_runtime",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "tools"
+      ],
+      "protocols": [
+        "ollama-native"
+      ],
+      "auth": [
+        {
+          "id": "local-service",
+          "type": "local_service",
+          "label": "Loopback service",
+          "billing": "free",
+          "status": "implemented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [],
+      "regions": [
+        "local"
+      ],
+      "notes": "Native /api/chat sets num_ctx explicitly; the OpenAI-compatible endpoint cannot, so prompts can be silently truncated there."
+    },
+    {
+      "id": "lmstudio",
+      "title": "LM Studio",
+      "category": "local_runtime",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "tools"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "local-service",
+          "type": "local_service",
+          "label": "Loopback service",
+          "billing": "free",
+          "status": "implemented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [],
+      "regions": [
+        "local"
+      ]
+    },
+    {
+      "id": "vllm",
+      "title": "vLLM",
+      "category": "local_runtime",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "tools"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "local-service",
+          "type": "local_service",
+          "label": "Loopback service",
+          "billing": "free",
+          "status": "implemented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [],
+      "regions": [
+        "local"
+      ]
+    },
+    {
+      "id": "sglang",
+      "title": "SGLang",
+      "category": "local_runtime",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "tools"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "local-service",
+          "type": "local_service",
+          "label": "Loopback service",
+          "billing": "free",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "local"
+      ],
+      "notes": "No bundled named preset; use a custom OpenAI-compatible endpoint or a runtime discovery entry."
+    },
+    {
+      "id": "inferrs",
+      "title": "inferrs",
+      "category": "local_runtime",
+      "summary": "",
+      "services": [
+        "chat"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "local-service",
+          "type": "local_service",
+          "label": "Loopback service",
+          "billing": "free",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "local"
+      ]
+    },
+    {
+      "id": "ds4",
+      "title": "ds4",
+      "category": "local_runtime",
+      "summary": "",
+      "services": [
+        "chat"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "local-service",
+          "type": "local_service",
+          "label": "Loopback service",
+          "billing": "free",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "local"
+      ]
+    },
+    {
+      "id": "llamacpp",
+      "title": "llama.cpp",
+      "category": "local_runtime",
+      "summary": "",
+      "services": [
+        "chat",
+        "embeddings",
+        "tools"
+      ],
+      "protocols": [
+        "openai-chat"
+      ],
+      "auth": [
+        {
+          "id": "local-service",
+          "type": "local_service",
+          "label": "Loopback service",
+          "billing": "free",
+          "status": "implemented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [],
+      "regions": [
+        "local"
+      ]
+    },
+    {
+      "id": "custom-compatible",
+      "title": "Custom compatible endpoint",
+      "category": "compatible_endpoint",
+      "summary": "",
+      "services": [
+        "chat",
+        "responses",
+        "tools"
+      ],
+      "protocols": [
+        "openai-chat",
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "custom-endpoint",
+          "type": "custom_endpoint",
+          "label": "Operator-supplied endpoint key",
+          "billing": "unknown",
+          "status": "implemented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "custom-openai",
+        "custom-anthropic"
+      ],
+      "regions": [
+        "operator-defined"
+      ],
+      "notes": "A custom endpoint never receives an ambient provider key; only its own named connection key is sent."
+    },
+    {
+      "id": "fal",
+      "title": "fal",
+      "category": "media_platform",
+      "summary": "",
+      "services": [
+        "images",
+        "video",
+        "audio_generation"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "deferred",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "comfyui",
+      "title": "ComfyUI",
+      "category": "local_runtime",
+      "summary": "",
+      "services": [
+        "images",
+        "image_editing"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "local-service",
+          "type": "local_service",
+          "label": "Loopback service",
+          "billing": "free",
+          "status": "implemented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [],
+      "regions": [
+        "local"
+      ],
+      "notes": "No built-in authentication is documented; Hutch must not expose an unauthenticated ComfyUI instance."
+    },
+    {
+      "id": "runway",
+      "title": "Runway",
+      "category": "media_platform",
+      "summary": "",
+      "services": [
+        "video",
+        "images"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "pixverse",
+      "title": "PixVerse",
+      "category": "media_platform",
+      "summary": "",
+      "services": [
+        "video",
+        "images"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "deepgram",
+      "title": "Deepgram",
+      "category": "media_platform",
+      "summary": "",
+      "services": [
+        "transcription",
+        "speech"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ]
+    },
+    {
+      "id": "elevenlabs",
+      "title": "ElevenLabs",
+      "category": "media_platform",
+      "summary": "",
+      "services": [
+        "speech",
+        "music",
+        "transcription"
+      ],
+      "protocols": [
+        "custom"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "API key",
+          "billing": "per_token",
+          "status": "documented",
+          "docs": []
+        }
+      ],
+      "docs": [],
+      "integration_status": "documented",
+      "connection_templates": [],
+      "regions": [
+        "global"
+      ],
+      "notes": "Voice cloning needs clear consent and abuse safeguards before Hutch exposes it."
+    }
+  ]
+}

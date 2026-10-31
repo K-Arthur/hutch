@@ -21,6 +21,7 @@ MORE = (
     ("shared", "/#/shared", "Shared", "users"),
     ("catalog", "/#/catalog", "Catalog", "layers"),
     ("models", "/models", "Models", "cpu"),
+    ("connectors", "/connectors", "Connectors", "layers"),
     ("usage", "/usage", "Usage", "chart"),
     ("runtime", "/#/runtime", "Runtime", "terminal"),
     ("bots", "/#/bots", "Assistants", "bot"),

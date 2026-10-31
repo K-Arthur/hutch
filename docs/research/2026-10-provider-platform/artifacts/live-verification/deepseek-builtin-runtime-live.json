@@ -1,0 +1,47 @@
+{
+  "test": "hutch_builtin_runtime_deepseek_live",
+  "date": "2026-10-31T00:10:54-0700",
+  "connection": {
+    "template": "deepseek",
+    "name": "deepseek-live",
+    "endpoint": "https://api.deepseek.com/v1",
+    "provider": "deepseek",
+    "auth_method": "api_key"
+  },
+  "catalogue": {
+    "ok": true,
+    "detail": "authenticated; 2 model(s) available",
+    "models": [
+      "deepseek-flash",
+      "deepseek-v4-pro"
+    ]
+  },
+  "chosen_model": "deepseek-flash",
+  "run_id": "run_1183b55eba1b",
+  "run": {
+    "status": "succeeded",
+    "exit_reason": "completed",
+    "error": "",
+    "steps": 1,
+    "prompt_tokens": 612,
+    "completion_tokens": 9,
+    "cached_tokens": 0,
+    "cost_usd": 0.0,
+    "model_used": "deepseek-live/deepseek-flash",
+    "started_at": "2026-10-31T07:10:54.801369+00:00",
+    "finished_at": "2026-10-31T07:10:56.316778+00:00"
+  },
+  "event_types": [
+    "log",
+    "message",
+    "status",
+    "step"
+  ],
+  "texts": [
+    {
+      "event": "message",
+      "key": "content",
+      "text": "HUTCH_BUILTIN_OK"
+    }
+  ]
+}

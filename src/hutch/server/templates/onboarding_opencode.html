@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Connect OpenCode{% endblock %}
+
+{% block head %}
+<meta name="referrer" content="same-origin">
+<link rel="stylesheet" href="/static/onboarding-form.css">
+<link rel="stylesheet" href="/static/onboarding.css">
+<script src="/static/onboarding.js" defer></script>
+{% endblock %}
+
+{% block content %}
+<section class="onboarding onboarding-opencode" aria-labelledby="onboarding-title"
+         data-onboarding-state="{{ state }}">
+  <p class="onboarding-kicker">First run <span aria-hidden="true">&middot;</span> Step {{ step_index }} of {{ step_total }}: {{ step_label }}</p>
+
+  <h1 id="onboarding-title" class="onboarding-title" tabindex="-1" data-focus-heading>
+    Connect OpenCode
+  </h1>
+
+  <p class="onboarding-lede">
+    Use OpenCode CLI models (including free models like <code>opencode-go/beam-free</code>) or an OpenCode Go subscription API key.
+  </p>
+
+  {% include "_onboarding_request_text.html" %}
+
+  <div class="opencode-status-card">
+    <p class="status-header">OpenCode installation status</p>
+    {% if status.installed %}
+      <div class="status-installed">
+        <p class="probe-tag ok">Installed</p>
+        <p>Found binary at <code>{{ status.binary_path }}</code></p>
+        {% if status.models and status.models|length > 0 %}
+          <p>Available models ({{ status.models|length }}):</p>
+          <ul class="models-list">
+            {% for m in status.models[:8] %}
+              <li><code>{{ m }}</code></li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="opencode-note">No models available or authentication needed. Run <code>opencode auth login</code> in your terminal if required.</p>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="status-not-installed">
+        <p class="probe-tag down">Not found</p>
+        <p>{{ status.error }}</p>
+        <p>To install OpenCode on Linux, run:</p>
+        <pre><code>curl -fsSL https://opencode.ai/install.sh | bash</code></pre>
+      </div>
+    {% endif %}
+  </div>
+
+  <form class="onboarding-form" method="post" action="/onboarding/opencode" data-onboarding-form>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+
+    <div class="onboarding-field">
+      <label class="terms-checkbox-label">
+        <input type="checkbox" id="use_key" name="use_key" value="1" onchange="document.getElementById('key-details').hidden = !this.checked;">
+        <span>I want to provide an OpenCode Go API key instead of local CLI</span>
+      </label>
+    </div>
+
+    <div id="key-details" hidden>
+      <div class="onboarding-field">
+        <label for="key" class="onboarding-label">OpenCode Go API Key</label>
+        <input id="key" name="key" type="password" autocomplete="off" spellcheck="false" class="onboarding-input-secret">
+      </div>
+      <div class="onboarding-field">
+        <label class="terms-checkbox-label">
+          <input type="checkbox" name="terms_agree" value="1">
+          <span>I agree to the OpenCode Go terms of service.</span>
+        </label>
+      </div>
+    </div>
+
+    <p class="onboarding-saving" role="status" aria-live="polite" data-saving-status hidden>Saving...</p>
+
+    <div class="onboarding-form-actions">
+      <button class="btn primary" type="submit" data-submit>Save and check OpenCode</button>
+      <a class="btn ghost" href="/onboarding/ai-service?change=1">Choose a different route</a>
+    </div>
+  </form>
+</section>
+{% endblock %}
