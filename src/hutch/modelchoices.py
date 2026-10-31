@@ -77,6 +77,7 @@ class Choice:
     worst_case_usd: Optional[float] = None   # legacy name; local one-run cost estimate when priced
     detail: list[str] = field(default_factory=list)
     catalog_search: bool = False  # explicit capability, independent of connection's chosen name
+    runtime: str = ""            # the runtime this route needs when it is not Hutch's own ("opencode"): choosing it switches the assistant
 
 
 class ModelNotUsable(ValueError):
@@ -88,7 +89,8 @@ class ModelNotUsable(ValueError):
 
 
 def short_label(spec: str) -> str:
-    return parse_spec(spec)[1] or spec
+    provider, model = parse_spec(spec)
+    return (model.partition("/")[2] or model) if provider == "opencode" else model or spec   # opencode/<integration>/<model> reads as the model
 
 
 def _cached(key: str, fn, *, ttl: float = _TTL):
@@ -155,7 +157,7 @@ def _hosted_choices(bot: Bot, book: PriceBook) -> list[Choice]:
             notes.append("price last checked " + (p.verified_on or "never"))
         out.append(Choice(
             spec=p.model, label=model, group="Hosted", state="ready" if has else "setup", hosted=True,
-            note=(notes[0] if has else f"needs {env}"), fix="" if has else f"set {env} where hutch starts",
+            note=(notes[0] if has else f"needs {env}"), fix="" if has else f"add the key in Apps & AI, or set {env} where hutch starts",
             detail=notes + [f"sends this chat to {provider}"]))
     return out
 
@@ -187,7 +189,7 @@ def _opencode_choices(config: Any, bot: Bot) -> list[Choice]:
             note += f" · {model.output // 1024}k output"
         out.append(Choice(spec=model.spec, label=model.name or model.model_id,
                           group=f"OpenCode · {model.provider_id}", state="ready",
-                          note=note, hosted=True,
+                          note=note, hosted=True, runtime="opencode",
                           detail=[f"OpenCode provider {model.provider_id}",
                                   f"OpenCode model {model.model_id}",
                                   "routes through the private OpenCode profile; model billing belongs to that account"]))
@@ -300,7 +302,7 @@ def _openrouter_price_note(row: Optional[dict[str, Any]]) -> str:
 
 
 def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = None, provider: Any = None, *,
-                  discover_hosted_models: bool = True, model_query: str = "") -> list[Choice]:
+                  discover_hosted_models: bool = True, model_query: str = "", any_runtime: bool = False) -> list[Choice]:
     hw = hw or _cached("hw", probe)
     if provider is None:
         from .runtime.ladder import get_provider
@@ -326,8 +328,8 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
     choices.extend([] if unusable else [own])
     seen = set() if unusable else {bot.model}
     allow_hosted_discovery = discover_hosted_models and bot.inference_mode.value not in ("local", "offline")
-    opencode = (_opencode_choices(config, bot)
-                if bot.runtime is RuntimeKind.opencode and allow_hosted_discovery else [])
+    opencode = (_opencode_choices(config, bot)       # the picker lists OpenCode's models for any assistant (choosing one switches its runtime)
+                if (bot.runtime is RuntimeKind.opencode or any_runtime) and allow_hosted_discovery else [])
     for c in (_local_choices(bot, hw, provider) + _hosted_choices(bot, book)
               + opencode
               + _connection_choices(bot, store, cbook, known,

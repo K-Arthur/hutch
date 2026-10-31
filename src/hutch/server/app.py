@@ -266,7 +266,7 @@ class BotCreate(BaseModel):
     name: str
     display_name: Optional[str] = Field(default=None, max_length=80)
     template: Optional[str] = None
-    runtime: Literal["builtin", "opencode"] = "builtin"
+    runtime: Optional[Literal["builtin", "opencode"]] = None      # omitted: follows from the model (an OpenCode route runs on OpenCode)
     preset: Optional[str] = Field(default=None, max_length=80)
     description: str = ""
     instructions: str = ""
@@ -4038,7 +4038,9 @@ def create_app() -> FastAPI:
         if model:
             from ..modelchoices import ModelNotUsable, validate_override
             from ..providers.registry import validate_inference_mode, validate_offline_bot
-            draft = Bot(name="workspace-model-default", model=model, tools=[], inference_mode=body.inference_mode)
+            from ..route_problem import runtime_for_route
+            draft = Bot(name="workspace-model-default", model=model, tools=[], inference_mode=body.inference_mode,
+                        runtime=runtime_for_route(model))
             try:
                 validate_inference_mode(body.inference_mode, model)
                 validate_override(config, store, draft, model)
@@ -4236,11 +4238,17 @@ def create_app() -> FastAPI:
         bot.instructions = body.instructions or bot.instructions
         if "preset" in body.model_fields_set:
             bot.preset = _checked_task_preset(body.preset)
-        bot.runtime = RuntimeKind(body.runtime)
         workspace_defaults = get_workspace_model_defaults()
         requested_model = body.model.strip()
         inherited_default = not requested_model and bool(workspace_defaults["model"])
-        bot.model = requested_model or ("" if bot.runtime is RuntimeKind.opencode else workspace_defaults["model"])
+        from ..route_problem import runtime_for_route
+        bot.runtime = RuntimeKind(body.runtime) if body.runtime else runtime_for_route(requested_model or workspace_defaults["model"])
+        default_needs_opencode = runtime_for_route(workspace_defaults["model"]) is RuntimeKind.opencode
+        bot.model = requested_model or ("" if bot.runtime is RuntimeKind.opencode and not default_needs_opencode else workspace_defaults["model"])
+        needed = runtime_for_route(bot.model)
+        if bot.model and bot.runtime in (RuntimeKind.builtin, RuntimeKind.opencode) and needed is not bot.runtime and (
+                needed is RuntimeKind.opencode or bot.runtime is RuntimeKind.opencode):
+            raise HTTPException(422, f"{bot.model} runs on the {needed.value} runtime, but this assistant is set to {bot.runtime.value}; leave the runtime unset and it follows the model")
         selected_mode = body.inference_mode or (InferenceMode.hybrid if bot.runtime is RuntimeKind.opencode
                                                  else InferenceMode(workspace_defaults["inference_mode"]))
         from ..providers.registry import validate_inference_mode, validate_offline_bot
@@ -4382,6 +4390,8 @@ def create_app() -> FastAPI:
         except BotConflict as exc:
             raise HTTPException(409, str(exc)) from None
         response.status_code = 201 if created else 200
+        if created:
+            ensure_main_assistant(store, saved)      # the dashboard creates through this route: the first assistant is the main one
         return bot_view(saved)
 
     @app.post("/api/v1/bot-configs/preview", response_model=BotConfigPreviewResource)
@@ -4464,6 +4474,9 @@ def create_app() -> FastAPI:
             or ("roster_section" in body.model_fields_set and bool(body.roster_section))
         ):
             raise HTTPException(409, "the workspace coordinator stays visible and outside specialist sections")
+        if body.model and body.runtime is None and bot.runtime in (RuntimeKind.builtin, RuntimeKind.opencode):
+            from ..route_problem import runtime_for_route
+            body.runtime = runtime_for_route(body.model).value      # choosing a model is enough: it brings the runtime it needs
         changing_runtime = body.runtime is not None and bot.runtime.value != body.runtime
         if changing_runtime:
             active = store.active_run_for_bot(bot.id)
@@ -4955,7 +4968,7 @@ def create_app() -> FastAPI:
         bot = bot_or_404(ref)
         return {"default": bot.model,
                 "models": choices_json(model_choices(config, store, bot, discover_hosted_models=discover,
-                                                     model_query=q.strip()))}
+                                                     model_query=q.strip(), any_runtime=True))}
 
     # --------------------------------------------------------------- runs
 

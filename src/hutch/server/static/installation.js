@@ -64,6 +64,7 @@
       + '<p class="hint">Nothing is deleted, rewritten, sent or closed by reviewing. Each action below opens the'
       + ' normal governed page; the roster keeps showing any assistant that still cannot run.</p>'
       + '<ul class="installation-issues">' + state.open_issues.map(issueHtml).join("") + '</ul>'
+      + (window.hutchRemoval ? '<p class="hutch-actions">' + window.hutchRemoval.button(state) + '</p>' : "")   // one governed removal, in assistant-removal.js
       + '<p class="hint">Continuing records that you saw this state. A new problem after this appears once more.</p>';
   }
 
@@ -78,7 +79,8 @@
         ? ' · <b>' + state.open_issues.length + ' item' + (state.open_issues.length === 1 ? "" : "s") + ' need review</b>'
         : ' · nothing needs review') + '</p>'
       + '<div class="hutch-actions"><button type="button" class="btn ghost small" id="installation-settings-review">Review installation</button>'
-      + '<button type="button" class="btn ghost small" id="installation-settings-check">Check setup</button></div>'
+      + '<button type="button" class="btn ghost small" id="installation-settings-check">Check setup</button>'
+      + (window.hutchRemoval ? window.hutchRemoval.button(state) : "") + '</div>'
       + '<div id="installation-settings-findings" class="hint" role="status" aria-live="polite"></div></section>';
     slot.querySelector("#installation-settings-review")?.addEventListener("click", () => openReview(state));
     slot.querySelector("#installation-settings-check")?.addEventListener("click", async event => {

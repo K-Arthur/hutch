@@ -999,3 +999,9 @@ label.field { align-content: start; }
 .ctx-id:has(> .main-badge) { position: relative; }
 .ctx-id > .main-badge { left: 22px; top: -4px; }
 @media (forced-colors: active) { .main-badge { forced-color-adjust: none; background: Highlight; color: HighlightText; } }
+
+/* Removing assistants: a plain checklist (assistant-removal.js). */
+.removal-list { display: grid; gap: var(--s-2); margin: var(--s-3) 0; padding: 0; list-style: none; }
+.removal-list label { align-items: center; }
+.removal-list .tag { margin-left: var(--s-1); }
+

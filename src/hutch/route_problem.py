@@ -44,6 +44,11 @@ def model_route_problem(model: str, runtime: RuntimeKind = RuntimeKind.builtin) 
     return None
 
 
+def runtime_for_route(model: str) -> RuntimeKind:
+    """The runtime a route needs. A person chooses a model, never a runtime: an OpenCode route runs on OpenCode, anything else on Hutch's own."""
+    return RuntimeKind.opencode if (model or "").strip().lower().startswith("opencode/") else RuntimeKind.builtin
+
+
 def route_problem(bot: Bot) -> Optional[str]:
     return model_route_problem(bot.model, bot.runtime)
 

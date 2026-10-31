@@ -320,14 +320,15 @@ def code_reconcile(handoff_id: str = typer.Argument(..., help="Coding task ID sh
 def init() -> None:
     """Create the state directory and database without inventing bots or model output."""
     config = get_config()
-    _store()
+    store = _store()
     config.ensure()
     console.print(Panel.fit(
         f"[green]hutch initialized[/green]\n"
         f"state dir: [cyan]{config.state_dir}[/cyan]\n"
         f"database:  [cyan]{config.db_path}[/cyan]",
         title="hutch init"))
-    console.print("No bots were created. Configure a provider in Connections or start a local model, then create a bot.")
+    from .demo_leftovers import init_summary
+    console.print(escape(init_summary(store)))
     console.print("\nnext: [bold]hutch serve[/bold] → dashboard, or [bold]hutch bot create <name> --model <provider/model>[/bold]")
 
 
@@ -2564,6 +2565,9 @@ def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787),
     os.environ.setdefault("HUTCH_EXECUTOR", "process")      # the dashboard's runs are worker processes: Stop is a real kill
     scheme = "https" if tls_cert else "http"
     console.print(f"[bold]hutch[/bold] dashboard → {scheme}://{host}:{port}")
+    from .demo_leftovers import demo_warning
+    if (warning := demo_warning(_store())):
+        console.print(f"[yellow]{escape(warning)}[/yellow]")
     serve_dashboard(host=host, port=port, log_level="warning", ssl_certfile=tls_cert, ssl_keyfile=tls_key, proxy_headers=False)
 
 

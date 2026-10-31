@@ -35,9 +35,25 @@ CATALOG = {"default": "ollama/qwen3:8b", "models": [
 ]}
 
 
+def _working_assistant(store):
+    """The intercepted catalogues describe an assistant on a working route, so make it one: on a route that cannot run, choosing a
+    model saves it for the assistant (a different, tested flow) instead of being a one-message override."""
+    bot = store.get_bot("design-system-review")
+    saved = bot.model
+    bot.model = "ollama/qwen3:8b"
+    store.upsert_bot(bot)
+
+    def restore():
+        again = store.get_bot("design-system-review")
+        again.model = saved
+        store.upsert_bot(again)
+    return restore
+
+
 @pytest.fixture()
 def picker(browser, app_server):
     base, _app = app_server
+    restore = _working_assistant(_app.state.store)
     context = browser.new_context(viewport={"width": 1280, "height": 900}, reduced_motion="reduce")
     page = context.new_page()
     errors: list[str] = []
@@ -51,6 +67,7 @@ def picker(browser, app_server):
     assert not errors, errors
     assert not external, external          # marks are bundled artwork and monograms: nothing is fetched
     context.close()
+    restore()
 
 
 def _open_menu(page):
@@ -178,6 +195,7 @@ def _model(spec, **extra):
 def open_picker(browser, app_server):
     """Open the picker against a catalog of the test's own, as a pointer or a touch device."""
     base, app = app_server
+    restore = _working_assistant(app.state.store)
     contexts = []
 
     def _open(catalog, *, touch=False, handler=None):
@@ -194,6 +212,7 @@ def open_picker(browser, app_server):
     yield _open
     for context in contexts:
         context.close()
+    restore()
 
 
 def test_a_mark_names_the_routes_maker_not_the_model_name(open_picker):

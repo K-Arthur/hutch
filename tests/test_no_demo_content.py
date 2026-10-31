@@ -27,6 +27,8 @@ CANNED = (
 MOCK_ALLOWED = {
     "src/hutch/connections.py": 1,             # `mock` stays a reserved connection name
     "src/hutch/doctor.py": 1,                  # warns about assistants still on a mock route
+    "src/hutch/demo_leftovers.py": 2,          # one-time account of demo assistants an earlier version left (remove with the migration)
+    "src/hutch/server/static/assistant-removal.js": 2,   # the governed removal of those same assistants; the pair goes together
     "src/hutch/engine.py": 1,                  # docstring of the refusal to start them
     "src/hutch/modelchoices.py": 3,            # marks the route "setup" and refuses it
     "src/hutch/models.py": 2,                  # the legacy enum value, kept so old rows still load
