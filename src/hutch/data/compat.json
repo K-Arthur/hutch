@@ -247,6 +247,33 @@
       "policy_evidence": [
         {"title": "Anthropic consumer/API terms boundary", "url": "https://www.anthropic.com/news/updates-to-our-consumer-terms?subjects=claude", "observed_on": "2026-10-08"}
       ]
+    },
+    {
+      "id": "deepseek-chat",
+      "title": "DeepSeek API key",
+      "state": "supported",
+      "harness": "Hutch builtin runtime",
+      "api_shape": "OpenAI Chat Completions-compatible HTTP endpoint",
+      "auth_flow": "DEEPSEEK_API_KEY (or the named connection's own key) is sent only to https://api.deepseek.com; a custom endpoint needs its own named connection key.",
+      "models": "GET /models authenticated and returned deepseek-flash and deepseek-v4-pro on 2026-10-30. The vendor documents legacy model names being re-pointed to a newer served model, so the returned model is recorded.",
+      "streaming": "OpenAI-compatible streaming is requested by the common adapter; not live-exercised on this route.",
+      "tool_calls": "Common function-tool framing is fixture-tested; tool calling was not live-exercised for this route.",
+      "structured_output": "Not sent by the default adapter; the constrained tool protocol is not live-verified here.",
+      "vision": "Not live-exercised on this route.",
+      "context_limits": "Model-specific; Hutch does not send a context-window override.",
+      "cancellation": "Stop closes the active response; provider-side work may already have occurred and is not replayed.",
+      "usage_reporting": "Prompt/completion tokens are recorded when returned. The live run returned 612 prompt and 9 completion tokens; the local price row was absent, so recorded cost is 0.0 (unpriced, not a free claim).",
+      "quota_reporting": "Provider quota and reset times are not queried.",
+      "retention": "DeepSeek account and API data controls apply.",
+      "hutch_request_mapping": {
+        "sent": ["model", "messages", "tools", "stream", "stream_options.include_usage", "temperature when set", "max_tokens"],
+        "omitted": ["num_ctx", "think", "effort", "reasoning_effort", "response_format"]
+      },
+      "verification": "Live 2026-10-30: model list authenticated; one one-step text run succeeded through the built-in runtime and returned the expected token. Tool calling, streaming and every other capability were not live-exercised.",
+      "verified_on": "2026-10-30",
+      "policy_evidence": [
+        {"title": "DeepSeek API documentation", "url": "https://api-docs.deepseek.com/", "observed_on": "2026-10-30"}
+      ]
     }
   ]
 }

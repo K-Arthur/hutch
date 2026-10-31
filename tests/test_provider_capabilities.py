@@ -34,13 +34,24 @@ def test_every_requested_provider_has_a_report_and_documented_services():
     assert by_id["fal"].level("text") is None
 
 
-def test_no_live_verified_evidence_exists_in_this_build():
-    assert live_verified_evidence() == ()
+def test_live_verified_evidence_is_limited_to_the_exercised_text_routes():
+    live = live_verified_evidence()
+    assert [entry.scope for entry in live] == ["deepseek/deepseek-flash", "opencode/deepseek/deepseek-flash"]
+    assert all(entry.level == "live-verified" and entry.capability == "text" for entry in live)
+    assert all(entry.observed_on == "2026-10-30" and entry.source for entry in live)
     for report in capability_matrix():
         assert all(entry.level in LEVELS for entry in report.entries)
-        assert all(entry.level != "live-verified" for entry in report.entries)
         assert all(entry.scope_kind in SCOPE_KINDS for entry in report.entries)
         assert all(entry.capability in CAPABILITIES for entry in report.entries)
+        live_scopes = {entry.scope for entry in report.entries if entry.level == "live-verified"}
+        if report.provider_id == "deepseek":
+            assert live_scopes == {"deepseek/deepseek-flash"}
+        elif report.provider_id == "opencode":
+            assert live_scopes == {"opencode/deepseek/deepseek-flash"}
+        else:
+            assert live_scopes == set()
+    assert capability_report("deepseek", model="deepseek-flash").level("text") == "live-verified"
+    assert capability_report("deepseek").level("text") == "live-verified"  # live evidence is not model-gated away
 
 
 def test_observed_evidence_is_model_scoped_and_never_upgrades_a_route_claim():

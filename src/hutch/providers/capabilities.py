@@ -85,9 +85,10 @@ ROUTE_CAPABILITIES: dict[str, tuple[str, ...]] = {
     "consumer-plan-oauth": (),
 }
 
-#: This build performed no live provider exercise. A live row must be added with a date and the exact
-#: account/route/model exercised; nothing here may be derived from fixtures or mocks.
-LIVE_VERIFIED_EVIDENCE: tuple["CapabilityEvidence", ...] = ()
+#: Live-verified evidence from owner-authorized real provider requests. Entries are added only after a
+#: real account, route and model produced the recorded result; nothing here is derived from fixtures.
+#: Current evidence covers text generation only. It does not establish streaming, tools, images, usage
+#: reporting or any other capability.
 
 
 @dataclass(frozen=True)
@@ -127,6 +128,27 @@ def _source_for(provider: Provider, catalog_reviewed: str) -> tuple[str, str]:
     if provider.docs:
         return provider.docs[0].url, provider.docs[0].observed_on
     return "bundled provider catalogue (reviewed " + catalog_reviewed + ")", catalog_reviewed
+
+
+LIVE_VERIFIED_EVIDENCE: tuple[CapabilityEvidence, ...] = (
+    CapabilityEvidence(
+        capability="text", level="live-verified", scope_kind="model", scope="deepseek/deepseek-flash",
+        source="Hutch live verification 2026-10-30: built-in runtime, real api.deepseek.com request",
+        observed_on="2026-10-30",
+        detail=("Model discovery authenticated and returned deepseek-flash and deepseek-v4-pro. A one-step run "
+                "returned the expected token with 612 prompt / 9 completion tokens. Tool calling, streaming and "
+                "image input were not exercised."),
+    ),
+    CapabilityEvidence(
+        capability="text", level="live-verified", scope_kind="model", scope="opencode/deepseek/deepseek-flash",
+        source=("Hutch live verification 2026-10-30: managed OpenCode 2.2.0 runtime with the owner's DeepSeek "
+                "key connected to Hutch's private profile"),
+        observed_on="2026-10-30",
+        detail=("A one-step managed run succeeded with 4452 prompt / 8 completion tokens and a provider-reported "
+                "cost of $0.0006726; the reply matched the requested token. Tool permissions, streaming and "
+                "other OpenCode providers were not exercised."),
+    ),
+)
 
 
 def _catalog_evidence(provider: Provider, catalog_reviewed: str) -> list[CapabilityEvidence]:

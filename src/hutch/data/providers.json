@@ -382,12 +382,12 @@
         }
       ],
       "docs": [],
-      "integration_status": "implemented-unverified",
+      "integration_status": "implemented",
       "connection_templates": [],
       "regions": [
         "global"
       ],
-      "notes": "Hutch owns a private server process for the managed runtime; the CLI coding handoff is a separate feature that uses its own sign-in."
+      "notes": "Hutch owns a private server process for the managed runtime; the CLI coding handoff is a separate feature that uses its own sign-in. Live-verified 2026-10-30: the managed runtime completed a real step against deepseek/deepseek-flash with matching output and provider-reported tokens and cost."
     },
     {
       "id": "opencode-go",
@@ -470,16 +470,25 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
-      "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "docs": [
+        {
+          "title": "DeepSeek API documentation",
+          "url": "https://api-docs.deepseek.com/",
+          "observed_on": "2026-10-30"
+        }
+      ],
+      "integration_status": "implemented",
+      "connection_templates": [
+        "deepseek"
+      ],
       "regions": [
         "global"
-      ]
+      ],
+      "notes": "OpenAI-shaped chat route at https://api.deepseek.com/v1. The vendor documents legacy model names being re-pointed to a newer served model with unchanged calling method, so the returned model is recorded and never silently assumed. Anthropic-shaped DeepSeek endpoint is not implemented as a separate route."
     },
     {
       "id": "github-copilot",
