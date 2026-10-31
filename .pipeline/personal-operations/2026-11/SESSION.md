@@ -87,4 +87,6 @@ npm run check:agent
 ```
 
 Screenshots land in `evidence/personal-operations-agenda/` (1440, 834, 390, 320, the
-stale state, the unavailable state, the alerts section and 200 percent zoom).
+stale state, the unavailable state, the alerts section and 200 percent zoom). See
+`RUNLOG.md`, `ACCEPTANCE.md` and `HANDOFF.md` for the measured results, the
+independent review and what stays blocked.
