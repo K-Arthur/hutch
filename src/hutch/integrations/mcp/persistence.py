@@ -115,12 +115,13 @@ def save_catalog(db: sqlite3.Connection, integration_id: str, tools: list[dict[s
     for name in invalidated:
         db.execute("DELETE FROM integration_tool_grants WHERE integration_id = ? AND server_tool_name = ?",
                    (integration_id, name))
-    # A usable catalog with at least one supported tool means capabilities were discovered.
-    supported = any(t.get("supported", True) for t in tools)
+    # A catalog with any entry means capabilities were discovered, even when every tool is
+    # unsupported: the review material exists and the diagnostics explain the refusals. A server
+    # that answered with an empty list has proven reachability and nothing more.
     db.execute(
         "UPDATE integrations SET state = CASE WHEN state = 'operation_authorized' THEN state "
         "ELSE ? END WHERE integration_id = ?",
-        ("capabilities_discovered" if supported else "installed", integration_id))
+        ("capabilities_discovered" if tools else "reachable", integration_id))
     return {"tools": len(tools), "invalidated": invalidated}
 
 

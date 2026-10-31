@@ -307,6 +307,25 @@ settlement. An exhausted credit balance or explicitly exhausted quota is not
 retried as a transient throttle; switching to a different paid route still uses
 the normal authorization and budget checks.
 
+## Connectors are not provider connections (2026-10-30)
+
+This page is about **provider connections**: a hosted or local endpoint that runs a model, with its own key,
+protocol, billing, allowance and terms notice. A **connector** is a different surface. It is an MCP (Model
+Context Protocol) server, local or remote, whose tools a named assistant can be granted. A connector does
+not provide a model route, and a provider connection never adds a tool.
+
+The two are reviewed separately. Installing a connector runs nothing and authorizes nothing. Its tools
+become available only after the server is tested (the test reads the tool list and never calls a tool) and
+each tool is granted to a named assistant with an operation class. A local connector runs as contained
+third-party code inside the same bubblewrap sandbox as a shell command; a remote connector is reached through
+pinned egress, and its authentication is either none or a bearer token read from an environment variable,
+not one of the OAuth account connections described here. Connector routes are local-owner only, so a paired
+phone cannot administer them. The Apps & AI screen does not list connectors yet; the HTTP API is the current
+surface.
+
+See [Connectors](connectors.md) for the definition format, the sandbox a local server runs in, the five
+consent states, grant and revocation semantics, the HTTP API, troubleshooting and current limits.
+
 ## Connect a model provider in one step
 
 On a device that has never installed OpenCode or Ollama, use a hosted API-key route first; Hutch does not bundle either runtime. OpenCode requires the **V2** CLI on `PATH`, and Ollama requires a running local server plus downloaded models. See [runtime prerequisites](runtime-setup.md). From **Apps & AI → AI model providers → Connect a provider**, choose OpenAI API,

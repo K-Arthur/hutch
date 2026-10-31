@@ -230,6 +230,29 @@ and to `transcript.jsonl` on disk. A run becomes terminal (`succeeded`, `failed`
 verified; otherwise `cancelling` or `recovering` remains visible with a reason. Terminal `exit_reason` values include `completed`,
 `timeout`, `steps_exceeded`, `token_cap`, `approval_expired`, and `error`.
 
+### D4b: Connector tools cross the same dispatch boundary
+
+Schema v85 adds a governed MCP client plane in `src/hutch/integrations/mcp/` (ADR-0017 S2/S3).
+An owner reviews a definition for a local stdio server or a remote Streamable HTTP endpoint, and
+the definition stores only non-secret material: an argv list, read-only mounts with their
+fingerprints, or a URL plus the name of an environment variable. A local server is third-party
+code, so it runs contained: one bubblewrap process per operation, no host network, a cleared
+environment, the run workspace bound at `/workspace`, and limits enforced by `systemd-run` and
+`prlimit`. A remote endpoint is reached through pinned egress, where the address that was
+screened is the address dialled, and plaintext HTTP is limited to loopback.
+
+Discovery stores a bounded catalog with a schema revision per tool. Authority is a per-assistant
+grant on a named tool, carrying an operation class (`read`, `write`, `destructive` or `unknown`,
+defaulting to `unknown`); only `read` runs without asking. Connector tools join the one registry
+as ordinary `Tool` objects under `mcp__<integration_id>__<tool>` and pass the same approval
+gate, the same intent and receipt bracket for non-read classes, and the same schema validation
+before execution. `src/hutch/runtime/dispatch.py` re-reads the grant before every call, so a
+revocation applies to the next tool call, and a changed tool schema or definition revision drops
+the grant instead of inheriting it. The routes in `src/hutch/server/mcp_api.py` are local-owner
+only. A server-rendered page at `/connectors` installs, tests, reviews, grants and revokes,
+and `bot_readiness` reports both the connector tools an assistant may call and the connectors
+that are installed but not granted to it. See [Connectors](connectors.md).
+
 ### D5: Caps are enforced by the engine, not by model behavior
 
 - `max_steps`: agent turns per run
