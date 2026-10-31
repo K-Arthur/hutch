@@ -69,6 +69,16 @@ def test_get_renders_chrome_less_empty_state(client):
     assert "Save and continue" in text
 
 
+def test_the_request_form_explains_what_a_useful_request_contains(client):
+    """A8: guidance replaces invented prompt buttons; it is copy in the form, not a canned request."""
+    text = client.get("/onboarding").text
+    assert 'id="request-guidance"' in text
+    assert ("A useful request names the outcome you want, where to look, what to avoid, what to hand "
+            "back, and when the assistant should stop and ask you.") in text
+    described = re.search(r'aria-describedby="([^"]*request-guidance[^"]*)"', text)
+    assert described, "the guidance is wired into the textarea's accessible description"
+
+
 def test_save_redirects_to_saved_state_and_stores_request(client):
     token = csrf(client)
     r = client.post("/onboarding/request",

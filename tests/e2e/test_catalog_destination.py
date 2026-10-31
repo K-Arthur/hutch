@@ -8,7 +8,6 @@ on export, and accepts a catalog template in setup without saving anything until
 from __future__ import annotations
 
 import json
-import os
 import pathlib
 
 import pytest
@@ -17,6 +16,7 @@ pw = pytest.importorskip("playwright.sync_api")
 
 from hutch.models import Bot  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
+from tests.support.artifacts import artifact_path  # noqa: E402
 from tests.support.browser import launch_browser  # noqa: E402
 from tests.support.live_app import PageWatch, horizontal_overflow, serve  # noqa: E402
 
@@ -66,8 +66,9 @@ def test_catalog_is_reachable_with_search_and_provenance(browser, base):
         assert "Day Planner" in text and "publisher" in text.lower() and "content hash" in text.lower()
         assert "What it asks for" in text and "files" in text
         assert detail.locator("details pre").text_content().startswith("You build a realistic plan")
-        page.screenshot(path=str(pathlib.Path(os.environ.get("TMPDIR", "/tmp")) / "catalog-detail-1440.png"),
-                        animations="disabled")
+        out = artifact_path("catalog-destination")
+        out.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(out / "catalog-detail-1440.png"), animations="disabled")
 
         bots_before = len(app.state.store.list_bots())
         page.get_by_role("button", name="Create a copy").click()
