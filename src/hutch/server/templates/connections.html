@@ -3,8 +3,9 @@
 {% from "_form.html" import form_actions %}
 {% from "macros/modal.html" import confirm_form %}
 {% block title %}Apps & AI{% endblock %}
+{% block header_context %}<div class="ctx-id"><h1>Connections</h1></div>{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Connections</h1>
+<div class="page-head"><div>
   <p class="sub">Hosted endpoints and subscription plans, each with its own key. Use one in an assistant as <span class="mono">&lt;name&gt;/&lt;model&gt;</span>, for example <span class="mono">opencode-go/glm-5.3</span>.</p></div></div>
 
 <div class="banner wait">{{ icon("lock", 18) }}<div class="banner-body">

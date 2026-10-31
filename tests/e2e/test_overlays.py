@@ -11,6 +11,7 @@ import pytest
 
 pw = pytest.importorskip("playwright.sync_api")
 
+from hutch.models import Bot, Run, RunStatus  # noqa: E402
 from tests.e2e.test_design_system import app_server, browser  # noqa: E402,F401
 
 
@@ -91,7 +92,11 @@ def test_destructive_confirm_is_not_dismissible_and_never_default_focus(browser,
 
 
 def test_server_page_confirm_form_and_tooltip(browser, app_server):
-    base, _ = app_server
+    base, app = app_server
+    # The global stop appears with running work, the same rule as the SPA header.
+    store = app.state.store
+    bot = store.create_bot(Bot(name="overlay-work", display_name="Overlay Work", tools=[]))
+    store.create_run(Run(bot_id=bot.id, prompt="long task", status=RunStatus.running, owner=""))
     context = browser.new_context(viewport={"width": 1280, "height": 900})
     page = context.new_page()
     try:

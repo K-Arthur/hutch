@@ -3200,7 +3200,7 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
             page.screenshot(path=str(studio_capture), animations="disabled")
 
             page.goto(f"{base}/legacy/connections")
-            heading = page.locator("#main h1")
+            heading = page.locator(".app-top-context h1")
             heading.wait_for()
             page.evaluate("document.fonts.ready")
             heading_metrics = heading.evaluate("""element => {

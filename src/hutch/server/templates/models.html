@@ -3,6 +3,7 @@
 {% from "_form.html" import text_input, select_input, checkbox, form_actions %}
 {% from "macros/modal.html" import confirm_form %}
 {% block title %}Models{% endblock %}
+{% block header_context %}<div class="ctx-id"><h1>Models</h1></div>{% endblock %}
 {% block flash %}{% endblock %}
 {% block head %}{% if not v.configured_routes %}<script src="/static/models-detect.js" defer></script>{% endif %}{% endblock %}
 {% macro fitchip(f) -%}
@@ -11,7 +12,6 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <h1>Models</h1>
     <p class="sub">Configure AI model routes for assistants, inspect local machine capacity, and review token pricing.</p>
   </div>
   <div class="card-actions">

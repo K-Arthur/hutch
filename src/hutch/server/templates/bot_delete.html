@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
 {% block title %}Delete {{ bot.display_name or bot.name }}{% endblock %}
+{% block header_context %}<div class="ctx-id"><h1>Permanently delete {{ bot.display_name or bot.name }}</h1></div>{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
     <p class="crumb"><a href="/bots/delete">{{ icon("arrow-left", 13) }} Permanently delete an assistant</a></p>
-    <h1>Permanently delete {{ bot.display_name or bot.name }}</h1>
     <p class="sub">This erases the assistant and the conversations, runs, memory and managed files that belong
       to it. It cannot be undone. Nothing is removed until you preview the exact counts and type the assistant
       address.</p>

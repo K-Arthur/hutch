@@ -4,11 +4,11 @@
 {% from "_composer.html" import composer %}
 {% from "macros/modal.html" import confirm_form %}
 {% block title %}{{ bot.display_name }}{% endblock %}
+{% block header_context %}<div class="ctx-id"><h1>{{ icon("bot", 24) }} {{ bot.display_name }}</h1></div>{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
     <p class="crumb"><a href="/bots">Assistants</a></p>
-    <h1>{{ icon("bot", 24) }} {{ bot.display_name }}</h1>
     <p class="sub">{{ bot.description or "No description." }}</p>
     <div class="tags"><span class="tag">{{ bot.model }}</span><span class="tag">{{ bot.runtime.value }}</span>
       <span class="tag">{{ bot.schedule.cron ~ " (" ~ bot.schedule.timezone ~ ")" if bot.schedule else "on demand" }}</span>

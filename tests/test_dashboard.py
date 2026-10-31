@@ -191,16 +191,19 @@ def test_outward_actions_never_offer_always(client):
 # ------------------------------------------------------------------ stop / controls (UI-2)
 
 def test_stop_all_is_in_the_app_header_and_stops_a_run(client):
+    """The global stop belongs to running work, exactly like the SPA header, not permanent chrome."""
     bot = make_bot(client)
-    assert "/stop-all" in client.get("/legacy/connections").text
+    assert "/stop-all" not in client.get("/legacy/connections").text      # idle: nothing to stop
     assert "/stop-all" not in client.get("/login").text
     store, engine = client.app_.state.store, client.app_.state.engine
-    run = engine.submit(bot, "write a report")
-    engine.dispatch_pending()
-    wait_for(lambda: store.get_run(run.id).status is RunStatus.waiting_approval)
+    run = store.create_run(Run(bot_id=bot.id, prompt="write a report", status=RunStatus.running, owner=""))
+    page = client.get("/legacy/connections")
+    assert "/stop-all" in page.text and "1 working" in page.text          # one running run: shown
+    assert "/stop-all" not in client.get("/login").text
     r = post(client, "/stop-all", next="/")
     assert r.status_code == 303
-    wait_for(lambda: store.get_run(run.id).status is RunStatus.stopped)
+    # A run nothing is executing still records the cancel request; its owner would finish it.
+    wait_for(lambda: store.get_run(run.id).status in {RunStatus.cancelling, RunStatus.stopped})
 
 
 def test_per_run_stop_form_is_a_plain_post(client):

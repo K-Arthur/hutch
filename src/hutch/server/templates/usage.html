@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
 {% block title %}Usage{% endblock %}
+{% block header_context %}<div class="ctx-id"><h1>Usage</h1></div>{% endblock %}
 {% macro cost(v, billing="per token") -%}
   {%- if billing == "local" %}free (local){% elif billing == "flat plan" %}flat plan{% else %}{{ v | money }}{% endif -%}
 {%- endmacro %}
 {% block content %}
-<div class="page-head"><div><h1>Usage</h1>
+<div class="page-head"><div>
   <p class="sub">Where tokens and money went. A day is your local calendar day, the same one the daily caps use.</p></div>
   <nav class="seg" aria-label="Period">{% for p in periods %}<a href="/usage?days={{ p }}" class="{{ 'active' if p == days else '' }}"{% if p == days %} aria-current="true"{% endif %}>{{ p }} days</a>{% endfor %}</nav></div>
 

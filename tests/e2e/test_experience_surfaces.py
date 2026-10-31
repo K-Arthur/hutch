@@ -71,11 +71,13 @@ def test_active_server_rendered_pages_share_type_and_readable_layout(browser, ap
                                 ("legacy-connections", "/legacy/connections"),
                                 ("login", "/login"), ("pair", "/pair"), ("error", "/not-a-page")):
                 page.goto(base + route)
-                expect(page.locator("main h1")).to_be_visible()
+                chrome_page = name in {"models", "usage", "assistant", "legacy-connections"}
+                heading = page.locator(".app-top-context h1" if chrome_page else "main h1")
+                expect(heading).to_be_visible()
                 page.evaluate("document.fonts.ready")
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"), (name, width)
                 assert page.locator("body").evaluate("el => getComputedStyle(el).fontSize") == "16px"
-                assert page.locator("main h1").evaluate("el => getComputedStyle(el).fontSize") == "24px"
+                assert heading.evaluate("el => getComputedStyle(el).fontSize") == "24px"
                 if name == "assistant":
                     assert page.locator(".estimate strong").bounding_box()["height"] < 30
                 page.screenshot(path=str(out / f"{name}-{width}.png"), animations="disabled")
@@ -83,7 +85,7 @@ def test_active_server_rendered_pages_share_type_and_readable_layout(browser, ap
         page.goto(base + "/usage")
         page.evaluate("document.documentElement.style.fontSize = '200%'")
         assert page.locator("body").evaluate("el => getComputedStyle(el).fontSize") == "32px"
-        assert page.locator("main h1").evaluate("el => getComputedStyle(el).fontSize") == "48px"
+        assert page.locator(".app-top-context h1").evaluate("el => getComputedStyle(el).fontSize") == "48px"
     finally:
         context.close()
 

@@ -72,8 +72,10 @@
            is the rail beside it, so no route grows a second navigation model. -->
       <header class="app-top">
         <button class="icon-btn nav-toggle" id="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="workspace">{{ icon("menu", 20) }}</button>
-        <div class="app-top-context"></div>
+        <div class="app-top-context">{% block header_context %}{% endblock %}</div>
         <div class="app-top-status">
+          {% if working_runs %}
+          <a class="app-top-work" href="/#/activity" title="{{ working_runs }} working"><span class="wdot" aria-hidden="true"></span>{{ working_runs }} working</a>
           {{ confirm_form("stop-all-form", "stop-all-confirm", "/stop-all",
                "Stop every running job?",
                "This kills child processes, not just the agent loop. Nothing else is changed.",
@@ -81,6 +83,7 @@
                hidden={"csrf": csrf, "next": request.url.path},
                trigger_class="btn danger small", trigger_icon="stop",
                trigger_aria="Stop all runs now. Kills child processes, not just the agent loop.") }}
+          {% endif %}
           <span id="live-pill" class="pill" role="status" aria-live="polite" title="Live updates connected">live</span>
         </div>
       </header>

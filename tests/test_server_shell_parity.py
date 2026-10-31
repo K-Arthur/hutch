@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from hutch.models import Bot
+from hutch.models import Bot, Run, RunStatus
 from hutch.server.app import create_app
 from tests.fakes import FakeOllama
 
@@ -83,6 +83,40 @@ def test_assistants_row_appears_at_ten_assistants_or_when_active(client):
     for index in range(2, 10):
         store.create_bot(Bot(name=f"few-{index}"))
     assert 'data-nav="bots"' in _sidebar(client.get("/models", headers=BROWSER).text)
+
+
+@pytest.mark.parametrize("path,title", [
+    ("/models", "Models"), ("/usage", "Usage"),
+    ("/legacy/connections", "Connections"), ("/bots/delete", "Permanently delete an assistant"),
+])
+def test_the_page_title_lives_in_the_shell_header(client, path, title):
+    """One header contract: the page's h1 is in the shell header, not a second heading in the body."""
+    text = client.get(path, headers=BROWSER).text
+    header = text[text.index('<div class="app-top-context">'):text.index('<div class="app-top-status">')]
+    assert re.search(rf"<h1[^>]*>.*{re.escape(title)}.*</h1>", header, re.S), path
+    main = text[text.index('<main id="main"'):text.index("</main>")]
+    assert "<h1" not in main, f"{path} still carries a page heading inside main"
+
+
+def test_global_stop_and_work_status_track_running_work(client):
+    store = client.app.state.store
+    idle = client.get("/usage", headers=BROWSER).text
+    assert "/stop-all" not in idle and '<a class="app-top-work"' not in idle
+    bot = store.create_bot(Bot(name="work-bot"))
+    store.create_run(Run(bot_id=bot.id, prompt="long task", status=RunStatus.running, owner=""))
+    working = client.get("/usage", headers=BROWSER).text
+    assert "/stop-all" in working and "1 working</a>" in working
+    assert "Stop all runs now" in working
+
+
+def test_parked_work_does_not_show_the_global_stop(client):
+    """Approvals waiting for a person are not execution capacity; the SPA header counts them separately too."""
+    store = client.app.state.store
+    bot = store.create_bot(Bot(name="parked-bot"))
+    store.create_run(Run(bot_id=bot.id, prompt="needs approval",
+                         status=RunStatus.waiting_approval, owner=""))
+    text = client.get("/models", headers=BROWSER).text
+    assert "/stop-all" not in text and '<a class="app-top-work"' not in text
 
 
 @pytest.mark.parametrize("path", ["/models", "/usage", "/legacy/connections", "/bots/delete"])

@@ -112,7 +112,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  height: calc(var(--app-top-h) + var(--safe-top));
+  min-height: calc(var(--app-top-h) + var(--safe-top));
+  height: auto;
   padding-block: var(--safe-top) 0;
   padding-inline: calc(var(--space-6) + var(--safe-left)) calc(var(--space-6) + var(--safe-right));
   background: var(--color-semantic-bg);
@@ -124,6 +125,32 @@
   gap: var(--space-3);
   flex: 1;
   min-width: 0;
+}
+/* The page title lives in the shell header, the same place the SPA puts it. */
+.app-top-context .ctx-id {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.app-top-context .ctx-id h1 {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app-top-work {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.app-top-work .wdot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
 }
 .app-top-status {
   display: flex;
