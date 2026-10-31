@@ -235,6 +235,24 @@ def test_receipts_are_append_only_and_the_api_reports_verification(client, tmp_p
             db.execute("DELETE FROM code_handoff_receipts WHERE handoff_id = ?", (handoff_id,))
 
 
+def test_receipt_schema_migrate_is_idempotent_and_keeps_existing_rows(client, tmp_path):
+    from hutch import code_review_schema
+
+    handoff_id, _worktree, _branch, _readme = _prepare(client, tmp_path, key_prefix="migrate")
+    store = client.app.state.store
+    verify_handoff(store, handoff_id, [sys.executable, "-c", "pass"],
+                   state_dir=Path(os.environ["HUTCH_STATE_DIR"]))
+    with store._tx() as db:
+        code_review_schema.migrate(db)
+        code_review_schema.migrate(db)
+    receipts = _receipts(client, handoff_id)
+    assert len(receipts) == 1
+    with store._lock:
+        triggers = {row[0] for row in store._db.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'code_handoff_receipts_%'")}
+    assert {"code_handoff_receipts_append_only", "code_handoff_receipts_no_delete"} <= triggers
+
+
 def test_cli_verify_and_prune_use_the_real_database(client, tmp_path):
     from hutch.cli import app as cli_app
 

@@ -244,3 +244,16 @@ forever with no cleanup path.
   `src/hutch/server/skills_api.py` and related static/tests. None of it was staged, reverted or
   formatted this pass. `src/hutch/server/static/index.html` remained dirty from that session; this
   slice touched only `static/app.js`.
+
+### Gate at these commits (`ac011f9a` code+docs, `f4e9593e` map)
+
+- `tests/test_code_review.py tests/test_code_handoff.py tests/test_api.py
+  tests/test_navbar_consistency.py tests/test_migration.py tests/test_bot_deletion_schema.py`:
+  125 passed in 54.94 s.
+- `tests/e2e/test_code_handoff_card.py`: 1 passed in 4.01 s, with screenshots at 1440/834/390/320
+  and no console errors or horizontal overflow.
+- Audits in a clean worktree at HEAD (the shared checkout's index holds another session's staged
+  reversions, so its `git ls-files` view is not this commit's tree): context hygiene PASS (1010
+  files, 117 frozen), tool contracts PASS (44 tools), constitution PASS (14 rules), agent map PASS
+  (119 lines, 2441 tracked files). The map was regenerated in a detached worktree at `ac011f9a`
+  and committed as `f4e9593e` so it reflects the committed tree, not the shared index.
