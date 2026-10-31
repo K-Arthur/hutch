@@ -74,23 +74,55 @@ browser tests; a conflict is possible in app.js and index.html.
 5. G05 outbound notifications for needs-you, failure and results, using the channel supervisor.
 6. G07 an ADR for real multi-participant authentication before any family-account promise.
 
-## Concurrent integration (2026-10-31, after the first regression pass)
+## Concurrent integration (2026-10-31, corrected after independent verification)
 
 Another active session committed a provider-platform series to local main in the shared checkout while this
-slice was being validated (for example 8e891ad1, 934e1b69, 185059fe, ffc686a9). The slice commits are all
-present on main. Ordering after integration: this slice's commits up to 02cf968b are ancestors of that
-session's tip ffc686a9, and the final slice commit 4f23c591 sits on top of it. The provider series edited
-website/index.html and store.py (adding mcp_schema.migrate after personal_schema.migrate), so:
+slice was being validated (for example 8e891ad1, 934e1b69, 185059fe, ffc686a9). All slice commits are present on
+main. Integration ordering: this slice's commits up to 02cf968b are ancestors of that session's committed tip
+ffc686a9, and this slice's final commit 4f23c591 sits on top of it. The provider series edited
+website/index.html; the personal-operations docs and homepage section were integrated with it and remain present.
 
-- the current store schema is 85: v84 is the personal-operations migration, v85 is the MCP integration
-  migration added by the other session; docs/architecture.md and ADR-0025 correctly describe v84 as the
-  migration that added commitments and spaces;
-- all slice features and documentation are still present at HEAD (nav Today row, Today/Shared modules, the
-  homepage section, the marketing claims paragraph, the personal_schema registration) and the focused tests,
-  tool-contract audit, constitution audit and agent-map check were re-run green by the independent verifier;
-- npm run check:agent as a whole currently reports one new-source-file cap violation in
-  tests/test_mcp_plane.py (402 lines), which was added by the other session's commit 934e1b69 and is not part
-  of this slice; it was not modified here to avoid editing another active session's committed work.
+Corrections after the independent verifier checked the tree:
 
-A third session's uncommitted model-picker/removal work remains in the working tree (20 modified, 13
-untracked paths at the final check); it was never staged, reverted or reformatted.
+- The committed HEAD store schema is 84. The 85 seen in the working tree comes only from another session's
+  UNCOMMITTED src/hutch/store.py edit plus their UNTRACKED src/hutch/mcp_schema.py, which appends
+  mcp_schema.migrate after personal_schema.migrate. No committed tree contains mcp_schema. Schema v84 is this
+  slice's migration; the current worktree reporting 85 is not part of this deliverable and was never staged.
+- npm run check:agent fails in the working tree on the other session's UNTRACKED tests/test_mcp_plane.py
+  (402 lines), not on a committed file and not on any slice file (the largest slice source file is 326 lines).
+  Commit 934e1b69 added tests/test_integration_dispatch.py, not test_mcp_plane.py.
+- A third session's uncommitted model-picker/removal work remains in the working tree and their staged
+  src/hutch/server/app.py (+2 lines) appeared during verification. None of it was staged, reverted or
+  reformatted here. HEAD also advanced to 1e81df56 (other session's docs commits) after the slice commits; the
+  slice files are unchanged by those commits.
+
+## Independent verification (2026-10-31, separate read-only agent)
+
+The reviewer re-ran the checks itself on the integrated tree: focused 7-file suite 86 passed in 41.96 s; personal-pages
+e2e 1 passed in 13.53 s; scheduler duration tests 27 passed; tool-contract audit PASS (43 tools); constitution
+audit PASS; agent-map check PASS (118 lines); personal_schema.py additive only (14 CREATE IF NOT EXISTS, zero
+ALTER/DROP/UPDATE/DELETE); no committed seed/demo data; docs/commitments.md and docs/marketing-site.md new claims
+accurate. Rows 1-21 pass (rows 13/14/15/16/20 with the stated manual/environment limits); row 22 was open pending
+this record.
+
+Findings raised and their resolution:
+
+- D1 (corrected): SCHEMA_VERSION imports as 85 in the working tree, but HEAD is 84. The 85 comes only from
+  another session's uncommitted store.py edit plus their untracked mcp_schema.py; no committed tree contains
+  mcp_schema. The earlier integration note wrongly attributed it to the committed provider series; RUNLOG.md and
+  HANDOFF.md now state the verified cause. This slice's migration is v84.
+- D2 (corrected): the 402-line tests/test_mcp_plane.py is another session's untracked file (commit 934e1b69 added
+  tests/test_integration_dispatch.py). The context-hygiene red is that untracked file; the largest slice source
+  file is 326 lines. The integration note now says exactly this.
+- D3 (recorded): another session staged src/hutch/server/app.py (+2 lines) and added untracked test files during
+  review; no slice file was staged or modified and the reviewer made no writes. Working tree moved from 33 to 35
+  entries and HEAD advanced from 4f23c591 to 1e81df56 through other-session docs commits; code under test did not
+  change.
+- D4 (corrected): row 4 no longer claims the migration test builds a v83-shaped database; it states the minimal
+  table fixture and points to the v4-fixture upgrade test as real upgrade coverage.
+- D5 (improved): restart continuity now has an automated store-reopen test (commitments/spaces/grant/schedule next
+  fire), not only the dashboard narrative. A successful scheduled model run remains blocked by no configured model
+  route; this is stated, not claimed.
+
+No finding required a code change to the product; the only code change after review was the added automated
+restart-continuity test. No committed deliverable was missing.
