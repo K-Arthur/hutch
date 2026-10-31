@@ -84,11 +84,78 @@ workflow currency ceiling; reviewed, hash-trusted Agent Skills (`hutch skills in
   (Off, Read-only, Ask first, Full); history persists on disk; "Teleport" moves a thread between machines.
 - It states that agents run **without approval prompts**, which is the opposite of Hutch's stance. Linux x64 is labelled alpha, Windows beta.
 
-### Grok Bot alternatives (unverified directory listings)
+### Grok Bot (primary, supplied by the owner: [get-started](https://docs.x.ai/grok-bot/get-started), [bots](https://docs.x.ai/grok-bot/bots), [shared bots](https://docs.x.ai/grok-bot/shared-bots)) and OpenClaw onboarding ([overview](https://docs.openclaw.ai/start/onboarding-overview))
 
-OpenClaw, Rakazo (a sidebar roster of role-named bots), OpenMausBot (each bot with its own model, instructions,
-working folder, apps and computer environment), Hermes and LobeHub (agent teams with a community sharing layer)
-are what the directories list. I could not confirm their behaviour beyond those descriptions.
+- **First run.** Grok Bot **creates your first Bot, named "Grok Bot", and opens a chat with it**; the page describes **no
+  naming, role or first-message wizard**. You rename it later by clicking its name above the chat, and you give it
+  **one primary job in your first message** and ask it to remember how it should work. If you have no primary Bot the
+  app shows "Introducing your primary Bot": create one or choose an existing one.
+- **What a Bot is.** A durable teammate with a name, a job, its **own conversation and its own memory** (preferences,
+  rules, a dated work log). Personal Bots have **no description field or settings page**: the job and boundaries are
+  defined in chat and kept in memory. Secrets belong in a Vault, not in memory.
+- **Three ways to get more Bots.** (1) By hand: the **+** button or Ctrl/Cmd+N, name it, Create. (2) **By an existing
+  Bot**: your Bots "can suggest or create a focused Bot when a job needs a long-lived owner", and the docs advise asking
+  before creating several. (3) **From templates**: Connect apps, Bot templates, Import Bot; templates are made by other
+  users, there is no store, and a public template link exposes the Bot's identity, description, skills and routines, so
+  the docs tell you to strip API keys, internal URLs and customer data first.
+- **Primary Bot and roster.** The primary Bot is your main contact and coordinates the others, including in group
+  chats where a coordinator assigns work. "Start with the smallest useful roster and add a Bot only for a stable
+  specialist role." **A shared Bot cannot be your primary Bot.** Facts about you reach your other Bots; each Bot's
+  working memory does not.
+- **Sharing is not copying.** A *shared Bot* is the same Bot for everyone (roles: Collaborator, Manager); a *template*
+  gives each person their own copy. Each person's chat is private. A Bot **asks before using a teammate's personal
+  account** (Allow once, Always allow, Skip) and a connected account only ever acts for the person being answered.
+- **Hide versus delete.** "Hide from sidebar" keeps history, memory and routines running; deleting erases the profile,
+  conversations, memory, routines and attachments and cannot be undone. **Duplicate** copies the Bot but not its
+  history, memory or attachments.
+- **OpenClaw onboarding** (`openclaw onboard`: Quick start or Custom) is built around **verified inference**: it
+  detects AI access you already have, or walks you through a sign-in or key, then **runs a real completion on the
+  chosen model, and nothing else is configured until that passes**. Only then does it set up the workspace, the
+  gateway service (a systemd user service on Linux), channels and agents. `openclaw setup` repairs the non-inference
+  parts. This page documents no naming step; naming is explicit in `openclaw agents add`.
+
+Rakazo, OpenMausBot and LobeHub stay unverified directory listings.
+
+### Marketplaces (primary pages supplied by the owner, fetched 2026-10-30; each page is partial, and gaps are stated)
+
+- **Grok Bot marketplace** ([x.ai/bot/marketplace](https://x.ai/bot/marketplace)). Category tabs (All, From Grok Bot Team,
+  Engineering, Sales, Marketing, Design, Personal, Recruiting and People, Product, Operations), a featured row, and per-category
+  previews with "View all". A listing is a name, "by <publisher>", a paragraph and an **Add** button that opens the bot's
+  own page. The page shows **no search, install counts, ratings, requested permissions, or publisher verification**, and does
+  not say what Add does. Safety claims inside descriptions ("nothing sends without your yes") are self-reported.
+- **ClawStore** ([docs.useclawstore.com](https://docs.useclawstore.com/), introduction only). "npm for AI agents":
+  `clawstore publish`, `clawstore install @scope/name`. The install flow shown **resolves dependencies, prompts for the
+  secrets it needs, populates a per-agent workspace, installs a required plugin at a stated version, registers the agent
+  with a model, and asks `Proceed? [Y/n]` before changing anything.** Versions are explicit (0.3.1); "Updates and Rollback",
+  "Trust and Safety", "Auth and Ownership" and "Agent Package Format" are linked but were not part of the page.
+- **OpenClaw Skills store** ([openclaw-skills.store](https://openclaw-skills.store/)). 200+ skills in 10 categories; a listing
+  shows name, description, **version** and **price or Free before install**. CLI: `install`, `update`, `uninstall`, `list`,
+  `skills search`; the sample output includes **"Verifying signature..."**. Publishing: a Node.js or Python SDK, then "submit
+  for community review"; review is said to check for malicious code, unstable dependencies and privacy violations. It does
+  **not** describe per-skill permissions, scan results, sandboxing, reporting or takedown.
+- **Claw Store** ([claw-store.net](https://www.claw-store.net/)). A paid marketplace of *agents*: category, a Featured/New
+  badge, price, star rating and review count; a seller application with a stated 48-hour manual review ("API compliance,
+  documentation quality, code safety"); an 80% seller share with weekly payouts. Install, versioning and refunds are not
+  described, and its headline numbers are unverifiable marketing.
+
+What they share, and what Hutch should do differently:
+
+1. **Nobody shows what a listing is allowed to do before you install it.** Hutch's listing shows the tools in plain words,
+   whether it needs a folder, its approval mode, the commands it denies, the connections it needs, its publisher and its
+   content hash. That is a differentiator, not a nicety.
+2. **A preview-and-confirm install** (ClawStore's `Proceed? [Y/n]`) is the right shape: show what will be created
+   (assistant, folder, tools, connections needing keys, model) and change nothing until the person confirms. Hutch's setup
+   review page already is that step.
+3. **Signature and hash verification** is claimed by one store and defined by none. Start with content hashes pinned in the
+   index; add publisher signatures when there is key infrastructure to hold.
+4. **A first-party section** ("From Grok Bot Team") separates what the product ships from what others publish. Hutch's
+   equivalent is `publisher: Hutch`, shown as its own section.
+5. **Reporting, takedown and a revocation list are undocumented everywhere.** Hutch needs a local denylist of hashes a
+   source can revoke, and a report link on every entry.
+6. **Paid listings and seller payouts are out of scope** for a local-first, non-commercial release; that is a deliberate
+   non-goal, not a gap.
+7. **A marketplace can be a static, signed index**, not a service: an `index.json` of entries (id, version, hash, URL,
+   publisher, signature) hosted anywhere, fetched only from a source the person added, and never automatically.
 
 ### What this adds up to
 
@@ -99,6 +166,15 @@ are what the directories list. I could not confirm their behaviour beyond those 
 4. **Presets are a catalog with provenance**, and installing from a catalog is inert until reviewed. Hutch already
    built that trust model for skills.
 5. Memory is **bounded and curated**, which Hutch's reviewed memory already is.
+6. **Verify the model before anything else** (OpenClaw): onboarding is not finished until a real completion works.
+7. **The first assistant is created for the person, named later, and defined by its first message** (Grok Bot); a
+   name field is welcome, a wizard is not. Guidance for that first message (outcome, sources, constraints, what to hand
+   back, when to stop and ask) is better than invented example prompts.
+8. **Three creation paths, one approval rule**: by hand, from a template that becomes the person's own copy, or proposed
+   by an existing assistant who is told to ask before creating several. Grok Bot leaves the last unreviewed; Hutch
+   should not.
+9. **Share a template, never a live bot** for a local-first single-owner product. Live shared bots with roles are a
+   team feature and a non-goal here; templates need a sanitising checklist before export.
 
 ## 4. Target model for Hutch
 
@@ -125,6 +201,9 @@ Effort: S under a day, M a few days, L a week or more. "Dep" lists blockers.
 | A3 | Specialist roster starts empty and is edited only in settings | Roster becomes the result of proposals and manual creation; show who the coordinator may delegate to and why | M | A2 |
 | A4 | Roster treats all assistants as equals | Main assistant pinned and visually distinct; specialists grouped beneath; Assistants manager only from ten (existing rule) | S | A1 |
 | A5 | No persistent identity or user-profile files | Per-assistant identity (a `SOUL.md`-equivalent: tone, boundaries) and a person profile (`USER.md`-equivalent), bounded and reviewable; reuse the persona profile that exists | M | A1 |
+| A7 | First run detects an AI service but never proves it works | **Verified first completion** before the first assistant is created: one tiny, consented, costed completion on the chosen route; on failure show the provider's error and the fix; nothing else is configured until it passes (OpenClaw). Reuses the first-run readiness panel | M | none |
+| A8 | The first request has no guidance now that invented prompts are gone | Help text under the field: the outcome, where to look, what to avoid, what to hand back, when to stop and ask (Grok Bot's guidance), as copy and not prompt buttons | S | none |
+| A9 | The coordinator can become any assistant, including a catalog copy of unknown provenance | Constraint: the main assistant is a local assistant the person created or reviewed; catalog entries are copies the person owns (Grok Bot's "a shared Bot cannot be primary") | S | A1 |
 | A6 | Delegation is a Strict-Offline-only preview | Make delegation work on ordinary routes behind the same approval and capability snapshot; budgets and concurrency limits per child (Hermes defaults 3 concurrent) | L | A2 |
 
 ### B. Catalog (agent store)
@@ -133,11 +212,13 @@ Effort: S under a day, M a few days, L a week or more. "Dep" lists blockers.
 |---|---|---|---|---|
 | B1 | Eight presets are Python constants | Move them to a **catalog file** shipped as data with a manifest; show them under *Catalog*, never in first run | M | B2 |
 | B2 | No assistant manifest format | Versioned manifest: name, description, instructions, tools, connections required, permissions requested, model needs, schedule default, publisher, hash | M | none |
-| B3 | No import or export of an assistant | Export an assistant (no memory or secrets) as a package; import is inert until reviewed. A skill-ZIP importer already exists at tag `archive/agent-connections-2026-10-11` and is the starting point | M | B2 |
+| B3 | No import or export of an assistant | Export an assistant as a template (no memory, history, attachments or secrets, matching Duplicate); a **sanitising checklist before export** (keys, internal URLs, customer data: Grok Bot's warning); import is inert until reviewed, and the result is the person's own copy. Skill-ZIP importer at tag `archive/agent-connections-2026-10-11` is the starting point | M | B2 |
 | B4 | No sources or trust model for catalogs | Local folder and Git/URL sources first; hash pinning; permission diff before enable; reuse the skills review and trust code | M | B2 |
 | B5 | No publishing | Out of scope until B1 to B4 hold; design for signing, not hosting | L | B4 |
 | B6 | No scanning of third-party packages | Static checks for requested tools and egress before review (Hermes describes a scan; OpenClaw's marketplace shows the cost of skipping it) | M | B4 |
 | B7 | No versions or updates | Pin versions; update shows a diff and requires re-trust | M | B4 |
+| B9 | No marketplace beyond the bundled files | **Sources**: a bundled first-party index plus sources the person adds by URL; each is a static `index.json` of entries (id, version, hash, manifest URL, publisher, optional signature). Fetching is explicit, per source, shows what the source can see, and never runs in the background. Listings show category, version, publisher, requested permissions and hash before install; a **Proceed** step lists everything that will be created and changes nothing until confirmed (ClawStore) | L | B4 |
+| B10 | No reporting, revocation or scanning story | A local **revocation list** of hashes a source can withdraw, a report link on every entry, and a static scan of requested tools, egress and command rules before review (the stores describe review but publish no scan result) | M | B9 |
 | B8 | No Catalog destination | One nav row, search, entry detail with permissions, install inert, review | M | B1 |
 
 ### C. Remove the demo and fixture remnants
