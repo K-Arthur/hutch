@@ -156,6 +156,8 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("DELETE", "/api/v1/sources/{source_id}"): None,
     ("GET", "/api/v1/sources/{source_id}/events"): None,
     ("POST", "/api/v1/sources/{source_id}/check"): None,
+    ("GET", "/api/v1/installation"): None,
+    ("POST", "/api/v1/installation/review"): None,
     ("GET", "/api/v1/jobs"): None,
     ("GET", "/api/v1/jobs/{job_id}"): None,
     ("POST", "/api/v1/jobs/{job_id}/cancel"): None,
@@ -7267,6 +7269,8 @@ def create_app() -> FastAPI:
     install_identity_routes(app, store, config)
     from .catalog_api import install_catalog_routes
     install_catalog_routes(app, store, config)
+    from .installation_api import install_installation_routes
+    install_installation_routes(app, store)
     from .facts_api import install_fact_purge_routes; install_fact_purge_routes(app, store)
     from .tasks_api import install_workspace_task_routes
     install_workspace_task_routes(app, store, engine, config, idempotency_key=idempotency_key,

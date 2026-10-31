@@ -2144,6 +2144,7 @@ async function renderWorkspaceSettings() {
       <p id="workspace-settings-status" class="hint" role="status" aria-live="polite"></p>
     </form>
     <div data-identity-slot="person"></div>
+    <div data-installation-slot="settings"></div>
   </div></div>`;
   $("#workspace-settings-form")?.addEventListener("submit", async event => {
     event.preventDefault();
