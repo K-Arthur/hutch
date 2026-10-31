@@ -2,26 +2,34 @@
 
 Continue the Hutch personal-operations initiative from .pipeline/personal-operations/2026-10/.
 Read HANDOFF.md, CURRENT-STATE.md, GAP-REGISTER.md, DECISIONS.md and RUNLOG.md first; the
-repository working tree may also contain another session's uncommitted frontend work, so check
+repository working tree may also contain another session's uncommitted or staged work, so check
 git status and stage only files you have reviewed.
 
-Objective for the next session: close G01 (a read-only, grant-gated calendar/mail agenda
-projection for Today) and G05 (outbound notifications for needs-you, failures and results) without
-adding external effects that lack approval binding or reconciliation. Keep Today deterministic:
-the agenda projection must mark each item with its source, fetch time and staleness, and must not
-let email or page content become instructions. Any outbound notification must reuse the existing
-channel outbox and uncertain-delivery handling; do not add a second delivery path.
+Since the previous next-prompt, G01 (read-only agenda), G05 (owner notifications), the first G06
+slice (last-run outcome/attention) and G02 (coding handoff verification receipts and worktree
+pruning, schema v89) have shipped. Do not rebuild them; see the RUNLOG for evidence and limits.
 
-Definition of done for that session:
-1. A pure agenda builder plus a read-only API route, unit-tested with fixed clocks and expired
-   grants, and Today showing the source label and stale/unavailable states.
-2. Notification delivery through the existing channel supervisor with tests for duplicate
-   suppression and uncertain outcomes; no silent resend.
-3. Browser validation at 1440/834/390/320 plus keyboard, with evidence committed under a new
-   pipeline directory.
-4. Focused tests, npm run check:agent, updated docs/commitments.md + operations.md + marketing
-   claims, and focused commits.
-5. Independent read-only verification with per-row command output before claiming completion.
+Objective for the next session: close G03 sub-slice 1 only, an append-only schedule revision
+journal. Do not add the approval checkpoint or a condition language in this pass.
 
-Do not claim multi-user isolation, exactly-once external effects, or live model-driven capture:
-those remain blocked/deferred as recorded in ACCEPTANCE-CRITERIA.md.
+Definition of done:
+
+1. A new additive migration (next schema version) creates `schedule_revisions` and observes bot
+   document changes through SQL triggers, so both API and CLI schedule writes are recorded. Store
+   the before/after extracted schedule arrays and an honest actor label (empty/unknown when the
+   write path cannot supply one); derive hashes and per-schedule changed-field summaries in Python
+   at read time rather than persisting model prose.
+2. A bounded read-only `GET /api/v1/bots/{ref}/schedules/{id}/revisions` returns the revisions for
+   that schedule only, with no host paths or unrelated bot data.
+3. The schedules card exposes a keyboard-accessible History disclosure; no polling faster than
+   30 s and no new always-on request loop.
+4. Tests: a no-op save writes no row; changing one schedule writes exactly one immutable row;
+   adding, deleting and disabling a schedule are recorded; UPDATE/DELETE on the journal is
+   refused; the API and card render the history. Use a real temp SQLite store and the real routes.
+5. Focused tests plus `npm run check:agent`, and an audit in a clean worktree if the shared
+   checkout's index contains another session's staged changes. Update docs/operations.md, the gap
+   register, run log, handoff and marketing claims where the behavior is actually shipped.
+6. Focused commits only; never stage, revert or reformat the other session's work.
+
+Do not claim multi-user isolation, exactly-once external effects, live model-driven capture, or a
+live OpenCode coding run: those remain blocked/deferred as recorded in ACCEPTANCE-CRITERIA.md.

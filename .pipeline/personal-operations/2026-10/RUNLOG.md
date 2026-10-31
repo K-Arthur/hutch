@@ -225,13 +225,15 @@ forever with no cleanup path.
 
 ### Evidence
 
-- `tests/test_code_review.py`: 7 passed. Uses real temporary Git repositories, the real FastAPI
+- `tests/test_code_review.py`: 8 passed. Uses real temporary Git repositories, the real FastAPI
   app and Store, real worktree creation, a real spawned process group for the live-runner refusal,
   and the Typer CLI through `CliRunner`. Covers: content-free receipt shape (no output column),
-  idempotent reuse, new receipt after an edit, failed check blocking prune, `--discard`, missing
-  receipt refusal, confirmation refusal, live runner refusal for both commands, 64 KiB output cap,
-  1 s timeout, append-only UPDATE/DELETE triggers, API resource fields, and a full CLI verify+prune
-  journey that removes the worktree and branch while the source project stays unchanged.
+  idempotent reuse, new receipt after an edit, a failed check re-running rather than reusing,
+  failed check blocking prune, `--discard`, missing receipt refusal, confirmation refusal, live
+  runner refusal for both commands, 64 KiB output cap, 1 s timeout, append-only UPDATE/DELETE
+  triggers, migration replay keeping existing receipts, API resource fields, and a full CLI
+  verify+prune journey that removes the worktree and branch while the source project stays
+  unchanged.
 - Adjacent regression: `tests/test_code_handoff.py`, `tests/test_migration.py`,
   `tests/test_bot_deletion_schema.py` -> 63 passed.
 - Frozen-file budgets after the change: `store.py` 12,593/12,593; `cli.py` 2,737/2,758;
