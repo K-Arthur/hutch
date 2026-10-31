@@ -20,6 +20,7 @@ from typing import Any, Optional
 
 from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall,
                    Watchdog, abort_response, parse_tool_args_state, record_adapter_receipt)
+from ..connection_endpoints import redirect_refusal
 from .model_list import parse_catalog_ids
 from .openrouter_policy import validate_policy
 
@@ -57,7 +58,6 @@ class OpenAICompatProvider(Provider):
                  catalog_url: str = ""):
         from .registry import is_official_endpoint, reject_endpoint_credentials
         self.base_url = reject_endpoint_credentials(base_url).rstrip("/")
-        # A plan may publish its catalogue on a different path than chat (OpenCode Go).
         self.catalog_url = reject_endpoint_credentials(catalog_url).rstrip("/") if catalog_url else ""
         self._official_openai = is_official_endpoint("openai", self.base_url)
         self._openrouter = provider_name == "openrouter" if openrouter is None else openrouter
@@ -127,6 +127,8 @@ class OpenAICompatProvider(Provider):
             return ProviderError("context", str(detail), provider=self.name, status=st)
         if st in (400, 422):
             return ProviderError("bad_request", str(detail), provider=self.name, status=st)
+        if 300 <= st < 400:
+            return redirect_refusal(self.name, resp.headers.get("location"))
         return ProviderError("server", f"{self.name} returned HTTP {st}: {detail}", provider=self.name, status=st)
 
     def _wrap_exc(self, exc: Exception) -> ProviderError:
@@ -152,9 +154,9 @@ class OpenAICompatProvider(Provider):
         t = time.perf_counter()
         try:
             r = self._http().get(self._catalog(), timeout=self._timeout(read=5.0))
-            if r.status_code in (401, 403):
-                return Health(ok=False, detail="reachable, but the API key was rejected")
-            r.raise_for_status()
+            if not 200 <= r.status_code < 300:
+                return Health(ok=False, detail="reachable, but the API key was rejected" if r.status_code in (401, 403)
+                              else self._error_from_response(r).args[0])
         except Exception as exc:
             return Health(ok=False, detail=self._wrap_exc(exc).args[0])
         return Health(ok=True, latency_ms=(time.perf_counter() - t) * 1000.0)
@@ -209,7 +211,7 @@ class OpenAICompatProvider(Provider):
             return False, self._wrap_exc(exc).args[0], []
         if r.status_code in (401, 403):
             return False, "reachable, but the API key was rejected", []
-        if r.status_code >= 400:
+        if not 200 <= r.status_code < 300:
             return False, self._error_from_response(r).args[0], []
         try:
             names = self._catalog_ids(r.json())
@@ -223,7 +225,7 @@ class OpenAICompatProvider(Provider):
     def list_models(self) -> list[ModelMeta]:
         try:
             r = self._http().get(self._catalog(), timeout=self._timeout(read=10.0))
-            if r.status_code >= 400:
+            if not 200 <= r.status_code < 300:
                 raise self._error_from_response(r)
             return [ModelMeta(name=name) for name in self._catalog_ids(r.json())]
         except ProviderError:

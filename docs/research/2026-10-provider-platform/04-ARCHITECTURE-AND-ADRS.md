@@ -128,3 +128,9 @@ an explicit account, exactly as OpenAI and Anthropic already did.
 Tests: `tests/test_provider_readiness.py` gained two cases (a provider spec with a configured account, and
 a provider spec where an ambient key and a named account both exist). Both the pre-existing Anthropic
 behaviour and the new Google route are covered by the same code path.
+
+### Redirect behaviour (2026-10-31)
+The redirect half of the custom-endpoint note above was measured and is now handled: a 3xx is
+refused with a message naming the Location, `health()` no longer treats a 3xx as success, and a
+loopback test proves the redirect target is never called. The private-range/DNS half is unchanged
+and remains a recorded gap. See 00-SCOPE.md for the measurement.

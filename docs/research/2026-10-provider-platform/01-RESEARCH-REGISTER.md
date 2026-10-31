@@ -58,8 +58,10 @@ high-impact findings for Hutch are:
   models is hosted egress. Local classification follows the resolved endpoint, not the name.
 - Custom endpoints: ambient OPENAI/ANTHROPIC keys are allowed only for the exact official host;
   embedded URL credentials are rejected; Strict Offline requires loopback plain HTTP. Outside Strict
-  Offline no private-range allowlist or redirect/DNS pinning exists in the provider layer: an
-  open review gap recorded in 04-ARCHITECTURE-AND-ADRS.md and the security review.
+  Offline no private-range allowlist or DNS pinning exists in the provider layer: an open review gap
+  recorded in 04-ARCHITECTURE-AND-ADRS.md and the security review. Redirects are not followed (measured
+  2026-10-31 on loopback: the target server was never called) and a 3xx is now reported as a refusal that
+  names the Location, instead of surfacing a JSON parse error.
 - Local runtimes: Ollama, LM Studio, llama.cpp and vLLM have named preset endpoints; SGLang, inferrs
   and ds4 have no bundled preset and are reachable only through a custom compatible endpoint today.
 - Media: see 03-PROVIDER-CAPABILITY-MATRIX.md and draft 03. Retired/closed services recorded include

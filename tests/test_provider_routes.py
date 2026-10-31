@@ -165,3 +165,52 @@ def test_the_catalogue_url_cannot_embed_credentials(tmp_path):
     with pytest.raises(ValueError):
         ConnectionBook(tmp_path / "state").add(
             "opencode-go", "bad", models_base_url="https://user:pass@opencode.ai/inference/go/v1")
+
+
+def test_a_redirect_is_refused_and_the_key_never_leaves_the_host():
+    """A 3xx would move the bearer key to whatever host Location names, so it is reported, not followed."""
+    import http.server
+    import socketserver
+    import threading
+
+    hits = []
+
+    class Target(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            hits.append({"path": self.path, "auth": self.headers.get("Authorization")})
+            body = b'{"object": "list", "data": [{"id": "leaked-model"}]}'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    target = socketserver.TCPServer(("127.0.0.1", 0), Target)
+    threading.Thread(target=target.serve_forever, daemon=True).start()
+
+    class Origin(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header("Location", f"http://127.0.0.1:{target.server_address[1]}/v1/models")
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    origin = socketserver.TCPServer(("127.0.0.1", 0), Origin)
+    threading.Thread(target=origin.serve_forever, daemon=True).start()
+    try:
+        provider = OpenAICompatProvider(f"http://127.0.0.1:{origin.server_address[1]}/v1",
+                                        "secret-connection-key", provider_name="redirect-test")
+        ok, detail, models = provider.probe_models()
+        assert not ok and models == []
+        assert "does not follow endpoint redirects" in detail
+        assert "set the connection endpoint to the final url" in detail.lower()
+        assert hits == [], "the redirect target must never receive the request or the key"
+        assert provider.health().ok is False, "health must not call a redirecting endpoint healthy"
+    finally:
+        origin.shutdown()
+        target.shutdown()

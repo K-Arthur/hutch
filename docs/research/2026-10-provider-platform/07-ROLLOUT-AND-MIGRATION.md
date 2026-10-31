@@ -90,3 +90,9 @@ effect on the next request; Hutch reports the provider's 401/403 as an `auth` fa
 Verification boundary after this rollout: contract-tested, not live-verified. Do not describe the Gemini
 route as working until a real key has been exercised against the live API, and record that run in the
 validation ledger with a date and artifact.
+
+### Redirect behaviour (2026-10-31)
+The redirect half of the custom-endpoint note above was measured and is now handled: a 3xx is
+refused with a message naming the Location, `health()` no longer treats a 3xx as success, and a
+loopback test proves the redirect target is never called. The private-range/DNS half is unchanged
+and remains a recorded gap. See 00-SCOPE.md for the measurement.

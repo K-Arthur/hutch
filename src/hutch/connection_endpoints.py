@@ -72,3 +72,19 @@ def models_base(merged: dict[str, Any]) -> str:
     if not base or origin(declared) != origin(base):
         return ""
     return declared
+
+
+def redirect_refusal(provider_name: str, location: str | None) -> Exception:
+    """The error for a 3xx answer: the configured URL is not the endpoint that serves the requests.
+
+    Nothing here follows a redirect, deliberately - the bearer key would travel to whatever host the
+    ``Location`` names, which is exactly the credential move the endpoint rules exist to prevent.
+    """
+    from .providers.base import ProviderError
+
+    return ProviderError(
+        "bad_request",
+        f"{provider_name} answered with a redirect to {location or 'another URL'}. Hutch does not follow "
+        "endpoint redirects, because that would send this connection's key to a different host. Set the "
+        "connection endpoint to the final URL instead.",
+        provider=provider_name, status=302)

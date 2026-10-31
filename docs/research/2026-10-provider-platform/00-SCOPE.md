@@ -126,3 +126,30 @@ succeeded, and the capability matrix/validation ledger now record exactly those 
 text. Tool calling, streaming, image input, every other modality and every other provider remain unverified.
 No secret was written to the repository or to a committed artifact; isolated test state was deleted. The
 custom-endpoint SSRF-adjacent gap recorded below is unchanged.
+
+
+### Custom-endpoint redirect behaviour, measured (2026-10-31)
+
+Four documents carried the same sentence - "no private-range allowlist or redirect/DNS pinning for
+custom endpoints" - which reads as though a redirect could move a connection's key to another host. Two
+local servers were used to check that directly: an origin on loopback answered `302` with a `Location`
+pointing at a second loopback server, and the adapter was asked for its model list.
+
+Result: the redirect target received nothing. The origin received the `Authorization: Bearer` header once
+and the adapter returned a failure. So httpx's default not to follow redirects is already the behaviour
+here, and the concrete key-movement risk described by that sentence does not exist on this path.
+
+What was wrong was the report. `probe_models()` returned `Expecting value: line 1 column 1 (char 0)` - a
+JSON parse error thrown at an empty 302 body - and `health()` used `raise_for_status()`, which happily
+treats a 3xx as success. A person pointing a connection at a URL that redirects saw a parser complaint
+instead of the actual problem, and the health check called a redirecting endpoint reachable.
+
+Both now go through one helper, `connection_endpoints.redirect_refusal`, which names the redirect target
+and says to configure the final URL. `tests/test_provider_routes.py` pins the behaviour: the redirect is
+refused, the message explains why, and the target server asserts it was never called.
+
+**Still open, unchanged:** there is no private-range allowlist for operator-supplied custom endpoints. An
+operator who deliberately configures `https://10.0.0.5/v1` gets that host contacted, and DNS pinning is
+not performed, so a name can resolve to an internal address. That is a deliberate operator action on
+their own machine rather than a remote input path, and it stays recorded as a gap rather than being
+claimed as solved. This slice did not change it.
