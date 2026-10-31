@@ -1,0 +1,6 @@
+/* The notice that comes with a starting model that leaves this computer (starter-route.js).
+   Shared by the dashboard and the server-rendered Models page, so every value has a fallback for the page
+   that does not define the dashboard tokens. Plain and calm; the title and the words carry the meaning, never colour alone. */
+.route-notice { display: grid; gap: var(--s-1, 4px); margin: var(--s-2, 8px) 0; padding: var(--s-3, 12px); border: 1px solid var(--warn-line, rgba(251, 191, 36, .38)); border-left-width: 3px; border-radius: var(--r-ctl, 8px); background: var(--warn-wash, rgba(251, 191, 36, .09)); color: var(--text-2, var(--muted, inherit)); font-size: var(--fs-sm, .875rem); line-height: 1.5; text-wrap: pretty; }
+.route-notice p { margin: 0; }
+.route-notice-title { color: var(--text, inherit); font-weight: 650; }
