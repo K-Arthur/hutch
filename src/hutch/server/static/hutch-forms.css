@@ -389,3 +389,10 @@
   margin-bottom: 0;
 }
 
+/* Connector tool rows: the authority controls sit in their own column so the
+   tool description keeps a readable measure and the targets stay large. */
+.connector-tool-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+.connector-tool-controls .hutch-check { width: auto; min-height: 44px; margin: 0; }
+.connector-tool-controls .hutch-label { margin: 0; }
+.connector-tool-controls .hutch-select { width: auto; min-width: 8rem; max-width: 11rem; }
+@media (max-width: 640px) { .connector-tool-controls { width: 100%; } }

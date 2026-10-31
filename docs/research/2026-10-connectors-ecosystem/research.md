@@ -254,7 +254,7 @@ fixture. *Workflow*: first connect / re-auth to a hosted server. *Implication*: 
 errors that **name the stalled endpoint**, or "connecting" and "hung" look identical (especially server-side).
 
 **3.7 (additional) openclaw/openclaw#188824** — PR "plugin MCP accounts cannot be signed out and reconnect
-after reinstall". Opened 2026-10-30, **open**; `merge-risk: 🚨 security-boundary`, `needs proof`.
+after reinstall". Opened 2026-10-30, **open**; `merge-risk: security-boundary` label, `needs proof`.
 Plugin-declared MCP accounts "can be signed in from the plugin page but never signed out, and uninstalling
 then reinstalling the plugin silently reconnects the previous account"; fix adds operator `mcp.authLogout`
 and clears plugin-scoped sign-ins on uninstall. *Verified*: no (unmerged). *Workflow*: uninstall/reinstall.
