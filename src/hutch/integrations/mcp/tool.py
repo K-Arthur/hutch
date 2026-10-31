@@ -24,6 +24,7 @@ import json
 from typing import Any, Optional
 
 from ...approvals import DeniedError
+from ...safety import Decision, Verdict
 from ...toolcalling.validate import validate_call
 from ...tools.base import Tool, ToolContext, ToolResult
 from .config import McpConfigurationError
@@ -122,6 +123,13 @@ class McpToolAdapter(Tool):
             return ToolResult(
                 False, "The connector's tool definition changed since it was reviewed; ask the owner to review "
                        "this assistant's access again. Nothing was run.")
+        # The effect class the owner set is part of the authority. It can be re-classified without the
+        # schema changing, so a tool dict built while the class was 'read' must not execute a class that
+        # now needs approval.
+        if (grant.get("operation_class") or "unknown") != self._operation_class:
+            return ToolResult(
+                False, "This connector tool's effect class changed since this run started; "
+                       "nothing was run. Start a new run so the new review applies.")
 
         problems = validate_call(self.parameters, args)
         if problems:
@@ -135,14 +143,27 @@ class McpToolAdapter(Tool):
             detail = {"connector": self._integration_id, "tool": self._server_tool_name,
                       "account": grant.get("account_label") or self._integration_id,
                       "arguments": args, "effect": self._operation_class}
+            # An empty sticky key means no standing "always allow" can ever cover a connector call
+            # that was not classified as a read: the owner reviews each one, which is what the page,
+            # the readiness report and the documentation all promise.
+            decision = Decision(Verdict.ask, f"connector {self._operation_class}", sticky_key="",
+                                outward=self._operation_class == "destructive", risk="high")
             try:
                 ctx.gate.decide(self.name, f"Use {self._label} on {grant.get('account_label') or self._integration_id}",
-                                detail, outward=self._operation_class in {"destructive"}, ask_in_auto=True)
+                                detail, decision=decision, ask_in_auto=True)
             except DeniedError as exc:
                 return ToolResult(False, f"the connector call was not approved; nothing was sent ({exc})")
             current = service.grant_for(ctx.store, ctx.bot.id, self._integration_id, self._server_tool_name)
             if not current or (current.get("schema_revision") or "") != (self._schema_revision or ""):
                 return ToolResult(False, "connector access changed while approval was pending; nothing was sent.")
+            if (current.get("operation_class") or "unknown") != self._operation_class:
+                return ToolResult(False, "this connector tool's effect class changed while approval was "
+                                         "pending; nothing was sent.")
+            # The intent row is written here, immediately before the call, never around the approval
+            # wait: a run killed while a person is deciding has not started anything (ADR-0003).
+            refusal = ctx.begin_effect()
+            if refusal:
+                return ToolResult(False, f"error: {refusal}")
 
         return self._call(args, ctx)
 

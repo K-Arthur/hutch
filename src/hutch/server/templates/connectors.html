@@ -15,7 +15,7 @@
 
 <div class="banner wait">{{ icon("shield", 18) }}<div class="banner-body">
   <p><strong>Local connectors run inside Hutch's sandbox.</strong> A local server starts with no host network, no inherited environment, one writable directory and read-only access to the paths you reviewed. Its executable and every reviewed path are fingerprinted when you save the definition; if either changes, Hutch refuses to start it until you review it again.</p>
-  <p class="muted">Credential values are never stored. A definition may name an environment variable, and Hutch reads it when the server starts.</p></div></div>
+  <p class="muted">Hutch refuses a credential in a definition and never stores one it has recognised. A definition names an environment variable instead, and Hutch reads it when the server starts, outside the process argument list.</p></div></div>
 
 <section class="panel" aria-labelledby="installed-h">
   <header class="conn-head"><div>

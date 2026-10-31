@@ -764,7 +764,7 @@
         <article class="choice-card">
           <div class="choice-heading"><span class="choice-icon choice-icon-home" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4 26 9v7c0 6-4.2 10.2-10 13-5.8-2.8-10-7-10-13V9l10-5Z"/><path d="m11.5 16 3 3 6-6"/></svg></span><h3>Local servers run contained</h3></div>
           <p>A local connector is third-party code, so Hutch runs it the way it runs a shell command: no host network, no inherited environment, one writable folder, and read-only access to the paths you reviewed. The program and those paths are fingerprinted at review time; if either changes, Hutch refuses to start it until you look again.</p>
-          <p>Credential values are never stored. A definition may name an environment variable, and Hutch reads it when the server starts.</p>
+          <p>Hutch refuses a credential in a definition and never stores one it has recognised. A definition names an environment variable instead, and Hutch reads it when the server starts, outside the process argument list.</p>
         </article>
         <article class="choice-card">
           <div class="choice-heading"><span class="choice-icon choice-icon-ai" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16h6l3-8 3 16 3-8h5"/></svg></span><h3>The effect class is yours to set</h3></div>

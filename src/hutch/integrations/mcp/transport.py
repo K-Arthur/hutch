@@ -64,16 +64,12 @@ def stdio_launch_argv(definition: dict[str, Any], workspace: str | Path) -> list
         inner += _parents_for_mount(path, known)
         inner += ["--ro-bind", str(path), str(path)]
     inner += _parents_for_mount(Path("/workspace"), known)
-    # ``--clearenv`` plus an explicit allowlist: the child inherits no credential from Hutch's
-    # own environment. Only references the owner reviewed are passed, resolved here.
+    # The child inherits nothing from Hutch's own environment: it receives exactly the environment
+    # handed to the supervisor process (see child_environment), resolved from the owner's reviewed
+    # references. No --clearenv/--setenv here on purpose, because a --setenv value appears in
+    # bwrap's argv, which any process running as this user can read from /proc.
     inner += ["--bind", str(writable), "/workspace", "--dir", "/tmp/hutch-home",
-              "--chdir", "/workspace", "--clearenv",
-              "--setenv", "PATH", "/usr/local/bin:/usr/bin:/bin",
-              "--setenv", "HOME", "/tmp/hutch-home",
-              "--setenv", "LANG", "C.UTF-8", "--setenv", "LC_ALL", "C.UTF-8",
-              "--setenv", "TERM", "dumb", "--setenv", "TMPDIR", "/tmp"]
-    for name, value in resolve_environment(config).items():
-        inner += ["--setenv", name, value]
+              "--chdir", "/workspace"]
     inner += ["--", config["command"], *config["args"]]
     limits = ["--cpu=120", "--fsize=67108864", "--nofile=128", "--as=536870912", "--core=0"]
     return [systemd_run, "--user", "--scope", "--quiet",
@@ -95,15 +91,25 @@ def _parents_for_mount(path: Path, known: set[str]) -> list[str]:
     return additions
 
 
-def _supervisor_environment() -> dict[str, str]:
+#: The complete environment a contained server receives. Nothing else is inherited.
+def child_environment(definition: dict[str, Any]) -> dict[str, str]:
+    """Build the child's environment: a fixed minimum plus the owner's reviewed references."""
+    base = {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": "/tmp/hutch-home",
+            "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "TERM": "dumb", "TMPDIR": "/tmp"}
+    base.update(resolve_environment(definition))
+    return base
+
+
+def _supervisor_environment(definition: dict[str, Any]) -> dict[str, str]:
     """``systemd-run --user`` needs its session variables; nothing else is forwarded."""
-    out = {}
-    for name in ("DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR"):
+    out = {"DBUS_SESSION_BUS_ADDRESS": "", "XDG_RUNTIME_DIR": ""}
+    for name in tuple(out):
         value = os.environ.get(name, "")
         if value and len(value) <= 4096 and not any(ord(char) < 32 for char in value):
             out[name] = value
-    if set(out) != {"DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR"}:
+    if not all(out.values()):
         raise McpConfigurationError("a local systemd user session is required to launch a contained MCP process")
+    out.update(child_environment(definition))
     return out
 
 
@@ -124,7 +130,7 @@ async def open_client(definition: dict[str, Any], workspace: Optional[str | Path
             raise McpConfigurationError("a local MCP server needs a run workspace")
         argv = stdio_launch_argv(definition, workspace)
         parameters = StdioServerParameters(command=argv[0], args=argv[1:],
-                                           env=_supervisor_environment(), cwd="/")
+                                           env=_supervisor_environment(definition), cwd="/")
         # Server stderr is untrusted text; it never becomes run output.
         with open(os.devnull, "w", encoding="utf-8") as diagnostics:
             async with Client(stdio_client(parameters, errlog=diagnostics), mode="auto",
@@ -160,4 +166,4 @@ async def open_client(definition: dict[str, Any], workspace: Optional[str | Path
 
 
 __all__ = ["DISCOVERY_DEADLINE_SECONDS", "OPERATION_DEADLINE_SECONDS", "READ_TIMEOUT_SECONDS",
-           "open_client", "stdio_launch_argv"]
+           "child_environment", "open_client", "stdio_launch_argv"]

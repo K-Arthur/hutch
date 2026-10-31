@@ -71,6 +71,22 @@ def _argument_is_sensitive(value: str) -> bool:
     return looks_secret_name(flag)
 
 
+def looks_credential_value(value: str) -> bool:
+    """True for a value that is a credential rather than configuration.
+
+    Conservative on purpose: it refuses URL userinfo, well-known key prefixes and
+    ``password=`` style assignments. A false negative is still possible, so the guide tells
+    owners to use a reference; the claim in the documentation is that Hutch refuses what it can
+    recognise, not that it can recognise everything.
+    """
+    text = value.strip()
+    if "://" in text and "@" in text.split("://", 1)[1]:
+        return True                                    # postgres://user:pass@host/db
+    if re.search(r"(?i)(password|passwd|secret|token|api[_-]?key|authorization)\s*=\s*\S", text):
+        return True
+    return bool(re.match(r"^(sk-|pk_live_|rk_live_|ghp_|gho_|github_pat_|xox[abp]-|AKIA|AIza)", text))
+
+
 def _fingerprint_mount(path: Path) -> str:
     """Hash a bounded read-only package tree without following symlinks."""
     digest = hashlib.sha256()
@@ -185,10 +201,25 @@ def _validate_env(raw: Any) -> dict[str, str]:
                     or not _ENV_NAME.match(value["from_env"]):
                 raise McpConfigurationError("an environment reference must be {\"from_env\": \"NAME\"}")
             out[name] = f"env:{value['from_env']}"
+        elif isinstance(value, str) and value.split(":", 1)[0] in {"env", "literal"}:
+            # The already-normalized form, produced by this function. Re-validating a saved
+            # definition must accept it, otherwise a connector whose environment uses a reference
+            # could never be launched a second time.
+            kind, _, payload = value.partition(":")
+            if kind == "env":
+                if not _ENV_NAME.match(payload):
+                    raise McpConfigurationError("an environment reference must name a valid variable")
+            elif len(payload) > MAX_ARGUMENT_CHARS or "\x00" in payload or "\n" in payload:
+                raise McpConfigurationError(f"environment value for {name} is not a single safe line")
+            out[name] = value
         elif isinstance(value, str):
             if looks_secret_name(name):
                 raise McpConfigurationError(
                     f"{name} looks like a credential; supply it as {{\"from_env\": \"NAME\"}} instead of a literal value")
+            if looks_credential_value(value):
+                raise McpConfigurationError(
+                    f"the value of {name} looks like a credential; supply it as {{\"from_env\": \"NAME\"}} "
+                    "instead, so it is read when the server starts and never stored in the definition")
             if len(value) > MAX_ARGUMENT_CHARS or "\x00" in value or "\n" in value:
                 raise McpConfigurationError(f"environment value for {name} is not a single safe line")
             out[name] = f"literal:{value}"
@@ -230,6 +261,10 @@ def validate_stdio_definition(raw: Any, *, expected: dict[str, str] | None = Non
         if _argument_is_sensitive(item):
             raise McpConfigurationError(
                 "credential values and credential-like command flags cannot be stored in a server definition")
+        if not item.startswith("-") and looks_credential_value(item):
+            raise McpConfigurationError(
+                "a positional argument looks like a credential; pass it through an environment reference "
+                "instead of storing it in this definition")
         args.append(item)
     if sum(len(item.encode("utf-8")) for item in args) > MAX_CONFIG_BYTES:
         raise McpConfigurationError("stdio server arguments exceed Hutch's 32 KiB configuration limit")
@@ -340,5 +375,5 @@ def resolve_environment(definition: dict[str, Any]) -> dict[str, str]:
 
 
 __all__ = ["MAX_ARGUMENTS", "MAX_CONFIG_BYTES", "MAX_MOUNTS", "McpConfigurationError",
-           "definition_revision", "looks_secret_name", "resolve_environment",
+           "definition_revision", "looks_credential_value", "looks_secret_name", "resolve_environment",
            "validate_http_definition", "validate_stdio_definition"]
