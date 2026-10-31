@@ -88,7 +88,7 @@
     ).join("") + "</ul>";
   }
 
-  function spaceSummary(spaces) {
+    function spaceSummary(spaces) {
     if (!spaces || !spaces.length) {
       return '<p class="hint">No shared spaces yet. Create one for a household, a project or a group on ' +
         '<a href="#/shared">Shared</a>.</p>';
@@ -99,6 +99,148 @@
       " · " + space.bot_grants.length + " assistant" + (space.bot_grants.length === 1 ? "" : "s") +
       " · " + space.open_commitments + " open</span></a>"
     ).join("") + "</div>";
+  }
+
+  const AGENDA_KEY = "hutch.pd.agenda";
+
+  function agendaSelection() {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(AGENDA_KEY) || "{}");
+      return stored && typeof stored === "object" ? stored : {};
+    } catch (error) { return {}; }
+  }
+
+  function rememberAgenda(next) {
+    try { window.localStorage.setItem(AGENDA_KEY, JSON.stringify(next)); } catch (error) { /* storage is optional */ }
+  }
+
+  function agendaSection() {
+    return section("agenda", "Agenda", 0,
+      "Calendar and mail you choose to include, each labelled with its source and the time it was read.",
+      '<div class="pd-agenda" data-pd-agenda><p class="hint" role="status">Loading calendar and mail…</p></div>');
+  }
+
+  function agendaBadge(source) {
+    if (source.status === "stale") return '<span class="tag pd-chip stale">Stale</span>';
+    if (source.status === "unavailable") return '<span class="tag pd-chip unavailable">Unavailable</span>';
+    return "";
+  }
+
+  function agendaItemRows(source, timezone) {
+    if (!source.items || !source.items.length) {
+      const empty = source.kind === "calendar" ? "No events in your local day."
+        : "No messages in the last 24 hours.";
+      return '<p class="hint">' + P().esc(empty) + "</p>";
+    }
+    return '<ul class="pd-list pd-agenda-list">' + source.items.map(item => {
+      const stamp = item.kind === "event" ? item.starts_at : item.received_at;
+      const meta = [stamp ? P().formatDue(stamp, timezone) : "", item.location || item.from]
+        .filter(Boolean).map(value => P().esc(value)).join(" · ");
+      return '<li class="pd-item" data-agenda-item="' + P().esc(item.kind) + '" data-source="' +
+        P().esc(item.source) + '" data-fetched-at="' + P().esc(item.fetched_at) + '">' +
+        '<div class="pd-item-head"><strong class="pd-title">' + P().esc(item.title) + "</strong>" +
+        (item.stale ? '<span class="tag pd-chip stale">Stale</span>' : "") + "</div>" +
+        (meta ? '<p class="pd-meta">' + meta + "</p>" : "") +
+        (item.preview ? '<p class="pd-detail">' + P().esc(item.preview) + "</p>" : "") +
+        '<p class="pd-meta pd-agenda-item-source">' + P().esc(item.source_label || "") +
+        (item.fetched_at ? " · read " + P().esc(P().formatDue(item.fetched_at, timezone)) : "") + "</p></li>";
+    }).join("") + "</ul>";
+  }
+
+  function agendaSourceBlock(source, timezone) {
+    if (source.status === "not_configured") return "";
+    const head = '<div class="pd-agenda-head"><strong>' + P().esc(source.source_label) + "</strong>" +
+      agendaBadge(source) + "</div>";
+    if (source.status === "unavailable") {
+      return '<div class="pd-agenda-source" data-agenda-status="unavailable">' + head +
+        '<p class="hint" role="status">' + P().esc(source.reason || "This source could not be read.") +
+        ' <a href="#/connections">Review connections</a></p></div>';
+    }
+    const read = source.fetched_at ? P().formatDue(source.fetched_at, timezone) : "";
+    const note = source.status === "stale"
+      ? '<p class="hint" role="status">Showing the last successful read' +
+        (read ? " (" + P().esc(read) + ")" : "") + ". The refresh failed: " +
+        P().esc(source.reason) + '</p>'
+      : '<p class="pd-meta">Read ' + P().esc(read) + "</p>";
+    return '<div class="pd-agenda-source" data-agenda-status="' + P().esc(source.status) + '">' + head +
+      note + agendaItemRows(source, timezone) + "</div>";
+  }
+
+  function agendaOption(value, text, selected, disabled) {
+    return '<option value="' + P().esc(value) + '"' + (selected === value ? " selected" : "") +
+      (disabled ? " disabled" : "") + ">" + P().esc(text) + "</option>";
+  }
+
+  function agendaPicker(sources, chosen) {
+    const calendar = ['<option value="">No calendar</option>'].concat((sources.calendar || []).map(
+      row => agendaOption(row.bot_id, row.bot_label + " · " + row.calendar_name, chosen.calendar)));
+    const mail = ['<option value="">No mail</option>'].concat((sources.mail || []).map(
+      row => agendaOption(row.bot_id, row.bot_label + (row.local_inference ? "" : " (Local inference only)"),
+        chosen.mail, !row.local_inference)));
+    return '<form class="pd-agenda-picker" data-pd-agenda-form>' +
+      '<div class="hutch-field"><label class="hutch-label" for="pd-agenda-calendar">Calendar</label>' +
+      '<select class="hutch-select" id="pd-agenda-calendar" name="calendar">' + calendar.join("") + "</select></div>" +
+      '<div class="hutch-field"><label class="hutch-label" for="pd-agenda-mail">Mail</label>' +
+      '<select class="hutch-select" id="pd-agenda-mail" name="mail">' + mail.join("") + "</select></div>" +
+      '<div class="pd-capture-submit"><button class="btn" type="submit">Show agenda</button></div>' +
+      '<p class="hutch-help">Only the connection you pick is read, once per refresh. Nothing is stored in your database.</p></form>';
+  }
+
+  async function loadAgenda(page, timezone) {
+    const host = page.querySelector("[data-pd-agenda]");
+    if (!host) return;
+    let sources;
+    try {
+      sources = await P().call("/v1/personal/agenda/sources");
+    } catch (error) {
+      host.innerHTML = '<p class="hint" role="status">Calendar and mail connections could not be listed: ' +
+        P().esc(error.message || String(error)) + "</p>";
+      return;
+    }
+    if (!(sources.calendar || []).length && !(sources.mail || []).length) {
+      host.innerHTML = '<div class="pd-empty"><p><strong>No calendar or mailbox is connected yet.</strong></p>' +
+        '<p class="hint">Connect an account and grant one calendar or mailbox to an assistant in ' +
+        '<a href="#/connections">Connections</a>. Today will not guess what your day holds.</p></div>';
+      return;
+    }
+    const stored = agendaSelection();
+    const usable = (rows, onlyLocal) => (rows || []).filter(row => !onlyLocal || row.local_inference)
+      .map(row => row.bot_id);
+    const selection = {
+      calendar: usable(sources.calendar, false).includes(stored.calendar) ? stored.calendar : "",
+      mail: usable(sources.mail, true).includes(stored.mail) ? stored.mail : "",
+    };
+    host.innerHTML = agendaPicker(sources, selection) +
+      '<div data-pd-agenda-result><p class="hint" role="status">Loading your agenda…</p></div>';
+    const form = host.querySelector("[data-pd-agenda-form]");
+    const result = host.querySelector("[data-pd-agenda-result]");
+    const load = async () => {
+      if (!selection.calendar && !selection.mail) {
+        result.innerHTML = '<p class="hint">Choose a calendar or mailbox above to include it in Today.</p>';
+        return;
+      }
+      const params = new URLSearchParams();
+      if (timezone) params.set("timezone", timezone);
+      if (selection.calendar) params.set("calendar", selection.calendar);
+      if (selection.mail) params.set("mail", selection.mail);
+      result.innerHTML = '<p class="hint" role="status">Loading your agenda…</p>';
+      try {
+        const data = await P().call("/v1/personal/agenda?" + params.toString());
+        result.innerHTML = agendaSourceBlock(data.sources.calendar, data.timezone) +
+          agendaSourceBlock(data.sources.mail, data.timezone);
+      } catch (error) {
+        result.innerHTML = '<p class="hint" role="alert">The agenda could not be read: ' +
+          P().esc(error.message || String(error)) + "</p>";
+      }
+    };
+    form.addEventListener("change", () => {
+      selection.calendar = form.querySelector("#pd-agenda-calendar").value;
+      selection.mail = form.querySelector("#pd-agenda-mail").value;
+      rememberAgenda(selection);
+      void load();
+    });
+    form.addEventListener("submit", event => { event.preventDefault(); void load(); });
+    await load();
   }
 
   function render(data) {
@@ -113,6 +255,8 @@
       parts.push(section("needs", "Needs you", data.counts.approvals,
         "Actions waiting for your decision.", approvalRows(sections.approvals.items), "loud"));
     }
+
+    parts.push(agendaSection());
 
     parts.push(section("capture", "Add a commitment", 0,
       "Capture it now; it stays yours until you mark it done.",
@@ -179,6 +323,7 @@
       if (!page) return;
       P().wireCapture(page, renderTodayPage);
       P().wireActions(page, renderTodayPage);
+      void loadAgenda(page, data.timezone);
       page.addEventListener("click", event => {
         if (event.target.closest("[data-pd-refresh]")) { event.preventDefault(); void renderTodayPage(); }
       });

@@ -209,8 +209,8 @@ def build_today(store, *, now: Optional[datetime] = None, timezone_name: Optiona
         # One malformed projection must not hide commitments, approvals or runs; say it failed.
         deliverable_note = f"Deliverables could not be listed ({type(error).__name__}); the other sections are unaffected."
     not_included = [
-        "Calendar events and email are not read automatically for this view. Assistants add them "
-        "through their connected tools, schedules and commitments.",
+        "Calendar events and email are not part of this projection: the separate Agenda section "
+        "reads only a connection you select there and labels it with its source and fetch time.",
         "Only the most recent 200 commitments, 100 runs and 20 documents are considered.",
         "A reported completion is not verified work; it is listed separately until you confirm it.",
     ]

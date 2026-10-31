@@ -122,7 +122,7 @@ def test_today_endpoint_reports_real_state_and_rejects_unknown_zones(client):
     assert body["timezone"] == "America/Vancouver"
     assert body["counts"]["overdue"] == 1
     assert body["sections"]["commitments"]["overdue"][0]["title"] == "Overdue invoice"
-    assert "Calendar events and email are not read automatically" in " ".join(body["not_included"])
+    assert "Calendar events and email are not part of this projection" in " ".join(body["not_included"])
     assert client.get("/api/v1/today", params={"timezone": "Mars/Olympus"}).status_code == 422
     assert client.get("/api/v1/today").status_code == 422
 
