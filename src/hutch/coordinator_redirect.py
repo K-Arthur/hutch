@@ -5,6 +5,7 @@ import json
 import sqlite3
 from typing import TYPE_CHECKING, Any
 
+from . import bot_lifecycle
 from .coordinator_tasks import _TERMINAL_SQL, _canon, ensure_schema, list_tasks
 from .models import Bot, Event, EventType, Run, Task, iso, new_id, utcnow
 
@@ -24,8 +25,8 @@ def _verify_redirect_target(store: Store, task_id: str) -> tuple[sqlite3.Row, Bo
     if row["parent_archived"]:
         raise ValueError("unarchive the coordinator conversation before redirecting this task")
     bot = Bot.from_store_json(row["bot_doc"])
-    if bot.paused:
-        raise ValueError("unpause the specialist Bot before redirecting this task")
+    if bot.archived or bot.paused:
+        raise ValueError("restore or unpause the specialist assistant before redirecting this task")
     saved_snapshot = json.loads(row["capability_snapshot_json"] or "{}")
     current_snapshot = EngineCls.capability_snapshot(bot, integration_tools=store.integration_tool_names(bot.id))
     if saved_snapshot != current_snapshot:
@@ -103,6 +104,8 @@ def redirect_workspace_task(
         current = db.execute("SELECT * FROM workspace_tasks WHERE id = ?", (task_id,)).fetchone()
         if current is None:
             raise KeyError(task_id)
+        # The read above happened outside this transaction; re-check against the row we are about to write.
+        bot_lifecycle.assert_accepts_work(db, bot.id)
         new_assumptions = current["assumptions"] if assumptions is None else assumptions.strip()
         run_id, child_conv_id, new_revision = _record_redirect_run(
             store, db, task_id=task_id, current=current, bot=bot,

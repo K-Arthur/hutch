@@ -126,6 +126,68 @@ def test_archived_assistant_is_not_offered_as_a_specialist(client):
     assert store.workspace_specialists()["bots"] == []
 
 
+def test_archived_assistant_accepts_no_work_from_any_admission_path(client):
+    """Each path that can insert a run is covered, not just the conversation one.
+
+    These are the six primitives that create work in the store; a seventh added later must either
+    call ``_assert_execution_ready(db, bot_id)`` or be added here with a reason.
+    """
+    store = client.app.state.store
+    bot = make_bot(store, "shut-out")
+    conversation = seed_history(store, bot)
+    archive_bot(store, bot.name, True, idem_key="archive-all", request_hash="h1")
+
+    with pytest.raises(BotArchived):  # idempotent run (POST /api/v1/tasks/runs, Run now)
+        store.submit_run_idempotent(Run(bot_id=bot.id, prompt="x"), Task(bot_id=bot.id, prompt="x"),
+                                    idem_key="k1", request_hash="h1")
+    with pytest.raises(BotArchived):  # standalone run
+        store.create_run(Run(bot_id=bot.id, prompt="x"))
+    with pytest.raises(BotArchived):  # task + run in one write
+        store.submit_run(Run(bot_id=bot.id, prompt="x"), Task(bot_id=bot.id, prompt="x"))
+    with pytest.raises(BotArchived):  # conversation message
+        store.submit_conversation_message(
+            conversation["id"], "x", Run(bot_id=bot.id, prompt="x", conversation_id=conversation["id"]),
+            Task(bot_id=bot.id, prompt="x"), idem_key="k2", request_hash="h2")
+
+    # A scheduled occurrence is skipped, not raised: the dispatch loop must keep ticking.
+    from hutch.models import Schedule
+    scheduled = store.get_bot(bot.id).model_copy(
+        update={"schedules": [Schedule(cron="* * * * *", timezone="UTC")]})
+    store.upsert_bot(scheduled, preserve_schedules=True)
+    skipped = store.submit_scheduled(
+        Run(bot_id=bot.id, prompt="x"), Task(bot_id=bot.id, prompt="x"),
+        occurrence="2026-10-30T12:00:00+00:00", expected_marker=None,
+        new_marker="2026-10-30T12:00:00+00:00", claimed_by="test", schedule_id="s1")
+    assert skipped is None
+
+
+def test_archived_bot_keeps_its_state_through_a_settings_save(client):
+    """A whole-document write from a stale read must not resurrect a retired assistant."""
+    store = client.app.state.store
+    bot = make_bot(store, "stale-save")
+    stale_copy = store.get_bot(bot.id)          # read before archiving
+    archive_bot(store, bot.name, True, idem_key="archive-stale", request_hash="h1")
+
+    stale_copy.description = "edited from a tab opened earlier"
+    store.upsert_bot(stale_copy, preserve_schedules=True)
+
+    saved = store.get_bot(bot.id)
+    assert saved.archived is True
+    assert saved.description == "edited from a tab opened earlier"  # the edit itself still lands
+
+
+def test_repeated_archive_after_restore_applies_again(client):
+    """A replay is not a state transition: the command must obey the owner, not the receipt."""
+    store = client.app.state.store
+    bot = make_bot(store, "round-trip")
+    key = "same-key-every-time"
+    archive_bot(store, bot.name, True, idem_key=key, request_hash="h1")
+    archive_bot(store, bot.name, False, idem_key="other", request_hash="h2")
+    again, changed = archive_bot(store, bot.name, True, idem_key=key, request_hash="h1")
+    assert changed is True and again.archived is True
+    assert store.get_bot(bot.id).archived is True
+
+
 def test_archived_assistant_cannot_start_a_workflow(client):
     """The workflow path inserts its own run rows, so it needs the same admission guard."""
     from hutch.workflow import persistence as workflow_store

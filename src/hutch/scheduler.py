@@ -352,7 +352,7 @@ class Scheduler:
         now = now or utcnow()
         due: list[DueClaim] = []
         for bot in self.store.list_bots():
-            if bot.paused:
+            if bot.paused or bot.archived:
                 continue
             for schedule in bot.schedules or ([bot.schedule] if bot.schedule else []):
                 if not schedule.enabled:

@@ -110,14 +110,23 @@ def archive_bot(store: Any, ref: str, archived: bool, *, idem_key: str, request_
         bot.id = str(row["id"])
         scope = f"api:v1:bot:{bot.id}:archive"
         if store._idempotency_replay(db, scope, idem_key, request_hash) is not None:
+            # A replay is not a state transition. If the owner has since changed the state, apply the
+            # requested one instead of returning a document that contradicts the command.
             stored = db.execute("SELECT doc FROM bots WHERE id = ?", (bot.id,)).fetchone()
-            return (Bot.from_store_json(stored["doc"]) if stored else bot), False
+            if stored is not None:
+                bot = Bot.from_store_json(stored["doc"])
+                bot.id = str(row["id"])
+            if bot.archived == archived:
+                return bot, False
         check_can_archive(db, bot, archived)
         changed = bot.archived != archived
         bot.archived = archived
         db.execute("UPDATE bots SET doc = ? WHERE id = ?", (bot.store_json(), bot.id))
+        # The receipt is part of the transition: a replay that had to re-apply the state updates it, and
+        # a repeated command otherwise inserts its own row.
         db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
-                   "VALUES (?, ?, ?, ?, ?)",
+                   "VALUES (?, ?, ?, ?, ?) ON CONFLICT(scope, key) DO UPDATE SET "
+                   "request_hash = excluded.request_hash, response_json = excluded.response_json",
                    (scope, idem_key, request_hash,
                     json.dumps({"bot_id": bot.id, "archived": archived}, ensure_ascii=False,
                                sort_keys=True, separators=(",", ":")), iso(utcnow())))

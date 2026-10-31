@@ -2719,10 +2719,12 @@ class Store:
         return row[0] if row else None
 
     @classmethod
-    def _assert_execution_ready(cls, db: sqlite3.Connection) -> None:
+    def _assert_execution_ready(cls, db: sqlite3.Connection, bot_id: str = "") -> None:
+        """Restore hold, then retired assistant: the one admission check every run insert passes."""
         from .state_snapshot import ExecutionHeld
         if restore_id := cls._execution_hold(db):
             raise ExecutionHeld(restore_id)
+        bot_lifecycle.assert_accepts_work(db, bot_id)
 
     def assert_execution_ready(self) -> None:
         """Fail early with the restore hold before validating a request's execution details."""
@@ -3335,6 +3337,7 @@ class Store:
                 changed = any(getattr(bot, field) != getattr(previous, field) for field in policy_fields)
                 bot.memory_revision = previous.memory_revision + int(changed)
             if previous is not None:
+                bot.archived = previous.archived   # owned by the archive command, never by a settings write
                 bot.preserve_unreadable_persona_from(previous)
                 if previous.persona_profile_error:
                     bot.persona_profile_version = previous.persona_profile_version
@@ -4264,10 +4267,9 @@ class Store:
         if run.parent_run_id is not None or run.delegation_budget_cost_usd is not None:
             raise ValueError("delegated runs must use submit_delegated_run")
         with self._tx() as db:
-            self._assert_execution_ready(db)
+            self._assert_execution_ready(db, run.bot_id)
             if not self._remote_run_allowed(db, run):
                 raise PermissionError("remote start authority is missing, revoked, or disabled")
-            bot_lifecycle.assert_accepts_work(db, run.bot_id)
             db.execute(
                 "INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, conversation_context) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -4285,10 +4287,9 @@ class Store:
             raise ValueError("delegated runs must use submit_delegated_run")
         run.task_id = task.id
         with self._tx() as db:
-            self._assert_execution_ready(db)
+            self._assert_execution_ready(db, run.bot_id)
             if not self._remote_run_allowed(db, run):
                 raise PermissionError("remote start authority is missing, revoked, or disabled")
-            bot_lifecycle.assert_accepts_work(db, run.bot_id)
             db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
                        "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
                        (task.id, task.bot_id, task.kind, task.prompt, task.created_at, run.id))
@@ -4344,7 +4345,7 @@ class Store:
                     raise ValueError(bot.persona_profile_error)
                 if bot.persona_revision != expected_persona_revision:
                     raise PersonaConflict(bot.persona_revision)
-            self._assert_execution_ready(db)
+            self._assert_execution_ready(db, run.bot_id)
             db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
                        "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
                        (task.id, task.bot_id, task.kind, task.prompt, task.created_at, run.id))
@@ -4400,7 +4401,7 @@ class Store:
                 if row is None:
                     raise RuntimeError("delegated run retry record points to missing state")
                 return self._run(row), False
-            self._assert_execution_ready(db)
+            self._assert_execution_ready(db, run.bot_id)
 
             parent = db.execute("SELECT id, bot_id, status, fence, lease_owner, lease_expires_at, cancel_requested, "
                                 "conversation_id, conversation_context, parent_run_id, delegation_budget_cost_usd, "
@@ -5564,14 +5565,13 @@ class Store:
             replay = self._idempotency_replay(db, scope, idem_key, request_hash)
             if replay is not None:
                 return str(replay["run_id"]), False
-            self._assert_execution_ready(db)
+            self._assert_execution_ready(db, run.bot_id)
             conversation = db.execute("SELECT bot_id, title, archived FROM conversations WHERE id = ?",
                                       (conversation_id,)).fetchone()
             if conversation is None:
                 raise KeyError(conversation_id)
             if conversation["bot_id"] != run.bot_id:
                 raise PermissionError("conversation belongs to another bot")
-            bot_lifecycle.assert_accepts_work(db, run.bot_id)
             if conversation["archived"]:
                 raise ValueError("conversation is archived")
 
@@ -6064,7 +6064,7 @@ class Store:
                 if row is None:
                     raise RuntimeError("workspace task retry record points to missing state")
                 return str(row["child_run_id"]), False
-            self._assert_execution_ready(db)
+            self._assert_execution_ready(db, target_bot_id)
             parent = db.execute(
                 "SELECT c.bot_id, c.archived, w.coordinator_bot_id "
                 "FROM conversations c CROSS JOIN workspace_settings w WHERE c.id = ? AND w.id = 1",
@@ -6459,7 +6459,7 @@ class Store:
                 if row is None:
                     raise RuntimeError("idempotent continuation points to missing task history")
                 return str(replay["task_id"]), False
-            self._assert_execution_ready(db)
+            self._assert_execution_ready(db, run.bot_id)
             candidate = self._workspace_task_continuation_candidate(db, task_id)
             if not candidate["available"]:
                 exists = db.execute("SELECT 1 FROM workspace_tasks WHERE id = ?", (task_id,)).fetchone()
@@ -6731,8 +6731,8 @@ class Store:
 
         Two schedulers (``serve`` plus ``daemon``), or a crash between "dispatch" and "mark dispatched", used to produce two runs
         for one window. Now the last-fire marker is compared and advanced, the occurrence row is inserted (unique per bot and
-        window) and the run is created in a single write transaction: exactly one caller can win. A stale, paused, removed or
-        overlap-skipped occurrence returns None without creating a run.
+        window) and the run is created in a single write transaction: exactly one caller can win. A stale, paused, archived,
+        removed or overlap-skipped occurrence returns None without creating a run.
         """
         if run.parent_run_id is not None or run.delegation_budget_cost_usd is not None:
             raise ValueError("delegated runs must use submit_delegated_run")
@@ -11350,7 +11350,7 @@ class Store:
                 db.execute("UPDATE event_sources SET admit_after = ? WHERE id = ?",
                            (iso(moment + timedelta(seconds=cooldown_seconds)), source_id))
                 return None
-            self._assert_execution_ready(db)
+            self._assert_execution_ready(db, run.bot_id)
             if not self._remote_run_allowed(db, run):
                 return None
             run.task_id = task.id

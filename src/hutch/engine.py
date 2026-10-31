@@ -1617,9 +1617,12 @@ class Engine:
                     reason="automatic workflow recovery limit reached after two recoveries",
                     finished=True)
                 continue
-            if self.store.get_bot(str(candidate["bot_id"])) is None:
-                wfstore.update_workflow_run(self.store, wf_id, status="failed", reason="the Bot no longer exists",
-                                            finished=True)
+            workflow_bot = self.store.get_bot(str(candidate["bot_id"]))
+            if workflow_bot is None or workflow_bot.archived:
+                held = workflow_bot is not None
+                wfstore.update_workflow_run(
+                    self.store, wf_id, status="waiting" if held else "failed", finished=not held,
+                    reason="the assistant is archived; restore it to continue" if held else "the Bot no longer exists")
                 continue
             try:
                 run = wfstore.admit_workflow_continuation(self.store, wf_id)
