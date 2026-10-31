@@ -35,7 +35,7 @@ Status legend: PASS (observed on the real app or real store); PARTIAL (implement
 
 ## Independent verification (2026-10-31, separate read-only agent)
 
-The reviewer re-ran the checks itself on the integrated tree: focused 7-file suite 86 passed in 41.96 s; personal-pages
+The first reviewer re-ran the checks itself at the review snapshot HEAD ed9a0901: focused 7-file suite 86 passed in 41.96 s; personal-pages
 e2e 1 passed in 13.53 s; scheduler duration tests 27 passed; tool-contract audit PASS (43 tools); constitution
 audit PASS; agent-map check PASS (118 lines); personal_schema.py additive only (14 CREATE IF NOT EXISTS, zero
 ALTER/DROP/UPDATE/DELETE); no committed seed/demo data; docs/commitments.md and docs/marketing-site.md new claims
@@ -44,13 +44,14 @@ this record.
 
 Findings raised and their resolution:
 
-- D1 (corrected): SCHEMA_VERSION imports as 85 in the working tree, but HEAD is 84. The 85 comes only from
-  another session's uncommitted store.py edit plus their untracked mcp_schema.py; no committed tree contains
-  mcp_schema. The earlier integration note wrongly attributed it to the committed provider series; RUNLOG.md and
-  HANDOFF.md now state the verified cause. This slice's migration is v84.
-- D2 (corrected): the 402-line tests/test_mcp_plane.py is another session's untracked file (commit 934e1b69 added
-  tests/test_integration_dispatch.py). The context-hygiene red is that untracked file; the largest slice source
-  file is 326 lines. The integration note now says exactly this.
+- D1 (corrected, snapshot-scoped): at the first review snapshot (HEAD ed9a0901) the committed store schema was
+  84, while the worktree imported 85 because another session's store.py edit was uncommitted and their mcp_schema.py
+  was untracked. The earlier note wrongly attributed 85 to the committed provider series; RUNLOG.md and HANDOFF.md
+  were corrected. That session then committed fd3002a4, which adds the MCP migration as v85; the corrected timeline
+  above and the second verification below supersede this snapshot finding. This slice's migration remains v84.
+- D2 (corrected, snapshot-scoped): the 402-line tests/test_mcp_plane.py was another session's untracked file at that
+  snapshot; that session subsequently committed its MCP work and the file is tracked at 311 lines. The largest
+  slice source file remains 326 lines.
 - D3 (recorded): another session staged src/hutch/server/app.py (+2 lines) and added untracked test files during
   review; no slice file was staged or modified and the reviewer made no writes. Working tree moved from 33 to 35
   entries and HEAD advanced from 4f23c591 to 1e81df56 through other-session docs commits; code under test did not
@@ -61,5 +62,7 @@ Findings raised and their resolution:
   fire), not only the dashboard narrative. A successful scheduled model run remains blocked by no configured model
   route; this is stated, not claimed.
 
-No finding required a code change to the product; the only code change after review was the added automated
-restart-continuity test. No committed deliverable was missing.
+No finding required a code change to the product; the only code change after the first review was the added
+automated restart-continuity test. No committed deliverable was missing. The second verification (HEAD fd3002a4)
+returned PASS for rows 1-21 and closed row 22 once the documentation corrections and the regenerated agent map were
+in place.
