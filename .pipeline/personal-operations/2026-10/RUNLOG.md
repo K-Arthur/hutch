@@ -55,3 +55,12 @@ Environment notes: uv needs a writable cache (UV_CACHE_DIR); /tmp is per-executi
 | Section intros floated to the far right | section head used justify-content: space-between | block layout that keeps the heading and intro together |
 | Shared showed "Assistant" instead of assistant names | shared.js read window.botsCache, but app.js declares botsCache as a lexical binding | read the binding by name and fetch the roster when it is not loaded yet |
 | Test expected a fixed UTC instant for a Vancouver day | the installed tz database's 2026 rules differ from the assumption | test now locates the transition from the installed zone data and asserts the 23/24/25-hour invariant |
+
+## Scheduled occurrence evidence (post-fire)
+
+The schedule next fired at 2026-10-31T05:53:55Z, the exact instant computed before the restart. The
+engine claimed it (GET /api/v1/bots/household-helper/schedules/<id>/occurrences): occurrence
+2026-10-31T05:53:55.158540+00:00, run_id run_cce29a17437a, claimed_at 05:53:55.163897Z, run_status
+failed, run_origin schedule, exit_reason model_unavailable, missed_windows 0. That is the honest
+outcome: the durable schedule fired correctly and the run failed because the acceptance assistant
+has no configured model route. After the fire the next occurrence moved to the following day.

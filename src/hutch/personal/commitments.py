@@ -21,10 +21,13 @@ ANY_SPACE = object()
 DEFAULT_LIMIT = 200
 
 
-def public(commitment: Commitment, *, blocked: bool = False) -> dict[str, Any]:
+def public(commitment: Commitment, *, blocked: bool = False,
+           now: Optional[str] = None) -> dict[str, Any]:
+    """API projection with the derived flags; the caller's clock keeps Today consistent."""
+    current = now or iso(utcnow())
     data = commitment.model_dump(mode="json")
     data["blocked"] = blocked
-    data["overdue"] = bool(commitment.due_at and commitment.due_at < iso(utcnow())
+    data["overdue"] = bool(commitment.due_at and commitment.due_at < current
                            and commitment.status is CommitmentStatus.open)
     return data
 

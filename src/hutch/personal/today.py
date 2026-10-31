@@ -53,8 +53,8 @@ def _bot_labels(store) -> dict[str, str]:
     return labels
 
 
-def _commitment_item(item, *, bot_labels: dict[str, str], href: str = "#/today") -> dict[str, Any]:
-    data = public(item)
+def _commitment_item(item, *, bot_labels: dict[str, str], now_iso: str, href: str = "#/today") -> dict[str, Any]:
+    data = public(item, now=now_iso)
     data.update({
         "kind": "commitment",
         "source_label": "Shared space" if item.space_id else "Personal",
@@ -161,7 +161,7 @@ def build_today(store, *, now: Optional[datetime] = None, timezone_name: Optiona
 
     rows = personal.commitments.list(include_proposed=True, limit=MAX_ITEMS)
     blocked_map = personal.commitments.blocked_map([row.id for row in rows])
-    items = [_commitment_item(row, bot_labels=labels) for row in rows]
+    items = [_commitment_item(row, bot_labels=labels, now_iso=now_iso) for row in rows]
     items = [{**item, "blocked": blocked_map.get(item["id"], False)} for item in items]
 
     open_items = [item for item in items
@@ -198,15 +198,24 @@ def build_today(store, *, now: Optional[datetime] = None, timezone_name: Optiona
     approvals = [_approval_item(approval, bot_labels=labels)
                  for approval in store.pending_approvals(limit=20)]
 
-    documents = []
+    documents: list[dict[str, Any]] = []
+    deliverable_note = ""
     try:
         for row in store.list_documents(limit=20):
             created = str(row.get("created_at") or "")
             if start_iso <= created < end_iso:
                 documents.append(_document_item(row, bot_labels=labels))
-    except Exception:
-        # A documents projection failure must not hide commitments, approvals or runs.
-        documents = []
+    except (KeyError, ValueError, TypeError) as error:
+        # One malformed projection must not hide commitments, approvals or runs; say it failed.
+        deliverable_note = f"Deliverables could not be listed ({type(error).__name__}); the other sections are unaffected."
+    not_included = [
+        "Calendar events and email are not read automatically for this view. Assistants add them "
+        "through their connected tools, schedules and commitments.",
+        "Only the most recent 200 commitments, 100 runs and 20 documents are considered.",
+        "A reported completion is not verified work; it is listed separately until you confirm it.",
+    ]
+    if deliverable_note:
+        not_included.append(deliverable_note)
 
     spaces = personal.spaces.summary()
     schedules = _schedules(store, now=now, start=start, end=end)
@@ -241,10 +250,5 @@ def build_today(store, *, now: Optional[datetime] = None, timezone_name: Optiona
             "deliverables": documents,
             "spaces": spaces,
         },
-        "not_included": [
-            "Calendar events and email are not read automatically for this view. Assistants add them "
-            "through their connected tools, schedules and commitments.",
-            "Only the most recent 200 commitments, 100 runs and 20 documents are considered.",
-            "A reported completion is not verified work; it is listed separately until you confirm it.",
-        ],
+        "not_included": not_included,
     }
