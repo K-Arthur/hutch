@@ -167,3 +167,28 @@ def test_today_measures_a_real_dst_transition_day(store):
     assert [item["title"] for item in briefing["sections"]["commitments"]["due_today"]] == ["Transition day task"]
     span = datetime.fromisoformat(briefing["day_end"]) - datetime.fromisoformat(briefing["day_start"])
     assert span.total_seconds() in (23 * 3600, 24 * 3600, 25 * 3600)
+
+
+def test_today_separates_waiting_approval_from_working_and_lists_a_schedule_once(store):
+    from datetime import timedelta
+    from hutch.models import ApprovalRequest, Bot, Run, RunStatus, Schedule, TriggerKind, iso, utcnow
+    from hutch.scheduler import Scheduler
+    now = utcnow()
+    bot = store.create_bot(Bot(name='state-bot', tools=['commitments']))
+    waiting = Run(bot_id=bot.id, prompt='Send the signed contract', status=RunStatus.waiting_approval,
+                  started_at=iso(now))
+    store.create_run(waiting)
+    store.create_approval(ApprovalRequest(run_id=waiting.id, bot_id=bot.id, tool='outlook_send',
+                                          action='Send the contract', risk='high', outward=True))
+    schedule = Schedule(name='Daily check', trigger=TriggerKind.interval, interval_seconds=86400,
+                        timezone='America/Vancouver',
+                        anchor_at=iso(now - timedelta(days=1) + timedelta(seconds=120)),
+                        prompt='check the shared list')
+    bot = store.upsert_bot(bot, primary_schedule_update=schedule)
+    briefing = build_today(store, now=now, timezone_name='America/Vancouver')
+    assert briefing['sections']['runs']['working'] == []
+    assert briefing['sections']['approvals']['count'] == 1
+    names = [item['name'] for item in briefing['sections']['schedules']['upcoming_today']]
+    assert names.count('Daily check') == 1
+    next_fire = Scheduler(store).next_fire(bot, now, bot.schedules[0])
+    assert next_fire is not None

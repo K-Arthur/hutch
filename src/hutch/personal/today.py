@@ -124,7 +124,11 @@ def _schedules(store, *, now: datetime, start: datetime, end: datetime) -> dict[
         schedules = list(bot.schedules or [])
         if bot.schedule is not None:
             schedules.append(bot.schedule)
+        seen: set[str] = set()
         for scheduled in schedules:
+            if scheduled.id in seen:
+                continue  # the legacy primary schedule may also appear in the list
+            seen.add(scheduled.id)
             if not scheduled.enabled:
                 continue
             blocked_state = scheduler.blocked(scheduled)
@@ -142,8 +146,7 @@ def _schedules(store, *, now: datetime, start: datetime, end: datetime) -> dict[
                     "href": "#/schedules",
                 })
     upcoming.sort(key=lambda item: item["next_at"])
-    return {"paused": bool(control["paused"]), "upcoming_today": upcoming,
-            "blocked": blocked, "enabled_count": 0}
+    return {"paused": bool(control["paused"]), "upcoming_today": upcoming, "blocked": blocked}
 
 
 def build_today(store, *, now: Optional[datetime] = None, timezone_name: Optional[str] = None) -> dict[str, Any]:
@@ -180,9 +183,13 @@ def build_today(store, *, now: Optional[datetime] = None, timezone_name: Optiona
 
     active_runs = store.active_runs()
     recent_runs = store.list_runs(limit=100)
-    working = [_run_item(run, bot_labels=labels) for run in active_runs]
+    # A run waiting for approval is not "working": its decision is in the approvals section.
+    working = [_run_item(run, bot_labels=labels) for run in active_runs
+               if run.status not in (RunStatus.waiting_approval, RunStatus.waiting_human)]
     needs_attention = [_run_item(run, bot_labels=labels) for run in recent_runs
-                       if run.terminal and (run.needs_person or run.status in (RunStatus.failed,))]
+                       if (run.terminal and (run.status is RunStatus.failed
+                                             or run.status is RunStatus.outcome_unknown))
+                       or run.status is RunStatus.waiting_human]
     needs_attention = needs_attention[:12]
     finished_today = [_run_item(run, bot_labels=labels) for run in recent_runs
                       if run.terminal and run.status is RunStatus.succeeded and run.finished_at
