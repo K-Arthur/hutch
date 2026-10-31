@@ -1520,7 +1520,7 @@ const hexAvatar = botAvatar;   // shared renderers still call this name
 
 function botStatusLabel(b) {
   if (b.active_run_id) return b.active_run_status_label || statusInfo[b.active_run_status]?.label || "Status unavailable";
-  return b.paused ? "Paused" : "Idle";
+  return b.paused ? "Paused" : b.route_problem ? "Needs a model route" : "Idle";
 }
 
 function botNeedsYou(b) {
@@ -3110,7 +3110,7 @@ async function readFirstRunReadiness() {
     routesResult.status === "rejected" ? "other AI routes" : "",
   ].filter(Boolean);
   const readyRoutes = routes.filter(route =>
-    route?.state === "ready" && typeof route.spec === "string" && !route.spec.startsWith("mock/"));
+    route?.state === "ready" && typeof route.spec === "string");
   const savedModel = typeof defaults?.model === "string" ? defaults.model.trim() : "";
   const workspaceModel = savedModel.startsWith("mock/") ? "" : savedModel;
   const openCodeModels = Array.isArray(openCode?.models) ? openCode.models : [];
@@ -11649,12 +11649,12 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
             source_bot_display_name: sourceBot ? botDisplayName(sourceBot) : currentStudioBot,
             source_bot_is_coordinator: !!sourceBot?.is_workspace_coordinator,
             source_bot_runtime: sourceBot?.runtime || "",
-            source_bot_model: sourceBot?.model && !sourceBot.model.startsWith("mock/") ? sourceBot.model : "",
+            source_bot_model: sourceBot?.model && !sourceBot.route_problem ? sourceBot.model : "",
             is_latest_request: selectedRequest.id === latestRequest?.id,
             context_candidates: userMessages.filter(message => message.id !== selectedRequest.id
               && Number(message.seq) < Number(selectedRequest.seq)).slice(-8),
-            model_suggestion: sourceBot?.model && !sourceBot.model.startsWith("mock/") ? sourceBot.model : "",
-            inference_mode_suggestion: sourceBot?.model && !sourceBot.model.startsWith("mock/") ? sourceBot.inference_mode : "",
+            model_suggestion: sourceBot?.model && !sourceBot.route_problem ? sourceBot.model : "",
+            inference_mode_suggestion: sourceBot?.model && !sourceBot.route_problem ? sourceBot.inference_mode : "",
             conversation_title: conversation?.title || "Untitled conversation",
           };
         }
@@ -12361,7 +12361,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       try { routeOptions = await api(`/v1/model-routes?inference_mode=${encodeURIComponent(draft.inference_mode)}&runtime=${encodeURIComponent(draft.runtime)}`); }
       catch { /* the route can still be entered directly; creation validates it */ }
       if (draft.step !== 1) return;
-      const readyRoutes = routeOptions.filter(route => route.state === "ready" && !route.spec.startsWith("mock/"));
+      const readyRoutes = routeOptions.filter(route => route.state === "ready");
       const options = readyRoutes.map(route => `<option value="${esc(route.spec)}" label="${esc(`${route.group}: ${route.note || route.label}`)}"></option>`).join("");
       const opencode = draft.runtime === "opencode";
       content = `<div class="setup-conversation hutch-form">

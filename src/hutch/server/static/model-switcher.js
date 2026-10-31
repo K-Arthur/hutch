@@ -102,7 +102,7 @@
       const spec = active();
       const m = find(spec);
       const custom = spec !== data.default;
-      label.textContent = m ? m.label : shortName(spec);
+      label.textContent = bot.route_problem && spec === bot.model ? "Choose a model" : m ? m.label : shortName(spec);
       slot.querySelector(".ms-route-icon").innerHTML = markHtml(spec, m ? m.hosted : null);
       btn.classList.toggle("is-custom", custom);
       btn.title = custom ? `One-message override: ${spec}. The assistant default stays ${data.default}; this override clears after the next message is accepted.`
@@ -332,7 +332,7 @@
           <details class="ms-selection-details"><summary>Selected route and details</summary><div class="ms-selection-info"></div></details>
           <details class="ms-advanced"><summary>Enter a model ID</summary>
           <label class="ms-other">Another model <span class="muted">(provider/model, on one of your connections)</span>
-            <input type="text" class="ms-custom mono" aria-describedby="ms-custom-egress-note" placeholder="opencode-go/glm-5.3" autocomplete="off" spellcheck="false">
+            <input type="text" class="ms-custom mono" aria-describedby="ms-custom-egress-note" placeholder="provider/model" autocomplete="off" spellcheck="false">
             <span id="ms-custom-egress-note" class="muted">An openai-compatible route uses its configured endpoint and may send this chat off this machine. Confirm the provider endpoint for this assistant or Hutch installation before selecting it.</span></label></details>
           <p class="ms-foot"><a href="/models">Hardware fit, task presets and prices</a> &middot;
             <a href="/connections">Connections</a></p>
@@ -350,7 +350,7 @@
             return false;
           }
           if (custom && !/^[^/\s]+\/\S+$/.test(custom)) {
-            toast("Write it as provider/model, for example opencode-go/glm-5.3", true);
+            toast("Write it as provider/model, naming a provider you have connected", true);
             return false;
           }
           applySelection(spec);

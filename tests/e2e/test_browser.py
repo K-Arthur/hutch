@@ -8389,7 +8389,7 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
         assert page.locator("#workspace-coordinator-pill").inner_text() == "Workspace coordinator"
         rows = page.locator("#roster-list [data-switch-bot]")
         assert rows.first.get_attribute("data-switch-bot") == coordinator.name
-        assert rows.first.locator(".roster-sub").inner_text() == "Idle · Coordinator"
+        assert rows.first.locator(".roster-sub").inner_text() == "Needs a model route · Coordinator"   # the fixture runs on the retired mock route
 
         # A coordinator is an ordinary, directly addressable Bot conversation too.
         conversation_id = page.locator("#conversation-switcher").input_value()

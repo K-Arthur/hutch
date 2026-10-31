@@ -2111,7 +2111,7 @@ def create_app() -> FastAPI:
             "last_success": last.finished_at or last.created_at if last else None,
             "active_run_id": active.id if active else None,
             "active_run_status": active.status.value if active else None,
-            "active_run_status_label": LABELS[active.status] if active else None,
+            "active_run_status_label": LABELS[active.status] if active else None, "route_problem": store.route_problem(bot),
             "run_counts": stats,
             "tokens_today": measured_tokens + reserved_tokens,
             "tokens_measured_today": measured_tokens,

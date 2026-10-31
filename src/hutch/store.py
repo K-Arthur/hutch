@@ -38,6 +38,7 @@ from . import action_receipts, bot_deletion_schema, durable_changes, fact_purge_
 from .workflow import usage_budget as workflow_usage_budget
 from .money import format_usd
 from .lifecycle import TERMINAL, IllegalTransition, LeaseLost, allowed
+from .route_problem import route_problem
 from .models import (
     ACTIVE_STATUSES,
     ApprovalRequest,
@@ -7059,6 +7060,9 @@ class Store:
         if row is None:
             return {"owner": "", "expires_at": None, "fence": 0}
         return {"owner": row["owner"] or "", "expires_at": row["expires_at"], "fence": row["fence"]}
+
+    def route_problem(self, bot: Bot) -> Optional[str]:
+        return route_problem(bot)
 
     def is_unowned(self, run: Run, grace_seconds: int = 300) -> bool:
         """A live run with no pid and no lease holder: nothing owns it (a claimed run always has one). The grace
