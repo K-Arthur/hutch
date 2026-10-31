@@ -78,8 +78,6 @@ these" page is the next simplification. The README should say the free starter n
 
 ## 4. Other findings recorded, not changed
 
-- Assistant identity files (`identity/assistant-<id>.json`) are not removed by governed assistant deletion.
-  Erasure works on directories and writes a manifest inside the target, so a per-assistant file needs
-  `identity/<id>/` first; a small change to the deletion plan, deliberately not made in passing.
+- Assistant identity files were not removed by governed assistant deletion. **Done:** the plan now lists and erases `identity/assistant-<id>.json` (the managed-path whitelist gained `identity`; the workspace profile is untouched).
 - Activity's two KPI tiles and usage accordion (above).
 - Connections' five "Not enabled in this build" cards (above).

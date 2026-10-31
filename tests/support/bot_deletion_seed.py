@@ -42,6 +42,7 @@ def make_files(store, seed: dict) -> dict:
     created['conversation'] = write('workspaces/' + seed['conversation'] + '/upload.txt', SENTINEL)
     created['document'] = write('documents/' + seed['document'] + '/v001-abcdef12/file.md', SENTINEL)
     created['synthesis'] = write('synthesis/' + seed['syn_storage_path'], SENTINEL)
+    created['identity'] = write('identity/assistant-' + seed['bot'] + '.json', SENTINEL)   # sign-off and boundaries
     created['code_worktree'] = write('code-worktrees/' + seed['handoff'] + '/user-code.txt', SENTINEL)
     created['backup'] = write('hutch.db.bak-v82', 'backup')
     return created

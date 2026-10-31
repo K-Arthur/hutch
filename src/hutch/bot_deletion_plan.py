@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .identity import assistant_relative_path
 from .models import ACTIVE_STATUSES, iso, utcnow
 
 
@@ -29,7 +30,7 @@ REDACTED_MARKER = '[deleted]'
 #: The one place managed paths are recorded; removed after a successful cleanup.
 _MANIFEST_NAME = 'cleanup.json'
 _MANIFEST_ROOT = 'deletions'
-_MANAGED_FIRST_COMPONENTS = frozenset({'bots', 'workspaces', 'browser-profiles', 'documents', 'synthesis'})
+_MANAGED_FIRST_COMPONENTS = frozenset({'bots', 'workspaces', 'browser-profiles', 'documents', 'synthesis', 'identity'})
 _ACTIVE = tuple(status.value for status in ACTIVE_STATUSES)
 _ACTIVE_MARKS = ', '.join('?' for _ in _ACTIVE)
 
@@ -276,7 +277,7 @@ def _managed_paths(db: sqlite3.Connection, bot_row: sqlite3.Row, scope_ids: dict
     bot_name = str(bot_row['name'])
     if not _safe_component(bot_name):
         raise BotDeletionConflict('the Bot address cannot name a managed directory')
-    paths = ['workspaces/' + bot_id, 'browser-profiles/' + bot_id]
+    paths = ['workspaces/' + bot_id, 'browser-profiles/' + bot_id, assistant_relative_path(bot_id)]   # identity: sign-off and boundaries
     paths += ['bots/' + bot_name + '/runs/' + run_id for run_id in scope_ids['runs']]
     paths += ['workspaces/' + conversation_id for conversation_id in scope_ids['conversations']]
     paths += ['documents/' + document_id for document_id in scope_ids['documents']]

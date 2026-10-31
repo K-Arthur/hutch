@@ -87,7 +87,7 @@ def test_preview_is_count_only_hashed_and_non_mutating(store):
     assert preview['confirmation_hint'] == 'rich-bot'
     assert preview['remaining'] and any('backups' in item for item in preview['remaining'])
     counts = preview['counts']
-    assert counts['bot'] == 1 and counts['files'] == 6
+    assert counts['bot'] == 1 and counts['files'] == 7   # run dir, workspace, profile, conversation, document, synthesis, identity
     assert counts['messages'] == 3 and counts['runs'] == 1 and counts['approvals'] == 1
     assert counts['events'] == 2 and counts['documents'] == 1 and counts['files'] > 0
     assert counts['conversation_fts'] == 3

@@ -85,8 +85,14 @@ def _directory(state_dir: Path | str) -> Path:
     return directory
 
 
+def assistant_relative_path(bot_id: str) -> str:
+    """Where one assistant's identity file lives under the state directory (governed deletion erases it)."""
+    return f"{DIR_NAME}/assistant-{bot_id}.json"
+
+
 def assistant_path(state_dir: Path | str, bot_id: str) -> Path:
-    return _directory(state_dir) / f"assistant-{bot_id}.json"
+    _directory(state_dir)
+    return Path(state_dir) / assistant_relative_path(bot_id)
 
 
 def person_path(state_dir: Path | str) -> Path:
