@@ -1,0 +1,20 @@
+{
+  "origin": "https://example.com",
+  "screen": {
+    "ok": true,
+    "url": "https://example.com/mcp"
+  },
+  "pinned_request": {
+    "status": 200,
+    "bytes": 577,
+    "looks_like_html": true
+  },
+  "mcp_handshake": {
+    "outcome": "refused",
+    "chain": [
+      "ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)",
+      "ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)",
+      "MCPError: Server returned an error response"
+    ]
+  }
+}

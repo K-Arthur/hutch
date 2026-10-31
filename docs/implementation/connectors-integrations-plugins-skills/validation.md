@@ -68,7 +68,8 @@ the connector code.
 | Install, test, grant, revoke, remove over HTTP | **Real process, sandboxed** | `test_mcp_api.py`, `test_connectors_page.py` |
 | **Remote Streamable HTTP connector** | **Real server, live (loopback)** | `live_validate_http.py` starts an MCP server on loopback with the SDK's Streamable HTTP transport, registers it as a connector, discovers 2 tools and calls one, which returned real structured output. Evidence: `artifacts/http-live-validation.json` |
 | Private-address and scheme screening | **Automated, offline, with a live-address check** | The live run refused `mcp.example.com` resolving to `10.1.2.3` before anything started. Two tests prove the pinned transport refuses an unreviewed loopback origin and a non-TLS public endpoint |
-| Remote connector over the public internet | **Not tested** | No public MCP endpoint and no credential were available. No TLS handshake with a third-party endpoint, no bearer acceptance, and no real DNS or redirect behaviour has been observed |
+| **Public HTTPS through the pinned transport** | **Real public origin, live** | `live_validate_public_https.py` screens `https://example.com/mcp`, completes a real TLS request through `PinnedMcpHTTPTransport` (200, 577 bytes), and shows that pointing a connector at an origin with no MCP endpoint fails as a bounded connector error rather than a hang or a crash. Evidence: `artifacts/public-https-live-validation.json` |
+| A connector against a real third-party MCP service | **Not tested** | No public MCP server and no credential were available. Bearer-token acceptance, redirects across origins, and provider rate limiting have not been observed |
 | Third-party MCP server | **Real provider, live** | See above: `mcp-server-time` from PyPI, installed and called through the sandbox. Only this one server has been exercised; general third-party compatibility is not claimed |
 | OAuth for a connector endpoint | **Blocked, not implemented** | Only `none` and a bearer token from an environment variable exist |
 | Approval on a non-read connector call | **Automated, offline, with a real approval gate** | `test_mcp_guarantees.py` raises a real approval card in a worker thread, resolves it, and asserts the transport was reached only after approval |
@@ -134,7 +135,26 @@ connector grant rather than the Bot's allowlist. The tests are in
 runtime and readiness agree, readiness names Connectors, granted makes the skill ready, Strict
 Offline withholds). Verified by those tests; not exercised end to end with a real model run.
 
-## 8. What this record does not claim
+## 8. What the public-origin run found
+
+The first public-HTTPS run exposed a defect rather than confirming one. Discovery against an
+origin that answers HTTP but is not an MCP server raised the SDK's protocol exception, and no
+route caught it, so `POST /api/v1/integrations/{id}/test` would have returned a 500 for an
+ordinary operator mistake: a wrong URL.
+
+Discovery now translates the whole failure class into one sentence that names the stage, with the
+server's own text discarded because a response body is untrusted input:
+
+```
+the endpoint answered, but not as an MCP server; check the URL path and whether it needs authentication
+```
+
+Three shapes are distinguished because the fix differs: no answer within the deadline, an answer
+that is not MCP, and an unreachable host. The API returns 409 with that sentence, the connector
+stays merely installed, and no catalog is recorded. Two tests cover it: one at the service layer
+asserting the server's text is not forwarded, one over HTTP asserting 409 rather than 500.
+
+## 9. What this record does not claim
 
 No third-party service was contacted. No connector was installed from a registry or marketplace,
 because none exists here. Nothing in this delivery is a live-provider acceptance result.
