@@ -20,6 +20,7 @@ rather than leaving `use` and `reveal` as two labels on the same act.
 | `9e04da7d` | The pinned Strict Offline tool contract records the two new host-network tools |
 | `602a08aa` | Documentation and ledger brought in line with the shipped mechanism |
 | `8268c0ec` | Destinations get their own ordered migration; the vault is keyed by `Store` |
+| `9d5d9234` | Status line scrubbed; a model-written query and body stay out of the event log |
 
 ### Checkpoint 4 — now done for one egress shape
 
@@ -37,10 +38,11 @@ The gap recorded in pass 1 ("nothing calls `resolve_for_use`") is closed:
 
 Verified:
 
-- `test_vault_egress.py` (14): header placement, pinned address, redirect not followed, echo scrubbed,
+- `test_vault_egress.py` (15): header placement, pinned address, redirect not followed, echo and
+  status-line scrubbed,
   header injection refused before the vault opens, non-ASCII credential refused, caller `Host`
   refused.
-- `test_vault_http_tool.py` (6): real `call_tool` dispatch; scans events, runs, messages and
+- `test_vault_http_tool.py` (8): real `call_tool` dispatch; scans events, runs, messages and
   `tool_actions` for the value; ask-mode approval detail contains the reference, never the value.
 - `test_vault_agent_turn.py` (1): the real `Engine`, a scripted runtime that prints the entire tool
   result and claims the injected instruction demanded the key. Run succeeds, request carries the
@@ -48,7 +50,7 @@ Verified:
 - `test_vault_migration.py` (4): a database put back to the previous schema version gains the
   destinations table on reopen and accepts a binding; the migration is idempotent; the table refuses
   a malformed origin; a hard delete removes its bindings.
-- 348 tests across the vault, migration, netguard, tool and contract suites: all pass.
+- 351 tests across the vault, migration, netguard, tool and contract suites: all pass.
 - `npm run check:agent`: all four checks pass.
 
 ### Defects found in this pass's own review and fixed
@@ -71,6 +73,12 @@ Verified:
    same path would have got a second book whose unlock state nobody had set. It is now keyed weakly
    by Store identity: a reopened database starts locked, and a supervised child run has its own
    locked vault rather than reaching into the parent's memory.
+8. The HTTP reason phrase is server-controlled text and was returned unscrubbed, so a service could
+   have echoed the credential into a status line the model reads. It is scrubbed now, with a test.
+9. `vault_http_request` persists its arguments as an event and an action receipt. A model-written
+   query string and body were kept verbatim, which gives a model-authored token a durable home for
+   no authorization benefit. The recorded URL is now `scheme://host/path?[redacted]`, the body is
+   dropped, and a malformed URL becomes a marker.
 
 ### Still not done, in priority order
 

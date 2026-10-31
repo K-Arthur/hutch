@@ -25,8 +25,8 @@ Results, latest run (2026-10-31, second pass), each suite run to completion:
 | `test_vault_access.py` | 21 | pass |
 | `test_vault_integrity.py` | 10 | pass |
 | `test_vault_api.py` | 14 | pass |
-| `test_vault_egress.py` | 14 | pass |
-| `test_vault_http_tool.py` | 6 | pass |
+| `test_vault_egress.py` | 15 | pass |
+| `test_vault_http_tool.py` | 8 | pass |
 | `test_vault_agent_turn.py` | 1 | pass |
 | `test_vault_migration.py` | 4 | pass |
 | `test_migration.py` | 41 | pass |
@@ -34,7 +34,7 @@ Results, latest run (2026-10-31, second pass), each suite run to completion:
 | `test_tools.py` | 14 | pass |
 | `test_tool_contracts.py` | 11 | pass |
 
-348 tests, all passing. `npm run check:agent`: context hygiene **pass**, tool contracts **pass**
+351 tests, all passing. `npm run check:agent`: context hygiene **pass**, tool contracts **pass**
 (47 registered tools), constitution **pass**, generated agent map **pass**.
 
 ## What the tests exercise
@@ -64,6 +64,8 @@ agent-turn test runs the real `Engine`.
   `Host` and SNI on the requested name; redirect returned not followed; response body and headers
   scrubbed of the value; `set-cookie` dropped; header injection refused before the vault is opened;
   non-ASCII credential refused; body and content type delivered; caller-supplied `Host` refused.
+- **Recording.** A model-supplied query string is redacted and a body dropped from what the event
+  log and action receipt keep; a malformed URL is replaced with a marker, not persisted.
 - **Integrity.** Plaintext absent from database files and from events/runs/messages/audit tables,
   tampered ciphertext refused, ciphertext moved between secrets refused, version replayed refused,
   audit rows immutable, free text in audit refused, no value in logs.
@@ -95,8 +97,9 @@ agent-turn test runs the real `Engine`.
    run succeeds, the request carried the right header, the service body reached the model, and the
    value is in no event, message or run row.
 2. `test_ciphertext_is_absent_from_the_database_files` reads the actual `hutch.db` and WAL bytes.
-3. `test_a_service_that_echoes_the_credential_cannot_return_it` covers the mediation step that is
-   easiest to get wrong: trusting a response.
+3. `test_a_service_that_echoes_the_credential_cannot_return_it` and
+   `test_the_status_line_is_scrubbed_too` cover the mediation step that is easiest to get wrong:
+   trusting a response, including its status line.
 4. `test_a_redirect_is_returned_not_followed_with_the_credential` covers walking a credential to a
    host the owner never bound.
 5. `test_a_legacy_installation_gains_a_working_vault_after_upgrade` proves a real pre-existing
