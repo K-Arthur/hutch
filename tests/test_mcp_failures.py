@@ -69,3 +69,76 @@ def test_an_unknown_transport_is_refused_before_any_connection(store):
         service.configure(store, integration_id="acme", title="Acme",
                           raw_definition={"transport": "carrier-pigeon"})
     assert persistence.definition_for(store._db, "acme") is None
+
+
+# ------------------------------------------------------------------ bearer credentials
+
+
+class _Recorder:
+    """A tiny HTTP server that records the Authorization header it receives."""
+
+    def __init__(self) -> None:
+        import http.server
+        import threading
+
+        recorder = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):                              # noqa: N802 - stdlib naming
+                recorder.headers.append(self.headers.get("Authorization", ""))
+                self.send_response(401)                     # not an MCP server; the header is the point
+                self.send_header("content-length", "0")
+                self.end_headers()
+
+            do_GET = do_POST                                # noqa: N815 - same handler
+
+            def log_message(self, *args):
+                pass
+
+        self.headers: list[str] = []
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    @property
+    def port(self) -> int:
+        return self.server.server_address[1]
+
+    def close(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+
+
+def test_a_missing_bearer_variable_is_refused_and_named(store):
+    definition = {"transport": "mcp_http", "url": "http://127.0.0.1:9/mcp",
+                  "auth": {"type": "bearer", "from_env": "HUTCH_TEST_ABSENT_CONNECTOR_TOKEN"}}
+    revision = config.definition_revision(definition)
+    with store._tx() as db:
+        persistence.save_definition(db, integration_id="bearer", title="Bearer",
+                                    definition=definition, revision=revision)
+    with pytest.raises(config.McpConfigurationError) as exc:
+        service.discover(store, integration_id="bearer")
+    assert "HUTCH_TEST_ABSENT_CONNECTOR_TOKEN" in str(exc.value)
+    assert "is not set" in str(exc.value)
+
+
+def test_a_bearer_token_is_actually_sent_and_never_echoed(store, monkeypatch):
+    """Building the header and not passing it is exactly the bug a live run caught once."""
+    recorded = _Recorder()
+    token = "test-token-value-9f2c"
+    monkeypatch.setenv("HUTCH_TEST_CONNECTOR_TOKEN", token)
+    try:
+        definition = {"transport": "mcp_http", "url": f"http://127.0.0.1:{recorded.port}/mcp",
+                      "auth": {"type": "bearer", "from_env": "HUTCH_TEST_CONNECTOR_TOKEN"}}
+        revision = config.definition_revision(definition)
+        with store._tx() as db:
+            persistence.save_definition(db, integration_id="bearer", title="Bearer",
+                                        definition=definition, revision=revision)
+        with pytest.raises(config.McpConfigurationError) as exc:
+            service.discover(store, integration_id="bearer")
+
+        assert recorded.headers, "the server received no request at all"
+        assert recorded.headers[0] == f"Bearer {token}"
+        # The refusal must describe the stage, not repeat the credential.
+        assert token not in str(exc.value)
+    finally:
+        recorded.close()

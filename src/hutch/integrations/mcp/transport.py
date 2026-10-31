@@ -153,9 +153,11 @@ async def open_client(definition: dict[str, Any], workspace: Optional[str | Path
             headers["Authorization"] = f"Bearer {token}"
         local = is_local_host((url.split("://", 1)[-1].split("/", 1)[0]).split(":")[0])
         allowed = (url,) if local else ()
+        # ``headers`` must be handed to the client: building the Authorization mapping and then
+        # dropping it sends an unauthenticated request, which a live run caught.
         async with httpx2.AsyncClient(
                 transport=PinnedMcpHTTPTransport(allowed_local_origins=allowed),
-                trust_env=False, follow_redirects=False,
+                headers=headers, trust_env=False, follow_redirects=False,
                 timeout=httpx2.Timeout(READ_TIMEOUT_SECONDS)) as http:
             async with Client(
                     streamable_http_client(url, http_client=http, max_sse_event_size=1_048_576),

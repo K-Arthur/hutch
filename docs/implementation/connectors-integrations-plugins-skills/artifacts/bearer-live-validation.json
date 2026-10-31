@@ -1,0 +1,38 @@
+{
+  "missing_variable": {
+    "refused": true,
+    "message": "the credential variable HUTCH_LIVE_MCP_TOKEN is not set; set it before connecting"
+  },
+  "discovery": {
+    "tools": [
+      "whoami"
+    ]
+  },
+  "call": {
+    "ok": true,
+    "output": "{\"result\":\"{\\\"authenticated\\\": true, \\\"server\\\": \\\"hutch-live-bearer\\\"}\"}\n{\"authenticated\": true, \"server\": \"hutch-live-bearer\"}"
+  },
+  "server_saw": {
+    "requests": 5,
+    "authorized": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "token_never_sent_as_text": true
+  },
+  "wrong_token": {
+    "refused": true,
+    "message": "the endpoint answered, but not as an MCP server; check the URL path and whether it needs authentication",
+    "echoed_the_token": false,
+    "requests": 2
+  },
+  "cross_origin_redirect": {
+    "refused": true,
+    "message": "the endpoint answered, but not as an MCP server; check the URL path and whether it needs authentication",
+    "redirector_saw_requests": 2,
+    "target_received_requests": 0
+  }
+}
