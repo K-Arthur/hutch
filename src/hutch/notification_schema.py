@@ -22,6 +22,8 @@ NOTIFICATION_KINDS = (
     "run_failed", "run_outcome_unknown", "run_succeeded",
 )
 UNATTENDED_ORIGINS = ("schedule", "source", "job", "workflow", "workflow:continuation", "workflow_auto")
+TRIGGER_NAMES = ("notification_approval_created", "notification_approval_resolved",
+                 "notification_run_outcome")
 STAMP = "strftime('%Y-%m-%dT%H:%M:%f+00:00','now')"
 NEW_ID = "'ntf_' || lower(hex(randomblob(12)))"
 
@@ -38,6 +40,19 @@ def migrate(db: sqlite3.Connection) -> None:
         UNIQUE(kind, subject_kind, subject_id))""")
     db.execute("CREATE INDEX IF NOT EXISTS notifications_recent ON notifications(bot_id, created_at)")
     _rebuild_deliveries(db)
+    _install_triggers(db)
+
+
+def repair(db: sqlite3.Connection) -> None:
+    """Re-install the observation triggers, replacing any earlier definition.
+
+    ``CREATE TRIGGER IF NOT EXISTS`` inside a migration that has already run can never
+    change a live body, so a corrected trigger reaches existing databases only through a
+    step of its own. Dropping and recreating is safe: a trigger holds no rows, and no
+    notification is lost or repeated because the rows are already stored.
+    """
+    for name in TRIGGER_NAMES:
+        db.execute(f"DROP TRIGGER IF EXISTS {name}")
     _install_triggers(db)
 
 

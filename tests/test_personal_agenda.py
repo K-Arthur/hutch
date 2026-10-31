@@ -160,6 +160,28 @@ def test_revoking_a_grant_discards_the_snapshot_immediately():
         build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=good, cache=cache)
 
 
+def test_removing_a_grant_evicts_even_though_the_missing_source_has_no_calendar_id():
+    """The real removal path: a grant that is gone carries no calendar id to match on."""
+    cache: dict = {}
+    full = calendar_source(events=[{"summary": "Private salary review"}])
+    build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=full, cache=cache)
+    assert list(cache) == [full.key]
+    removed = AgendaSource.missing(kind="calendar", source="google_calendar",
+                                   source_label="Google Calendar · Household",
+                                   reason="grant_missing", bot_id=full.bot_id, bot_label=full.bot_label)
+    assert removed.key != full.key, "this is why an exact-key delete was not enough"
+    body = build_agenda(now=NOW + timedelta(minutes=1), timezone_name="America/Vancouver",
+                        calendar=removed, cache=cache)
+    assert body["sources"]["calendar"]["status"] == "unavailable"
+    assert not cache, "provider text must not survive the grant it came from"
+    # Re-granting and then failing must not resurrect the pre-revocation reading.
+    again = build_agenda(now=NOW + timedelta(minutes=2), timezone_name="America/Vancouver",
+                         calendar=calendar_source(error=AgendaUnavailable("provider_error", "offline")),
+                         cache=cache)
+    assert again["sources"]["calendar"]["status"] == "unavailable"
+    assert again["sources"]["calendar"]["items"] == []
+
+
 def test_a_grant_that_fails_mid_read_is_unavailable_not_stale():
     cache: dict = {}
     good = calendar_source(events=[{"summary": "Private salary review"}])
@@ -215,6 +237,15 @@ def test_agenda_modules_cannot_import_a_model_path():
         text = (root / name).read_text(encoding="utf-8")
         assert "hutch.engine" not in text and "hutch.runtime" not in text
         assert "from ..engine" not in text and "from ..runtime" not in text
+
+
+def test_the_source_list_bounds_the_provider_calendar_name(client):
+    bot = client.store.create_bot(Bot(name="agenda-assistant"))
+    client.store.set_google_calendar_grant(bot.id, ACCOUNT, "work", "Work\x00\x1b[2JPrimary")
+    listing = client.get("/api/v1/personal/agenda/sources").json()
+    name = listing["calendar"][0]["calendar_name"]
+    assert "\x00" not in name and "\x1b" not in name
+    assert name == "Work [2JPrimary"
 
 
 def test_agenda_reads_do_not_write_to_the_store(store):

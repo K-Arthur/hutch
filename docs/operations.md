@@ -649,7 +649,10 @@ the status write, and both read paths omit alerts whose assistant no longer exis
 Schema v86 adds `notifications` and rebuilds `channel_deliveries` to reference either an inbound event or a
 notification (each row has exactly one). The rebuild copies every existing reply delivery with its channel
 resolved from the inbound event, refuses to run if an orphan delivery exists, and reinstalls the durable
-change triggers; the normal pre-upgrade backup applies.
+change triggers; the normal pre-upgrade backup applies. Schema v87 drops and recreates the three observation
+triggers, because `CREATE TRIGGER IF NOT EXISTS` inside an already-applied migration can never change a live
+trigger body: a database that ran v86 keeps the old bodies until a step of its own replaces them. Dropping a
+trigger loses no row, so no notification is lost or repeated by the repair.
 
 ## Generated documents
 

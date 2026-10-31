@@ -46,7 +46,7 @@ commitments, scheduled occurrences, approvals, real run state, documents and spa
 rows with IANA-zone day boundaries that fail closed on unknown zones; it makes no model call and lists what
 it excludes. See docs/commitments.md and ADR-0025.
 
-Schema v86 adds the owner agenda and notification delivery. `src/hutch/personal/agenda.py` is a pure
+Schema v86 adds the owner agenda and notification delivery; schema v87 reinstalls its triggers so an already-upgraded database gets the corrected bodies. `src/hutch/personal/agenda.py` is a pure
 builder over injected readers: it reads at most one calendar grant and one mailbox grant, returns source
 label, fetch time and a stale marker per source and per item, and reports an unusable grant as a reason
 code rather than an empty day. Adapters in `agenda_sources.py` are the only place that touches grants,

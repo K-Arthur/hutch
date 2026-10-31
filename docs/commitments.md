@@ -165,8 +165,10 @@ there is no exactly-once claim for any external effect.
 Schema v84 adds spaces, space_members, bot_space_grants, commitments,
 commitment_dependencies and commitment_events. Schema v86 adds notifications and rebuilds
 channel_deliveries to reference either an inbound event or a notification, preserving every
-existing reply delivery. Both migrations are additive in effect and do not rewrite existing
-rows; a pre-upgrade SQLite backup is taken by the existing store upgrade path. Bounded:
+existing reply delivery; schema v87 reinstalls the notification triggers so a database that
+already applied v86 receives a corrected trigger body. Both migrations are additive in effect
+and do not rewrite existing rows; a pre-upgrade SQLite backup is taken by the existing store
+upgrade path. Bounded:
 title 200 characters, detail 4000, evidence 2000, at most 20
 dependencies, at most 500 commitments per list page, 25 per assistant list result and
 8 assistant proposals per run.

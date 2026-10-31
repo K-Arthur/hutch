@@ -158,6 +158,18 @@ def _prune(cache: dict[str, dict[str, Any]], now: datetime) -> None:
             cache.pop(key, None)
 
 
+def _evict(cache: dict[str, dict[str, Any]], selected: AgendaSource) -> None:
+    """Remove every snapshot for this assistant and kind.
+
+    The cache key includes the calendar id, and a source whose grant was removed no longer
+    carries one, so deleting by exact key would miss precisely the entry the owner just
+    revoked. Matching the assistant and kind instead keeps that guarantee true.
+    """
+    prefix = f"{selected.kind}|{selected.bot_id}|"
+    for key in [key for key in cache if key.startswith(prefix)]:
+        cache.pop(key, None)
+
+
 def _fallback(selected: AgendaSource, *, kind: str, now: datetime, cache: dict[str, dict[str, Any]],
               reason: str, detail: str) -> dict[str, Any]:
     """A failed refresh shows a recent snapshot as stale, or says the source is unavailable.
@@ -167,7 +179,7 @@ def _fallback(selected: AgendaSource, *, kind: str, now: datetime, cache: dict[s
     decision to stop sharing must take effect immediately, not in an hour.
     """
     if reason in HARD_UNAVAILABLE:
-        cache.pop(selected.key, None)
+        _evict(cache, selected)
         return _empty(kind, "unavailable", reason, detail or REASONS.get(reason, ""), selected)
     _prune(cache, now)
     cached = cache.get(selected.key)
@@ -199,7 +211,7 @@ def _source_result(selected: Optional[AgendaSource], *, kind: str, now: datetime
         return _empty(kind, "not_configured", "not_configured", REASONS["not_configured"])
     if selected.unavailable:
         # A grant that cannot be used discards any snapshot: revoking access is immediate.
-        cache.pop(selected.key, None)
+        _evict(cache, selected)
         return _empty(kind, "unavailable", selected.unavailable,
                       selected.unavailable_detail or REASONS.get(selected.unavailable, ""), selected)
     if selected.fetch is None:

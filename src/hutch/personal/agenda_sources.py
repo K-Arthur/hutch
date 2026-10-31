@@ -136,7 +136,7 @@ def list_sources(store) -> dict[str, list[dict[str, str]]]:
             "bot_label": grant.get("bot_name") or grant["bot_id"],
             "account_id": grant["account_id"],
             "calendar_id": grant["calendar_id"],
-            "calendar_name": grant.get("calendar_name") or "Calendar",
+            "calendar_name": clean(grant.get("calendar_name"), 120) or "Calendar",
             "granted_at": grant.get("granted_at") or "",
         })
     mail: list[dict[str, str]] = []
