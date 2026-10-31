@@ -17,7 +17,9 @@ rather than leaving `use` and `reveal` as two labels on the same act.
 | `b7f5ff2e` | Destination bindings: schema, canonical-origin parser, `resolve_for_use` enforcement, HTTP routes, shared process vault |
 | `520c156a` | `vault.egress.mediate_http` and `safehttp.safe_request`: one request, pinned address, no redirects, scrubbed response |
 | `6ab80702` | `vault_http_request` tool, registry/UI/offline wiring, tool test and real-engine agent-turn test |
-| (this commit) | Documentation and ledger brought in line with the shipped mechanism |
+| `9e04da7d` | The pinned Strict Offline tool contract records the two new host-network tools |
+| `602a08aa` | Documentation and ledger brought in line with the shipped mechanism |
+| `8268c0ec` | Destinations get their own ordered migration; the vault is keyed by `Store` |
 
 ### Checkpoint 4 — now done for one egress shape
 
@@ -43,7 +45,10 @@ Verified:
 - `test_vault_agent_turn.py` (1): the real `Engine`, a scripted runtime that prints the entire tool
   result and claims the injected instruction demanded the key. Run succeeds, request carries the
   right header, service body reaches the model, value is in no table.
-- 344 tests across the vault, migration, netguard, tool and contract suites: all pass.
+- `test_vault_migration.py` (4): a database put back to the previous schema version gains the
+  destinations table on reopen and accepts a binding; the migration is idempotent; the table refuses
+  a malformed origin; a hard delete removes its bindings.
+- 348 tests across the vault, migration, netguard, tool and contract suites: all pass.
 - `npm run check:agent`: all four checks pass.
 
 ### Defects found in this pass's own review and fixed
@@ -58,19 +63,30 @@ Verified:
    unlocking in Settings could not enable a mediated use. Both now use `vault_for(store)`.
 5. The first version of the echo test used the fixture canary as the credential and as the redaction
    marker, so the assertion could not fail. It now uses a distinct token.
+6. The destinations table was created inside `vault.migrate`, which had already shipped as schema
+   v82. A real installation would have kept working until the first bind and then failed with
+   "no such table". It is now its own ordered migration, and `test_vault_migration.py` puts a real
+   database back to the previous version, reopens it, and requires a binding to work.
+7. The vault registry was keyed by database path, so a process that closed a Store and reopened the
+   same path would have got a second book whose unlock state nobody had set. It is now keyed weakly
+   by Store identity: a reopened database starts locked, and a supervised child run has its own
+   locked vault rather than reaching into the parent's memory.
 
 ### Still not done, in priority order
 
 1. **Vault UI.** No page, no onboarding, no screenshots. Binding a destination and granting a bot are
    API calls today; that is a real usability gap and blocks the marketing claim.
-2. **Migrate model keys and ChatGPT tokens** into the vault, with read-back verification before any
+2. **Unlock from a supervised child run.** A process-executed run has its own locked vault, so a
+   mediated use there fails with `VaultLocked`. This needs a deliberate design for handing unlock
+   material to a child, or an owner decision that such runs cannot use the vault.
+3. **Migrate model keys and ChatGPT tokens** into the vault, with read-back verification before any
    file is deleted.
-3. **Reauthentication before reveal.**
-4. **Connector mediation.** Google/Outlook/Notion still read their own credential stores.
-5. **Credential shapes beyond one header**: signed bodies, query-string credentials, OAuth exchanges.
-6. **A live vendor call.** The mediator is proved against an in-process HTTP transport, not a real
+4. **Reauthentication before reveal.**
+5. **Connector mediation.** Google/Outlook/Notion still read their own credential stores.
+6. **Credential shapes beyond one header**: signed bodies, query-string credentials, OAuth exchanges.
+7. **A live vendor call.** The mediator is proved against an in-process HTTP transport, not a real
    third-party API.
-7. **Independent review** of the egress path by someone other than its author.
+8. **Independent review** of the egress path by someone other than its author.
 
 ### Known defect carried over from pass 1
 

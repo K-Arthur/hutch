@@ -49,8 +49,14 @@ credential.
 
 - **Memory.** An unlock costs 128 MiB for the duration of one derivation. On a small VPS with other
   work this is noticeable; it is the price of the KDF and is not tunable downward at runtime.
-- **Concurrency.** One `VaultBook` per process holds the DEK. Two Hutch processes each unlock
-  independently, and locking one does not lock the other.
+- **Concurrency.** One `VaultBook` per `Store` holds the DEK; the dashboard and the run loop in
+  one process share it, so unlocking in Settings enables a mediated use immediately. Two Hutch
+  processes each unlock independently, and locking one does not lock the other.
+- **Supervised child runs.** A bot run executed in the process executor has its own `Store` and
+  therefore its own locked vault. A delegated or strictly-offline child cannot use a parent's
+  unlock state; a mediated use there fails closed with `VaultLocked`. That is the safe
+  direction, and it is a limitation rather than a feature: there is no child-process unlock
+  yet.
 - **Multiple processes over one database.** The vault tables use the existing `BEGIN IMMEDIATE`
   transactions, so writes serialise correctly. Unlock state does not.
 - **Filesystem.** The vault writes no files, so file permissions, symlinks and path traversal do not
@@ -58,7 +64,9 @@ credential.
 
 ## Upgrading
 
-The vault is one additive migration in the existing ordered list. An older Hutch refuses to open a
+The vault is additive migrations in the existing ordered list. The core tables are one entry; the
+destinations table is a second, because the first had already shipped when bindings were added
+and a migration entry runs once per database. An older Hutch refuses to open a
 database that contains it, exactly as it already refuses any newer schema; it will not silently drop
 vault tables. Downgrading therefore requires restoring a pre-upgrade backup, which contains no vault
 data.

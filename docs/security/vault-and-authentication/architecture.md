@@ -267,6 +267,7 @@ vault_secrets     id, scope, category, name, description, current_version, times
 vault_secret_versions  secret_id, version, nonce, ciphertext, key_version, created_at
 vault_grants      secret_id, principal_kind, principal_id, permission, granted_at
 vault_destinations  secret_id, origin (canonical scheme://host[:port]), created_at
+                  (created by `vault.migrate_destinations`, its own ordered entry)
 vault_audit       append-only: at, actor_kind, actor_id, action, secret_id, scope, outcome, reason, destination
 vault_unlock_failures  throttle window per vault
 ```

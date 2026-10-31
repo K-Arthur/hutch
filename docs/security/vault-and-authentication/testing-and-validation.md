@@ -28,12 +28,13 @@ Results, latest run (2026-10-31, second pass), each suite run to completion:
 | `test_vault_egress.py` | 14 | pass |
 | `test_vault_http_tool.py` | 6 | pass |
 | `test_vault_agent_turn.py` | 1 | pass |
+| `test_vault_migration.py` | 4 | pass |
 | `test_migration.py` | 41 | pass |
 | `test_netguard.py` | 100 | pass |
 | `test_tools.py` | 14 | pass |
 | `test_tool_contracts.py` | 11 | pass |
 
-344 tests, all passing. `npm run check:agent`: context hygiene **pass**, tool contracts **pass**
+348 tests, all passing. `npm run check:agent`: context hygiene **pass**, tool contracts **pass**
 (47 registered tools), constitution **pass**, generated agent map **pass**.
 
 ## What the tests exercise
