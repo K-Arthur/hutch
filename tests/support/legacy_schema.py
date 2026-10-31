@@ -8,6 +8,7 @@ TABLE_CREATED_AT = {
     "conversation_questions": 26, "google_calendar_grants": 27, "workspace_settings": 28,
     "workspace_tasks": 29, "workspace_task_checkpoints": 31, "workspace_task_fact_shares": 32,
     "workspace_task_continuations": 34, "memory_fact_shares": 38, "code_handoffs": 39,
+    "code_handoff_receipts": 89,
     "workspace_specialists": 41, "task_templates": 44, "doc_index_chunks": 50, "doc_index_fts": 50,
     "doc_index_generations": 50, "document_versions": 50, "documents": 50, "event_sources": 50,
     "job_steps": 50, "jobs": 50, "source_events": 50,
@@ -53,7 +54,8 @@ def remove_later_conversation_schema(db, legacy_version=0):
                   "job_steps", "jobs", "source_events", "event_sources",
                   "workspace_task_continuations", "workspace_task_fact_shares", "workspace_task_checkpoints",
                   "workspace_tasks", "workspace_specialists", "workspace_settings",
-                  "conversation_questions", "google_calendar_grants", "memory_fact_shares", "code_handoffs",
+                  "conversation_questions", "google_calendar_grants", "memory_fact_shares",
+                  "code_handoff_receipts", "code_handoffs",
                   "task_templates"):
         if TABLE_CREATED_AT.get(table, 10**9) > legacy_version:
             db.execute(f"DROP TABLE IF EXISTS {table}")

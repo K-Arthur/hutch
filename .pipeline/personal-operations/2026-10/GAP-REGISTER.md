@@ -99,6 +99,14 @@ decided (ADR) before more UI assumes single-owner semantics.
 
 ## G02. Coding handoff verification/review gate and worktree lifecycle
 
+**Status 2026-10-31: shipped.** `hutch code verify <id> -- <command>` records an append-only,
+content-free receipt (argv digest, exit code, duration, changed-file count, worktree fingerprint,
+timestamp); `hutch code prune <id>` removes the worktree and branch only after a passing receipt,
+explicit confirmation and a provably dead runner group. The task API exposes the latest state and
+the chat card renders it. Schema v89; tests/test_code_review.py. Remaining: no per-receipt history
+page and no scheduled cleanup policy; verification is an owner-run observation, not a provider-backed
+quality claim.
+
 - **Current state.** Reviewed handoff + pinned worktree + restrictive OpenCode task profile are real and
   tested (`src/hutch/code_handoff.py:291-357,391-449,492-550`; `tests/test_code_handoff.py:204-291`). But the
   owner is told to "review the branch" (`src/hutch/cli.py:246-250`) and no automated check receipt is stored;

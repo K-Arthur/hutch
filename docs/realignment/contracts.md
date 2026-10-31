@@ -354,7 +354,13 @@ Conversation artifact discovery and explicit artifact-share grants are implement
   visible task record stays in `launching`, `running`, `stopping` or `cleanup_incomplete` until process cleanup is checked. Each
   task process group is tied to a boot ID, PID start time, session and process group; reconcile never signals a reused identity.
   The user reviews the retained local branch before applying any changes. OpenCode project-plugin directories fail closed while
-  upstream behavior remains unresolved. This does not enable OpenCode or Pi as Hutch-managed chat runtimes. Live provider sign-in,
+  upstream behavior remains unresolved. `hutch code verify {id} -- <command>` runs one explicit owner command inside the retained
+  worktree (default 900 s, maximum 3600 s; output capped at 64 KiB and never persisted) and appends a content-free receipt:
+  argv digest, exit code, duration, changed-file count, worktree fingerprint and timestamp. The same command on an unchanged tree
+  reuses the passing receipt unless `--rerun` is passed. `hutch code prune {id}` deletes the worktree and branch only after a
+  passing receipt, an interactive or `--yes` confirmation, and a recorded OpenCode process group proven gone; `--discard` permits
+  removing unverified work. Receipts are append-only rows (schema v89) and the task resource exposes the latest verification state.
+  This does not enable OpenCode or Pi as Hutch-managed chat runtimes. Live provider sign-in,
   model execution, permission UX and paid usage are unverified; see the dated [handoff research](../research/opencode-coding-handoff-2026-10-09.md).
 
 ## 4. Frontend acceptance items taken from the evidence ledger

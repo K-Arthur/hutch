@@ -207,3 +207,40 @@ correct and `git log -S last_occurrence -- src/hutch/server/app.py` names
 `ced92681`. The other session's history was not rewritten. Expect the split
 attribution, and prefer an isolated worktree for any further `store.py` work while
 that session is active.
+
+## 2026-10-31, G02: coding handoff verification receipts and worktree pruning
+
+The gap was that `changes_ready` meant only "the coding CLI exited 0 and Git saw files". The
+owner was told to review a branch, no check receipt was stored, and worktrees were retained
+forever with no cleanup path.
+
+### Shipped
+
+| Area | Change |
+|---|---|
+| Schema | `src/hutch/code_review_schema.py` (v89): append-only `code_handoff_receipts` with UPDATE/DELETE refusal triggers and a resource invalidation on insert; registered with the existing one-line import and migration-list entries in `store.py` (file stayed at its 12,593-line frozen baseline). |
+| Verification | `src/hutch/code_review.py`: one explicit argv run inside the retained worktree, no shell and no inference; 900 s default / 3600 s cap; the command's own process group is stopped on timeout; output is capped at 64 KiB and never stored; the receipt holds an argv digest, exit code, duration, changed-file count, content-free worktree fingerprint and timestamp. Identical command + tree reuses the passing receipt unless `--rerun`. |
+| Lifecycle | `src/hutch/code_prune.py` owns deletion; `hutch code verify <id> -- <command>` and `hutch code prune <id>` live in `cli.py`; prune requires a passing receipt, a recorded runner group proven gone, and interactive or `--yes` confirmation; `--discard` is the explicit path for unverified work; the source project folder is never modified. `code reconcile` now shares `runner_state` instead of duplicating the identity logic. |
+| Surfaces | The code-handoff API resource carries `verification`, `pruned_at`, `verify_command` and `prune_command`; the chat card shows the pass/fail state, exit code, changed files and time, or the next command when no receipt exists. |
+
+### Evidence
+
+- `tests/test_code_review.py`: 7 passed. Uses real temporary Git repositories, the real FastAPI
+  app and Store, real worktree creation, a real spawned process group for the live-runner refusal,
+  and the Typer CLI through `CliRunner`. Covers: content-free receipt shape (no output column),
+  idempotent reuse, new receipt after an edit, failed check blocking prune, `--discard`, missing
+  receipt refusal, confirmation refusal, live runner refusal for both commands, 64 KiB output cap,
+  1 s timeout, append-only UPDATE/DELETE triggers, API resource fields, and a full CLI verify+prune
+  journey that removes the worktree and branch while the source project stays unchanged.
+- Adjacent regression: `tests/test_code_handoff.py`, `tests/test_migration.py`,
+  `tests/test_bot_deletion_schema.py` -> 63 passed.
+- Frozen-file budgets after the change: `store.py` 12,593/12,593; `cli.py` 2,737/2,758;
+  `server/app.py` 7,414/7,461; `static/app.js` 14,397/14,532.
+- Deliberately not done: no live OpenCode provider/model run (no configured route in this
+  environment), no per-receipt history page, no automatic/scheduled prune, and no claim that a
+  passing owner command is a Hutch sandbox or a provider-backed quality guarantee.
+- Concurrent work: the shared worktree still holds another session's connectors/skills changes in
+  `docs/computer-use.md`, `src/hutch/skills.py`, `src/hutch/integrations/mcp/*`,
+  `src/hutch/server/skills_api.py` and related static/tests. None of it was staged, reverted or
+  formatted this pass. `src/hutch/server/static/index.html` remained dirty from that session; this
+  slice touched only `static/app.js`.

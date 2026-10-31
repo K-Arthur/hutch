@@ -5684,6 +5684,9 @@ function codeHandoffCardHtml(task) {
       ? `<p class="hint">This handoff is owned by its local OpenCode process. If the terminal or host stopped, run <code>${esc(task.reconcile_command)}</code> on the Linux Hutch host to check its recorded process identity.</p>`
       : `<p class="code-handoff-summary">${esc(task.summary || "No completion details were recorded.")}</p>
          ${task.branch_name ? `<p class="hint">Review branch <code>${esc(task.branch_name)}</code>${task.changed_files ? ` · ${Number(task.changed_files).toLocaleString()} changed files` : ""}. Changes remain in the isolated worktree; they were not applied to the configured project.</p>` : ""}
+         ${task.pruned_at ? `<p class="hint">Worktree and branch pruned · ${esc(new Date(task.pruned_at).toLocaleString())}.</p>`
+           : task.verification ? `<p class="hint">${task.verification.state === "verified" ? "Owner check passed" : "Owner check failed"} · exit ${Number(task.verification.exit_code)} · ${Number(task.verification.changed_files).toLocaleString()} changed file${Number(task.verification.changed_files) === 1 ? "" : "s"} · ${esc(new Date(task.verification.created_at).toLocaleString())}.${task.verification.state === "verified" ? "" : ` Review the worktree, then run <code>${esc(task.verify_command)}</code> again.`}</p>`
+           : `<p class="hint">No owner verification yet. Run <code>${esc(task.verify_command)}</code> in the retained worktree, then <code>${esc(task.prune_command)}</code> when you no longer need it.</p>`}
          ${task.branch_name ? `<p class="hint">The CLI printed the local worktree path at exit.</p>` : ""}`;
   return `<section class="code-handoff-card" data-code-handoff="${esc(task.id)}" aria-label="OpenCode task for ${esc(task.project_name)}">
     <div class="code-handoff-heading"><strong>OpenCode coding task · ${esc(task.project_name)}</strong>${statusChip(task.status, statusLabel)}</div>

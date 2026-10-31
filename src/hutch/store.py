@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from .config import hutchConfig, get_config
-from . import action_receipts, admission_gate, bot_deletion_schema, bot_lifecycle, durable_changes, fact_purge_schema, mcp_schema, notification_schema, personal_schema, vault
+from . import action_receipts, admission_gate, bot_deletion_schema, bot_lifecycle, code_review_schema, durable_changes, fact_purge_schema, mcp_schema, notification_schema, personal_schema, vault
 from .integrations.grants import integration_tool_granted, integration_tool_names
 from .workflow import usage_budget as workflow_usage_budget
 from .money import format_usd
@@ -2450,7 +2450,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76, _migrate_77, _migrate_78, _migrate_79, _migrate_80, _migrate_81, vault.migrate, fact_purge_schema.migrate, bot_deletion_schema.migrate, personal_schema.migrate, mcp_schema.migrate, notification_schema.migrate, notification_schema.repair]
+               _migrate_55, _migrate_56, _migrate_57, _migrate_58, _migrate_59, _migrate_60, _migrate_61, _migrate_62, _migrate_63, _migrate_64, _migrate_65, _migrate_66, _migrate_67, _migrate_68, _migrate_69, _migrate_70, _migrate_71, _migrate_72, _migrate_73, _migrate_74, _migrate_75, _migrate_76, _migrate_77, _migrate_78, _migrate_79, _migrate_80, _migrate_81, vault.migrate, fact_purge_schema.migrate, bot_deletion_schema.migrate, personal_schema.migrate, mcp_schema.migrate, notification_schema.migrate, notification_schema.repair, code_review_schema.migrate]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 EVENT_OUTBOX_SCHEMA_VERSION = 71
 

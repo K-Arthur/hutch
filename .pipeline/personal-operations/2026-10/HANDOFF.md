@@ -73,21 +73,20 @@ browser tests; a conflict is possible in app.js and index.html.
 
 ## Next priorities (from GAP-REGISTER, revised 2026-10-31)
 
-Done since this handoff: G01 (agenda), G05 (notifications), and the first G06 slice (last-run outcome
-and attention on Scheduled work). Still open, in order:
+Done since this handoff: G01 (agenda), G05 (notifications), the first G06 slice (last-run outcome
+and attention on Scheduled work), and G02 (verification receipts and worktree pruning, schema v89;
+see the RUNLOG section dated 2026-10-31). Still open, in order:
 
-1. G02 coding handoff verification gate and worktree lifecycle (`hutch code verify|prune`) with
-   content-free receipts. Needs one registration line in `src/hutch/store.py` for a new migration
-   module; coordinate before editing that file.
-2. G03 automation revision journal (sub-slice 1 only), then the approval checkpoint, then bounded
-   conditions. Also needs a `store.py` registration line.
-3. G04 inbound webhook/event triggers admitted through the existing admission policy. Also needs a
+1. G03 automation revision journal (sub-slice 1 only), then the approval checkpoint, then bounded
+   conditions. Needs a `store.py` registration line.
+2. G04 inbound webhook/event triggers admitted through the existing admission policy. Also needs a
    `store.py` registration line.
-4. G06 remainder: a "needs attention" filter on `#/schedules` and per-routine failure history beyond
+3. G06 remainder: a "needs attention" filter on `#/schedules` and per-routine failure history beyond
    the last 20 windows (the last-run outcome and exit reason are already shipped).
-5. G08 commitment-to-calendar reminder; G09 mail/calendar item to a proposed commitment with
+4. G08 commitment-to-calendar reminder; G09 mail/calendar item to a proposed commitment with
    server-derived provenance.
-6. G07 an ADR for real multi-participant authentication before any family-account promise.
+5. G07 an ADR for real multi-participant authentication before any family-account promise.
+6. G02 remainder: a per-receipt history view and an explicit retention policy for retained worktrees.
 
 ## Concurrent integration log (corrected timeline)
 

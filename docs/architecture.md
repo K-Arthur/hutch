@@ -122,6 +122,10 @@ The code-handoff API validates and records an immutable review; it does not laun
 local OpenCode CLI from `hutch code run` in an interactive Linux terminal. That terminal path uses the saved commit and a separate
 Git worktree. OpenCode command approvals, account usage and shell effects stay outside Hutch's executor, sandbox and usage ledger.
 The OpenCode Bot runtime is enabled through an owned private server; see ADR-0007. Pi remains disabled. The reviewed coding handoff remains a separate interactive contract; see the [reviewed handoff contract](realignment/contracts.md#reviewed-opencode-coding-handoff-experimental-schema-v39).
+After the owner-run CLI exits, `hutch code verify` runs one explicit check command in the retained worktree and appends a
+content-free receipt (argv digest, exit code, duration, changed-file count, tree fingerprint, timestamp). `hutch code prune`
+removes the worktree and branch only after a passing receipt, explicit confirmation and a provably dead runner group. The
+receipt is an observation by the owner's command, not a Hutch sandbox or a provider-backed quality claim.
 
 ## State layout
 

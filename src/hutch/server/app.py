@@ -564,6 +564,17 @@ class CodeHandoffCreate(BaseModel):
     task_brief: str = Field(min_length=1, max_length=20_000)
 
 
+class CodeHandoffVerification(BaseModel):
+    state: Literal["verified", "verification_failed"]
+    exit_code: int
+    duration_ms: int
+    changed_files: int
+    created_at: str
+    timed_out: bool
+    output_truncated: bool
+    argv_digest: str
+
+
 class CodeHandoffResource(BaseModel):
     id: str
     conversation_id: str
@@ -587,11 +598,16 @@ class CodeHandoffResource(BaseModel):
     error: str = ""
     launch_command: str
     reconcile_command: str
+    verify_command: str
+    prune_command: str
+    verification: Optional[CodeHandoffVerification] = None
+    pruned_at: Optional[str] = None
     created_at: str
     updated_at: str
 
 
-def _code_handoff_resource(row: dict[str, Any]) -> dict[str, Any]:
+def _code_handoff_resource(row: dict[str, Any], receipts: Optional[dict[str, Any]] = None
+                           ) -> dict[str, Any]:
     labels = {
         "prepared": "Ready to launch locally",
         "launching": "Preparing OpenCode",
@@ -605,6 +621,17 @@ def _code_handoff_resource(row: dict[str, Any]) -> dict[str, Any]:
         "failed": "OpenCode task failed; worktree retained",
     }
     handoff_id = str(row["id"])
+    latest = (receipts or {}).get("verification")
+    verification = None
+    if latest is not None:
+        verification = {
+            "state": "verified" if int(latest["exit_code"]) == 0 and not latest["timed_out"]
+                     else "verification_failed",
+            "exit_code": int(latest["exit_code"]), "duration_ms": int(latest["duration_ms"]),
+            "changed_files": int(latest["changed_files"]), "created_at": latest["created_at"],
+            "timed_out": bool(latest["timed_out"]), "output_truncated": bool(latest["output_truncated"]),
+            "argv_digest": latest["argv_digest"],
+        }
     return {
         "id": handoff_id,
         "conversation_id": row["conversation_id"],
@@ -627,6 +654,10 @@ def _code_handoff_resource(row: dict[str, Any]) -> dict[str, Any]:
         "error": row.get("error", ""),
         "launch_command": f"hutch code run {handoff_id}",
         "reconcile_command": f"hutch code reconcile {handoff_id}",
+        "verify_command": f"hutch code verify {handoff_id} -- <command>",
+        "prune_command": f"hutch code prune {handoff_id}",
+        "verification": verification,
+        "pruned_at": (receipts or {}).get("pruned_at"),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
@@ -4134,12 +4165,18 @@ def create_app() -> FastAPI:
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
 
+    def _handoff_resource(row: dict[str, Any]) -> dict[str, Any]:
+        from ..code_review import receipt_map
+        return _code_handoff_resource(row, receipt_map(store, [str(row["id"])]).get(str(row["id"])))
+
     @app.get("/api/v1/code-handoffs", response_model=list[CodeHandoffResource])
     def list_code_handoffs(conversation_id: str, limit: int = 100) -> list[dict[str, Any]]:
         if store.get_conversation(conversation_id) is None:
             raise HTTPException(404, "No such conversation")
-        return [_code_handoff_resource(row) for row in
-                store.list_code_handoffs(conversation_id, limit=max(1, min(limit, 100)))]
+        rows = store.list_code_handoffs(conversation_id, limit=max(1, min(limit, 100)))
+        from ..code_review import receipt_map
+        receipts = receipt_map(store, [str(row["id"]) for row in rows])
+        return [_code_handoff_resource(row, receipts.get(str(row["id"]))) for row in rows]
 
     @app.post("/api/v1/code-handoffs", response_model=CodeHandoffResource)
     def create_code_handoff(body: CodeHandoffCreate, request: Request, response: Response) -> dict[str, Any]:
@@ -4152,7 +4189,7 @@ def create_app() -> FastAPI:
             raise HTTPException(409, str(exc)) from None
         if replay is not None:
             response.status_code = 200
-            return _code_handoff_resource(replay)
+            return _handoff_resource(replay)
 
         conversation = store.get_conversation(body.conversation_id)
         if conversation is None:
@@ -4193,7 +4230,7 @@ def create_app() -> FastAPI:
         row = store.code_handoff(handoff_id)
         if row is None:
             raise HTTPException(500, "The coding task was prepared but its durable record could not be loaded")
-        return _code_handoff_resource(row)
+        return _handoff_resource(row)
 
     def _checked_workdir(raw: str) -> str:
         from ..workdir import validate_workdir

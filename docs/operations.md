@@ -361,6 +361,33 @@ has exited. Reconcile never sends a signal; if boot/PID identity or process-grou
 task active for review. Task records and immutable project identity are stored in schema v39; normal SQLite backup and restore
 retain them. Restoring state does not copy or remove the Git worktree, which must be managed separately.
 
+### Verifying and pruning a retained task
+
+"Changes ready" only means the coding CLI exited and Git saw files. Run an explicit check yourself:
+
+```sh
+hutch code verify <task-id> -- pytest -q
+```
+
+Hutch runs exactly the argv after `--` inside the retained worktree, with no shell and no command inferred from the repository.
+The default timeout is 900 seconds (maximum 3600); on timeout Hutch stops that command's whole process group. Captured output
+is capped at 64 KiB and printed to this terminal, never stored. The receipt records a digest of the argv, the exit code, the
+duration, the changed-file count, a content-free worktree fingerprint and the time. Re-running the same command on an unchanged
+tree reuses the passing receipt; pass `--rerun` to run it again. A failed or timed-out check records `verification_failed` and
+does not change the task's own status.
+
+Pruning is deliberate:
+
+```sh
+hutch code prune <task-id>
+```
+
+It requires an interactive confirmation (or `--yes` in a script), a recorded passing check, and a recorded OpenCode process
+group that is no longer present. It removes the isolated worktree and its `hutch/code/...` branch; uncommitted changes are
+discarded. `--discard` allows pruning when no check passed or the last check failed. If Git refuses to delete the branch
+because another worktree has it checked out, Hutch keeps it and says so. The original project folder is never modified.
+Receipts are append-only rows in the task database (schema v89) and are shown on the chat task card.
+
 The local command is not a remote API worker. Launching a coding task may consume the connected provider's quota; Hutch does not
 account for this usage. The version/help and saved-connection checks make no model call. OpenCode keeps provider secrets in its
 SQLite database at `opencode-profile/opencode.db` under Hutch's state directory. That separate database is not included in

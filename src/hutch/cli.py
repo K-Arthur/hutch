@@ -277,10 +277,83 @@ def code_run(handoff_id: str = typer.Argument(..., help="Reviewed code task ID f
         store.close()
 
 
+@code_app.command("verify")
+def code_verify(
+    handoff_id: str = typer.Argument(..., help="Coding task ID shown in its chat card"),
+    argv: Optional[list[str]] = typer.Argument(None, help="Check command and arguments after `--`"),
+    timeout: int = typer.Option(900, "--timeout", help="Seconds before the whole check is stopped"),
+    rerun: bool = typer.Option(False, "--rerun", help="Run even when this command already passed on the same tree"),
+) -> None:
+    """Run one explicit check in the retained worktree and record a content-free receipt."""
+    from .code_review import CodeReviewError, verify_handoff
+
+    store = _store()
+    try:
+        result = verify_handoff(store, handoff_id, list(argv or []), state_dir=get_config().state_dir,
+                                timeout_seconds=timeout, rerun=rerun)
+    except CodeReviewError as exc:
+        err.print(str(exc), style="red", markup=False)
+        raise typer.Exit(1) from None
+    finally:
+        store.close()
+    passed = int(result["exit_code"]) == 0 and not result["timed_out"]
+    console.print(Panel.fit(
+        f"Task: {handoff_id}\nResult: {'verified' if passed else 'verification failed'}\n"
+        f"Exit: {result['exit_code']} · {result['duration_ms']} ms\n"
+        f"Changed files: {result['changed_files']}\nReceipt: {result['id']}",
+        title="Coding task verification"))
+    if result["reused"]:
+        console.print("No command was run: this exact command already passed on the same worktree. "
+                      "Use --rerun to run it again.")
+    if result["output"]:
+        console.print(result["output"].rstrip(), markup=False)
+    if result["output_truncated"]:
+        console.print("The command output was truncated at 64 KiB and was not stored.", style="yellow")
+    raise typer.Exit(0 if passed else 1)
+
+
+@code_app.command("prune")
+def code_prune(
+    handoff_id: str = typer.Argument(..., help="Coding task ID shown in its chat card"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Confirm deleting the retained worktree and branch"),
+    discard: bool = typer.Option(False, "--discard", help="Allow pruning when no check passed"),
+) -> None:
+    """Delete the retained worktree and branch after confirmation and a verified receipt."""
+    import sys
+
+    from .code_prune import prune_handoff
+    from .code_review import CodeReviewError
+
+    if not yes:
+        if not sys.stdin.isatty():
+            err.print("Refusing to delete uncommitted work without confirmation; pass --yes.",
+                      style="red", markup=False)
+            raise typer.Exit(2)
+        if not typer.confirm(f"Delete the retained worktree and branch for {handoff_id}? "
+                             "Uncommitted changes will be lost."):
+            console.print("Nothing was removed.")
+            return
+    store = _store()
+    try:
+        result = prune_handoff(store, handoff_id, state_dir=get_config().state_dir,
+                               confirmed=True, discard=discard)
+    except CodeReviewError as exc:
+        err.print(str(exc), style="red", markup=False)
+        raise typer.Exit(1) from None
+    finally:
+        store.close()
+    console.print(f"Removed the retained worktree for {handoff_id}. Receipt: {result['id']}")
+    if not result["branch_removed"]:
+        err.print("The branch was kept; Git reported it as still in use or refused to delete it.",
+                  style="yellow", markup=False)
+    if result["warning"]:
+        err.print(result["warning"], style="yellow", markup=False)
+
+
 @code_app.command("reconcile")
 def code_reconcile(handoff_id: str = typer.Argument(..., help="Coding task ID shown in its chat card")) -> None:
     """Mark a task interrupted only when its exact saved OpenCode process identity is gone."""
-    from . import procguard
+    from .code_review import runner_state
 
     store = _store()
     try:
@@ -296,16 +369,14 @@ def code_reconcile(handoff_id: str = typer.Argument(..., help="Coding task ID sh
                 or not task["runner_session"]:
             console.print("No complete process identity was saved. The task stays visible for operator review.")
             return
-        same_boot = procguard.boot_id() == task["runner_boot_id"]
-        current = procguard.identity(int(task["runner_pid"])) if same_boot else None
-        exact_leader = (current is not None and current.starttime == int(task["runner_starttime"])
-                        and current.pgrp == int(task["runner_pid"])
-                        and current.session == int(task["runner_session"]))
-        group_members = (procguard.unverified_group(int(task["runner_pid"]),
-                                                   session_id=int(task["runner_session"])) if same_boot else [])
-        if exact_leader or group_members:
-            console.print("The recorded OpenCode process group is still present or cannot be safely distinguished. "
+        state = runner_state(task)
+        if state == "active":
+            console.print("The recorded OpenCode process group is still present. "
                           "No process was signalled and the task stays active.")
+            return
+        if state == "unknown":
+            console.print("No complete process identity was saved, or this host restarted. "
+                          "The task stays visible for operator review.")
             return
         store.interrupt_code_handoff(handoff_id,
                                      summary="The recorded OpenCode process group is gone; the isolated worktree is retained for review.")
