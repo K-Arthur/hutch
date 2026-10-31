@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from ..skills import MAX_SKILLS_PER_BOT, SkillError, SkillRegistry
+from ..skill_update import compare_packages
 
 
 class SkillInstallRequest(BaseModel):
@@ -43,6 +44,12 @@ def install_skills_routes(app: FastAPI, store, config) -> None:
             for bot in store.list_bots() if name in (bot.skills or [])
         ]
         detail["limits"] = {"max_skills_per_bot": MAX_SKILLS_PER_BOT}
+        # A staged update is a write path. Say what applying it would change, not just that a
+        # different hash is waiting: new requirements are the difference between reviewing and
+        # rubber-stamping.
+        staged = detail.get("staged_update") or {}
+        if staged.get("path"):
+            detail["staged_changes"] = compare_packages(detail.get("directory", ""), staged["path"])
         return detail
 
     @app.post("/api/v1/skills/install", status_code=201)
