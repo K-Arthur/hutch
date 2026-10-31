@@ -23,7 +23,8 @@ OLLAMA_PORT = 11434
 #: The only host an AMBIENT key (one picked up from the environment) may be sent to, per provider. A key belongs to
 #: the service that issued it: pointing a bot at a custom or local URL must never hand it the OpenAI or Anthropic key.
 #: A Connection (providers/connection.py) names its own key and endpoint on purpose and is not filtered here.
-OFFICIAL_HOSTS = {"openai": "api.openai.com", "anthropic": "api.anthropic.com"}
+OFFICIAL_HOSTS = {"openai": "api.openai.com", "anthropic": "api.anthropic.com",
+                  "google": "generativelanguage.googleapis.com"}
 
 
 def reject_endpoint_credentials(url: str) -> str:
@@ -51,7 +52,8 @@ def is_official_endpoint(provider: str, url: Optional[str]) -> bool:
 
 def ambient_key(provider: str, url: Optional[str], env) -> tuple[str, str]:
     """(key, hint): the environment key for ``provider`` if it may be sent to ``url``, else ("", why it was withheld)."""
-    name = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}.get(provider)
+    name = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY",
+            "google": "GEMINI_API_KEY"}.get(provider)
     key = env.get(name, "") if name else ""
     if not key:
         return "", ""
@@ -119,6 +121,8 @@ def default_endpoint(provider: str) -> str:
         return "https://api.anthropic.com"
     if provider == "openai":
         return "https://api.openai.com/v1"
+    if provider == "google":
+        return "https://generativelanguage.googleapis.com/v1beta"
     return _OFFLINE_DEFAULTS.get(provider, "")
 
 
@@ -271,6 +275,13 @@ def make_provider(provider: str, base_url: Optional[str] = None, env: Optional[d
         if not key:
             key, hint = ambient_key("openai", url, env)
         return OpenAICompatProvider(url, key, provider_name="openai-compatible", auth_hint=hint)
+    if provider == "google":
+        from .gemini import GeminiProvider
+        url = base_url or default_endpoint("google")
+        key, hint = ambient_key("google", url, env)
+        p = GeminiProvider(api_key=key, base_url=url)
+        p.auth_hint = hint
+        return p
     if provider in PRESET_URLS:
         url = base_url or PRESET_URLS[provider]
         key, hint = ambient_key("openai", url, env) if provider == "openai" else ("", "")

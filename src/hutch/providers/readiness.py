@@ -29,7 +29,19 @@ STATES = (
 )
 
 #: Ambient (environment) credentials are accepted only for providers whose own official host is used.
-_AMBIENT_VARS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
+_AMBIENT_VARS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "google": "GEMINI_API_KEY"}
+
+
+def _provider_accounts(book: ConnectionBook, provider_id: str, catalog) -> list[str]:
+    """Configured connection names that resolve to ``provider_id`` (never guessed from a name alone)."""
+    names: list[str] = []
+    for name in book.names():
+        try:
+            if account_profile(book, name, catalog).provider_id == provider_id:
+                names.append(name)
+        except Exception:
+            continue
+    return sorted(names)
 
 
 @dataclass(frozen=True)
@@ -106,8 +118,20 @@ def route_readiness(book: ConnectionBook, spec: str, *, catalog=None,
                      "Account configuration is complete, but no live request or evidence has verified this "
                      "model on this route in this build.",
                      "Exercise the route through a normal Hutch run; a successful run records tool evidence.")
-    if provider_id in _AMBIENT_VARS:
-        variable = _AMBIENT_VARS[provider_id]
+    variable = _AMBIENT_VARS.get(provider_id, "")
+    accounts = _provider_accounts(book, provider_id, catalog)
+    if accounts:
+        # The spec names the provider, not the account. Hutch can say which accounts exist and what a
+        # resolving spec looks like, but choosing one would silently decide who pays.
+        names = ", ".join(accounts)
+        ambient = f" An ambient {variable} is also set for the official host." if variable and env.get(variable) else ""
+        return _make("needs_configuration", subject, "model",
+                     f"This provider has {len(accounts)} configured account(s) ({names}), but the spec names the "
+                     f"provider rather than an account, so Hutch cannot say which account and billing source would "
+                     f"pay.{ambient}",
+                     f"Name the account in the spec, for example {accounts[0]}/{model or '<model>'}. Hutch does not "
+                     "choose an account for you.")
+    if variable:
         if env.get(variable):
             return _make("capability_unverified", subject, "model",
                          "An ambient " + variable + " is present for the official host. Model capability is unverified.",

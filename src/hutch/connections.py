@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 WINDOWS = {"5h": 5 * 3600, "day": 24 * 3600, "week": 7 * 24 * 3600, "month": 30 * 24 * 3600}
-PROTOCOLS = ("openai-chat", "anthropic")
+PROTOCOLS = ("openai-chat", "anthropic", "gemini")
 UNSUPPORTED_PROTOCOLS = ("openai-responses",)
 BILLING = ("per_token", "subscription", "free")
 RESERVED = {"ollama", "openai", "anthropic", "lmstudio", "llamacpp", "llama.cpp", "vllm", "mock",
@@ -403,7 +403,7 @@ class ConnectionBook:
         if name not in rows:
             raise KeyError(name)
         if protocol in UNSUPPORTED_PROTOCOLS:
-            raise ValueError(f"protocol '{protocol}' is not supported yet (use openai-chat or anthropic)")
+            raise ValueError(f"protocol '{protocol}' is not supported yet (use openai-chat, anthropic or gemini)")
         mp = dict(rows[name].get("model_protocols") or {})
         mp[model] = protocol
         return self.update(name, model_protocols=mp)

@@ -403,7 +403,9 @@ research-tracked provider list. Claims are deliberately split: the shipped list 
 exist in the product; the research list is labelled as a research catalogue, not a support claim, and
 names blocked and retired examples. No vendor marks are used in this section and no partnership is
 implied. The two owner-authorized DeepSeek text routes are called out with their live-verified date;
-nothing else is claimed as live-verified. The page was rebuilt from its CSS sources
+nothing else is claimed as live-verified. The Gemini API-key chat route is listed as shipped but
+protocol-tested, because its adapter is covered by contract tests against the published API schema and
+no live Gemini key has exercised it. The page was rebuilt from its CSS sources
 and captured at the five review widths; see the provider research package and
 docs/realignment/visual-validation.md for the evidence.
 
@@ -413,5 +415,6 @@ The site now lists the DeepSeek direct API route among shipped routes with an ex
 The underlying evidence is two owner-authorized real text requests: DeepSeek direct through the built-in
 runtime and the managed OpenCode runtime with a DeepSeek model. Only text generation was exercised; the
 site does not claim tool, streaming, vision, audio, video, music or search verification, and every other
-provider remains research-tracked or blocked. The OpenCode Go attempt surfaced an expired provider key and
+provider remains research-tracked or blocked. The 2026-10-31 Gemini adapter is the first route since
+then whose claim is contract-tested rather than live-verified, and the site labels it that way. The OpenCode Go attempt surfaced an expired provider key and
 is recorded as a failure, not a success.

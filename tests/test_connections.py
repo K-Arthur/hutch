@@ -87,7 +87,7 @@ def test_templates_carry_the_endpoints_and_requirements_found_in_the_vendor_docs
 def test_every_template_builds_into_a_valid_connection(book):
     for name in book.templates():
         c = book.add(name, name=f"t-{name}", base_url="https://example.test/v1" if name.startswith("custom") else None)
-        assert c.protocol in ("openai-chat", "anthropic") and c.user_agent.startswith("hutch/")
+        assert c.protocol in ("openai-chat", "anthropic", "gemini") and c.user_agent.startswith("hutch/")
 
 
 # ============================================================ book: add / update / validate

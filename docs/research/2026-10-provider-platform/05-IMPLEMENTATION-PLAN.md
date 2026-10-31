@@ -39,3 +39,25 @@ reordered if research changes the risk picture.
   state, but enabling a CLI executor requires a permission/usage contract that does not exist yet.
 - Video/music/speech provider adapters without a verifiable job contract; media research is recorded
   and existing job/storage interfaces are audited instead.
+
+## Slice status (2026-10-31)
+
+| Slice | Status | Evidence |
+|---|---|---|
+| S0 | done | this package plus `scripts/audit_provider_research.py` |
+| S1 | done | `src/hutch/providers/catalog.py`, `src/hutch/data/providers.json`, `tests/test_provider_catalog.py` |
+| S2 | done | `src/hutch/providers/accounts.py`, connections metadata, `tests/test_provider_accounts.py` |
+| S3 | done | `src/hutch/providers/capabilities.py`, `tests/test_provider_capabilities.py` |
+| S4 | done | `src/hutch/providers/readiness.py`, `tests/test_provider_readiness.py` |
+| S5 | done | `src/hutch/runtime/registry.py`, `src/hutch/providers/discovery.py` |
+| S6 | done for Gemini only | `src/hutch/providers/gemini.py` (transport), `src/hutch/providers/gemini_wire.py` (conversion), `tests/test_provider_gemini.py` (29 tests), wired through `connections.py`, `providers/connection.py`, `providers/registry.py`, `toolcalling/profiles.py`, `toolcalling/profiles_routes.py`, `runtime/ladder.py`, `data/connections.json`, `data/providers.json`, `data/compat.json` |
+| S7 | done | providers page/API and model readiness surfaces |
+| S8 | done | `artifacts/visual/` five-viewport captures from the 2026-10-30 run |
+| S9 | partial | ADR-0026 and the docs updates landed; this addendum covers the Gemini route |
+| S10 | done | website provider section and `docs/marketing-site.md` |
+| S11 | done for the 2026-10-30 delivery | see the final-integration section of the validation ledger |
+
+S6 remains open for every other protocol: Claude CLI/Gemini CLI/Codex executors, provider-native
+search, and media/speech/video adapters are still documented rather than implemented. The next slice
+that a new protocol unlocks should be chosen from live credential availability, because an adapter that
+cannot be exercised is only contract-tested code.

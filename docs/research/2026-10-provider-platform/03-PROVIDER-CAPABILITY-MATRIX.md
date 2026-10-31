@@ -25,7 +25,7 @@ How to read the columns:
 | arcee | vendor | chat | openai-chat | api-key [per_token; documented] | documented | 02-hosted | not live-verified |
 | cohere | vendor | chat, embeddings | custom | api-key [per_token; documented] | documented | 02-hosted | not live-verified |
 | deepseek | vendor | chat, tools | openai-chat, anthropic | api-key [per_token; implemented] | implemented | 02-hosted | live-verified 2026-10-30 (text; built-in runtime; deepseek-flash) |
-| google | vendor | chat, images, video, speech, transcription, search, grounding, tools, coding_cli | gemini | api-key [per_token; documented]; oauth-consumer [unknown; blocked] | documented | 01-core | not live-verified |
+| google | vendor | chat, images, video, speech, transcription, search, grounding, tools, coding_cli | gemini | api-key [per_token; implemented]; oauth-consumer [unknown; blocked] | implemented-unverified | 01-core | not live-verified |
 | minimax | vendor | chat, images, image_editing, video, music, speech, transcription | openai-chat, anthropic, custom | api-key [per_token; documented]; coding-plan-oauth [subscription; documented] | documented | 01-core | not live-verified |
 | mistral | vendor | chat, embeddings, code_execution | openai-chat | api-key [per_token; documented] | documented | 02-hosted | not live-verified |
 | moonshot | vendor | chat, tools, coding_cli | openai-chat, anthropic | api-key [per_token; documented]; kimi-coding-key [subscription; documented] | documented | 01-core | not live-verified |

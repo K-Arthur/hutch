@@ -29,9 +29,12 @@ import hashlib
 import re
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Optional
-from urllib.parse import urlsplit
 
 from .contracts import canonical_json
+#: Route classification lives in its own module and is re-exported here for existing importers.
+from .profiles_routes import (GOOGLE_CONSTRAINED_DEFAULT, GOOGLE_EVIDENCE, GOOGLE_NOTES,  # noqa: F401
+                              GOOGLE_OBSERVED_ON, GOOGLE_PARSER_ID, GOOGLE_PROTOCOL,
+                              classify_endpoint, protocol_for_provider)
 
 _EVIDENCE_STATES = ("documented", "advertised", "probed", "observed", "stale", "unsupported", "unknown")
 
@@ -148,35 +151,6 @@ class ModelCapabilityProfile:
 
 
 # ------------------------------------------------------------------ route mapping
-
-def protocol_for_provider(provider: str) -> str:
-    provider = (provider or "").strip().lower()
-    if provider == "anthropic":
-        return "anthropic-messages"
-    if provider == "ollama":
-        return "ollama-native"
-    if provider == "chatgpt":
-        return "openai-responses"
-    return "openai-chat"
-
-
-def classify_endpoint(endpoint: Optional[str]) -> str:
-    """local | official | custom | unknown - by exact authority, not a lookalike name."""
-    if not endpoint:
-        return "unknown"
-    try:
-        parts = urlsplit(endpoint.strip())
-    except ValueError:
-        return "unknown"
-    host = (parts.hostname or "").lower()
-    if not host:
-        return "unknown"
-    if host in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
-        return "local"
-    if host in ("api.openai.com", "api.anthropic.com"):
-        return "official"
-    return "custom"
-
 
 def _p(state: str, detail: str, source: str = "") -> Evidence:
     return Evidence(state=state, detail=detail, source=source, observed_on=_CHECKED)
@@ -304,12 +278,18 @@ _KNOWN: dict[tuple[str, str], dict[str, Any]] = {
 }
 
 _KNOWN[("llama.cpp", "*")] = _KNOWN[("llamacpp", "*")]
+#: The documented Gemini generateContent route; rows are data in profiles_routes.py.
+_KNOWN[("google", "*")] = {**{key: Evidence(state=row[0], detail=row[1], source=row[2],
+                                          observed_on=GOOGLE_OBSERVED_ON)
+                             for key, row in GOOGLE_EVIDENCE.items()}, "notes": GOOGLE_NOTES}
+
 
 _PROTOCOL_DEFAULT_CONSTRAINED = {
     "openai-chat": ("unknown", "response_format"),
     "anthropic-messages": ("unsupported", ""),
     "ollama-native": ("unknown", "format_field"),
     "openai-responses": ("unsupported", ""),
+    GOOGLE_PROTOCOL: GOOGLE_CONSTRAINED_DEFAULT,
     "prompt-text": ("unsupported", ""),
 }
 
@@ -381,7 +361,8 @@ def resolve_profile(*, provider: str, endpoint: str = "", model: str = "", revis
     parser_id = {"ollama-native": "hutch.ollama-tool-args.strictjson-v1",
                  "openai-chat": "hutch.openai-tool-args.strictjson-v1",
                  "openai-responses": "hutch.responses-tool-args.strictjson-v1",
-                 "anthropic-messages": "hutch.anthropic-tool-args.strictjson-v1"}.get(
+                 "anthropic-messages": "hutch.anthropic-tool-args.strictjson-v1",
+                 GOOGLE_PROTOCOL: GOOGLE_PARSER_ID}.get(
                      protocol, f"hutch.{protocol}.strictjson-v1")
     raw_modalities = getattr(metadata, "capabilities", None) if metadata is not None else None
     modality_aliases = {"completion": "text", "vision": "image", "audio": "audio",

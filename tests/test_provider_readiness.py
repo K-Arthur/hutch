@@ -104,3 +104,24 @@ def test_a_saved_connection_named_opencode_is_judged_as_a_connection(book, monke
     book.set_key("opencode", "sk-unit-test-placeholder")
     result = route_readiness(book, OPENCODE_ROUTE)
     assert result.state == "capability_unverified" and "not found" not in result.detail
+
+
+# A provider spec names the provider, not the account. When an account (or an account plus an ambient key)
+# exists, saying "no named connection provides this provider" is false, and saying "available" would
+# silently decide which account pays.
+
+def test_a_provider_spec_with_a_configured_account_names_the_account_instead_of_denying_it(book):
+    book.add("google-gemini")
+    book.set_key("google-gemini", "placeholder-key")
+    result = route_readiness(book, "google/gemini-3.8-flash", env={})
+    assert result.state == "needs_configuration"
+    assert "google-gemini" in result.detail and "no named connection" not in result.detail
+    assert "google-gemini/gemini-3.8-flash" in result.next_action
+    assert route_readiness(book, "google-gemini/gemini-3.8-flash", env={}).state == "capability_unverified"
+
+
+def test_a_provider_spec_does_not_choose_between_an_account_and_an_ambient_key(book):
+    book.add("anthropic-api")
+    book.set_key("anthropic-api", "placeholder-key")
+    result = route_readiness(book, "anthropic/claude-opus-5-5", env={"ANTHROPIC_API_KEY": "placeholder-key"})
+    assert result.state == "needs_configuration" and "ANTHROPIC_API_KEY" in result.detail

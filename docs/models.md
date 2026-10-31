@@ -185,7 +185,7 @@ protocol exactly as before and never silently switches modes.
 
 | Mode | What it means |
 |---|---|
-| `auto` / `native` | The provider's own function-tool protocol (OpenAI Chat Completions, Anthropic Messages, Ollama native, llama.cpp/vLLM when the server has tool parsing enabled). Best-effort call shaping; every call is still validated locally. |
+| `auto` / `native` | The provider's own function-tool protocol (OpenAI Chat Completions, Anthropic Messages, Gemini generateContent `functionDeclarations`, Ollama native, llama.cpp/vLLM when the server has tool parsing enabled). Best-effort call shaping; every call is still validated locally. |
 | `constrained` | The backend generates one JSON object from a versioned `hutch-action-v1` envelope, attached through the backend's own schema control (Ollama `format`; OpenAI-compatible `response_format`). Best for a route whose native parser mangles calls. Refused when the route has no verified schema control. |
 | `prompt` | The same envelope is requested in the prompt and parsed strictly, whole-message. Best-effort and off by default: choose it explicitly for a model that cannot follow a native or constrained path. |
 | `disabled` | No tools are offered to the model for this run. |
@@ -317,4 +317,10 @@ from local configuration only: available, needs authentication, capability unver
 unavailable, needs configuration, blocked by policy, and similar. Capability unverified is not a
 failure; it means no dated evidence exists for that exact route and model in this build. A provider
 catalogue link opens the account, capability and runtime overview. See provider-platform.md.
+
+A spec of `provider/model` names a provider, not an account. When the provider has a configured account,
+the readiness panel says which account exists and shows a resolving spec such as
+`google-gemini/gemini-3.8-flash` instead of claiming no connection exists; it never picks an account for
+you, because that choice decides who pays. The same applies when an ambient key and a named account are
+both present: the detail names the key variable and asks you to choose.
 

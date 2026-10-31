@@ -128,3 +128,68 @@ authenticated provider state cannot be shown because no credential exists.
   routes live-verified; the page banner and website state that only those two text routes are live-verified.
 - Failure-path evidence: the stored OpenCode Go API key is expired; Hutch surfaced the provider error in a
   failed run with cost 0.0 and performed no retry or silent account switch.
+
+## Native Gemini route (2026-10-31)
+
+Environment: no `GEMINI_API_KEY` or `GOOGLE_API_KEY` in the process environment, no Google account
+authorized for this work, and no local Gemini-compatible server. Network reads of the public discovery
+document and docs pages were available, so the adapter was written from the published schema rather than
+from an SDK's behaviour.
+
+| Check | Command | Result |
+|---|---|---|
+| Contract tests for the native adapter | `uv run --frozen --no-sync pytest -q tests/test_provider_gemini.py` | 29 passed |
+| Provider, connection, catalogue and tool-profile batch | `uv run --frozen --no-sync pytest -q tests/test_provider_gemini.py tests/test_connections.py tests/test_provider_catalog.py tests/test_provider_accounts.py tests/test_provider_capabilities.py tests/test_provider_readiness.py tests/test_compat.py tests/test_providers.py tests/test_toolcalling_compiler.py tests/test_integration_contract_regressions.py tests/test_models_layer.py tests/test_provider_surfaces.py` | 241 passed, 3 xfailed (after the readiness correction added two tests) |
+| Model switcher and provider surfaces | `uv run --frozen --no-sync pytest -q tests/test_provider_surfaces.py tests/test_model_switcher.py` | 39 passed |
+| Website asset hashes and metadata | `uv run --frozen --no-sync pytest -q tests/e2e/test_website.py -k "hash or metadata or faq"` | 2 passed |
+
+What those tests establish, stated narrowly:
+
+- Request conversion: `contents` / `systemInstruction` / `functionDeclarations` (with `$schema` stripped,
+  non-local `$ref` refused) / `generationConfig` caps, and `x-goog-api-key` in a header rather than the URL.
+- Streaming: `:streamGenerateContent?alt=sse` framing, usage counters accumulated across chunks, and a
+  stream that ends without a completion marker raising a typed `stream` error that the base class retries
+  once without streaming (matching the existing SR-9 contract).
+- Tool calls: `functionCall` parts become Hutch `ToolCall`s; the `thoughtSignature` is remembered and
+  replayed on the assistant turn; `functionResponse` carries the tool result back.
+- Typed outcomes for auth, missing model, quota versus rate limit, context overflow, safety refusals,
+  blocked prompts, truncation and `MISSING_THOUGHT_SIGNATURE`.
+- Model discovery paginates and refuses embedding-only rows.
+- Wiring: the `google-gemini` template builds a `gemini`-protocol connection, and an ambient
+  `GEMINI_API_KEY` is sent only to `generativelanguage.googleapis.com`.
+
+Not established: that a real Gemini key works, that any model accepts an image, that tools behave
+reliably, or that quotas and usage match the provider billing console. The route stays
+`implemented-unverified` and the matrix says `not live-verified`.
+
+### Visual re-check of the marketing provider section (2026-10-31)
+
+Served `website/` over HTTP and captured the expanded `#providers` panel at 1440x960, 1280x720, 900x1024,
+390x844 and 320x740, plus one 1280x720 capture at 200 percent text size.
+
+| Viewport | Horizontal overflow | Console errors | Gemini in the shipped list, Google gone from the research list |
+|---|---|---|---|
+| 1440x960 | 0 px | none | yes |
+| 1280x720 | 0 px | none | yes |
+| 900x1024 | 0 px | none | yes |
+| 390x844 | 0 px | none | yes |
+| 320x740 | 0 px after the fix (10 px before it) | none | yes |
+
+Defect found by inspection and fixed: at 320 px the dated `deepseek api (live-verified 2026-10-30)` badge was
+wider than the column and pushed the page 10 px sideways. `.routes-list .badge` now wraps inside the badge
+(`white-space: normal`, `overflow-wrap: anywhere`, `height: auto`, `max-width: 100%`) in
+`website/styles.css`; the CSS was rebuilt from its source and the asset hashes restamped.
+
+Pre-existing and not fixed here: at 200 percent text size the site's horizontal navigation overflows by
+316 px. The committed page measures the same 316 px, so this is a standing site-wide reflow gap rather than a
+regression from this slice.
+
+Remaining gaps for this route:
+
+- No live catalogue or inference call (no credential available in this environment).
+- Thought signatures survive only for the life of the Hutch process; a restart mid-conversation produces
+  the provider's own `MISSING_THOUGHT_SIGNATURE` error, which is reported as a typed failure rather than
+  hidden. Persisting them needs an additive field on the stored assistant message, a larger change than
+  this slice.
+- Speech, video, music, image generation and provider-native search remain documented only; the media job
+  architecture was not extended in this slice.

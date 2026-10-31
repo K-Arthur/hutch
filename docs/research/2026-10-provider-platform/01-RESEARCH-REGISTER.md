@@ -127,3 +127,33 @@ OpenCode runtime with a DeepSeek model (both 2026-10-30). Every other provider r
 at most implemented-unverified. The validation ledger records the earlier absence of direct provider
 credentials and local servers. Dates above are the draft fetch date (2026-10-30); re-fetch before
 relying on a specific endpoint, plan term or model retirement.
+
+## 2026-10-31 addendum: native Gemini route
+
+The native `generateContent` adapter (`src/hutch/providers/gemini.py`) was written against these
+sources, read on 2026-10-31 in this order:
+
+| Source | What it settled |
+|---|---|
+| `https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta` (revision 20261030, fetched 2026-10-31) | The exact wire schema: `contents` / `systemInstruction` / `tools.functionDeclarations` (`parametersJsonSchema`) / `generationConfig` (`maxOutputTokens`, `temperature`, `thinkingConfig`), `Part` variants used for text, inline media, function calls/results, `thought` and `thoughtSignature`, `UsageMetadata` counters, the `finishReason` enum, and `Model.supportedGenerationMethods` on the model list. |
+| `https://ai.google.dev/gemini-api/docs/text-generation` | `x-goog-api-key` header auth and `:streamGenerateContent?alt=sse` for streaming, both read from the page itself rather than assumed. |
+| `https://ai.google.dev/gemini-api/docs/thinking` | generateContent carries thought signatures as part metadata and they must be replayed; the schema's `MISSING_THOUGHT_SIGNATURE` finish reason is the failure that follows a lost signature. |
+
+Facts from that reading that shape the implementation and are recorded instead of being papered over:
+
+- `GenerationConfig.temperature` is documented as no longer supported and silently ignored on Gemini
+  3.6 Flash and newer. Hutch still sends it when a Bot sets it and the compatibility matrix says it may
+  have no effect; it is never presented as effective.
+- `thinkingConfig.thinkingLevel` is documented as Gemini 3+ only ("use with earlier models results in
+  an error"), so Hutch maps an effort level only for those model id prefixes.
+- `finishReason` distinguishes truncation (`MAX_TOKENS`), continuation (`CONTINUATION`), filters
+  (`SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII`, ...) and malformed function calls;
+  each maps to a distinct typed outcome rather than to an empty successful reply.
+- A remote image URL is not fetched. The adapter accepts only inline `data:` images, so a provider
+  adapter cannot be turned into an HTTP fetcher for user-supplied URLs.
+- `parametersJsonSchema` accepts full JSON Schema, but a non-local `$ref` would be resolved from the
+  network; such a schema is refused instead of being silently dropped.
+
+Status after this addendum: the Gemini API-key route is implemented and contract-tested against
+recorded shapes. No Gemini credential existed in this environment, so it remains not live-verified and
+the matrix records `implemented-unverified`.

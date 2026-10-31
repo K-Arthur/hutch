@@ -36,7 +36,8 @@ def get_provider(provider: str, base_url: Optional[str]) -> Provider:
     # Long-lived executors must not retain revoked/rotated ambient credentials or endpoints.
     ambient_env = dict(os.environ)
     relevant = {k: ambient_env.get(k, "") for k in (
-        "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "HUTCH_API_KEY", "HUTCH_BASE_URL", "OLLAMA_HOST")}
+        "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_BASE_URL", "HUTCH_API_KEY",
+        "HUTCH_BASE_URL", "OLLAMA_HOST")}
     digest = hashlib.sha256(repr(sorted(relevant.items())).encode()).hexdigest()
     key = (provider, base_url, digest)
     with _LOCK:

@@ -36,6 +36,10 @@ def provider_for_connection(book: ConnectionBook, name: str, model: str, *, reso
         from .claude import ClaudeProvider
         return ClaudeProvider(api_key=key, base_url=base, provider_name=name, headers=headers,
                               session_header=conn.session_header)
+    if protocol == "gemini":
+        from .gemini import GeminiProvider
+        return GeminiProvider(api_key=key, base_url=base, provider_name=name, headers=headers,
+                              session_header=conn.session_header)
     raise ProviderError("bad_request", f"protocol '{protocol}' is not supported", provider=name)
 
 

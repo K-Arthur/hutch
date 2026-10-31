@@ -1437,7 +1437,7 @@ def conn_test(name: str = typer.Argument(...),
 
 @conn_app.command("set-protocol")
 def conn_set_protocol(name: str = typer.Argument(...), model: str = typer.Argument(...),
-                      protocol: str = typer.Argument(..., help="openai-chat | anthropic")) -> None:
+                      protocol: str = typer.Argument(..., help="openai-chat | anthropic | gemini")) -> None:
     """Serve one model over a different protocol (some plans split models across endpoints)."""
     try:
         _book().set_model_protocol(name, model, protocol)

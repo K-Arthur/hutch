@@ -382,6 +382,9 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .routes-k { font-family: var(--font-mono); font-size: var(--text-size-2xs); font-weight: 700; letter-spacing: 0.06em; color: var(--color-semantic-text-3); }
 .routes-list { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .routes-list .badge { font-family: var(--font-mono); font-size: var(--text-size-2xs); color: var(--color-semantic-text-2); }
+/* A route label can be longer than a phone column (for example a dated live-verified note).
+   Let it wrap inside the badge instead of pushing the page sideways. */
+.routes-list .badge { white-space: normal; overflow-wrap: anywhere; max-width: 100%; height: auto; min-height: var(--size); padding-block: .15rem; }
 
 /* architecture block — sub-block rhythm shared with .routes */
 .arch {

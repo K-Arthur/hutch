@@ -8,14 +8,14 @@ approve → select a calendar and assistant**. An account nickname is optional. 
 read-only authorization even if an earlier advanced form requested event creation.
 
 Hutch's publisher supplies its public Google Desktop OAuth registration with the application.
-A checkout with no registration shows **Not enabled in this build**; that is unfinished publisher
-setup, not a requirement for every user to create a Cloud project. Being signed into the browser
+A build with no registration shows **Needs your Google app** on every Google card until the person
+saves one of their own (below); once a build ships one, nobody has to. Being signed into the browser
 can reuse Google's account session, but cannot grant Hutch calendar access by itself.
 The current development manifest has no registered IDs, so live sign-in remains blocked.
 Google consent-screen verification and public eligibility have not been established.
 
-Developers can open **Apps & AI → Google Calendar → Developer settings for Google** to save their own
-public Desktop client ID locally. Never enter a client secret or token. Operator environment
+Anyone can open **Apps & AI → Google Calendar → Your Google app** (every Google card links there) to save
+their own public Desktop client ID locally; one saved ID turns on Calendar, Drive, Docs, Sheets and Gmail. Never enter a client secret or token. Operator environment
 `HUTCH_GOOGLE_OAUTH_CLIENT_ID` takes precedence, followed by the saved override, then the build's
 public registration. Clearing an override returns to the build default. Calendar, Workspace and
 the separate Gmail preview share this app identity, but retain separate consent and credentials.
@@ -418,8 +418,10 @@ OpenAI, Anthropic, Ollama, LM Studio and llama.cpp keep their built-in provider 
 - **Headers** (`CN-3`). Hutch sends its own `User-Agent` (`hutch/<version>`) and, where a plan requires it, a
   stable per-conversation session id (`x-opencode-session: <conversation id>` for OpenCode Go). Standalone
   scheduled runs without a conversation use their run id.
-- **Protocol per model** (`CN-7`). Some plans split models across wire formats. Hutch speaks `openai-chat` and
-  `anthropic`; set a model's protocol with `hutch connections set-protocol <name> <model> anthropic`. The OpenAI
+- **Protocol per model** (`CN-7`). Some plans split models across wire formats. Hutch speaks `openai-chat`,
+  `anthropic` and `gemini`; set a model's protocol with `hutch connections set-protocol <name> <model> anthropic`. The
+  native Gemini protocol is used by the `google-gemini` template and can be selected per model where an
+  endpoint serves Gemini shapes; it sends `x-goog-api-key` and never fetches a remote image URL. The OpenAI
   *Responses* protocol is reserved for the fixed ChatGPT plan route; arbitrary connections cannot select it. A template
   or override that asks for it is rejected with a clear message rather than failing at run time. The OpenCode docs list Claude Haiku, MiniMax and Qwen families on
   the Anthropic endpoint and Grok / Muse Spark on Responses, while models.dev lists every model as

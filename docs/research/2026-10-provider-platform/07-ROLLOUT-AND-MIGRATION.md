@@ -62,3 +62,31 @@ and managed OpenCode runtime with a DeepSeek model. Live evidence is recorded un
 artifacts/live-verification/ with a summary.json consumed by the research audit. If the ephemeral test
 credential is rotated or removed, the live-verified rows must be re-evaluated or downgraded; they are dated
 2026-10-30 and must not be presented as a guarantee for other accounts, models or capabilities.
+## Gemini route rollout (2026-10-31)
+
+The Gemini API route is additive and needs no state migration:
+
+- **Existing accounts and bots** keep working unchanged. No stored connection row is rewritten, no
+  protocol value changes meaning, and the built-in runtime still routes every existing spec the same way.
+- **Adding a Gemini account** means adding the `google-gemini` connection template: `hutch connections add
+  google-gemini`, then paste a key or export `GEMINI_API_KEY`. Existing `connections.json` files without
+  the template load exactly as before, because the template list is bundled rather than stored.
+- **A new protocol value** (`gemini`) joins `openai-chat` and `anthropic` in the connection protocol list.
+  Rows written by an older build cannot contain it, so a downgrade is safe: an older Hutch refuses a
+  `gemini` protocol row with a clear "unknown protocol" error instead of misrouting it.
+- **Ambient-key scoping**: `GEMINI_API_KEY` is sent only to `generativelanguage.googleapis.com`. A custom
+  base URL needs its own named connection key, and a withheld key produces an explicit hint in the failure.
+- **Rollback** is deleting the connection or selecting a different model; nothing else changes. A run that
+  was interrupted mid-stream keeps Hutch's normal uncertain-outcome reservation because this adapter does
+  not add a second accounting path.
+- **Thought signatures** live only in memory. Downgrading or restarting mid-conversation is not dangerous,
+  but it can produce the provider's `MISSING_THOUGHT_SIGNATURE` error on the next tool-using turn. That is
+  reported to the user with the reason; it is not retried silently and never replaced by another model.
+
+Reconnection requirements: none. A Gemini key is a long-lived API key with no refresh token, so there is
+no rotation, region or refresh-window state for Hutch to track. Revoking the key in Google AI Studio takes
+effect on the next request; Hutch reports the provider's 401/403 as an `auth` failure.
+
+Verification boundary after this rollout: contract-tested, not live-verified. Do not describe the Gemini
+route as working until a real key has been exercised against the live API, and record that run in the
+validation ledger with a date and artifact.

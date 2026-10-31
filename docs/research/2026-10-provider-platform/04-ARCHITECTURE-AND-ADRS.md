@@ -45,7 +45,25 @@ Date: 2026-10-30. Status: first implementation slices landed on branch provider-
   runtimes with lifecycle/credential/capability boundaries. It does not enable a new executor;
   get_runtime behaviour is preserved.
 - D6: Keep protocol adapters separate and additive. No new adapter is shipped without a real,
-  testable contract; Gemini/Responses generalisation is deferred rather than stubbed.
+  testable contract; Gemini/Responses generalisation is deferred rather than stubbed. Update
+  (2026-10-31): the Gemini `generateContent` adapter is now a real module with its own contract tests
+  and its own compatibility-matrix route; the OpenAI Responses protocol beyond the ChatGPT plan route
+  remains deferred.
+
+## Gemini adapter (2026-10-31)
+
+The Gemini route is one more protocol adapter, not a second provider architecture:
+
+| Concern | Decision |
+|---|---|
+| Identity | `google` in the provider catalogue, with `gemini` as its protocol. Vertex AI stays a separate catalogue identity because its credential contract (ADC/service account, project, region) differs. |
+| Auth | One `google-gemini` connection template; `GEMINI_API_KEY` from the environment is sent only to `generativelanguage.googleapis.com`, and any other base URL needs its own named key, matching the existing OpenAI/Anthropic ambient-key rule. |
+| Transport | `httpx` with the key in `x-goog-api-key`, `:generateContent` for one shot and `:streamGenerateContent?alt=sse` for streaming. |
+| Tool calling | `functionDeclarations` from the canonical Hutch schema via `parametersJsonSchema`; a non-local `$ref` or a non-function tool is refused before the request leaves the process. |
+| Thought signatures | Remembered in a bounded process-local cache keyed by the call id Hutch already assigns; replayed on the assistant turn. Lost after restart, and the provider's own error is surfaced as a typed failure. Persisting them would require an additive field on the stored assistant message. |
+| Capability evidence | `toolcalling/profiles.py` gains a documented `google/*` profile and a `gemini` constrained-schema default of `unsupported`, so no code path claims structured output on this route. |
+| Compatibility matrix | `data/compat.json` gains `gemini-generate-content` with dated discovery/document sources, the request mapping actually sent, and an explicit statement that no live call was made. |
+| Not changed | Approvals, reservations, receipts, tool validation and cancellation all keep working through the existing `Provider` contract; the adapter adds no second dispatch path. |
 - D7: Research-only providers stay in the catalogue with documented/deferred/blocked/retired status
   and dated sources. The website and UI must show that status, never a generic "supported" badge.
 - D8: Fix stale documentation instead of preserving it: compat.json corrected, provider-compatibility
@@ -88,3 +106,25 @@ generalize from those runs: no tool, streaming, vision or cross-provider claim i
 The direct DeepSeek route is now a real implemented connection template; the managed OpenCode runtime was
 already implemented and is now live-verified for text. Everything else remains unverified, and the
 custom-endpoint SSRF-adjacent hardening gap is unchanged.
+
+## Readiness correction (2026-10-31)
+
+Found while wiring the Gemini route: `route_readiness()` treated a `provider/model` spec for a provider
+with a configured account as if no account existed. For Anthropic that produced `needs_authentication`
+with "no named connection provides this provider" even though `anthropic-api` was configured and keyed;
+for Google it produced the same false negative. Two separate defects:
+
+1. The account lookup happened only when the spec's first segment was the *connection name*, never when it
+   was the provider identity, so the explanation denied a connection that existed.
+2. A provider with several accounts (or one account plus an ambient key) has no single answer. Reporting
+   `available` would silently decide which account pays, which the delivery request forbids.
+
+The fix keeps the state honest and explains the choice: `needs_configuration`, naming the configured
+accounts and showing a resolving spec (`google-gemini/gemini-3.8-flash`), or naming the ambient variable
+when one is also set. `_AMBIENT_VARS` now includes `google`, so a Google provider spec with
+`GEMINI_API_KEY` in the environment reports `capability_unverified` about the ambient route and asks for
+an explicit account, exactly as OpenAI and Anthropic already did.
+
+Tests: `tests/test_provider_readiness.py` gained two cases (a provider spec with a configured account, and
+a provider spec where an ambient key and a named account both exist). Both the pre-existing Anthropic
+behaviour and the new Google route are covered by the same code path.
