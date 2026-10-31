@@ -5022,8 +5022,13 @@ script or page shell for hours after an update (now `no-cache`, a cheap 304).
 get-started and shared-bots pages and the OpenAlternative list; what changed as a result is the removal of every main-assistant
 chooser, the automatic main assistant, "ask before creating several", and Hide kept separate from Delete.
 
-**Limits, recorded rather than hidden.** The full non-browser suite was not re-run after these commits; focused suites were (258
-unit and API tests, and the browser modules listed in the checklist). Not verified on the user's own workspace: their database was never
+**Final run.** The full non-browser suite on a clean copy of `9ecbd4f5`: 4,720 passed, 63 skipped, 3 xfailed, 4 failed. Three were
+mine and are fixed (a test that pinned the refusal of an OpenCode model as the workspace default, which was the bug, and two
+remote-pairing tests that intercepted `uvicorn.run`, which `hutch serve` no longer calls); the fourth is the known load-timing
+test `test_single_line_spin_deadline_is_bounded_by_an_outer_process[signal]`, which passes alone.
+
+**Limits, recorded rather than hidden.** The three fixes above were re-run alone and passed (45 tests with the shutdown and serve
+lifecycle suites); the whole suite was not run a second time. Browser modules were run as listed in the checklist. Not verified on the user's own workspace: their database was never
 opened, by design; the removal flow was exercised on workspaces built to match what the old seed leaves, including an old live run.
 Browser tests that failed before this work still fail (listed in the checklist). **Process incidents:** two other actors committed in
 this checkout during the stretch (one swept in-progress edits twice; another, a different agent tool, was adding in-app model

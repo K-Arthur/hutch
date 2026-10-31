@@ -780,7 +780,7 @@ def test_remote_bind_requires_explicit_flag_and_tls_files(tmp_path, monkeypatch)
 
 
 def test_local_cli_launch_ignores_inherited_remote_enable_switch(monkeypatch):
-    import uvicorn
+    from hutch.server import runner
 
     monkeypatch.setenv("HUTCH_EXECUTOR", "thread")
     monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "1")
@@ -790,7 +790,7 @@ def test_local_cli_launch_ignores_inherited_remote_enable_switch(monkeypatch):
     def capture_launch(*_args, **_kwargs):
         observed["remote_enabled"] = os.environ.get("HUTCH_REMOTE_ENABLED")
 
-    monkeypatch.setattr(uvicorn, "run", capture_launch)
+    monkeypatch.setattr(runner, "serve", capture_launch)      # the one place `hutch serve` starts the server
     result = CliRunner().invoke(cli_app, ["serve", "--host", "127.0.0.1"])
 
     assert result.exit_code == 0, result.output
@@ -798,7 +798,7 @@ def test_local_cli_launch_ignores_inherited_remote_enable_switch(monkeypatch):
 
 
 def test_remote_cli_flag_sets_internal_switch_after_configuration_validation(monkeypatch):
-    import uvicorn
+    from hutch.server import runner
 
     monkeypatch.setenv("HUTCH_EXECUTOR", "thread")
     monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "0")
@@ -811,7 +811,7 @@ def test_remote_cli_flag_sets_internal_switch_after_configuration_validation(mon
     def capture_launch(*_args, **_kwargs):
         observed["remote_enabled"] = os.environ.get("HUTCH_REMOTE_ENABLED")
 
-    monkeypatch.setattr(uvicorn, "run", capture_launch)
+    monkeypatch.setattr(runner, "serve", capture_launch)      # the one place `hutch serve` starts the server
     result = CliRunner().invoke(cli_app, ["serve", "--host", "127.0.0.1", "--allow-remote"])
 
     assert result.exit_code == 0, result.output

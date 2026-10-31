@@ -84,7 +84,7 @@ def test_the_routes_api_exposes_the_authority_read_only(client):
 
 def test_a_default_that_cannot_run_is_refused(client, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-key")
-    for spec in ("demo", "mock/demo", "opencode/opencode/big-pickle"):
+    for spec in ("demo", "mock/demo"):
         response = client.put("/api/v1/preferences/model-defaults",
                               json={"model": spec, "inference_mode": "hybrid"})
         assert response.status_code == 422, (spec, response.text)
@@ -92,3 +92,10 @@ def test_a_default_that_cannot_run_is_refused(client, monkeypatch):
     saved = client.put("/api/v1/preferences/model-defaults",
                        json={"model": "openai/gpt-4o-mini", "inference_mode": "hybrid"})
     assert saved.status_code == 200, saved.text
+
+
+def test_an_opencode_model_is_a_valid_default_because_the_runtime_follows_the_model(client):
+    """It used to be refused ("belongs to the OpenCode runtime"), which made the Models page's "Review in Settings, then save" fail."""
+    saved = client.put("/api/v1/preferences/model-defaults", json={"model": "opencode/opencode/big-pickle", "inference_mode": "hybrid"})
+    assert saved.status_code == 200, saved.text
+    assert client.get("/api/v1/preferences/model-defaults").json()["model"] == "opencode/opencode/big-pickle"
