@@ -18,7 +18,10 @@ reconciliation and `hutch doctor`.
    the welcome still offers **"Create a helper from an example"**.
 5. "The frontend doesn't do the onboarding or have a way of recognizing it on a new device."
 6. "Other pages like the models page don't even make sense on how it would work with such a platform."
-7. Conclusion the owner drew, and the standard for this plan: the earlier completion was verified on fresh
+7. "overly unnecessary and difficult model selection options and the paths are fragmented and not
+   consolidated or consistent in the right way" — choosing or changing how an assistant gets its AI is
+   spread across several surfaces with overlapping and sometimes false options.
+8. Conclusion the owner drew, and the standard for this plan: the earlier completion was verified on fresh
    scratch state and never reconciled a real, legacy installation. That was not enough.
 
 ## 2. Verified reproduction and root causes (current `main`)
@@ -80,6 +83,31 @@ question is *"which AI service can run my assistants now, and which route does e
 provider/services view, assistant routing matrix and defaults. Hardware fit and per-token pricing are
 secondary and partly belong to Usage. §3.6 gives the target information architecture.
 
+### 2.7 Model selection is harder than it needs to be (R7, owner addendum)
+
+The Models page leads with hardware, then saved routes, an add-route form, runtime/connection cards,
+installed local models, task presets, suggested models, swap costs and hosted prices. It answers "what is
+my GPU" before "which AI service can actually run my assistants now". The option list mixes things of
+different kinds — provider accounts, local runtime models, OpenCode profile routes, presets, prices — with
+no single "can work happen" answer. Several options are unnecessary or cannot work as presented: a
+ChatGPT connection choice that always errors on this path, "OpenCode Go" shown beside runtimes although it
+is a connection, preset "hosted fallback" that is display-only, and an add form that also mints a provider
+connection and stores a key.
+
+### 2.8 Route paths are fragmented and inconsistent (R8, owner addendum)
+
+Verified inventory: "may this route be used" lives in `validate_override` (about 20 call sites); "which
+model runs" lives in the runtime Ladder seeded from the assistant and run; "what routes exist" is
+`model_choices` / `GET /api/bots/{ref}/models` plus a draft endpoint `/api/v1/model-routes`; Models
+re-derives a fourth inventory in `modelview.py`; Settings writes the workspace default while Models also
+writes it (and docs say Settings is the single destination); the composer picker, assistant settings ladder,
+first-run readiness and Connections all re-present parts. The workspace-default JSON is parsed in three
+places. Labels drift: "bots" vs "assistants"; "default model" vs "workspace default" vs "assistant default";
+"runtime" means provider health on Models but the execution host on the Runtime destination; the workspace
+default accepts an `opencode/...` route although the seeded built-in assistant cannot run it, and the page
+says a new default is "chosen when a bot has no specific model assigned" although an empty model is refused
+at run time. The user sees options and paths that do not agree with each other.
+
 ## 3. Target model
 
 ### 3.1 Installation lifecycle and onboarding
@@ -136,24 +164,51 @@ Remove the example gallery markup, wiring and CSS. The welcome keeps the real fa
 "Can use …") and the first-request guidance, and links to Catalog for ready-made assistants. No canned
 examples, no invented starter prompts.
 
-### 3.6 Models page target information architecture
+### 3.6 Models page target information architecture, and one consolidated route model
 
-Rebuild the page top-down around the one question that matters:
+Rebuild around the question that matters, and make every route path agree with every other one.
+
+**One route authority.** A single server answer, reused by Models, the composer picker, assistant settings
+and first run: available routes with their service, ready/setup state, runtime (on this machine / leaves
+this machine), limits, price note, which assistants use them, and why a route is not usable. No fourth
+inventory in `modelview.py`; `model_choices` (plus the workspace default record) is the source, and the
+picker/Models/first run render from it.
+
+**One place to add/repair/choose routes.** Models becomes the single "AI services and routes" destination:
+add a route, fix a missing key/terms acknowledgement, test a provider, set the workspace default. Settings
+keeps only appearance; it links to Models instead of writing the default. Connections keeps accounts/keys
+and their allowances only, and links to Models for route choice. First run links to Models for the detailed
+service setup instead of re-implementing detection copy. The composer picker is a quick choice of an
+existing route, not a second catalog manager.
+
+**A page that answers in this order.**
 
 1. **Can work happen now?** Service status cards: detected OpenCode profile (free models available, no
    account needed), connected providers, local runtimes — each with state, route count and one action
    ("Use this service", "Connect", "Repair").
-2. **Routes available**: searchable list grouped by service with runtime tag (on this machine / leaves this
-   machine), context and output limits, price note, and a "used by" assistant count.
-3. **Assistant routing**: one row per assistant — default route, runtime, inference mode, fallbacks and
-   escalation summary, health (usable / needs model) — with a direct action to fix.
-4. **Defaults**: the workspace route used for new assistants (already implemented; give it one clear home).
-5. **Secondary**: hardware capability and the token price table move under a "Hardware and prices" detail
-   (and link to Usage). Connections remains the only place keys/accounts are managed; Models links there
-   instead of duplicating it.
+2. **Routes available**: searchable list grouped by service with runtime tag, limits, price note, and a
+   "used by" assistant count. Only routes the assistant's runtime can actually run are offered.
+3. **Assistant routing**: one row per assistant — default route, runtime, inference mode, health (usable /
+   needs model) — with a direct action to fix. Fallbacks, escalation and task-role routes live behind an
+   "Advanced routing" disclosure that opens only when configured or opened; they are not options on the
+   first screen.
+4. **Defaults**: the workspace route used for new assistants, one clear home, and copy that says exactly
+   what it does (seeds new built-in assistants; it is not inherited by an assistant that already has a
+   route, and an empty route is not a valid default).
+5. **Secondary**: hardware capability, installed local models, task presets and the token price table move
+   under "Hardware and prices" / a details area (price ledger links to Usage).
 
-Acceptance: above the fold answers "which service is ready and which assistant uses what"; every control
-maps to an existing endpoint; screenshots at 1440/900/360; no dead or decorative control.
+**Simplification rules.** One vocabulary: AI service → model route → assistant default → "next message
+only". Remove options that cannot work in the context they are shown (including the always-failing ChatGPT
+shortcut on the add form and the connection/runtime category mix). Remove false copy (a workspace default
+is not a runtime fallback; a preset's "hosted fallback" is not applied). Do not make a person learn
+fallbacks, escalation and task roles to answer "which assistant uses what". Keep advanced controls
+available, collapsed, labelled Advanced.
+
+**Acceptance.** Above the fold answers "which service is ready and which assistant uses what"; every
+control maps to an existing endpoint; only runnable options are offered for the selected runtime; the same
+route set/labels appear in Models, the picker, assistant settings and first run; no false copy; screenshots
+at 1440/900/360; no dead or decorative control.
 
 ## 4. Implementation slices
 
@@ -164,11 +219,14 @@ maps to an existing endpoint; screenshots at 1440/900/360; no dead or decorative
 | S3 | Installation review + lifecycle + new-device welcome; server module/API/marker; SPA review surface and routing; browser tests | M | legacy state shows review on first load; actions work; marker recorded; new device welcome once; fresh install still gets first-run |
 | S4 | Remove example gallery; welcome links to Catalog; guard test | S | markup/handlers/CSS gone; test bans the phrase; e2e asserts the link |
 | S5 | Legacy run classification in `home_state`/API/Activity; error-prefix fix | S | legacy failures out of Needs you, labeled in History, counted in review; no double prefix |
-| S6 | Models page redesign per §3.6 | M | tests + screenshots; route/assistant semantics; no duplicate Connections controls |
+| S6a | Consolidate route paths and remove false/duplicate options (owner addendum R8): one route authority endpoint reused by Models/picker/first run/assistant settings; remove the fourth inventory and the duplicate workspace-default write; Models is the one add/repair/choose destination; Settings and Connections link there; correct the false copy; refuse defaults the seeded assistant cannot run | M | one API call drives every surface; Settings no longer writes the default; no duplicate provider/route creation; tests pin the single source and the removed copy |
+| S6b | Simplified Models page + picker per §3.6 (owner addendum R7/R8): services → routes → assistant routing → defaults, advanced routing collapsed, only runnable options offered, one vocabulary | M-L | tests + screenshots at three widths; a first-time user can answer "can it run, what does this assistant use, how do I fix it" without advanced options |
 | S7 | Gates: check:agent, focused unit + browser suites, docs/slice log, independent verifier | M | verifier PASS per row |
 
-Order: S1 → S2 → S5 → S3 → S4 → S6 → S7 (S4 can land with S3). Each slice ends committed, tested and
-recorded in the slice log; nothing is auto-deleted.
+Order: S1 → S2 → S5 → S3 → S4 → S6a → S6b → S7 (S4 can land with S3). Each slice ends committed,
+tested and recorded in the slice log; nothing is auto-deleted. S6a is the consolidation half of the owner's
+model-selection complaint and lands before the visual redesign so the page cannot present a new layout over
+fragmented truth.
 
 ## 5. Non-goals and guardrails
 
@@ -187,3 +245,8 @@ recorded in the slice log; nothing is auto-deleted.
 3. Installation review appears once per installation after review; every new device/browser gets a one-time
    "Welcome back" screen until it is acknowledged — default yes.
 4. Models page: services/routes/assistants first, hardware and prices secondary — default yes.
+5. Model selection: one destination for routes (Models), picker for a quick per-message/assistant choice,
+   advanced routing collapsed by default, one vocabulary ("AI service", "model route", "assistant default")
+   — default yes, per the owner's "unnecessary and difficult options / fragmented paths" report.
+6. The workspace default seeds new built-in assistants only; it is not offered as a runtime fallback and an
+   unrunnable route cannot be saved as it — default yes.

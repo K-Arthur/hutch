@@ -187,6 +187,12 @@ fixture content. The approved order is complete for this run:
   same reviewed draft; local-folder and static-URL sources are explicitly fetched and inert until their
   exact content hash is trusted. Commits `8c9be914`, `fc7cd74d`.
 
+**Owner addendum (2026-10-30):** model selection is "overly unnecessary and difficult" and the route paths are
+"fragmented and not consolidated or consistent". That is recorded as R7/R8 in
+`docs/realignment/frontend-truthfulness-plan-2026-10-30.md` with the verified inventory and is planned as
+S6a (one route authority, one destination to add/repair/choose, remove false and duplicate options) followed
+by S6b (simplified Models page and picker). It is not started yet.
+
 Evidence for each row is in the "Platform work after the gap analysis" table above; the release checklist
 records the same state for the owner. **Deliberately still open:** A2/A3/A6 proposals and delegation; A7's onboarding gate that requires a
 verified completion before the first assistant exists (the live route and a real completion **are** now
