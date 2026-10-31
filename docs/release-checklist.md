@@ -42,10 +42,10 @@ Docker parity is claimed.
   touch target against a 40 px control.
 - Two `tests/e2e/test_route_state_boundaries.py` cases and one `test_wcag_measured_audit.py` case
   fail at baseline as well (a stub `ModelsView` without `hw`; a form field 44 px against a button 40 px).
-- **Not run:** a live-model first-request journey; a live OpenCode install of the background service
-  (the browser tests use labelled fixtures, because a real install writes a systemd unit); a
-  screen-reader pass; axe-core; macOS and Windows anything; `cargo build` and native installers;
-  physical-device phone validation.
+- **Not run:** a live OpenCode install of the background service (the browser tests use labelled
+  fixtures, because a real install writes a systemd unit); a screen-reader pass; axe-core; macOS and
+  Windows anything; `cargo build` and native installers; physical-device phone validation. (A live
+  free-route model journey **was** run on 2026-10-30: see section 3b and the progress slice log.)
 - **Not made on purpose:** a populated-dashboard capture for the public site. `PRODUCT.md` requires
   marketing captures to come from the actual empty first-run product.
 - The 19 `test_browser.py` failures above were not re-triaged in the platform follow-on run; the
@@ -85,10 +85,12 @@ now true and how it was checked:
 | Catalog destination | `tests/e2e/test_catalog_destination.py` | a reachable searchable Catalog page with provenance, permissions, instructions and "Create a copy" that opens the normal setup review; 1440/900/360 with 0 overflow and 0 console errors |
 | Sharing is checked | `tests/test_catalog_export.py`, `tests/e2e/test_catalog_destination.py` | export runs a checklist (credentials block; URLs, e-mail, absolute paths warn), lists what is never included and only downloads after review; catalog JSON import pre-fills the same reviewed setup draft |
 | Sources are pinned | `tests/test_catalog_sources.py`, `tests/test_catalog_api.py` | local-folder and static-URL sources, explicit fetch only (netguard-bounded), entries inert until their exact manifest hash is trusted; changed content drops trust |
+| Live free OpenCode route | real OpenCode 2.2.0 private profile from a scratch state directory; `hutch run` CLI, the product HTTP server and a real Chromium chat journey | **verified 2026-10-30.** The private profile exposed 8-9 free models (`opencode/opencode/deepseek-v4.1-flash-free`, `glm-5.3-flash-free`, `big-pickle`, `flint-40b-free`, `beam-free`, `mimo-v2.6-flash-free`, `nemotron-3.5-*`, `nemotron-3-ultra-free`) with `authenticated: false`, and `/api/v1/opencode/status` reports `ready: true`. Two blocking CLI runs succeeded on two different free models (`deepseek-v4.1-flash-free`: 4,411 tokens, $0.00; `glm-5.3-flash-free`: 4,187 tokens, $0.00), each with `hutch runs verify` exit 0 and the exact requested reply; a product-server run and a real-browser SPA chat run (`deepseek-v4.1-flash-free`: `run_8b83db012b63` succeeded/completed, 4,415 tokens, $0.00, assistant bubble `HUTCH-BROWSER-OK`, 0 console errors, 0 overflow); the fresh-state first-run page detects it live ("OpenCode is ready with 8 model options. Its available models can be used without a separate account"). Evidence: `.dsh/long-horizon/hutch-platform/artifacts/live-opencode-{free-route,product-http,browser,first-run}.json` plus screenshots in the isolated artifact root |
 
-Still open from the gap analysis after this run: proposals and delegation (A2, A3, A6), verified first
-completion on a live route (A7; no live route on the build host), marketplace publishing and scanning
-(B5-B7, B9, B10), distribution (E), and the visual backlog (F2-F6).
+Still open from the gap analysis after this run: proposals and delegation (A2, A3, A6), the onboarding
+step that *requires* a verified completion before the first assistant exists (A7 — the route and a real
+completion are now verified; the gate is not built), per-task sandbox/branch isolation (D2), marketplace
+publishing and scanning (B5-B7, B9, B10), distribution (E), and the visual backlog (F2-F6).
 
 ## 4. Reproduce
 
