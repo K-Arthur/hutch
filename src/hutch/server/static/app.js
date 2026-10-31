@@ -4695,14 +4695,13 @@ async function renderChatFeed() {
     // Polling can return the same snapshot many times. Avoid replacing the
     // transcript DOM on a no-op refresh: doing so drops focus and invalidates
     // element references while someone is reading or interacting with a card.
-    // Compare the server-rendered snapshot, not innerHTML: wireWelcome() adds
+    // Compare the server-rendered snapshot, not innerHTML: optional decorators add
     // the async template gallery after this markup is installed.
     if (chatRenderSnapshots.get(stream) === nextHtml) return;
     const factUi = captureFactUi(stream);
     stream.innerHTML = nextHtml;
     chatRenderSnapshots.set(stream, nextHtml);
-    wireWelcome();
-    wireFactControls(factPage.facts || [], currentStudioBot, factShares);
+      wireFactControls(factPage.facts || [], currentStudioBot, factShares);
     $('[data-retry-facts]', stream)?.addEventListener('click', () => scheduleFeedRender());
     restoreFactUi(stream, factUi);
     return;
@@ -5200,60 +5199,8 @@ function welcomeHtml() {
         <li>${icon("shield")}<span>${esc(botActionSummary(b.approval_mode))}</span></li>
         ${can ? `<li>${icon("wrench")}<span>${esc(can)}</span></li>` : ""}
       </ul>
-      <details class="tpl-gal" id="tpl-gal" hidden>
-        <summary class="tpl-gal-summary">
-          <span class="tpl-gal-copy">
-            <span class="tpl-gal-title">Create a helper from an example</span>
-            <span class="tpl-gal-subtitle">Optional setup; message below to start a task.</span>
-          </span>
-          ${icon("caret", "tpl-gal-caret")}
-        </summary>
-        <p class="tpl-gal-note">Choosing an example opens setup; it won’t start a task.</p>
-        <div class="tpl-grid" id="tpl-grid"></div>
-      </details>
+      <p class="welcome-catalog hint">Looking for a ready-made assistant? <a href="#/catalog">Browse the Catalog</a>.</p>
     </div>`;
-}
-
-const TEMPLATE_TITLES = {
-  "personal-assistant": "Personal assistant",
-  "day-planner": "Day planner",
-  "inbox-followups": "Inbox and follow-ups",
-  "research-decisions": "Research and decisions",
-  "project-coordinator": "Project coordinator",
-  "meeting-followthrough": "Meeting follow-through",
-  "document-workbench": "Document workbench",
-  "data-brief": "Data brief",
-};
-const TEMPLATE_GALLERY_ORDER = [
-  "personal-assistant", "day-planner", "inbox-followups", "research-decisions",
-  "project-coordinator", "meeting-followthrough", "document-workbench", "data-brief",
-];
-
-async function wireWelcome() {
-  /* Explore-agents gallery: real templates from the API, fetched lazily —
-     never seeded. Picking one opens the create dialog with it preselected. */
-  try {
-    const templates = await api("/bots/templates");
-    const grid = $("#tpl-grid"), gal = $("#tpl-gal");
-    if (!grid || !templates.length) return;
-    const rankedTemplates = [...templates].sort((a, b) =>
-      TEMPLATE_GALLERY_ORDER.indexOf(a.name) - TEMPLATE_GALLERY_ORDER.indexOf(b.name));
-    grid.innerHTML = rankedTemplates.slice(0, 6).map((t, i) => {
-      const ci = i % ID_COLORS.length;
-      const si = hash32(t.name) % ID_HEADS.length;
-      const title = TEMPLATE_TITLES[t.name] || t.name.replace(/[-_]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
-      return `<button class="tpl-card" type="button" data-tpl="${esc(t.name)}" aria-label="Create ${esc(title)} helper from an example: ${esc(t.tagline || t.description || "")}">
-        <span class="tpl-tile">${avatarFromPair([ci, si], 36)}</span>
-        <span class="tpl-copy"><span class="tpl-name">${esc(title)}</span><span class="tpl-tag">${esc(t.tagline || t.description || "")}</span></span>
-        ${icon("arrow", "tpl-go")}
-      </button>`;
-    }).join("");
-    gal.hidden = false;
-    grid.addEventListener("click", ev => {
-      const card = ev.target.closest("[data-tpl]");
-      if (card) promptNewBot(card.dataset.tpl);
-    });
-  } catch { /* gallery is an enhancement — welcome works without it */ }
 }
 
 /* One attempt in a conversation: the prompt bubble, the visible work,

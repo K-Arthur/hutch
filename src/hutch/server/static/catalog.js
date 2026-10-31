@@ -205,18 +205,18 @@
           return;
         }
         root.innerHTML = detailMarkup(entry);
-        wireCreateCopy();
-        return;
+          return;
       }
       root.innerHTML = listMarkup(data);
       wireSearch(data);
-      wireCreateCopy();
       await wireExport(data);
     } catch (error) {
       root.innerHTML = '<div class="page-scroll"><div class="container"><div class="empty-state"><p><b>Could not load the catalog.</b></p><p class="hint">' + escape(error.message) + '</p><p><button class="btn ghost small" type="button" data-catalog-retry="1">Try again</button></p></div></div></div>';
       root.querySelector("[data-catalog-retry]")?.addEventListener("click", () => { cached = null; void render(null); });
     }
   }
+
+  wireCreateCopy();   // one delegated listener for every rendered card
 
   window.hutchCatalog = { render, clearCache: () => { cached = null; } };
 })();

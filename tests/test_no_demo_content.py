@@ -18,6 +18,7 @@ CANNED = (
     "Plan my week", "Catch up on email", "Organize a project", "Try one of these", "Tidy a folder",
     "Draft a message", "Summarize a document", "Research a topic", "Check a project folder",
     "Or start with an idea", "Sort this week", "Inspect this repository for TODOs",
+    "Create a helper from an example", "Choosing an example opens setup", "Optional setup; message below",
 )
 
 # file -> most `mock` mentions allowed. Lower these as the legacy handling is removed (gap analysis C3).

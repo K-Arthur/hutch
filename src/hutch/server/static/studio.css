@@ -565,8 +565,6 @@ details.approval-review[open] > summary { margin: 0 -12px; padding: 4px 12px; }
 .welcome-trust { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; margin: 0; padding: 0; list-style: none; color: var(--text-2); font-size: var(--fs-xs); }
 .welcome-trust li { display: inline-flex; align-items: center; gap: 8px; }
 .welcome-trust .icon { color: var(--brand-hi); }
-/* Browsing the example gallery replaces the ideas and trust line rather than stacking a second list under them. */
-.welcome:has(#tpl-gal[open]) :is(.welcome-trust) { display: none; }
 @media (max-width: 640px) {
   .welcome:not(.first-run-welcome) { margin-top: 8px; gap: 16px; }
   .welcome:not(.first-run-welcome) .hero-agent { width: 72px; height: 72px; }

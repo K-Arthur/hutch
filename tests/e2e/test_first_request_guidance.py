@@ -68,7 +68,24 @@ def test_the_empty_chat_says_what_a_useful_first_message_contains(browser, base,
         guide = page.locator(".welcome-guide")
         guide.wait_for(timeout=20_000)
         assert guide.inner_text() == GUIDANCE
+        # The invented example gallery is gone; ready-made assistants live in the Catalog.
+        assert page.locator("#tpl-gal").count() == 0
+        catalog = page.locator('.welcome a[href="#/catalog"]')
+        assert catalog.count() == 1 and catalog.is_visible()
         assert horizontal_overflow(page) == 0
         assert not watch.errors, watch.errors
+    finally:
+        page.context.close()
+
+
+def test_the_welcome_catalog_link_opens_the_catalog(browser, base):
+    page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
+    try:
+        page.goto(f"{base}/#/chat/guide-bot", wait_until="domcontentloaded")
+        link = page.locator('.welcome a[href="#/catalog"]')
+        link.wait_for(timeout=20_000)
+        link.click()
+        page.wait_for_url("**/#/catalog")
+        page.locator("[data-catalog-entry]").first.wait_for(timeout=20_000)
     finally:
         page.context.close()
