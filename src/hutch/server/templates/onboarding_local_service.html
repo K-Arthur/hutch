@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Connect local model service{% endblock %}
+
+{% block head %}
+<meta name="referrer" content="same-origin">
+<link rel="stylesheet" href="/static/onboarding-form.css">
+<link rel="stylesheet" href="/static/onboarding.css">
+<script src="/static/onboarding.js" defer></script>
+{% endblock %}
+
+{% block content %}
+<section class="onboarding onboarding-local-service" aria-labelledby="onboarding-title"
+         data-onboarding-state="{{ state }}">
+  <p class="onboarding-kicker">First run <span aria-hidden="true">&middot;</span> Step {{ step_index }} of {{ step_total }}: {{ step_label }}</p>
+
+  <h1 id="onboarding-title" class="onboarding-title" tabindex="-1" data-focus-heading>
+    Connect local model service
+  </h1>
+
+  <p class="onboarding-lede">
+    Run models on your machine using Ollama or another OpenAI-compatible local server. No API key or remote internet access required for local inference.
+  </p>
+
+  {% include "_onboarding_request_text.html" %}
+
+  <div class="local-service-status-card">
+    <p class="status-header">Local probe status at <code>{{ url }}</code></p>
+    {% if probe.reachable %}
+      <div class="probe-ok">
+        <p class="probe-tag ok">Reachable</p>
+        {% if probe.models and probe.models|length > 0 %}
+          <p>Found {{ probe.models|length }} installed model(s):</p>
+          <ul class="models-list">
+            {% for m in probe.models %}
+              <li><code>{{ m }}</code></li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="probe-empty-models">
+            <p>The local service is running, but no models are installed yet.</p>
+            <p>Run this command in your terminal to pull a starter model:</p>
+            <pre><code>ollama pull llama3.2:1b</code></pre>
+          </div>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="probe-down">
+        <p class="probe-tag down">Not detected</p>
+        <p>Could not connect to <code>{{ url }}</code>. Ensure your local server is running:</p>
+        <pre><code>ollama serve</code></pre>
+        <p class="probe-error-detail"><small>{{ probe.error }}</small></p>
+      </div>
+    {% endif %}
+  </div>
+
+  <form class="onboarding-form" method="post" action="/onboarding/local-service" data-onboarding-form>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+
+    <div class="onboarding-field">
+      <label for="url" class="onboarding-label">Local service URL</label>
+      <p class="onboarding-help">Must be a loopback address (127.0.0.1 or localhost).</p>
+      <input id="url" name="url" type="url" value="{{ url }}" required class="onboarding-input-text">
+    </div>
+
+    <div class="popular-models-guidance">
+      <p class="guidance-title">Model hardware requirements guidance</p>
+      <div class="guidance-grid">
+        {% for m in popular_models %}
+          <div class="guidance-item">
+            <p class="guidance-name"><code>{{ m.name }}</code></p>
+            <p class="guidance-specs"><small>Download: {{ m.size }} &middot; RAM: {{ m.ram }}</small></p>
+            <p class="guidance-desc">{{ m.desc }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <p class="onboarding-saving" role="status" aria-live="polite" data-saving-status hidden>Saving...</p>
+
+    <div class="onboarding-form-actions">
+      <button class="btn primary" type="submit" data-submit>Save and check local service</button>
+      <a class="btn ghost" href="/onboarding/ai-service?change=1">Choose a different route</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

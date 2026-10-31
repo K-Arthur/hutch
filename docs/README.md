@@ -15,6 +15,7 @@ Where a document and the running code disagree, the code and the current
 
 | Document | Contents |
 |---|---|
+| [Getting Started](getting-started.md) | prerequisites, 5-step onboarding, model options and troubleshooting |
 | [Architecture](architecture.md) | component map, storage schema, control plane and concurrency model |
 | [Safety model](safety.md) | deny/ask/allow rules, approval flow and honest limits |
 | [Operating Hutch locally](operations.md) | Linux service setup, sandbox requirements, backups, restore and phone supervision |

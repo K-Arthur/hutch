@@ -84,3 +84,18 @@ def render(templates: Jinja2Templates, config, request: Request, fields: dict, *
     if error:
         resp.delete_cookie(FLASH_ERR, path="/")
     return resp
+
+
+def fragment(templates: Jinja2Templates, config, request: Request, fields: dict, *,
+             template: str, status_code: int = 200) -> Response:
+    """Render an HTML fragment without base chrome (e.g. for htmx polling)."""
+    context = {
+        "request": request,
+        "csrf": getattr(request.state, "csrf", ""),
+        "version": __version__,
+        **fields,
+    }
+    resp = templates.TemplateResponse(request, template, context, status_code=status_code)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+

@@ -128,6 +128,23 @@ Hutch fits technical builders on Linux who want repeat AI work (scheduled briefi
 | Model routes | Ollama, llama.cpp, LM Studio, OpenAI, Anthropic, OpenRouter, OpenAI-compatible endpoints, and OpenCode |
 | Maintainer | Solo maintainer, best effort; no published response-time commitment |
 
+## Quickstart
+
+<a id="quickstart"></a>
+
+For a full guide to architecture, prerequisites, model selection, and troubleshooting, read [docs/getting-started.md](docs/getting-started.md).
+
+```bash
+# Clone the repository
+git clone https://github.com/K-Arthur/hutch.git
+cd hutch
+
+# Run the local dashboard with uv
+uv run hutch server
+```
+
+Open `http://127.0.0.1:8000` to start the 5-step guided onboarding.
+
 ## Setup details
 
 **Requirements:** Linux, Python 3.11+ and [uv](https://docs.astral.sh/uv/). Real runs also need a model: a local runtime, a hosted provider account, or a free OpenCode model (install the OpenCode CLI; Hutch bundles no model or runtime); runtime prerequisites are documented in [docs/runtime-setup.md](docs/runtime-setup.md).

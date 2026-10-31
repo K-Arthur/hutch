@@ -130,7 +130,7 @@ def test_valid_choice_redirects_persists_and_shows_the_chosen_state(client, kind
     assert f"You chose {ROUTE_LABELS[kind]}" in page
     assert "Selected" in page
     assert "Step 2 of 5" in page
-    assert "Continue to Apps &amp; AI" in page
+    assert "Continue to connect this route" in page
     assert "Change route" in page
     assert page.count("data-primary") == 1
     assert saved.request_text in page

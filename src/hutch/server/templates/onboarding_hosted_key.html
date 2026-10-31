@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Connect your API key{% endblock %}
+
+{% block head %}
+<meta name="referrer" content="same-origin">
+<link rel="stylesheet" href="/static/onboarding-form.css">
+<link rel="stylesheet" href="/static/onboarding.css">
+<link rel="stylesheet" href="/static/onboarding-hosted-key.css">
+<script src="/static/onboarding.js" defer></script>
+{% endblock %}
+
+{% block content %}
+<section class="onboarding onboarding-hosted-key" aria-labelledby="onboarding-title"
+         data-onboarding-state="{{ state }}">
+  <p class="onboarding-kicker">First run <span aria-hidden="true">&middot;</span> Step {{ step_index }} of {{ step_total }}: {{ step_label }}</p>
+
+  <h1 id="onboarding-title" class="onboarding-title" tabindex="-1" data-focus-heading>
+    {% if selected_provider %}Connect {{ selected_provider.name }}{% else %}Choose a hosted provider{% endif %}
+  </h1>
+
+  <p class="onboarding-lede">
+    Paste your API key once. Hutch stores it in a private 0600 file on your machine and never echoes or displays it again.
+  </p>
+
+  {% include "_onboarding_request_text.html" %}
+
+  {% if not selected_provider %}
+    <div class="hosted-providers-grid">
+      {% for p in providers %}
+        <div class="provider-card">
+          <div class="provider-header">
+            <h2 class="provider-name">{{ p.name }}</h2>
+            {% if p.requires_terms %}
+              <span class="terms-badge">Terms agreement required</span>
+            {% endif %}
+          </div>
+          {% if p.env_set %}
+            <p class="operator-note">Environment variable <code>{{ p.env_var }}</code> is set on this computer.</p>
+          {% endif %}
+          <div class="provider-action">
+            <a class="btn primary" href="/onboarding/hosted-key?provider={{ p.id }}">Use {{ p.name }}</a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="onboarding-actions">
+      <a class="onboarding-quiet-link" href="/onboarding/ai-service">Choose a different AI service route</a>
+    </div>
+
+  {% else %}
+    <form class="onboarding-form" method="post" action="/onboarding/hosted-key" data-onboarding-form>
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="revision" value="{{ revision }}">
+      <input type="hidden" name="provider" value="{{ selected_provider.id }}">
+      {% if connection %}
+        <input type="hidden" name="connection" value="{{ connection }}">
+      {% endif %}
+
+      {% if selected_provider.env_set %}
+        <div class="onboarding-banner onboarding-banner-info">
+          <p class="onboarding-banner-title">Managed Key Detected</p>
+          <p>This computer has <code>{{ selected_provider.env_var }}</code> defined. You can use this environment variable directly without entering a secret.</p>
+          <input type="hidden" name="mode" value="managed">
+        </div>
+      {% else %}
+        <input type="hidden" name="mode" value="key">
+        <div class="onboarding-field">
+          <label for="key" class="onboarding-label">
+            API Key <span class="onboarding-req">*</span>
+          </label>
+          <p class="onboarding-help">
+            Paste your key. Any leading "Bearer " prefix or accidental trailing whitespace will be cleaned automatically.
+          </p>
+          <input id="key" name="key" type="password" required autocomplete="off" spellcheck="false"
+                 class="onboarding-input-secret" placeholder="sk-..." autofocus>
+        </div>
+      {% endif %}
+
+      {% if terms and terms.requires_ack %}
+        <div class="onboarding-terms-box">
+          <p class="terms-title">Provider terms notice</p>
+          <div class="terms-body">
+            <p>{{ terms.notice }}</p>
+            {% if terms.url %}
+              <p><a href="{{ terms.url }}" target="_blank" rel="noopener noreferrer">Read full terms at provider website</a></p>
+            {% endif %}
+          </div>
+          <label class="terms-checkbox-label">
+            <input type="checkbox" name="terms_agree" value="1" required>
+            <span>I acknowledge and agree to these terms for this connection.</span>
+          </label>
+        </div>
+      {% endif %}
+
+      <p class="onboarding-saving" role="status" aria-live="polite" data-saving-status hidden>Saving...</p>
+
+      <div class="onboarding-form-actions">
+        <button class="btn primary" type="submit" data-submit>Save and check connection</button>
+        <a class="btn ghost" href="/onboarding/hosted-key">Choose a different provider</a>
+      </div>
+    </form>
+  {% endif %}
+</section>
+{% endblock %}

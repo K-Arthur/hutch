@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Run your first request{% endblock %}
+
+{% block head %}
+<meta name="referrer" content="same-origin">
+<link rel="stylesheet" href="/static/onboarding-form.css">
+<link rel="stylesheet" href="/static/onboarding.css">
+<link rel="stylesheet" href="/static/onboarding-assistant.css">
+<script src="/static/onboarding.js" defer></script>
+{% endblock %}
+
+{% block content %}
+<section class="onboarding onboarding-first-request" aria-labelledby="onboarding-title">
+  <p class="onboarding-kicker">First run <span aria-hidden="true">&middot;</span> Step {{ step_index }} of {{ step_total }}: {{ step_label }}</p>
+
+  {% if submitted %}
+    <h1 id="onboarding-title" class="onboarding-title" tabindex="-1" data-focus-heading>
+      Your task is on its way
+    </h1>
+
+    <div class="onboarding-banner onboarding-banner-info">
+      <p class="onboarding-banner-title">First request submitted</p>
+      <p>Hutch accepted your request and started execution with <strong>{{ bot.display_name or bot.name }}</strong>.</p>
+    </div>
+
+    <div class="assistant-security-card">
+      <h2 class="assistant-card-title">Execution Status</h2>
+      {% if run %}
+        <p><strong>Run ID:</strong> <code>{{ run.id }}</code></p>
+        <p><strong>Status:</strong> <span class="badge">{{ run.status.value if run.status.value is defined else run.status }}</span></p>
+        <div class="onboarding-form-actions">
+          <a class="btn primary" href="/runs/{{ run.id }}">View live execution stream</a>
+          <a class="btn secondary" href="/">Go to Dashboard</a>
+        </div>
+      {% else %}
+        <p>Your task was registered and queued for execution.</p>
+        <div class="onboarding-form-actions">
+          <a class="btn primary" href="/">Go to Dashboard</a>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="assistant-security-card">
+      <h2 class="assistant-card-title">What happens next</h2>
+      <ul class="assistant-permissions-list">
+        <li>
+          <strong>Human approvals:</strong> If your task requires running shell commands or writing files, an approval card will appear in your dashboard for your review.
+        </li>
+        <li>
+          <strong>Local persistence:</strong> All run logs and conversation state stay strictly on this machine.
+        </li>
+        <li>
+          <strong>Explore capabilities:</strong> Return to the dashboard at any time to create additional assistants, bind agent skills, or schedule periodic tasks.
+        </li>
+      </ul>
+    </div>
+
+  {% else %}
+    <h1 id="onboarding-title" class="onboarding-title" tabindex="-1" data-focus-heading>
+      Review and run your first request
+    </h1>
+
+    <p class="onboarding-lede">
+      Check your request and see how Hutch protects your machine before execution begins.
+    </p>
+
+    {% if error_summary %}
+      <div class="onboarding-banner onboarding-banner-error" role="alert" tabindex="-1">
+        <p class="onboarding-banner-title">{{ error_summary }}</p>
+        {% if field_error %}<p>{{ field_error }}</p>{% endif %}
+      </div>
+    {% endif %}
+
+    <form class="onboarding-form" method="post" action="/onboarding/first-request/run" data-onboarding-form>
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="revision" value="{{ revision }}">
+
+      <div class="onboarding-field">
+        <label for="request" class="onboarding-label">
+          Your Request <span class="onboarding-req">*</span>
+        </label>
+        <p class="onboarding-help" id="request-help">You can refine your request before submitting.</p>
+        <textarea id="request" name="request" rows="4" required class="onboarding-textarea" aria-describedby="request-help">{{ request_text }}</textarea>
+      </div>
+
+      <div class="assistant-security-card">
+        <h2 class="assistant-card-title">Assigned Assistant: {{ bot.display_name or bot.name }}</h2>
+        <p class="operator-note">
+          Model: <code>{{ bot.model }}</code> <span aria-hidden="true">&middot;</span> Workspace: <code>fresh</code>
+        </p>
+        <ul class="assistant-permissions-list">
+          <li>
+            <strong>Human-in-the-loop protection:</strong> Hutch will pause and ask for your approval before performing any dangerous action (such as executing shell commands or writing outside the workspace).
+          </li>
+          <li>
+            <strong>Inspectable:</strong> You can see exact arguments, command lines, and diffs before approving.
+          </li>
+        </ul>
+      </div>
+
+      <p class="onboarding-saving" role="status" aria-live="polite" data-saving-status hidden>Submitting task...</p>
+
+      <div class="onboarding-form-actions">
+        <button class="btn primary" type="submit" data-submit>Run this task with {{ bot.display_name or bot.name }}</button>
+        <a class="onboarding-quiet-link" href="/onboarding/assistant">Adjust assistant</a>
+      </div>
+    </form>
+  {% endif %}
+</section>
+{% endblock %}

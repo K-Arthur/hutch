@@ -1,0 +1,65 @@
+/* Onboarding Assistant Step styling */
+
+.onboarding-assistant {
+  max-width: 44rem;
+  margin: 0 auto;
+}
+
+.onboarding-fields-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .onboarding-fields-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.onboarding-select {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.9375rem;
+  background-color: var(--color-surface, #1e293b);
+  color: var(--color-text, #f8fafc);
+  border: 1px solid var(--color-border, #334155);
+  border-radius: 0.5rem;
+}
+
+.onboarding-select:focus {
+  outline: 2px solid var(--color-primary, #38bdf8);
+  outline-offset: 1px;
+}
+
+.assistant-security-card {
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  border-radius: 0.625rem;
+  background-color: var(--color-surface-subtle, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.1));
+}
+
+.assistant-card-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: var(--color-text-emphasis, #f1f5f9);
+}
+
+.assistant-permissions-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-text-muted, #94a3b8);
+}
+
+.assistant-permissions-list li {
+  margin-bottom: 0.5rem;
+}
+
+.assistant-permissions-list strong {
+  color: var(--color-text, #e2e8f0);
+}
