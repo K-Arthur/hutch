@@ -6,7 +6,7 @@ no source line counts, no unstaged or ignored files. Ordinary source edits do
 not change it; stage file additions or removals, then regenerate. Do not edit
 this file by hand.
 
-Tracked files in scope: 2333.
+Tracked files in scope: 2334.
 
 ## Top-level layout
 
@@ -24,7 +24,7 @@ Tracked files in scope: 2333.
 | `native/` | 9 |
 | `scripts/` | 38 |
 | `src/` | 554 |
-| `tests/` | 431 |
+| `tests/` | 432 |
 | `website/` | 66 |
 
 ## Python package: src/hutch/
@@ -58,7 +58,7 @@ Tracked files in scope: 2333.
 
 | Path | Tracked files |
 | --- | ---: |
-| `(root files)` | 315 |
+| `(root files)` | 316 |
 | `e2e/` | 82 |
 | `fixtures/` | 17 |
 | `native/` | 1 |
