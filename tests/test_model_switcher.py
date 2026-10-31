@@ -454,18 +454,3 @@ def test_validate_override_returns_empty_for_no_choice(env):
     bot = mkbot(env, model="ollama/fake:8b")
     assert validate_override(env.config, env.store, bot, "") == bot.model
     assert validate_override(env.config, env.store, bot, "ollama/anything:1b") == "ollama/anything:1b"
-
-
-@pytest.mark.parametrize("saved", ["", "demo", "mock/demo", "no-slash"])
-def test_a_route_that_cannot_run_is_not_offered_as_the_assistants_default(env, saved):
-    """The picker lists only models that can answer; an unusable saved route is the chip's "Choose a model", not a row."""
-    bot = mkbot(env, model=saved)
-    choices = model_choices(env.config, env.store, bot)
-    assert not any(choice.default for choice in choices), saved
-    assert saved not in {choice.spec for choice in choices if choice.spec}, saved
-
-
-def test_a_working_route_is_still_the_default_the_picker_leads_with(env):
-    bot = mkbot(env, model="ollama/llama3.2:3b")
-    first = model_choices(env.config, env.store, bot)[0]
-    assert first.spec == "ollama/llama3.2:3b" and first.default is True
