@@ -7,11 +7,14 @@ the UI cannot present a partial picture as complete.
 """
 from __future__ import annotations
 
+import sqlite3
 from datetime import datetime, time, timedelta, timezone
 from typing import Any, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from ..models import RunStatus, iso, utcnow
+from ..notifications import KIND_LABELS as ALERT_LABELS
+from ..notifications import recent as recent_notifications
 from ..scheduler import InvalidScheduleZone, Scheduler
 from .models import CommitmentStatus, CompletionKind
 from .store import PersonalStore, public
@@ -114,6 +117,22 @@ def _document_item(row: dict[str, Any], *, bot_labels: dict[str, str]) -> dict[s
     }
 
 
+def _alert_item(row: dict[str, Any], *, labels: dict[str, str]) -> dict[str, Any]:
+    """One already-sent alert, with the outbox state that proves what happened."""
+    return {
+        "kind": row.get("kind"),
+        "kind_label": ALERT_LABELS.get(str(row.get("kind")), "Notification"),
+        "bot_label": labels.get(row.get("bot_id"), row.get("bot_id") or "An assistant"),
+        "subject_kind": row.get("subject_kind"),
+        "subject_id": row.get("subject_id"),
+        "detail": row.get("detail") or "",
+        "created_at": row.get("created_at"),
+        "delivery": row.get("delivery_state") or "not queued",
+        "attempts": int(row.get("attempts") or 0),
+        "href": "#/approvals" if row.get("subject_kind") == "approval" else "#/today",
+    }
+
+
 def _schedules(store, *, now: datetime, start: datetime, end: datetime) -> dict[str, Any]:
     scheduler = Scheduler(store)
     labels = _bot_labels(store)
@@ -212,6 +231,8 @@ def build_today(store, *, now: Optional[datetime] = None, timezone_name: Optiona
         "Calendar events and email are not part of this projection: the separate Agenda section "
         "reads only a connection you select there and labels it with its source and fetch time.",
         "Only the most recent 200 commitments, 100 runs and 20 documents are considered.",
+        "Alerts are what Hutch already told your connected channel. Today does not send them and "
+        "cannot prove they were read.",
         "A reported completion is not verified work; it is listed separately until you confirm it.",
     ]
     if deliverable_note:
@@ -219,6 +240,17 @@ def build_today(store, *, now: Optional[datetime] = None, timezone_name: Optiona
 
     spaces = personal.spaces.summary()
     schedules = _schedules(store, now=now, start=start, end=end)
+    alerts_note = ""
+    alerts: list[dict[str, Any]] = []
+    try:
+        alerts = [_alert_item(row, labels=labels)
+                  for row in recent_notifications(store, limit=12, since=iso(now - timedelta(days=7)))]
+    except (KeyError, ValueError, TypeError, sqlite3.Error) as error:
+        # A missing alert table must not hide commitments or approvals.
+        alerts_note = (f"Notifications could not be listed ({type(error).__name__}); the other "
+                       "sections are unaffected.")
+    if alerts_note:
+        not_included.append(alerts_note)
 
     return {
         "generated_at": now_iso,
@@ -238,6 +270,7 @@ def build_today(store, *, now: Optional[datetime] = None, timezone_name: Optiona
             "needs_attention": len(needs_attention),
             "upcoming_schedules": len(schedules["upcoming_today"]),
             "spaces": len(spaces),
+            "alerts": len(alerts),
         },
         "sections": {
             "commitments": {"overdue": overdue, "due_today": due_today, "upcoming": upcoming,
@@ -249,6 +282,7 @@ def build_today(store, *, now: Optional[datetime] = None, timezone_name: Optiona
                      "completed_today": finished_today},
             "deliverables": documents,
             "spaces": spaces,
+            "alerts": alerts,
         },
         "not_included": not_included,
     }

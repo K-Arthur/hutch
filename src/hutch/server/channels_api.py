@@ -52,6 +52,8 @@ class DeliveryReconciliation(BaseModel):
 
 
 def install_channel_routes(app, store, engine):
+    from .notifications_api import install_notification_routes
+    install_notification_routes(app, store)
     book, secrets = ChannelBook(store), ChannelSecrets()
     app.state.channel_secrets = secrets
 

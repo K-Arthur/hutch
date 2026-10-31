@@ -115,6 +115,17 @@ def test_today_agenda_is_labelled_fresh_stale_and_responsive(browser, app_server
         page.screenshot(path=str(out / "today-agenda-stale-1440.png"), full_page=True,
                         animations="disabled")
 
+        # Alerts show what the outbox actually did, not what was attempted.
+        page.goto(f"{base}/#/today")
+        expect(page.locator(".pd-page")).to_be_visible()
+        alerts = page.locator("section[aria-labelledby='pd-alerts']")
+        expect(alerts).to_be_visible()
+        expect(alerts.locator(".pd-item").first).to_contain_text("Needs you")
+        expect(alerts.locator(".pd-item").first).to_contain_text("Not sent")
+        alerts.scroll_into_view_if_needed()
+        page.wait_for_timeout(200)
+        page.screenshot(path=str(out / "today-alerts-1440.png"), animations="disabled")
+
         # Keyboard: the agenda picker is reachable and operates with the keyboard alone.
         page.locator("#pd-agenda-calendar").focus()
         assert page.evaluate("document.activeElement.id") == "pd-agenda-calendar"

@@ -88,7 +88,21 @@
     ).join("") + "</ul>";
   }
 
-    function spaceSummary(spaces) {
+    function alertRows(items) {
+    if (!items || !items.length) return "";
+    return '<ul class="pd-list">' + items.map(row => {
+      const state = row.delivery === "not queued" ? "Not sent"
+        : row.delivery === "sent" ? "Sent" : row.delivery === "uncertain" ? "Delivery unconfirmed"
+        : row.delivery === "pending" ? "Queued" : row.delivery;
+      return '<li class="pd-item"><div class="pd-item-head"><a class="pd-title" href="' + P().esc(row.href) + '">' +
+        P().esc(row.kind_label) + " · " + P().esc(row.bot_label) + "</a>" +
+        '<span class="tag pd-chip' + (row.delivery === "uncertain" ? " stale" : "") + '">' +
+        P().esc(state) + '</span></div><p class="pd-meta">' +
+        P().esc(P().formatDue(row.created_at)) + "</p></li>";
+    }).join("") + "</ul>";
+  }
+
+  function spaceSummary(spaces) {
     if (!spaces || !spaces.length) {
       return '<p class="hint">No shared spaces yet. Create one for a household, a project or a group on ' +
         '<a href="#/shared">Shared</a>.</p>';
@@ -296,6 +310,12 @@
     if (sections.deliverables.length) {
       parts.push(section("deliverables", "Deliverables today", sections.deliverables.length,
         "Generated files, with their validation state.", documentRows(sections.deliverables)));
+    }
+
+    if (sections.alerts && sections.alerts.length) {
+      parts.push(section("alerts", "Alerts Hutch sent", sections.alerts.length,
+        "What Hutch told your connected channel, with its delivery state. Delivery is not proof it was read.",
+        alertRows(sections.alerts)));
     }
 
     parts.push(section("spaces", "Shared", spaces.length,

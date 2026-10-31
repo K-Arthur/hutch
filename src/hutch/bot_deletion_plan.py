@@ -139,8 +139,8 @@ _ERASE_STEPS: tuple[_Step, ...] = (
     _Step('human_wait_resumes', 'delete', 'run_id IN ' + _BOT_RUNS),
     _Step('code_handoffs', 'delete', 'bot_id = :bot'),
     _Step('channel_deliveries', 'delete',
-          'event_id IN (SELECT id FROM channel_events WHERE channel_id IN '
-          '(SELECT id FROM channel_connections WHERE bot_id = :bot))'),
+          'channel_id IN (SELECT id FROM channel_connections WHERE bot_id = :bot)'),
+    _Step('notifications', 'delete', 'bot_id = :bot'),
     _Step('channel_events', 'delete',
           'channel_id IN (SELECT id FROM channel_connections WHERE bot_id = :bot)'),
     _Step('channel_threads', 'delete', 'bot_id = :bot'),
