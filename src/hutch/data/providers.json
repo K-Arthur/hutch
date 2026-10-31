@@ -172,7 +172,7 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         },
         {
@@ -185,8 +185,10 @@
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "minimax"
+      ],
       "regions": [
         "global",
         "cn"
@@ -213,7 +215,7 @@
           "type": "api_key",
           "label": "Moonshot API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         },
         {
@@ -226,8 +228,10 @@
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "moonshot"
+      ],
       "regions": [
         "global",
         "cn"
@@ -307,7 +311,7 @@
           "type": "api_key",
           "label": "xAI API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         },
         {
@@ -320,8 +324,10 @@
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "xai"
+      ],
       "regions": [
         "global"
       ],
@@ -347,7 +353,7 @@
           "type": "api_key",
           "label": "GLM API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         },
         {
@@ -360,8 +366,10 @@
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "zai"
+      ],
       "regions": [
         "global",
         "cn"
@@ -459,13 +467,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "mistral"
+      ],
       "regions": [
         "global"
       ]
@@ -628,13 +638,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "stepfun"
+      ],
       "regions": [
         "global",
         "cn"
@@ -660,13 +672,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "volcengine"
+      ],
       "regions": [
         "cn"
       ]
@@ -681,7 +695,7 @@
         "embeddings"
       ],
       "protocols": [
-        "custom"
+        "openai-chat"
       ],
       "auth": [
         {
@@ -689,13 +703,15 @@
           "type": "api_key",
           "label": "TokenPlan or API credential",
           "billing": "credits",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "tencent-cloud"
+      ],
       "regions": [
         "cn"
       ],
@@ -749,7 +765,7 @@
         "embeddings"
       ],
       "protocols": [
-        "custom"
+        "openai-chat"
       ],
       "auth": [
         {
@@ -757,13 +773,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "cohere"
+      ],
       "regions": [
         "global"
       ]
@@ -785,13 +803,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "synthetic"
+      ],
       "regions": [
         "global"
       ]
@@ -814,13 +834,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "venice"
+      ],
       "regions": [
         "global"
       ]
@@ -842,13 +864,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "arcee"
+      ],
       "regions": [
         "global"
       ]
@@ -901,13 +925,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "gmi-cloud"
+      ],
       "regions": [
         "global"
       ]
@@ -1295,13 +1321,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "groq"
+      ],
       "regions": [
         "global"
       ]
@@ -1324,13 +1352,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "cerebras"
+      ],
       "regions": [
         "global"
       ]
@@ -1356,13 +1386,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "together"
+      ],
       "regions": [
         "global"
       ]
@@ -1387,13 +1419,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "fireworks"
+      ],
       "regions": [
         "global"
       ]
@@ -1417,13 +1451,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "nvidia"
+      ],
       "regions": [
         "global"
       ]
@@ -1448,13 +1484,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "huggingface"
+      ],
       "regions": [
         "global"
       ]
@@ -1478,13 +1516,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "deepinfra"
+      ],
       "regions": [
         "global"
       ]
@@ -1507,13 +1547,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "chutes"
+      ],
       "regions": [
         "global"
       ]
@@ -1538,13 +1580,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "novita"
+      ],
       "regions": [
         "global"
       ]
@@ -1566,8 +1610,8 @@
           "id": "api-key",
           "type": "api_key",
           "label": "Kilocode API key",
-          "billing": "subscription",
-          "status": "documented",
+          "billing": "credits",
+          "status": "implemented",
           "docs": []
         },
         {
@@ -1580,8 +1624,10 @@
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "kilocode"
+      ],
       "regions": [
         "global"
       ]
@@ -1606,13 +1652,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "byteplus"
+      ],
       "regions": [
         "global",
         "cn"
@@ -1637,13 +1685,15 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "ollama-cloud"
+      ],
       "regions": [
         "global"
       ],

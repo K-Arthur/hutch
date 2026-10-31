@@ -1,0 +1,147 @@
+{
+  "checked_on": "2026-10-31",
+  "app": "http://127.0.0.1:38219",
+  "results": [
+    {
+      "surface": "providers",
+      "viewport": "1440x960",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "shot": "app-providers-1440x960.png"
+    },
+    {
+      "surface": "connections",
+      "viewport": "1440x960",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "shot": "app-connections-1440x960.png"
+    },
+    {
+      "surface": "site-providers",
+      "viewport": "1440x960",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "has_unverified_group": true,
+      "has_25_badges": true,
+      "shot": "site-providers-1440x960.png"
+    },
+    {
+      "surface": "providers",
+      "viewport": "1280x720",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "shot": "app-providers-1280x720.png"
+    },
+    {
+      "surface": "connections",
+      "viewport": "1280x720",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "shot": "app-connections-1280x720.png"
+    },
+    {
+      "surface": "site-providers",
+      "viewport": "1280x720",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "has_unverified_group": true,
+      "has_25_badges": true,
+      "shot": "site-providers-1280x720.png"
+    },
+    {
+      "surface": "providers",
+      "viewport": "900x1024",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "shot": "app-providers-900x1024.png"
+    },
+    {
+      "surface": "connections",
+      "viewport": "900x1024",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "shot": "app-connections-900x1024.png"
+    },
+    {
+      "surface": "site-providers",
+      "viewport": "900x1024",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "has_unverified_group": true,
+      "has_25_badges": true,
+      "shot": "site-providers-900x1024.png"
+    },
+    {
+      "surface": "providers",
+      "viewport": "390x844",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "shot": "app-providers-390x844.png"
+    },
+    {
+      "surface": "connections",
+      "viewport": "390x844",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "shot": "app-connections-390x844.png"
+    },
+    {
+      "surface": "site-providers",
+      "viewport": "390x844",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "has_unverified_group": true,
+      "has_25_badges": true,
+      "shot": "site-providers-390x844.png"
+    },
+    {
+      "surface": "providers",
+      "viewport": "320x740",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "shot": "app-providers-320x740.png"
+    },
+    {
+      "surface": "connections",
+      "viewport": "320x740",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "shot": "app-connections-320x740.png"
+    },
+    {
+      "surface": "site-providers",
+      "viewport": "320x740",
+      "status": 200,
+      "overflow_px": 0,
+      "console": 0,
+      "has_unverified_group": true,
+      "has_25_badges": true,
+      "shot": "site-providers-320x740.png"
+    },
+    {
+      "surface": "app-providers-zoom200",
+      "viewport": "1280x720",
+      "overflow_px": 0
+    },
+    {
+      "surface": "site-zoom200",
+      "viewport": "1280x720",
+      "overflow_px": 316
+    }
+  ],
+  "console_problems": []
+}

@@ -415,6 +415,28 @@ The site now lists the DeepSeek direct API route among shipped routes with an ex
 The underlying evidence is two owner-authorized real text requests: DeepSeek direct through the built-in
 runtime and the managed OpenCode runtime with a DeepSeek model. Only text generation was exercised; the
 site does not claim tool, streaming, vision, audio, video, music or search verification, and every other
-provider remains research-tracked or blocked. The 2026-10-31 Gemini adapter is the first route since
+provider remains unverified at some level. The 2026-10-31 Gemini adapter is the first route since
 then whose claim is contract-tested rather than live-verified, and the site labels it that way. The OpenCode Go attempt surfaced an expired provider key and
 is recorded as a failure, not a success.
+
+### Hosted route list (2026-10-31)
+
+The status panel gained a third group, **shipped routes - inference unverified**, and the matching 25
+names were removed from the research-tracked list. That is an accuracy fix, not a support upgrade: each of
+those routes exists in the product and its endpoint was reached without a credential on 2026-10-31 (host,
+TLS, `/models` path, and either a model catalogue or an explicit auth challenge), but no authenticated
+inference has been run on any of them.
+
+The group exists because the previous split - shipped versus research-tracked - could no longer describe a
+route that is real but unproven. The three labels now mean:
+
+- **shipped route families**: an implemented route, with live verification only where a dated evidence
+  artifact exists (DeepSeek text, 2026-10-30).
+- **shipped routes, inference unverified**: a real connection path to a real endpoint, no model or
+  capability claim.
+- **research-tracked, not shipped**: no route in the product.
+
+The site must not move a name out of the middle group into the first without a dated authenticated
+artifact, must not add capability words (tools, vision, streaming) to any of these badges, and must not
+imply vendor partnership. `tests/test_provider_routes.py` keeps the templates and the reachability record
+in agreement; the site copy is the human-readable reflection of those two.

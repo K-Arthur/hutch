@@ -409,6 +409,34 @@ exercised against a live account** (there are no keys on the development machine
 
 OpenAI, Anthropic, Ollama, LM Studio and llama.cpp keep their built-in provider names and need no connection.
 
+### Hosted OpenAI-compatible routes (2026-10-31)
+
+Twenty-five further templates use the existing OpenAI Chat Completions adapter. Each was reached **without a
+credential** on 2026-10-31: the host resolved, presented a valid certificate, and answered its `/models` path
+with either a model catalogue or an explicit authentication challenge. That is recorded in
+[`endpoint-reachability-2026-10-31.json`](research/2026-10-provider-platform/artifacts/live-verification/endpoint-reachability-2026-10-31.json)
+and `tests/test_provider_routes.py` fails if a template and the record disagree.
+
+**No authenticated inference has been run on any of them.** They are `implemented-unverified`: Hutch has a real
+route, not a proven model. No model list, capability, price or usage claim is made for these endpoints, and a
+per-token price row is still required before currency-limited use.
+
+- **Vendors**: `mistral` (`MISTRAL_API_KEY`), `xai` (`XAI_API_KEY`), `minimax` (`MINIMAX_API_KEY`), `moonshot`
+  (`MOONSHOT_API_KEY`), `zai` (`ZAI_API_KEY`), `cohere` (`COHERE_API_KEY`), `stepfun` (`STEPFUN_API_KEY`).
+- **Serving platforms**: `groq`, `cerebras`, `fireworks`, `together`, `deepinfra`, `novita`, `chutes`, `nvidia`,
+  `huggingface` (`HF_TOKEN`), `synthetic`, `venice`, `gmi-cloud`, `arcee`, `ollama-cloud`.
+- **Enterprise and gateways**: `volcengine`, `tencent-cloud`, `kilocode`, `byteplus`.
+
+Regional and plan variants stay separate templates on purpose. `moonshot` is the overseas host; the China host
+and the Kimi Code membership URL are different routes. `stepfun` is the China host; the global host uses a
+different domain. `tencent-cloud` is region-scoped: a key is valid only on its own TokenHub site, and no
+cross-region call is made. `zai`, `minimax` and `moonshot` templates are the API-key (PAYG) routes; their
+coding-plan keys are separate billing relationships and are not these templates. `ollama-cloud` is a hosted
+service even though the same model names may run locally.
+
+A route reads its key only from its own `api_key_env` or its own key file. `OPENAI_API_KEY` is never sent to a
+non-OpenAI host merely because the route speaks the OpenAI wire format.
+
 ## What a connection controls
 
 - **Key** (`CN-2`). Read from the environment variable first, then from `<state dir>/keys/<name>.key` (created

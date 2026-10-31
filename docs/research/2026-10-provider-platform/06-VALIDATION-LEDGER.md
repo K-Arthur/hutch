@@ -218,3 +218,96 @@ Remaining gaps for this route:
   this slice.
 - Speech, video, music, image generation and provider-native search remain documented only; the media job
   architecture was not extended in this slice.
+
+## Hosted OpenAI-compatible routes (2026-10-31)
+
+The catalogue carried 62 provider identities but only a handful had a real route. This slice wires the
+hosted vendors whose endpoints the research register reached from vendor documentation, and records what
+a credential-free call to the live service actually shows. No key was sent, no model was called and
+nothing was spent.
+
+Method: accept: application/json, `GET <base>/models`, 20 s timeout, one attempt, TLS verified. The URL
+probed is exactly `template.base_url + "/models"`, so the template cannot drift from the observation.
+Artifact: `artifacts/live-verification/endpoint-reachability-2026-10-31.json`.
+`tests/test_provider_routes.py` fails if the artifact and the templates disagree.
+
+| Provider | Probed URL | HTTP | What it shows |
+|---|---|---:|---|
+| arcee | `https://api.arcee.ai/api/v1/models` | 401 | host and route exist; credential demanded |
+| byteplus | `https://ark.ap-southeast.bytepluses.com/api/v3/models` | 401 | host and route exist; credential demanded |
+| cerebras | `https://api.cerebras.ai/v1/models` | 403 | host and route exist; credential demanded |
+| chutes | `https://llm.chutes.ai/v1/models` | 200 | public model list returned; no credential used |
+| cohere | `https://api.cohere.ai/compatibility/v1/models` | 401 | host and route exist; credential demanded |
+| deepinfra | `https://api.deepinfra.com/v1/openai/models` | 200 | public model list returned; no credential used |
+| fireworks | `https://api.fireworks.ai/inference/v1/models` | 401 | host and route exist; credential demanded |
+| gmi-cloud | `https://api.gmi-serving.com/v1/models` | 401 | host and route exist; credential demanded |
+| groq | `https://api.groq.com/openai/v1/models` | 401 | host and route exist; credential demanded |
+| huggingface | `https://router.huggingface.co/v1/models` | 200 | public model list returned; no credential used |
+| kilocode | `https://api.kilo.ai/api/gateway/v1/models` | 200 | public model list returned; no credential used |
+| minimax | `https://api.minimax.io/v1/models` | 401 | host and route exist; credential demanded |
+| mistral | `https://api.mistral.ai/v1/models` | 401 | host and route exist; credential demanded |
+| moonshot | `https://api.moonshot.ai/v1/models` | 401 | host and route exist; credential demanded |
+| novita | `https://api.novita.ai/openai/v1/models` | 200 | public model list returned; no credential used |
+| nvidia | `https://integrate.api.nvidia.com/v1/models` | 200 | public model list returned; no credential used |
+| ollama-cloud | `https://ollama.com/v1/models` | 200 | public model list returned; no credential used |
+| stepfun | `https://api.stepfun.com/v1/models` | 401 | host and route exist; credential demanded |
+| synthetic | `https://api.synthetic.new/v1/models` | 200 | public model list returned; no credential used |
+| tencent-cloud | `https://tokenhub.tencentmaas.com/v1/models` | 401 | host and route exist; credential demanded |
+| together | `https://api.together.xyz/v1/models` | 401 | host and route exist; credential demanded |
+| venice | `https://api.venice.ai/api/v1/models` | 200 | public model list returned; no credential used |
+| volcengine | `https://ark.cn-beijing.volces.com/api/v3/models` | 401 | host and route exist; credential demanded |
+| xai | `https://api.x.ai/v1/models` | 401 | host and route exist; credential demanded |
+| zai | `https://api.z.ai/api/paas/v4/models` | 401 | host and route exist; credential demanded |
+
+What this establishes: each host resolves, presents a valid certificate, serves the path Hutch's adapter
+will call, and answers with either a model catalogue or an explicit authentication challenge. That is
+enough to say the route is real and correctly addressed; it is not enough to say a given account can use
+it.
+
+What it does not establish: that any specific model exists for a buyer, that inference, streaming, tool
+calling, vision, audio, video, music or search works, or how the provider bills. All 25 routes stay
+`implemented-unverified`, the matrix says `not live-verified`, and no marketing claim was upgraded.
+
+Two endpoint corrections came from the probe rather than from documentation: BytePlus ModelArk answers on
+`ark.ap-southeast.bytepluses.com` (the research register had listed it as unverified), and Kilo Gateway
+serves both `/v1/models` and chat under `https://api.kilo.ai/api/gateway/v1` rather than at the bare
+gateway root. Both are now recorded with the observed URL.
+
+Focused checks for this slice:
+
+| Check | Command | Result |
+|---|---|---|
+| Route wiring and evidence agreement | `uv run --frozen --no-sync pytest -q tests/test_provider_routes.py` | 5 passed |
+| Catalogue, connections, accounts, surfaces, readiness | `uv run --frozen --no-sync pytest -q tests/test_provider_catalog.py tests/test_connections.py tests/test_provider_accounts.py tests/test_provider_surfaces.py tests/test_provider_readiness.py tests/test_compat.py` | 108 passed |
+| Research-package honesty audit | `python3 scripts/audit_provider_research.py` | PASS |
+
+### Visual re-check of the provider surfaces (2026-10-31)
+
+The app was started from this tree against an isolated state directory and captured with Playwright
+Chromium; the marketing site was served over HTTP from `website/`. Four real, unauthenticated connection
+rows (groq, cerebras, xai, minimax) were created through the normal connection store so the pages had
+accounts to render. No key existed, so every account truthfully renders `needs authentication`.
+
+| Surface | Viewports | Result |
+|---|---|---|
+| `/providers` | 1440x960, 1280x720, 900x1024, 390x844, 320x740 | HTTP 200, 0 px horizontal overflow, 0 console errors/warnings |
+| `/legacy/connections` | same five | HTTP 200, 0 px overflow, 0 console errors |
+| website `#providers` (expanded) | same five | HTTP 200, 0 px overflow, 0 console errors; the new `shipped routes, inference unverified` group and all 25 badges present |
+| `/providers` at 200 percent text | 1280x720 | 0 px overflow |
+
+Artifacts: `artifacts/visual/routes-2026-10-31/` (`capture-results.json`, full-page PNGs, and
+`review/` viewport-sized copies). Inspected at each viewport: the account cards with their
+`needs authentication` state and the exact variable to set, the provider catalogue cards showing
+`implemented-unverified` and per-provider account counts, and the website provider panel in its collapsed
+and expanded forms.
+
+Defect found by inspection and fixed before the accepted run: the first attempt named all 25 new routes
+inside the "Shipped model routes" paragraph. At 1440 px that paragraph grew about twice as tall as its two
+neighbouring cards and left visible dead space under them. The names now live only in their own badge
+group, and the paragraph carries one sentence pointing at it.
+
+Standing gap, measured rather than assumed: at 200 percent text the site's horizontal navigation overflows
+by 316 px. The committed page measures the same 316 px (verified by stashing this slice's website edit and
+re-measuring), and the widest element is a header `btn btn-primary btn-sm`, not anything in the provider
+section. It is a site-wide reflow gap, not a regression from this slice, and it is left unfixed here
+because changing the site's global header is outside this slice's ownership.

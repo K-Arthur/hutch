@@ -1,0 +1,183 @@
+{
+  "checked_on": "2026-10-31",
+  "method": "unauthenticated GET of each template's /models URL; no credential was sent and no model was called",
+  "proves": "the host, TLS certificate, URL path and auth challenge for each route",
+  "does_not_prove": "that any model exists for a given account, that inference works, or any capability beyond reachability",
+  "probes": [
+    {
+      "provider": "arcee",
+      "url": "https://api.arcee.ai/api/v1/models",
+      "status": 401,
+      "ms": 140,
+      "body": "{\"detail\":\"Missing or invalid Authorization header. Expected: Bearer <api_key>\"}"
+    },
+    {
+      "provider": "byteplus",
+      "url": "https://ark.ap-southeast.bytepluses.com/api/v3/models",
+      "status": 401,
+      "ms": 725,
+      "body": "{\"error\":{\"code\":\"AuthenticationError\",\"message\":\"the API key or AK/SK in the request is missing or invalid. request id: 0217934492852904883e653edd60bc78b7b920f959874d96c005a\",\"param\":\"\",\"type\":\"Unaut"
+    },
+    {
+      "provider": "cerebras",
+      "url": "https://api.cerebras.ai/v1/models",
+      "status": 403,
+      "ms": 141,
+      "body": "{\"detail\":\"Not authenticated\"}"
+    },
+    {
+      "provider": "chutes",
+      "url": "https://llm.chutes.ai/v1/models",
+      "status": 200,
+      "ms": 136,
+      "body": "{\"object\":\"list\",\"data\":[{\"id\":\"Qwen/Qwen3.8-27B-TEE\",\"root\":\"Qwen/Qwen3.8-27B-FP8\",\"price\":{\"input\":{\"tao\":0.0001654669604907326,\"usd\":0.039},\"output\":{\"tao\":0.0053034282208568135,\"usd\":1.25},\"input_"
+    },
+    {
+      "provider": "cohere",
+      "url": "https://api.cohere.ai/compatibility/v1/models",
+      "status": 401,
+      "ms": 153,
+      "body": "{\"id\":\"f3bacf2b-c829-4575-a622-09ff0c5c1ef7\",\"message\":\"no api key supplied\"}"
+    },
+    {
+      "provider": "deepinfra",
+      "url": "https://api.deepinfra.com/v1/openai/models",
+      "status": 200,
+      "ms": 697,
+      "body": "{\"object\":\"list\",\"data\":[{\"id\":\"nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B\",\"object\":\"model\",\"created\":0,\"owned_by\":\"deepinfra\",\"root\":\"nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B\",\"parent\":null,\"metadata\""
+    },
+    {
+      "provider": "fireworks",
+      "url": "https://api.fireworks.ai/inference/v1/models",
+      "status": 401,
+      "ms": 118,
+      "body": "{\"error\":{\"message\":\"You must provide an API key. See https://docs.fireworks.ai/api-reference/introduction#authentication for more information.\",\"param\":null,\"code\":\"UNAUTHORIZED\",\"type\":\"error\"},\"req"
+    },
+    {
+      "provider": "gmi-cloud",
+      "url": "https://api.gmi-serving.com/v1/models",
+      "status": 401,
+      "ms": 300,
+      "body": "{\"group\":\"api_key\",\"message\":\"API key is required.\"}"
+    },
+    {
+      "provider": "groq",
+      "url": "https://api.groq.com/openai/v1/models",
+      "status": 401,
+      "ms": 106,
+      "body": "{\"error\":{\"message\":\"Invalid API Key\",\"type\":\"invalid_request_error\",\"code\":\"invalid_api_key\"}} "
+    },
+    {
+      "provider": "huggingface",
+      "url": "https://router.huggingface.co/v1/models",
+      "status": 200,
+      "ms": 188,
+      "body": "{\"object\":\"list\",\"data\":[{\"id\":\"deepseek-ai/DeepSeek-V4.1-Flash-1017\",\"object\":\"model\",\"created\":1792204838,\"owned_by\":\"deepseek-ai\",\"architecture\":{\"input_modalities\":[\"text\",\"image\"],\"output_modalit"
+    },
+    {
+      "provider": "kilocode",
+      "url": "https://api.kilo.ai/api/gateway/v1/models",
+      "status": 200,
+      "ms": 260,
+      "body": "{\"data\":[{\"id\":\"kilo-auto/efficient\",\"name\":\"Auto Efficient\",\"created\":0,\"description\":\"Routes each request to the cheapest model that gets the job done, based on continuously benchmarked accuracy and"
+    },
+    {
+      "provider": "minimax",
+      "url": "https://api.minimax.io/v1/models",
+      "status": 401,
+      "ms": 209,
+      "body": "{\"type\":\"error\",\"error\":{\"type\":\"authorized_error\",\"message\":\"login fail: Please carry the API secret key in the 'Authorization' field of the request header (1004)\",\"http_code\":\"401\"},\"request_id\":\"07"
+    },
+    {
+      "provider": "mistral",
+      "url": "https://api.mistral.ai/v1/models",
+      "status": 401,
+      "ms": 246,
+      "body": "{\"detail\":\"Invalid API Key\"} "
+    },
+    {
+      "provider": "moonshot",
+      "url": "https://api.moonshot.ai/v1/models",
+      "status": 401,
+      "ms": 268,
+      "body": "{\"error\":{\"message\":\"Incorrect API key provided\",\"type\":\"incorrect_api_key_error\"}}"
+    },
+    {
+      "provider": "novita",
+      "url": "https://api.novita.ai/openai/v1/models",
+      "status": 200,
+      "ms": 93,
+      "body": "{\"data\":[{\"created\":1792375957,\"id\":\"deepseek/deepseek-v4.1-flash-1017\",\"object\":\"model\",\"owned_by\":\"novita\",\"permission\":null,\"root\":\"\",\"parent\":\"\",\"input_token_price_per_m\":3000,\"output_token_price_"
+    },
+    {
+      "provider": "nvidia",
+      "url": "https://integrate.api.nvidia.com/v1/models",
+      "status": 200,
+      "ms": 96,
+      "body": "{\"object\":\"list\",\"data\":[{\"id\":\"01-ai/yi-large\",\"object\":\"model\",\"created\":735790403,\"owned_by\":\"01-ai\"},{\"id\":\"adept/fuyu-8b\",\"object\":\"model\",\"created\":735790403,\"owned_by\":\"adept\"},{\"id\":\"ai21labs/"
+    },
+    {
+      "provider": "ollama-cloud",
+      "url": "https://ollama.com/v1/models",
+      "status": 200,
+      "ms": 179,
+      "body": "{\"object\":\"list\",\"data\":[{\"id\":\"mimo-v2.6-pro\",\"object\":\"model\",\"created\":1790092800,\"owned_by\":\"ollama\"},{\"id\":\"kimi-k3\",\"object\":\"model\",\"created\":1785164400,\"owned_by\":\"ollama\"},{\"id\":\"deepseek-v4."
+    },
+    {
+      "provider": "stepfun",
+      "url": "https://api.stepfun.com/v1/models",
+      "status": 401,
+      "ms": 768,
+      "body": "{\"error\":{\"message\":\"Incorrect API key provided\",\"type\":\"invalid_api_key\"}}"
+    },
+    {
+      "provider": "synthetic",
+      "url": "https://api.synthetic.new/v1/models",
+      "status": 200,
+      "ms": 276,
+      "body": "{\"data\":[{\"provider\":\"synthetic\",\"display_name\":\"DeepSeek V4.1 Flash 10/17\",\"categories\":[],\"always_on\":true,\"id\":\"infinite:small:vision\",\"hugging_face_id\":\"deepseek-ai/DeepSeek-V4.1-Flash-1017\",\"name"
+    },
+    {
+      "provider": "tencent-cloud",
+      "url": "https://tokenhub.tencentmaas.com/v1/models",
+      "status": 401,
+      "ms": 635,
+      "body": "{\"error\":{\"type\":\"authentication_error\",\"code\":\"401001\",\"message\":\"Authentication information is missing or the authentication method is not recognized. Please check whether the API Key is correct.\",\""
+    },
+    {
+      "provider": "together",
+      "url": "https://api.together.xyz/v1/models",
+      "status": 401,
+      "ms": 88,
+      "body": "Missing API key"
+    },
+    {
+      "provider": "venice",
+      "url": "https://api.venice.ai/api/v1/models",
+      "status": 200,
+      "ms": 278,
+      "body": "{\"data\":[{\"context_length\":1000000,\"created\":1791849600,\"id\":\"gemini-4-argon\",\"model_spec\":{\"pricing\":{\"input\":{\"usd\":2.5,\"diem\":2.5},\"cache_input\":{\"usd\":0.125,\"diem\":0.125},\"output\":{\"usd\":12.5,\"die"
+    },
+    {
+      "provider": "volcengine",
+      "url": "https://ark.cn-beijing.volces.com/api/v3/models",
+      "status": 401,
+      "ms": 906,
+      "body": "{\"error\":{\"code\":\"AuthenticationError\",\"message\":\"the API key or AK/SK in the request is missing or invalid. request id: 021793449285381c897e1d930e500589fc980a11d7a6eebbe292f\",\"param\":\"\",\"type\":\"Unaut"
+    },
+    {
+      "provider": "xai",
+      "url": "https://api.x.ai/v1/models",
+      "status": 401,
+      "ms": 140,
+      "body": "{\"code\":\"unauthenticated:no-credentials\",\"error\":\"No credentials presented.\"}"
+    },
+    {
+      "provider": "zai",
+      "url": "https://api.z.ai/api/paas/v4/models",
+      "status": 401,
+      "ms": 517,
+      "body": "{\"error\":{\"code\":\"1001\",\"message\":\"Authentication parameter not received in Header, unable to authenticate\"}}"
+    }
+  ]
+}

@@ -56,8 +56,16 @@ reordered if research changes the risk picture.
 | S9 | partial | ADR-0026 and the docs updates landed; this addendum covers the Gemini route |
 | S10 | done | website provider section and `docs/marketing-site.md` |
 | S11 | done for the 2026-10-30 delivery | see the final-integration section of the validation ledger |
+| S6b | done | 25 hosted OpenAI-compatible routes wired from vendor-documented endpoints and verified reachable without a credential: `src/hutch/data/connections.json`, `src/hutch/data/providers.json`, `tests/test_provider_routes.py`, evidence in `artifacts/live-verification/endpoint-reachability-2026-10-31.json` |
 
 S6 remains open for every other protocol: Claude CLI/Gemini CLI/Codex executors, provider-native
 search, and media/speech/video adapters are still documented rather than implemented. The next slice
 that a new protocol unlocks should be chosen from live credential availability, because an adapter that
 cannot be exercised is only contract-tested code.
+
+S6b deliberately did not add a second transport. Those 25 providers share the existing OpenAI Chat
+Completions adapter, so the slice was declarative data plus the evidence that pins it. Shipping a route
+whose endpoint was never reached would have been a catalogue claim, not an implementation; the
+credential-free probe is what makes "implemented-unverified" an honest label rather than a guess. The
+remaining gap for all 25 is the same one: no authenticated inference, so no model, capability, price or
+usage claim exists for them.
