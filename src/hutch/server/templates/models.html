@@ -66,10 +66,7 @@
 <nav class="models-nav" aria-label="Page navigation">
   <a href="#routes-authority">{{ icon("layers", 13) }}<span>AI services and assistant routing</span></a>
   <a href="#configured-models">{{ icon("cpu", 13) }}<span>Configured routes</span></a>
-  <a href="#runtimes">{{ icon("zap", 13) }}<span>Runtimes and connections</span></a>
-  <a href="#installed">{{ icon("layers", 13) }}<span>Installed models</span></a>
-  <a href="#presets">{{ icon("plan", 13) }}<span>Task presets</span></a>
-  <a href="#prices">{{ icon("chart", 13) }}<span>Hosted prices</span></a>
+  <a href="#models-advanced">{{ icon("chart", 13) }}<span>Hardware, models and prices</span></a>
 </nav>
 
 {% if error and not request.query_params.get('price') %}<div class="flash error" role="alert">{{ icon("alert", 16) }}<span>{{ error }}</span></div>{% endif %}
@@ -189,10 +186,10 @@
           <td data-label="Actions">
             <div class="route-actions">
               {% if not r.is_default %}
-              <form method="post" action="/models/set-default" class="hutch-form hutch-inline" data-busy="Setting default...">
+              <form method="post" action="/models/set-default" class="hutch-form hutch-inline" data-busy="Opening Settings...">
                 <input type="hidden" name="csrf" value="{{ csrf }}">
                 <input type="hidden" name="model" value="{{ r.spec }}">
-                <button class="btn small ghost" type="submit">Set default</button>
+                <button class="btn small ghost" type="submit">Set default in Settings</button>
               </form>
               {% endif %}
               <form method="post" action="/models/test" class="hutch-form hutch-inline" data-busy="Testing connection...">
@@ -219,85 +216,29 @@
   <div class="empty">
     {{ icon("cpu", 32) }}
     <p><strong>No model routes saved yet</strong></p>
-    <p class="muted">Hutch needs a saved model route to power your assistants. If an AI service was detected, use it above; otherwise start local Ollama, connect a provider, or add a custom model route below.</p>
+    <p class="muted">Hutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps &amp; AI, then set the default in Settings.</p>
     <div class="card-actions">
-      <a href="#add-model" class="btn small primary">{{ icon("plus", 14) }} Add model</a>
-      <a href="/#/connections" class="btn small ghost">{{ icon("layers", 14) }} Connect a provider</a>
+      <a href="/#/connections" class="btn small primary">{{ icon("layers", 14) }} Add or repair a service</a>
+      <a href="/#/settings" class="btn small ghost">{{ icon("settings", 14) }} Set the default in Settings</a>
     </div>
   </div>
   {% endif %}
 </section>
 
 <section class="panel" id="add-model" aria-labelledby="add-model-h">
-  <details class="conn-more"{% if not v.configured_routes %} open{% endif %}>
-    <summary><h2 id="add-model-h" class="card-title">{{ icon("plus", 18) }} Add model route</h2></summary>
-    <p class="hint">Register an OpenAI-compatible endpoint, local model, or hosted provider model. API keys are write-only and stored securely in local state (mode 0600) - never exposed in the DOM.</p>
-
-    <form method="post" action="/models/add" class="hutch-form" data-busy="Adding model route...">
-      <input type="hidden" name="csrf" value="{{ csrf }}">
-
-      <fieldset class="hutch-fieldset hutch-boxed">
-        <legend class="hutch-legend">1. Provider and Endpoint</legend>
-        <div class="hutch-cols-2">
-          <div class="hutch-field">
-            <label class="hutch-label" for="add-provider">Provider <span class="hutch-req" aria-hidden="true">*</span></label>
-            <select class="hutch-select" id="add-provider" name="provider" required>
-              <option value="ollama">Ollama (Local)</option>
-              <option value="custom">Custom (OpenAI-compatible)</option>
-              <option value="opencode-go">OpenCode Go</option>
-            </select>
-            <p class="hutch-help" id="add-provider-help">Select the provider or runtime type.</p>
-          </div>
-          {{ text_input("base_url", "Base URL", placeholder="https://api.openai.com/v1 or http://localhost:11434/v1", help="Required for custom providers; optional for standard providers.") }}
-        </div>
-      </fieldset>
-
-      <fieldset class="hutch-fieldset hutch-boxed">
-        <legend class="hutch-legend">2. Credentials</legend>
-        <div class="hutch-field">
-          <label class="hutch-label" for="add-api-key">API Key <span class="hutch-optional">(write-only)</span></label>
-          <input class="hutch-input" type="password" id="add-api-key" name="api_key" placeholder="sk-..." autocomplete="new-password">
-          <p class="hutch-help" id="add-api-key-help">Stored locally in mode 0600. Never rendered or echoed back into page source.</p>
-        </div>
-      </fieldset>
-
-      <fieldset class="hutch-fieldset hutch-boxed">
-        <legend class="hutch-legend">3. Identity</legend>
-        <div class="hutch-cols-2">
-          {{ text_input("model_id", "Model ID", required=True, placeholder="e.g. llama3.2:3b, gpt-4o-mini, glm-5.3", help="Exact model name expected by the provider.") }}
-          {{ text_input("label", "Display Label", placeholder="e.g. Fast Reasoning Model", help="Human-friendly label in model selectors.") }}
-        </div>
-      </fieldset>
-
-      <fieldset class="hutch-fieldset hutch-boxed">
-        <legend class="hutch-legend">4. Defaults and Assistant Assignment</legend>
-        <div class="hutch-cols-2">
-          <div class="hutch-field">
-            {{ checkbox("set_default", "Use as the default route for new built-in assistants", help="Respected only for new built-in assistants created without a route; an assistant with its own route keeps it, and an empty route is never a valid default.") }}
-          </div>
-          {% if v.available_bots %}
-          <div class="hutch-field">
-            <label class="hutch-label" for="add-bot-id">Assign to Assistant <span class="hutch-optional">(optional)</span></label>
-            <select class="hutch-select" id="add-bot-id" name="bot_id">
-              <option value="">Do not assign yet</option>
-              {% for bid, btitle in v.available_bots %}
-              <option value="{{ bid }}">{{ btitle }} ({{ bid }})</option>
-              {% endfor %}
-            </select>
-            <p class="hutch-help" id="add-bot-id-help">Immediately set this model for the selected assistant.</p>
-          </div>
-          {% endif %}
-        </div>
-      </fieldset>
-
-      {% call form_actions() %}
-        <button class="btn primary" type="submit">Save model</button>
-        <button class="btn ghost" type="reset">Reset</button>
-      {% endcall %}
-    </form>
-  </details>
+  <header class="conn-head">
+    <div>
+      <h2 id="add-model-h" class="card-title">{{ icon("plus", 18) }} Need another AI service?</h2>
+      <p class="hint">Accounts, keys, endpoints and terms are added or repaired in Apps &amp; AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.</p>
+    </div>
+    <a class="btn small" href="/#/connections">Add or repair a service</a>
+  </header>
+  <p class="hint">Models only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.</p>
 </section>
 
+<details class="panel models-advanced" id="models-advanced">
+  <summary><h2 class="card-title">{{ icon("chart", 18) }} Hardware, installed models, task presets and prices</h2></summary>
+  <p class="hint">Secondary diagnostics. They do not choose a route or change an assistant.</p>
 <section class="panel" id="runtimes" aria-labelledby="rt-h">
   <div class="conn-head">
     <div>
@@ -625,4 +566,5 @@
     </form>
   </details>
 </section>
+</details>
 {% endblock %}

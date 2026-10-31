@@ -2,7 +2,8 @@
 
 Fresh state, no saved route. The OpenCode status call is a labelled fixture (the real
 call can start a private OpenCode server), so this is not live detection proof; a live
-OpenCode journey is recorded as not run. Saving goes through the real `/models/set-default`.
+OpenCode journey is recorded as not run. The detected route opens Settings prefilled; Settings is
+the one writer of the new-assistant default, and the fixture route is intentionally not saveable.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ import pytest
 pw = pytest.importorskip("playwright.sync_api")
 
 from hutch.server.app import create_app  # noqa: E402
-from tests.support.browser import launch_browser, wait_for_page  # noqa: E402
+from tests.support.browser import launch_browser  # noqa: E402
 from tests.support.live_app import PageWatch, horizontal_overflow, serve  # noqa: E402
 
 STATUS = "**/api/v1/opencode/status"
@@ -56,12 +57,12 @@ def test_ready_service_is_offered_with_first_run_copy_and_saves_in_one_click(bro
         panel = page.locator("#detected-service")
         panel.get_by_text("OpenCode is ready with 2 model options.").wait_for(timeout=15_000)
         assert "Its available models can be used without a separate account." in panel.inner_text()
-        button = panel.get_by_role("button", name="Use Demo model")
-        button.click()
-        page.wait_for_url("**/models")
-        wait_for_page(page, "document.body.innerText.includes('mock/demo')")
-        text = page.locator("main").inner_text()
-        assert "No model routes saved yet" not in text and "No model routes configured" not in text
+        link = panel.get_by_role("link", name="Review Demo model in Settings")
+        link.click()
+        page.wait_for_url("**/#/settings")
+        page.locator("#workspace-settings-model").wait_for(timeout=15_000)
+        assert page.locator("#workspace-settings-model").input_value() == "mock/demo"
+        assert "Chosen in Models: review this route, then save." in page.locator(".workspace-settings-page").inner_text()
         assert page.locator("#detected-service").count() == 0 or page.locator("#detected-service").is_hidden()
         assert not [e for e in watch.errors if "opencode/status" not in e], watch.errors
     finally:
@@ -101,9 +102,9 @@ def test_panel_fits_every_viewport(browser, base, size):
     body = ready([("mock/demo", "A model with a rather long display name that must wrap instead of overflowing")])
     page, watch = _open(browser, base, lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(body)), size)
     try:
-        page.locator("#detected-service").get_by_role("button", name="Use ").wait_for(timeout=15_000)
+        page.locator("#detected-service").get_by_role("link", name="Review ").wait_for(timeout=15_000)
         assert horizontal_overflow(page) == 0, size
-        box = page.locator("#detected-service").get_by_role("button", name="Use ").bounding_box()
+        box = page.locator("#detected-service").get_by_role("link", name="Review ").bounding_box()
         assert box["x"] + box["width"] <= size[0] + 0.5 and box["height"] >= 40
     finally:
         page.context.close()

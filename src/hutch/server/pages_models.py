@@ -23,12 +23,6 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
     def workspace_mode() -> str:
         return str(routes.workspace_default(store).get("inference_mode") or "hybrid")
 
-    def set_workspace_default(model: str) -> None:
-        import json
-        store.kv_set("workspace:model-defaults", json.dumps(
-            {"model": model, "inference_mode": workspace_mode(), "configured": bool(model)},
-            sort_keys=True, separators=(",", ":")))
-
     def validated_route(spec: str, bot: Any = None, mode: str = "hybrid", owner: str = "this route") -> tuple[bool, str]:
         """Reuse the same route validation as a Bot save, under the mode that will govern it."""
         from ..modelchoices import ModelNotUsable, validate_override
@@ -90,15 +84,9 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
 
     @app.post("/models/set-default", include_in_schema=False)
     async def model_set_default(request: Request):
-        f = await read_form(request)
-        model = (f.get("model") or "").strip()
-        if not model:
-            return go("/models", error="Model spec is required to set default.")
-        ok, detail = validated_route(model, mode=workspace_mode(), owner="the workspace default")
-        if not ok:
-            return go("/models", error=f"Could not set {model} as the default: {detail}")
-        set_workspace_default(model)
-        return go("/models", notice=f"Set {model} as the default for new assistants.")
+        """Compatibility redirect: the default is written only in Settings (one writer, one record)."""
+        await read_form(request)
+        return go("/#/settings", notice="Set the default for new assistants in Settings, then save.")
 
     @app.post("/models/test", include_in_schema=False)
     async def model_test(request: Request):

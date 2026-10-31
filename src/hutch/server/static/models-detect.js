@@ -1,7 +1,7 @@
 /* Models page: acknowledge a detected-but-unsaved AI service (audit finding S2).
    Reads the same endpoint and uses the same wording as first run
-   (readFirstRunReadiness in app.js). "Use" posts to the existing validated
-   /models/set-default, which saves the route as the default for new assistants.
+   (readFirstRunReadiness in app.js). The detected route opens Settings with the
+   route prefilled: Settings is the one place the new-assistant default is written.
    The check runs only when nothing is saved, because it can start a private
    OpenCode server; it never runs a model or contacts a provider account. */
 (() => {
@@ -22,13 +22,18 @@
     panel.hidden = false;
   }
 
+  // One writer: Settings. This hands the detected route to the Settings page and saves nothing by itself.
+  document.addEventListener("click", event => {
+    const trigger = event.target.closest("[data-settings-model]");
+    if (!trigger) return;
+    try { sessionStorage.setItem("hutch:settings-prefill-model", trigger.dataset.settingsModel || ""); } catch { /* private mode */ }
+  });
+
   function useForm(model) {
-    const form = el("form", { method: "post", action: "/models/set-default", className: "card-actions" });
-    for (const [name, value] of [["csrf", panel.dataset.csrf || ""], ["model", model.spec]]) {
-      form.append(el("input", { type: "hidden", name, value }));
-    }
-    form.append(el("button", { type: "submit", className: "btn primary", textContent: `Use ${model.name || model.model_id || model.spec}` }));
-    return form;
+    const link = el("a", { className: "btn primary", href: "/#/settings",
+      textContent: `Review ${model.name || model.model_id || model.spec} in Settings` });
+    link.dataset.settingsModel = model.spec;
+    return link;
   }
 
   function render(status) {
@@ -42,7 +47,7 @@
       el("p", { textContent: `OpenCode is ready with ${count} model option${count === 1 ? "" : "s"}. ${status.authenticated
         ? "A provider account is connected."
         : "Its available models can be used without a separate account."}` }),
-      el("p", { className: "hint", textContent: "Using it saves this route as the default for new assistants. Existing assistants keep their settings, and nothing runs." }),
+      el("p", { className: "hint", textContent: "Review it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs." }),
       useForm(models[0]),
     );
   }

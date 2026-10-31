@@ -54,24 +54,23 @@ def test_models_page_with_a_saved_route_has_no_detection_panel(client):
     assert 'data-no-routes="1"' not in text
 
 
-def test_use_route_saves_the_default_through_the_existing_validated_endpoint(client):
+def test_use_route_opens_settings_and_writes_nothing_by_itself(client):
+    """Settings is the one default writer: the Models use action only opens it with the route prefilled."""
     token = _csrf(client)
     response = client.post("/models/set-default", data={"csrf": token, "model": "mock/demo"}, follow_redirects=False)
     assert response.status_code == 303
-    saved = json.loads(client.app.state.store.kv_get("workspace:model-defaults"))
-    assert saved["model"] == "mock/demo"
-    after = client.get("/models", headers=BROWSER).text
-    assert "mock/demo" in after and "No model routes saved yet" not in after
+    assert response.headers["location"].endswith("/#/settings")
+    assert client.app.state.store.kv_get("workspace:model-defaults") is None, "Models never writes the default"
 
 
-def test_use_route_refuses_a_route_that_does_not_validate(client, monkeypatch):
-    from hutch import modelchoices
-
-    def refuse(config, store, bot, spec, *args, **kwargs):
-        raise modelchoices.ModelNotUsable("not available", fix="connect it first")
-
-    monkeypatch.setattr(modelchoices, "validate_override", refuse)
-    token = _csrf(client)
-    response = client.post("/models/set-default", data={"csrf": token, "model": "opencode/free/fake"}, follow_redirects=False)
-    assert response.status_code == 303
-    assert client.app.state.store.kv_get("workspace:model-defaults") is None, "nothing is saved for an unusable route"
+def test_the_one_writer_uses_the_validated_settings_api(client):
+    """The Settings endpoint is the single write path, and it refuses a route that cannot run."""
+    refused = client.put("/api/v1/preferences/model-defaults",
+                         json={"model": "mock/demo", "inference_mode": "hybrid"})
+    assert refused.status_code == 422
+    assert client.app.state.store.kv_get("workspace:model-defaults") is None
+    saved = client.put("/api/v1/preferences/model-defaults",
+                       json={"model": "ollama/llama3.2:3b", "inference_mode": "hybrid"})
+    assert saved.status_code in (200, 422)     # 422 only if this host has no matching local route installed
+    if saved.status_code == 200:
+        assert "ollama/llama3.2:3b" in client.get("/models", headers=BROWSER).text

@@ -34,6 +34,8 @@ def base(tmp_path, monkeypatch):
     good = store.create_bot(Bot(name="repo-sweeper", display_name="Repo Sweeper",
                                 model="ollama/llama3.2:3b", tools=[]))
     store.set_workspace_coordinator(good.id)
+    store.create_bot(Bot(name="backed-up", display_name="Backed Up", model="ollama/llama3.2:3b",
+                         fallbacks=["ollama/qwen3:8b"], tools=[]))
     with serve(app) as url:
         yield url
 
@@ -56,6 +58,63 @@ def test_models_leads_with_services_and_assistant_routing(browser, base, width, 
         assert page.locator("text=Hosted fallback:").count() == 0
         assert page.locator('option[value="chatgpt"]').count() == 0
         assert not watch.errors, watch.errors
+    finally:
+        page.context.close()
+
+
+def test_secondary_diagnostics_are_collapsed_and_the_duplicate_add_form_is_gone(browser, base):
+    page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
+    try:
+        page.goto(f"{base}/models", wait_until="domcontentloaded")
+        advanced = page.locator("#models-advanced")
+        advanced.wait_for(timeout=20_000)
+        assert advanced.evaluate("el => el.open") is False
+        assert advanced.get_by_text("Runtimes and connections").count() == 1
+        assert page.locator("#add-provider").count() == 0, "provider/key creation lives in Apps & AI only"
+        page.get_by_role("link", name="Add or repair a service").first.wait_for()
+        configured = page.locator("#configured-models")
+        assert "Set default in Settings" in configured.inner_text() or configured.locator('form[action="/models/set-default"]').count() == 0
+    finally:
+        page.context.close()
+
+
+def test_assistant_advanced_routing_is_collapsed_until_opened(browser, base):
+    page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
+    try:
+        page.goto(f"{base}/#/bot/repo-sweeper", wait_until="domcontentloaded")
+        page.get_by_role("tab", name="AI model").click()
+        details = page.locator("#assistant-advanced-routing")
+        details.wait_for(timeout=20_000)
+        assert details.evaluate("el => el.open") is False
+        assert page.locator("#assistant-fallbacks").is_hidden()
+        details.locator("summary").click()
+        page.locator("#assistant-fallbacks").wait_for(state="visible", timeout=10_000)
+    finally:
+        page.context.close()
+
+
+def test_advanced_routing_is_open_when_an_assistant_already_uses_it(browser, base):
+    page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
+    try:
+        page.goto(f"{base}/#/bot/backed-up", wait_until="domcontentloaded")
+        page.get_by_role("tab", name="AI model").click()
+        details = page.locator("#assistant-advanced-routing")
+        details.wait_for(timeout=20_000)
+        assert details.evaluate("el => el.open") is True, "configured fallbacks must not be hidden"
+        assert page.locator("#assistant-fallbacks").input_value() == "ollama/qwen3:8b"
+    finally:
+        page.context.close()
+
+
+def test_settings_prefills_a_route_chosen_in_models(browser, base):
+    page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
+    try:
+        page.goto(f"{base}/#/activity", wait_until="domcontentloaded")
+        page.evaluate("sessionStorage.setItem('hutch:settings-prefill-model', 'ollama/llama3.2:3b')")
+        page.goto(f"{base}/#/settings", wait_until="domcontentloaded")
+        page.locator("#workspace-settings-model").wait_for(timeout=20_000)
+        assert page.locator("#workspace-settings-model").input_value() == "ollama/llama3.2:3b"
+        assert "Chosen in Models: review this route, then save." in page.locator(".workspace-settings-page").inner_text()
     finally:
         page.context.close()
 

@@ -2129,13 +2129,18 @@ async function renderChatLibrary() {
 
 async function renderWorkspaceSettings() {
   const defaults = await api("/v1/preferences/model-defaults");
+  let prefill = "";
+  try {
+    prefill = sessionStorage.getItem("hutch:settings-prefill-model") || "";
+    sessionStorage.removeItem("hutch:settings-prefill-model");
+  } catch { /* private mode */ }
   const currentEffects = storageGet("hutch:reduce-effects");
   setTopContext(`<div class="ctx-id"><div class="ctx-heading"><h1>Settings</h1><span class="ctx-subtitle">Workspace defaults and appearance</span></div></div>`);
   view.innerHTML = `<div class="page-scroll"><div class="container workspace-settings-page">
     <p class="page-subtitle">These defaults apply when you create an assistant. Existing assistants and chats keep their saved settings.</p>
     <form class="panel hutch-form workspace-settings-form" id="workspace-settings-form">
       <h2 class="panel-title">Model defaults for new assistants</h2>
-      <div class="hutch-field"><label class="hutch-label" for="workspace-settings-model">Default model route</label><input class="hutch-input" id="workspace-settings-model" type="text" maxlength="200" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(defaults.model || "")}"><p class="hutch-help">Leave empty to choose a route for each new assistant.</p></div>
+      <div class="hutch-field"><label class="hutch-label" for="workspace-settings-model">Default model route</label><input class="hutch-input" id="workspace-settings-model" type="text" maxlength="200" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(prefill || defaults.model || "")}"><p class="hutch-help">${prefill && prefill !== defaults.model ? "Chosen in Models: review this route, then save." : "Leave empty to choose a route for each new assistant."}</p></div>
       <div class="hutch-field"><label class="hutch-label" for="workspace-settings-mode">Default routing</label><select class="hutch-select" id="workspace-settings-mode"><option value="hybrid" ${defaults.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option><option value="local" ${defaults.inference_mode === "local" ? "selected" : ""}>Local — this machine</option><option value="offline" ${defaults.inference_mode === "offline" ? "selected" : ""}>Strict Offline — host-gated</option></select></div>
       <p class="hutch-help">Hosted routes send prompts to their provider. Local routing keeps inference on this machine while tools may still use the network.</p>
       <p class="hutch-help">This is the one place the new-assistant default is written. <a href="/models">Models</a> shows which AI services are ready and which route each assistant uses; an assistant with its own route keeps it.</p>
@@ -8430,6 +8435,9 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
               <summary>Check compatibility for this model route</summary>
               <div id="tool-compat-result" class="settings-list"><p class="hint">Open to check this route’s tool-calling evidence. No model request is made.</p></div>
             </details>
+            <details class="assistant-advanced" id="assistant-advanced-routing"${(b.fallbacks || []).length || (b.escalation?.to || []).length || Object.values(b.task_routes || {}).some(Boolean) ? " open" : ""}>
+              <summary>Advanced routing: fallbacks, escalation and task roles</summary>
+              <p class="hint">Optional. Leave these blank unless you know the exact routes; every value is validated when saved. They are not needed to chat with this assistant.</p>
             <div class="hutch-form hutch-cols-2">
               <div class="hutch-field"><label class="hutch-label" for="assistant-fallbacks">Fallback models (when the primary is unavailable)</label><input class="hutch-input" type="text" id="assistant-fallbacks" name="fallbacks" value="${esc((b.fallbacks || []).join(", "))}" placeholder="provider/model, provider/model"></div>
               <div class="hutch-field"><label class="hutch-label" for="assistant-escalation">Escalation models (after repeated quality failures)</label><input class="hutch-input" type="text" id="assistant-escalation" name="escalation" value="${esc((((b.escalation && b.escalation.to) || [])).join(", "))}" placeholder="provider/model"></div>
@@ -8442,6 +8450,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
               </div>
               <p class="hint">Use an exact route such as <code>ollama/qwen3:8b</code> or <code>openrouter/author/model-id</code>, never a display label. Hutch validates availability, context fit, spending admission and route permissions when you select it.</p>
             </section>
+            </details>
             <div class="hutch-field"><label class="hutch-label" for="assistant-compaction">Context pressure on smaller windows</label><select class="hutch-select" id="assistant-compaction" name="compaction"><option value="ask" ${(b.compaction || "ask") === "ask" ? "selected" : ""}>Review before hosted summaries (recommended)</option><option value="auto" ${b.compaction === "auto" ? "selected" : ""}>Allow bounded summaries without a review</option><option value="off" ${b.compaction === "off" ? "selected" : ""}>Never summarize — stop and ask instead</option></select><span class="hutch-help">Paid summaries ask first by default. Auto is an explicit opt-in; every summary remains bounded, budget-checked and recorded, and the original conversation is never rewritten. Local summaries have no metered provider charge.</span></div>
             <div class="hutch-actions"><button class="btn primary small" type="submit">Save model settings</button></div>
           </form>

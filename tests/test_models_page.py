@@ -50,7 +50,8 @@ def test_models_page_is_honest_about_defaults_and_assistant_routing(client):
     assert "AI services and assistant routing" in html
     assert "Design Partner" in html and "Needs a model route" in html
     assert 'href="/#/bot/design-partner"' in html
-    assert "an empty route is never a valid default" in html
+    assert "The route new built-in assistants start from is set in Settings" in html
+    assert "Add or repair a service" in html
     assert "<option value=\"chatgpt\">" not in html
     assert "Hosted fallback:" not in html
     assert "Open Apps &amp; AI" in html
