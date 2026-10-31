@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 from typing import Any, Callable, Optional
 
 from starlette.exceptions import HTTPException
@@ -32,6 +33,34 @@ KEEPALIVE_SECONDS = 15.0
 GLOBAL_POLL_SECONDS = 1.0       # writers in another process cannot wake this Store's in-process bus
 FINISHED = tuple(TERMINAL)    # one definition: hutch.lifecycle
 MAX_SQLITE_CURSOR = 2**63 - 1
+
+#: Set when the server starts to shut down. Open streams end themselves instead of holding the listener until
+#: uvicorn's graceful-shutdown timeout cancels them (ten seconds and a traceback on every Ctrl+C).
+SHUTTING_DOWN = threading.Event()
+_waiters: set = set()           # (loop, wake) of every open stream, so shutdown can wake them all at once
+
+
+def begin_shutdown() -> None:
+    SHUTTING_DOWN.set()
+    for loop, wake in list(_waiters):
+        try:
+            loop.call_soon_threadsafe(wake.set)
+        except RuntimeError:    # that loop has already closed
+            pass
+
+
+def _watch(store, topics: list[str]):
+    """A wake event for this stream, set by bus changes and by shutdown; the second value releases both."""
+    loop = asyncio.get_running_loop()
+    wake = asyncio.Event()
+    waiter = (loop, wake)
+    _waiters.add(waiter)
+    unsubscribe = store.bus.subscribe(topics, lambda: loop.call_soon_threadsafe(wake.set))
+
+    def release() -> None:
+        _waiters.discard(waiter)
+        unsubscribe()
+    return wake, release
 
 
 def sse_message(event: str, payload: dict[str, Any], id_: int | str | None = None) -> bytes:
@@ -76,13 +105,12 @@ def resume_cursor(request: Request, after: int = 0) -> int:
 async def run_event_stream(request: Request, store, run_id: str, cursor: int,
                            render: Callable[[list[Event], Any], dict[str, Any]],
                            auth_check: Callable[[], bool] | None = None):
-    bus = store.bus
-    loop = asyncio.get_running_loop()
-    wake = asyncio.Event()
-    unsubscribe = bus.subscribe([f"run:{run_id}"], lambda: loop.call_soon_threadsafe(wake.set))
+    wake, unsubscribe = _watch(store, [f"run:{run_id}"])
     try:
         yield b"retry: 1500\n\n"
         while True:
+            if SHUTTING_DOWN.is_set():
+                return
             if auth_check is not None and not await asyncio.to_thread(auth_check):
                 yield sse_message("auth_expired", {"reason": "session_expired_or_revoked"})
                 return
@@ -134,14 +162,14 @@ async def global_event_stream(request: Request, store, cursor: int,
     A restored database can be behind a device's Last-Event-ID, and future retention may remove old rows. In either case
     replay cannot be complete: ask the client to reconcile from the bounded snapshot endpoint, without advancing its SSE ID.
     """
-    bus = store.bus
     loop = asyncio.get_running_loop()
-    wake = asyncio.Event()
-    unsubscribe = bus.subscribe(["events"], lambda: loop.call_soon_threadsafe(wake.set))
+    wake, unsubscribe = _watch(store, ["events"])
     last_keepalive = loop.time()
     try:
         yield b"retry: 1500\n\n"
         while True:
+            if SHUTTING_DOWN.is_set():
+                return
             if auth_check is not None and not await asyncio.to_thread(auth_check):
                 yield sse_message("auth_expired", {"reason": "session_expired_or_revoked"})
                 return
@@ -190,13 +218,13 @@ async def resource_change_stream(request: Request, store, cursor: str | None,
     Reconcile current resources, then open a new stream at snapshot.change_cursor.
     """
     loop = asyncio.get_running_loop()
-    wake = asyncio.Event()
-    topics = ["events", "bots", "conversations", "approvals", "work"]
-    unsubscribe = store.bus.subscribe(topics, lambda: loop.call_soon_threadsafe(wake.set))
+    wake, unsubscribe = _watch(store, ["events", "bots", "conversations", "approvals", "work"])
     last_keepalive = loop.time()
     try:
         yield b"retry: 1500\n\n"
         while True:
+            if SHUTTING_DOWN.is_set():
+                return
             if auth_check is not None and not await asyncio.to_thread(auth_check):
                 yield sse_message("auth_expired", {"reason": "session_expired_or_revoked"})
                 return
@@ -233,19 +261,18 @@ async def resource_change_stream(request: Request, store, cursor: str | None,
 
 async def live_stream(request: Request, store, topics: list[str]):
     """Global 'something changed' stream for Home / approvals badge: coalesced refresh hints."""
-    bus = store.bus
-    loop = asyncio.get_running_loop()
-    wake = asyncio.Event()
-    unsubscribe = bus.subscribe(topics, lambda: loop.call_soon_threadsafe(wake.set))
+    wake, unsubscribe = _watch(store, topics)
     try:
         yield b"retry: 2000\n\n"
         yield sse_message("hello", {"topics": topics})
-        while True:
+        while not SHUTTING_DOWN.is_set():
             try:
                 await asyncio.wait_for(wake.wait(), timeout=KEEPALIVE_SECONDS)
             except asyncio.TimeoutError:
                 yield b": keepalive\n\n"
                 continue
+            if SHUTTING_DOWN.is_set():
+                return
             await asyncio.sleep(0.25)  # coalesce a flurry of changes into one refresh
             wake.clear()               # clear AFTER the pause: a change landing later re-arms the event
             yield sse_message("refresh", {"t": 1})

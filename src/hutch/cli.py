@@ -2505,7 +2505,7 @@ def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787),
           tls_cert: Optional[str] = typer.Option(None, "--tls-cert"),
           tls_key: Optional[str] = typer.Option(None, "--tls-key")) -> None:
     """Serve locally, or allow explicitly paired devices over direct HTTPS or a trusted HTTPS proxy."""
-    import uvicorn
+    from .server.runner import serve as serve_dashboard
     # This is an internal switch passed to the ASGI middleware, never a way to
     # opt into remote access from the shell environment. Only the validated CLI
     # flag below may set it for the server process.
@@ -2564,11 +2564,7 @@ def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787),
     os.environ.setdefault("HUTCH_EXECUTOR", "process")      # the dashboard's runs are worker processes: Stop is a real kill
     scheme = "https" if tls_cert else "http"
     console.print(f"[bold]hutch[/bold] dashboard → {scheme}://{host}:{port}")
-    uvicorn.run("hutch.server.app:create_app", factory=True, host=host, port=port, log_level="warning",
-                ssl_certfile=tls_cert, ssl_keyfile=tls_key, proxy_headers=False,
-                # An open dashboard EventSource otherwise holds shutdown forever,
-                # leaving the scheduler/store alive after the listener closes.
-                timeout_graceful_shutdown=10)
+    serve_dashboard(host=host, port=port, log_level="warning", ssl_certfile=tls_cert, ssl_keyfile=tls_key, proxy_headers=False)
 
 
 @skills_app.command("list")

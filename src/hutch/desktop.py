@@ -52,7 +52,8 @@ def main() -> int:
         # Workers and model tools must never inherit owner authority.
         os.environ.pop("HUTCH_AUTH_TOKEN", None)
     del token, bootstrap, raw
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port,
+    from .server.runner import GracefulServer      # Quit ends the open event streams at once, then the listener
+    server = GracefulServer(uvicorn.Config(app, host="127.0.0.1", port=port,
         access_log=False, log_level="error", timeout_graceful_shutdown=10))
 
     def host_pipe():
