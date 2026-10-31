@@ -584,6 +584,9 @@ button.small:focus-visible, a.primary:focus-visible, a.ghost:focus-visible { out
 .status.failed::before, .chip.danger::before { width: 8px; height: 8px; border-radius: 0;
   clip-path: polygon(20% 0, 50% 30%, 80% 0, 100% 20%, 70% 50%, 100% 80%, 80% 100%, 50% 70%, 20% 100%, 0 80%, 30% 50%, 0 20%); }
 .status.waiting_approval { color: var(--warn); border-color: rgba(251, 191, 36, 0.4); background: transparent; }
+/* Interrupted keeps the failed class for shape but reads as a muted, open-ended stop, not a red failure. */
+.status.failed.interrupted { color: var(--text-2); border-color: var(--line-strong); }
+.status.failed.interrupted::before { width: 6px; height: 6px; border-radius: 50%; clip-path: none; background: var(--text-3); }
 .status.pending, .status.stopped, .status.dismissed, .chip.muted { color: var(--text-3); }
 .status.stale { color: var(--text-2); border-style: dashed; }
 .tag { font-family: var(--font-ui); color: var(--text-3); }

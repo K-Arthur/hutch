@@ -183,7 +183,7 @@ def register_pages(app: FastAPI) -> None:
 
         def rj(run, name, wait=None):
             d = {"id": run.id, "bot_name": name, "status": run.status.value, "status_label": run.status_label,
-                 "terminal": run.terminal, "prompt": run.prompt,
+                 "exit_reason": run.exit_reason, "terminal": run.terminal, "prompt": run.prompt,
                  "steps": run.steps, "tokens": run.tokens, "cost_usd": run.cost_usd,
                  "created_at": run.created_at, "finished_at": run.finished_at,
                  "started_at": run.started_at}

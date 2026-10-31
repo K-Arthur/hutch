@@ -148,3 +148,13 @@ def test_the_doctor_reports_an_unowned_live_run_while_nothing_is_supervising():
     finally:
         store.close()
     assert checks["orphans"].status == "warn"
+
+
+def test_the_overview_payload_carries_the_interruption_reason():
+    """The Activity page's rows carry exit_reason, so the chip can say Interrupted instead of Failed."""
+    run_id = _seed(_exited_pid())
+    with TestClient(create_app()) as client:
+        _wait_for(client, run_id)
+        failures = client.get("/api/overview").json()["failures"]
+        row = next(item for item in failures if item["id"] == run_id)
+        assert row["status"] == "failed" and row["exit_reason"] == "interrupted"
