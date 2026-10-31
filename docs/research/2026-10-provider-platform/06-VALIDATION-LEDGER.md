@@ -50,7 +50,7 @@ served over HTTP from the worktree, not opened as file://, to avoid font CORS no
 | website index #providers (collapsed and expanded) | same five | pass; zero console errors; zero horizontal overflow |
 | 200 percent text reflow (/providers and website #providers) | 1280x720 | pass; no horizontal overflow after font-size 200 percent |
 
-Artifacts: artifacts/visual/ (full-page and review PNGs, capture-results.json, server logs). Inspected at
+The capture run was repeated after rebasing onto current main (final branch tree) with the same result: zero console errors, zero horizontal overflow, all five viewports. Artifacts: artifacts/visual/ (full-page and review PNGs, capture-results.json, server logs). Inspected at
 each viewport: provider accounts and readiness, provider catalogue and filters, local-inference probe
 results, execution-runtime boundaries, model-route readiness panel, connections page with the catalogue
 link, and the marketing provider section collapsed and expanded.
