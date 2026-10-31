@@ -24,40 +24,17 @@ from ..computer.desktop import DesktopSession
 from ..computer.frames import FrameStore
 from ..models import Event, EventType
 from ..safety import Decision, Verdict
-from .base import Tool, ToolContext, ToolResult, _schema, rehearsed
+from .base import Tool, ToolContext, ToolResult, rehearsed
+from .computer_contract import ACTIONS as _ACTIONS, DESCRIPTION, PARAMETERS, STATEFUL as _STATEFUL
 
-_ACTIONS = {
-    "launch": "Start an allowed application in the isolated desktop (optionally opening a file in the workspace).",
-    "observe": "Capture the screen as an image frame; returns a frame_id that input actions must quote.",
-    "click": "Click at pixel (x, y) of the latest frame. Needs that frame_id; refused if it is not the latest.",
-    "type": "Type text into the focused control. Needs the latest frame_id.",
-    "key": "Press a key or chord such as enter, escape, ctrl+s. Needs the latest frame_id.",
-    "wait": "Wait up to 10 seconds, then capture a new frame.",
-    "close": "End the isolated desktop session and everything started in it.",
-}
 _LAUNCH_TIMEOUT_SECONDS = 12.0     # how long a launched window may take to appear and settle
 _LAUNCH_POLL_SECONDS = 0.4
 
 
 class ComputerTool(Tool):
     name = "computer"
-    description = (
-        "Operate native desktop applications in an isolated desktop session. Workflow: launch an app, observe, then "
-        "act on the latest frame (click/type/key); every action returns a fresh frame. Actions: "
-        + "; ".join(f"{k} — {v}" for k, v in _ACTIONS.items()))
-    parameters = _schema(["action"], {
-        "action": {"type": "string", "enum": list(_ACTIONS)},
-        "app": {"type": "string", "description": "for launch: an allowed application name"},
-        "path": {"type": "string", "description": "for launch: a file inside the workspace to open"},
-        "frame_id": {"type": "string", "description": "for click/type/key: the latest frame_id"},
-        "x": {"type": "number", "description": "for click: horizontal pixel of the frame"},
-        "y": {"type": "number", "description": "for click: vertical pixel of the frame"},
-        "button": {"type": "string", "enum": ["left", "right", "middle"]},
-        "count": {"type": "integer", "description": "for click: 1 or 2 (double click)"},
-        "text": {"type": "string", "description": "for type: text to enter (printable ASCII)"},
-        "keys": {"type": "string", "description": "for key: e.g. enter, ctrl+s, ctrl+shift+z"},
-        "seconds": {"type": "number", "description": "for wait"},
-    })
+    description = DESCRIPTION
+    parameters = PARAMETERS
 
     def __init__(self, *, desktop_factory=None, input_factory=None):
         self._desktop_factory = desktop_factory      # test seams; production uses the KWin-backed managers
@@ -70,19 +47,24 @@ class ComputerTool(Tool):
         self._owner_thread: Optional[int] = None
         self._lease: Optional[ControlLease] = None
         self._budget = None
+        self._a11y: Any = None
 
     # ------------------------------------------------------------- recording
 
     def effect(self, args: dict[str, Any], ctx: ToolContext) -> str:
-        return "process" if (args.get("action") or "") in ("launch", "click", "type", "key") else ""
+        return "process" if (args.get("action") or "") in _STATEFUL else ""
 
     def recorded_arguments(self, args: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
         action = (args.get("action") or "").strip()
-        if action == "type":
+        if action in ("type", "set_text"):
             text = args.get("text") if isinstance(args.get("text"), str) else ""
-            return {"action": "type", "frame_id": args.get("frame_id", ""), "text": "[redacted]",
-                    "text_chars": len(text)}
-        return {k: args[k] for k in ("action", "app", "path", "frame_id", "x", "y", "button", "count", "keys", "seconds")
+            record = {"action": action, "frame_id": args.get("frame_id", ""), "text": "[redacted]",
+                      "text_chars": len(text)}
+            if action == "set_text":
+                record.update({"snapshot_id": args.get("snapshot_id", ""), "element_id": args.get("element_id", "")})
+            return record
+        return {k: args[k] for k in ("action", "app", "path", "frame_id", "snapshot_id", "element_id", "root", "x",
+                                     "y", "button", "count", "keys", "seconds")
                 if k in args}
 
     # ---------------------------------------------------------------- run
@@ -93,11 +75,11 @@ class ComputerTool(Tool):
             return ToolResult(False, f"error: unknown action '{action}'")
         if self._stopped:
             return ToolResult(False, "error: this run was stopped and its desktop was closed; no further action runs")
-        if action in ("launch", "click", "type", "key") and hasattr(getattr(ctx, "policy", None), "check_computer"):
+        if action in _STATEFUL and hasattr(getattr(ctx, "policy", None), "check_computer"):
             decision = ctx.policy.check_computer(action, str(args.get("app") or ""))
             if decision.verdict is Verdict.deny:
                 return ToolResult(False, f"error: denied by policy: {decision.reason}", {"outcome": "not_dispatched"})
-        if ctx.dry_run and action in ("launch", "click", "type", "key"):
+        if ctx.dry_run and action in _STATEFUL:
             return rehearsed(f"computer {action}")
         try:
             return self._run(action, args, ctx)
@@ -130,6 +112,14 @@ class ComputerTool(Tool):
 
         if action == "launch":
             return self._launch(args, ctx, session)
+        if action == "elements":
+            return self._result(session.elements(root=str(args.get("root") or "")))
+        if action == "activate":
+            return self._result(session.activate(str(args.get("snapshot_id") or ""),
+                                                 str(args.get("element_id") or "")))
+        if action == "set_text":
+            return self._result(session.set_element_text(str(args.get("snapshot_id") or ""),
+                                                         str(args.get("element_id") or ""), args.get("text") or ""))
         if action == "observe":
             return self._result(session.observe())
         if action == "wait":
@@ -193,6 +183,18 @@ class ComputerTool(Tool):
         if proc is not None:
             ctx.procs.register(proc, "computer")
 
+        a11y, a11y_reason = None, str(getattr(desktop, "a11y_reason", "") or "")
+        if getattr(desktop, "a11y_address", ""):
+            from ..computer.accessibility import AccessibilitySession, AccessibilityUnavailable, A11yWorker
+            try:
+                worker = A11yWorker.start_in_isolated_session(desktop.env)
+            except AccessibilityUnavailable as exc:
+                a11y_reason = str(exc)
+            else:
+                self._a11y = worker
+                ctx.procs.register(worker.process, "computer")
+                a11y = AccessibilitySession(worker)
+
         run_id = getattr(ctx.run, "id", "")
 
         def announce(snap) -> None:
@@ -205,10 +207,12 @@ class ComputerTool(Tool):
         self._session = DesktopSession(
             session_id=f"{run_id}:desktop", capture=lambda: checked_capture(), input_backend=eis,
             frames=FrameStore(ctx.config.run_dir(ctx.bot.name, run_id)), lease=self._lease,
-            surface_identity=getattr(eis, "surface", None),
+            surface_identity=getattr(eis, "surface", None), a11y=a11y,
             environment={"mode": "isolated",
                          "boundary": "apps: workspace-only files, private home, no network, bounded resources; trusted private compositor/bus",
-                         "applications": apps, "keyboard_layout": "us (assumed)"})
+                         "applications": apps, "keyboard_layout": "us (assumed)",
+                         "semantics": "at-spi (private accessibility bus)" if a11y is not None else "unavailable",
+                         **({"semantics_reason": a11y_reason[:160]} if a11y is None and a11y_reason else {})})
         def checked_capture():
             authority(ctx, "desktop")
             workspace_grant(ctx)
@@ -342,6 +346,11 @@ class ComputerTool(Tool):
     def _emergency_stop(self) -> None:
         """Run-cancel hook on the supervisor thread: fence, end input, end the whole desktop. Model-independent."""
         self._stopped = True
+        if self._a11y is not None:
+            try:
+                self._a11y.kill()
+            except Exception:
+                pass
         if self._budget is not None:
             self._budget.closed.set()
         if self._session is not None:
@@ -356,6 +365,12 @@ class ComputerTool(Tool):
                 pass
 
     def _shutdown(self, ctx: Optional[ToolContext] = None) -> None:
+        if self._a11y is not None:
+            worker, self._a11y = self._a11y, None
+            try:
+                worker.kill()
+            except Exception:
+                pass
         if self._budget is not None:
             self._budget.close()
             self._budget = None

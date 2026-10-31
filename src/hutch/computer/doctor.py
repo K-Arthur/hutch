@@ -233,22 +233,34 @@ def _libei(h: _Host) -> Capability:
 
 
 def _accessibility(h: _Host) -> Capability:
-    bus = "org.a11y.Bus" in h.bus_names()
+    """What semantic desktop control needs: the at-spi binaries and a gi interpreter for the out-of-process worker.
+
+    This is about Hutch's own isolated session, not the person's desktop: Hutch starts a private accessibility bus inside
+    the disposable session and never mounts the host one. The probe stays read-only, so it reports package and binding
+    presence, not whether a tree can actually be read; a reviewed run checks that.
+    """
+    from .native.a11y_bus import availability
+    binaries, why = availability(which=h.which, exists=h.exists)
     bindings = h.has_module("gi")
-    if bus and bindings:
-        return Capability("accessibility", "Accessibility tree (AT-SPI)", DEGRADED,
-                          "The host accessibility bus and bindings are present. Hutch has no native AT-SPI action adapter, "
-                          "and does not mount the host accessibility bus into its isolated apps.",
-                          evidence="org.a11y.Bus + import gi")
-    if bus:
-        return Capability("accessibility", "Accessibility tree (AT-SPI)", DEGRADED,
-                          "The accessibility bus is running, but this Python environment has no GObject bindings (gi).",
-                          "Install python-gobject (and gir1.2-atspi / at-spi2-core typelibs) for Hutch's interpreter, "
-                          "or run the accessibility adapter out of process.", evidence="org.a11y.Bus; import gi failed")
-    return Capability("accessibility", "Accessibility tree (AT-SPI)", UNAVAILABLE,
-                      "The accessibility bus is not running; applications may not expose their UI tree.",
-                      "Enable assistive technologies in the desktop settings (or start at-spi-bus-launcher).",
-                      evidence="org.a11y.Bus absent")
+    configured = h.env.get("HUTCH_GI_PYTHON", "")
+    if not binaries:
+        return Capability("accessibility", "Semantic desktop control (AT-SPI)", UNAVAILABLE,
+                          f"The isolated session cannot build an accessibility tree: {why}.",
+                          "Install at-spi2-core (at-spi-bus-launcher and at-spi2-registryd).",
+                          evidence="at-spi2-core binaries absent")
+    if bindings or (configured and h.exists(configured)):
+        return Capability("accessibility", "Semantic desktop control (AT-SPI)", READY,
+                          "Available for isolated sessions: the accessibility worker runs out of process with "
+                          f"{'its own binding' if bindings else configured}. Package presence is not a delivered-action "
+                          "test, so a reviewed run builds its own tree. The pixel path (observe + click) stays "
+                          "available either way.",
+                          evidence="at-spi binaries; PyGObject available to the worker")
+    return Capability("accessibility", "Semantic desktop control (AT-SPI)", DEGRADED,
+                      "The at-spi binaries are installed, but no interpreter with PyGObject and the Atspi typelib was "
+                      "identified, so the accessibility worker may not start. Computer use keeps working through pixels.",
+                      "Install python-gobject with at-spi2-core typelibs for /usr/bin/python3, or set HUTCH_GI_PYTHON.",
+                      evidence=f"at-spi binaries present; {why or 'no gi interpreter'}" if why else
+                               "at-spi binaries present; PyGObject not found in Hutch's interpreter")
 
 
 def _clipboard(h: _Host) -> Capability:

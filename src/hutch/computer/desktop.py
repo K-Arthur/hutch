@@ -22,10 +22,17 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, Protocol
 
+from .accessibility import AccessibilityError
 from .control import ControlLease, StaleControl
 from .frames import FrameError, FrameStore, ImageRef
 
 MAX_TYPED_CHARS = 2000
+
+
+def _same_text(a: str, b: str) -> bool:
+    """Compare read-back text ignoring whitespace normalisation the worker applies when bounding it."""
+    return " ".join(a.split()) == " ".join(b.split())
+
 
 
 class InputBackend(Protocol):
@@ -49,7 +56,8 @@ class DesktopSession:
     def __init__(self, *, session_id: str, capture: Callable[[], bytes], input_backend: InputBackend,
                  frames: FrameStore, lease: ControlLease, environment: Optional[dict[str, Any]] = None,
                  settle_seconds: float = 0.25, sleep: Callable[[float], None] = time.sleep,
-                 clock: Callable[[], float] = time.monotonic, surface_identity: Optional[Callable[[], dict]] = None):
+                 clock: Callable[[], float] = time.monotonic, surface_identity: Optional[Callable[[], dict]] = None,
+                 a11y: Any = None):
         self.session_id = session_id
         self._capture = capture
         self._input = input_backend
@@ -60,6 +68,7 @@ class DesktopSession:
         self._sleep = sleep
         self._clock = clock
         self._surface_identity = surface_identity
+        self._a11y = a11y
         self._identity = None
         self._last: dict[str, Any] = {}
         #: called right before input is dispatched (after the control check); a returned string refuses the action.
@@ -225,6 +234,120 @@ class DesktopSession:
             return refusal.result()
         before = dict(self._last)
         return self._dispatch(ticket, lambda: self._input.chord(str(chord)), f"pressed {chord}", before)
+
+    # ------------------------------------------------------ semantic access
+
+    @property
+    def semantic(self) -> bool:
+        return self._a11y is not None
+
+    def elements(self, *, root: str = "", limit: int = 200) -> DesktopResult:
+        """The accessibility tree of the foreground application. Observation only; acts on nothing."""
+        if self._a11y is None:
+            return DesktopResult(False, "error: this session has no accessibility tree; use observe and coordinates",
+                                 {"observation": {"schema": 1, "status": "unavailable"}})
+        try:
+            self.lease.begin_action()          # a person holding control is not observed either
+        except StaleControl as exc:
+            return DesktopResult(False, f"error: {exc.reason}", {"outcome": "not_dispatched"})
+        try:
+            snapshot = self._a11y.elements(root=root)
+        except AccessibilityError as exc:
+            return DesktopResult(False, f"error: {exc}", {"outcome": "not_dispatched"})
+        return DesktopResult(True, snapshot.render(limit=limit),
+                             {"elements": snapshot.public(), "snapshot_id": snapshot.snapshot_id})
+
+    def activate(self, snapshot_id: str, element_id: str) -> DesktopResult:
+        """Invoke an element's own action (press/activate), or focus it when it has none. No coordinates involved."""
+        if self._a11y is None:
+            return DesktopResult(False, "error: this session has no accessibility tree; use click with a frame",
+                                 {"outcome": "not_dispatched", "dispatched": False})
+        try:
+            node = self._a11y.require(snapshot_id, element_id)
+            ticket = self.lease.begin_action()
+        except (AccessibilityError, StaleControl) as exc:
+            return DesktopResult(False, f"error: {exc}", {"outcome": "not_dispatched", "dispatched": False})
+        return self._dispatch_semantic(ticket, lambda: self._a11y.activate(node),
+                                       f"activated {node.role} {element_id}", verify_text=None)
+
+    def set_element_text(self, snapshot_id: str, element_id: str, text: str) -> DesktopResult:
+        """Replace an editable element's contents through its accessibility interface, then read it back."""
+        if self._a11y is None:
+            return DesktopResult(False, "error: this session has no accessibility tree; use type with a frame",
+                                 {"outcome": "not_dispatched", "dispatched": False})
+        if not isinstance(text, str) or not text:
+            return DesktopResult(False, "error: text is required; nothing was written",
+                                 {"outcome": "not_dispatched", "dispatched": False})
+        if len(text) > MAX_TYPED_CHARS:
+            return DesktopResult(False, f"error: at most {MAX_TYPED_CHARS} characters per call; nothing was written",
+                                 {"outcome": "not_dispatched", "dispatched": False})
+        try:
+            node = self._a11y.require(snapshot_id, element_id)
+            ticket = self.lease.begin_action()
+        except (AccessibilityError, StaleControl) as exc:
+            return DesktopResult(False, f"error: {exc}", {"outcome": "not_dispatched", "dispatched": False})
+        return self._dispatch_semantic(ticket, lambda: self._a11y.set_text(node, text),
+                                       f"set the text of {node.role} {element_id} ({len(text)} characters)",
+                                       verify_text=text)
+
+    def _dispatch_semantic(self, ticket, action: Callable[[], dict], summary: str,
+                           verify_text: Optional[str]) -> DesktopResult:
+        """Dispatch a semantic action under the same fence as input, then verify by reading the tree back."""
+        try:
+            self.lease.check(ticket)
+        except StaleControl as exc:
+            return DesktopResult(False, f"error: {exc.reason}",
+                                 {"outcome": "not_dispatched", "dispatched": False,
+                                  "control": self.lease.snapshot().public()})
+        if self.before_dispatch is not None:
+            refusal = self.before_dispatch()
+            if refusal:
+                return DesktopResult(False, f"error: {refusal}", {"outcome": "not_dispatched", "dispatched": False})
+            try:
+                self.lease.check(ticket)
+            except StaleControl as exc:
+                return DesktopResult(False, f"error: {exc.reason}",
+                                     {"outcome": "not_dispatched", "dispatched": False})
+        if self._surface_identity is not None:
+            try:
+                if self._surface_identity() != self._identity:
+                    raise FrameError("window focus/stacking/geometry changed after observation; observe again")
+                self.lease.check(ticket)
+            except Exception as exc:
+                self.lease.invalidate_observation("surface identity changed or unavailable")
+                return DesktopResult(False, f"error: {exc}; nothing was done",
+                                     {"outcome": "not_dispatched", "dispatched": False, "identity_changed": True})
+        try:
+            reply = action()
+        except AccessibilityError as exc:
+            self.lease.invalidate_observation("accessibility action failed")
+            unknown = "stopped answering" in str(exc) or "stopped running" in str(exc)
+            return DesktopResult(False, f"error: {exc}",
+                                 {"outcome": "unknown" if unknown else "not_dispatched", "dispatched": bool(unknown)})
+        # The surface may have changed under the action; coordinates always need a new frame afterwards.
+        self.lease.invalidate_observation("a semantic action was dispatched")
+        self._sleep(self._settle)
+        data: dict[str, Any] = {"outcome": "dispatched", "dispatched": True,
+                                "action": str(reply.get("action") or "")[:40]}
+        if reply.get("redacted"):
+            data["redacted"] = True
+        if verify_text is not None and not reply.get("redacted"):
+            readback = str(reply.get("readback") or "")
+            if _same_text(readback, verify_text):
+                data["outcome"] = "effect_verified"
+                data["verification"] = "the element reads back the text that was set"
+            else:
+                data["outcome"] = "mismatch"
+                data["verification"] = "the element does not read back the text that was set"
+        try:
+            after = self._a11y.elements()
+        except AccessibilityError as exc:
+            return DesktopResult(True, f"{summary}; the follow-up tree read failed: {exc}", data)
+        data.update({"elements": after.public(), "snapshot_id": after.snapshot_id})
+        suffix = {"effect_verified": "; the new text was read back",
+                  "mismatch": "; the element shows different text than was set",
+                  "dispatched": "; confirm the intended outcome in the tree below"}.get(data["outcome"], "")
+        return DesktopResult(True, f"{summary}{suffix}\n{after.render(limit=120)}", data)
 
     # -------------------------------------------------------------- lifecycle
 

@@ -24,7 +24,12 @@ from pathlib import Path
 from typing import Any, Optional
 
 MAX_FRAME_BYTES = 900_000            # one image; a 1280x800 UI screenshot is typically 100-400 KB as PNG
-MAX_FRAME_EDGE = 2000                # long edge in pixels; provider limits are higher, this bounds image tokens
+#: Long edge in pixels. 1568 is the strictest documented long-edge limit among the supported vision routes (Anthropic
+#: scales anything larger before reading it). Keeping captures inside it means the image a model sees is the image whose
+#: pixels the tool's coordinates refer to: a provider that silently rescales would otherwise move every click. The
+#: browser viewport (1280x720) and the isolated desktop (1280x800) are chosen to stay inside this bound at the source,
+#: so this is a backstop rather than a resize step.
+MAX_FRAME_EDGE = 1568
 MAX_RUN_FRAME_BYTES = 8 * 1024 * 1024
 MAX_RUN_FRAMES = 64
 
@@ -152,7 +157,8 @@ class FrameStore:
             raise FrameError(f"the frame is {len(data):,} bytes; the limit is {MAX_FRAME_BYTES:,}")
         width, height = image_size(data, media_type)
         if width <= 0 or height <= 0 or max(width, height) > MAX_FRAME_EDGE:
-            raise FrameError(f"the frame is {width}x{height}; the long edge limit is {MAX_FRAME_EDGE}px")
+            raise FrameError(f"the frame is {width}x{height}; the long edge limit is {MAX_FRAME_EDGE}px so that model "
+                             f"coordinates always refer to the pixels that were captured")
         digest = hashlib.sha256(data).hexdigest()
         with self._serialized():
             entries = self._entries()

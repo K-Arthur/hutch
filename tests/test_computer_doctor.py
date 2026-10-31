@@ -48,8 +48,11 @@ def probe(env=None, *, props=None, bus=KDE_BUS, tools=("busctl", "ldconfig", "wl
     return {c.id: c for c in results}
 
 
+AT_SPI_TOOLS = ("busctl", "ldconfig", "at-spi-bus-launcher", "at-spi2-registryd")
+
+
 def test_kde_wayland_reports_each_capability_independently():
-    got = probe(modules=("playwright",))
+    got = probe(modules=("playwright", "gi"), tools=AT_SPI_TOOLS + ("wl-copy", "kwin_wayland"))
     assert got["session"].state == READY and "XWayland" in got["session"].detail
     assert got["compositor"].detail.startswith("KWin")
     assert got["portal"].state == READY
@@ -57,8 +60,7 @@ def test_kde_wayland_reports_each_capability_independently():
     assert got["remotedesktop"].state == NEEDS_CONSENT and "ConnectToEIS" in got["remotedesktop"].detail
     assert "separate grants" in got["remotedesktop"].detail
     assert got["pipewire"].state == READY and got["libei"].state == READY
-    assert got["accessibility"].state == DEGRADED and "gi" in got["accessibility"].detail
-    assert got["accessibility"].fix, "a degraded capability must say what to do"
+    assert got["accessibility"].state == READY and "out of process" in got["accessibility"].detail
 
 
 def test_capture_without_input_is_not_reported_as_control():
@@ -87,10 +89,27 @@ def test_missing_portal_service_and_backend():
     assert probe(bus=only_frontend)["portal"].state == DEGRADED
 
 
-def test_accessibility_discovery_does_not_claim_an_adapter():
-    assert probe(modules=("gi",))["accessibility"].state == DEGRADED
-    no_bus = "NAME PID\norg.freedesktop.portal.Desktop 1 x u :1.2\n"
-    assert probe(bus=no_bus, modules=("gi",))["accessibility"].state == UNAVAILABLE
+def test_accessibility_reports_its_own_session_and_never_the_personal_desktop():
+    """Semantic control is real, but only inside Hutch's disposable session; the probe must say nothing stronger."""
+    ready = probe(modules=("gi",), tools=AT_SPI_TOOLS)["accessibility"]
+    assert ready.state == READY
+    assert "isolated" in ready.detail.lower()
+    assert "delivered-action" in ready.detail and "pixel path" in ready.detail
+    for forbidden in ("your desktop is", "controls your desktop", "mounts the host"):
+        assert forbidden not in ready.detail.lower()
+
+
+def test_accessibility_needs_the_at_spi_packages():
+    missing = probe(modules=("gi",))["accessibility"]
+    assert missing.state == UNAVAILABLE
+    assert "at-spi2-core" in missing.fix
+def test_accessibility_without_a_binding_is_degraded_not_ready():
+    got = probe(tools=AT_SPI_TOOLS)["accessibility"]           # binaries, no gi, no configured interpreter
+    assert got.state == DEGRADED and got.fix
+    configured = probe(tools=AT_SPI_TOOLS, env={"XDG_SESSION_TYPE": "wayland", "HUTCH_GI_PYTHON":"/usr/bin/python3",
+                                                "XDG_RUNTIME_DIR": "/run/user/1000"},
+                       paths=("/run/user/1000/wayland-0", "/usr/bin/python3"))["accessibility"]
+    assert configured.state == READY
 
 
 def test_other_compositors_and_clipboard_tools_do_not_imply_supported_control():

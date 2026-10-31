@@ -53,6 +53,8 @@ class ManagedDesktop:
         self._captures: set[subprocess.Popen] = set()
         self._stopping = False
         self._apps: list[subprocess.Popen] = []
+        self.a11y_address = ""
+        self.a11y_reason = ""
 
     # ------------------------------------------------------------ lifecycle
 
@@ -92,6 +94,7 @@ class ManagedDesktop:
                          "--height", str(self.height), "--no-lockscreen", "--no-global-shortcuts"], "kwin")
             self._wait(lambda: (run / self.SOCKET).exists(), 10, "the virtual compositor did not create its socket")
             self._wait(lambda: self._busctl("status", "org.kde.KWin") == 0, 10, "KWin did not register on the bus")
+            self._start_accessibility()
         except Exception:
             self.__exit__(None, None, None)
             raise
@@ -166,6 +169,7 @@ class ManagedDesktop:
         if not readiness.ok:
             raise DesktopUnavailable(f"native app containment is unavailable: {readiness.reason}")
         command = desktop_argv(argv, Policy(workspace=Path(cwd)), self.env)
+        command = self._with_accessibility_mount(command)
         # The resource-limit launcher talks to the host user service manager. Its child clears the environment and
         # binds only the PRIVATE bus; the app cannot request host systemd activation through this socket.
         launcher_env = {key: os.environ[key] for key in ("XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS") if key in os.environ}
@@ -178,6 +182,30 @@ class ManagedDesktop:
                 except OSError: pass
                 raise DesktopUnavailable("the private desktop stopped during launch")
         return proc
+
+    def _with_accessibility_mount(self, command: list[str]) -> list[str]:
+        """Add the one socket semantic control needs, before the environment is cleared.
+
+        The containment builder stays generic: only this session knows which accessibility socket it owns, so only this
+        session may hand it across. A malformed path fails closed rather than silently mounting nothing.
+        """
+        socket = self.a11y_socket
+        if not socket:
+            return command
+        assert self.root is not None
+        path = Path(socket)
+        try:
+            path.resolve(strict=False).relative_to(self.root.resolve(strict=False))
+        except (OSError, ValueError):
+            raise DesktopUnavailable("the accessibility socket is not inside this private session") from None
+        if not path.is_socket():
+            raise DesktopUnavailable("the accessibility socket is unavailable")
+        try:
+            index = command.index("--clearenv")
+        except ValueError:  # pragma: no cover - desktop_argv always ends its mounts with --clearenv
+            raise DesktopUnavailable("the containment command has no environment boundary") from None
+        return [*command[:index], "--dir", str(path.parent), "--ro-bind", str(path), str(path),
+                *command[index:]]
 
     def capture_png(self, timeout: float = 15.0) -> bytes:
         """A full-output screenshot of THIS compositor only (KWin ScreenShot2 via spectacle's authorization)."""
@@ -210,6 +238,31 @@ class ManagedDesktop:
                 with self._capture_lock:
                     self._captures.discard(proc)
             out.unlink(missing_ok=True)
+
+    # ------------------------------------------------------- accessibility
+
+    def _start_accessibility(self) -> None:
+        """Start the private accessibility bus. On failure the session still runs with pixel control, and says why."""
+        from .a11y_bus import AccessibilityBus, BusUnavailable
+        assert self.root is not None
+        bus = AccessibilityBus(self.root / "run", self.env, self._spawn)
+        try:
+            address = bus.start()
+        except BusUnavailable as exc:
+            self.a11y_reason = str(exc)
+            self.env.pop("AT_SPI_BUS_ADDRESS", None)
+            return
+        self.a11y_address = address
+        # Toolkits only build their accessibility tree when asked: Qt and GTK both honour these in a private session.
+        self.env.update({"AT_SPI_BUS_ADDRESS": address, "QT_LINUX_ACCESSIBILITY_ALWAYS_ON": "1",
+                         "ACCESSIBILITY_ENABLED": "1"})
+
+    @property
+    def a11y_socket(self) -> str:
+        """The private accessibility socket, for the single containment mount. Empty when unavailable."""
+        if not self.a11y_address.startswith("unix:path="):
+            return ""
+        return self.a11y_address.split("=", 1)[1]
 
     def kill_all(self) -> None:
         """End the compositor, bus and every application at once (emergency stop of the whole environment)."""
