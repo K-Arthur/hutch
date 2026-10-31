@@ -186,6 +186,11 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
         tools.update(construct_notion_tools(ctx.store, ctx.bot, getattr(ctx, "run", None)))
         from .kdeconnect import construct_kdeconnect_tools
         tools.update(construct_kdeconnect_tools(ctx.store, ctx.bot, getattr(ctx, "run", None)))
+        # Reviewed MCP connector tools join the same dict as every native tool: one registry, one
+        # approval path. A grant is a store row, never an allowlist string, and dispatch re-reads
+        # it before every call (runtime.dispatch).
+        from ..integrations.mcp.tool import construct_mcp_tools
+        tools.update(construct_mcp_tools(ctx.store, ctx.bot, getattr(ctx, "run", None)))
     return tools
 
 
