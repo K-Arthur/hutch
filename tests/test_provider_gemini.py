@@ -338,6 +338,17 @@ def test_a_rejected_key_is_not_reported_as_discovery_failure_only():
 
 # --------------------------------------------------------------- wiring: connection, registry
 
+def test_a_rejected_key_is_reported_as_an_auth_failure_by_health_too():
+    """Google answers an invalid API key with 400 INVALID_ARGUMENT, not 401; health must still say auth."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, json={"error": {"code": 400, "message": "API key not valid. Please pass a valid API key.",
+                                                         "status": "INVALID_ARGUMENT"}})
+
+    health = provider(handler).health()
+    assert health.ok is False and "rejected" in health.detail
+
+
 def test_the_google_template_builds_a_gemini_connection_and_provider(tmp_path):
     book = ConnectionBook(tmp_path)
     conn = book.add("google-gemini")

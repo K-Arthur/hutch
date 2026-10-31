@@ -144,9 +144,12 @@ class GeminiProvider(Provider):
         t = time.perf_counter()
         try:
             r = self._http().get("/models", params={"pageSize": 1}, timeout=self._timeout(read=5.0))
-            if r.status_code in (401, 403):
-                return Health(ok=False, detail="reachable, but the API key was rejected")
-            r.raise_for_status()
+            if r.status_code >= 400:
+                # Google answers an invalid key with 400 INVALID_ARGUMENT, not 401, so the body is the
+                # only reliable signal; mapping through the same path keeps the message truthful.
+                error = self._error_from_response(r)
+                detail = "reachable, but the API key was rejected" if error.kind == "auth" else str(error)
+                return Health(ok=False, detail=detail)
         except Exception as exc:
             return Health(ok=False, detail=self._wrap_exc(exc).args[0])
         return Health(ok=True, latency_ms=(time.perf_counter() - t) * 1000.0)

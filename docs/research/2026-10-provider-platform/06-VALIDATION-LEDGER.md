@@ -138,7 +138,7 @@ from an SDK's behaviour.
 
 | Check | Command | Result |
 |---|---|---|
-| Contract tests for the native adapter | `uv run --frozen --no-sync pytest -q tests/test_provider_gemini.py` | 29 passed |
+| Contract tests for the native adapter | `uv run --frozen --no-sync pytest -q tests/test_provider_gemini.py` | 30 passed |
 | Provider, connection, catalogue and tool-profile batch | `uv run --frozen --no-sync pytest -q tests/test_provider_gemini.py tests/test_connections.py tests/test_provider_catalog.py tests/test_provider_accounts.py tests/test_provider_capabilities.py tests/test_provider_readiness.py tests/test_compat.py tests/test_providers.py tests/test_toolcalling_compiler.py tests/test_integration_contract_regressions.py tests/test_models_layer.py tests/test_provider_surfaces.py` | 241 passed, 3 xfailed (after the readiness correction added two tests) |
 | Model switcher and provider surfaces | `uv run --frozen --no-sync pytest -q tests/test_provider_surfaces.py tests/test_model_switcher.py` | 39 passed |
 | Website asset hashes and metadata | `uv run --frozen --no-sync pytest -q tests/e2e/test_website.py -k "hash or metadata or faq"` | 2 passed |
@@ -158,10 +158,35 @@ What those tests establish, stated narrowly:
 - Wiring: the `google-gemini` template builds a `gemini`-protocol connection, and an ambient
   `GEMINI_API_KEY` is sent only to `generativelanguage.googleapis.com`.
 
-Not established: that a real Gemini key works, that any model accepts an image, that tools behave
+Not established by the contract tests: that a real Gemini key works, that any model accepts an image, that tools behave
 reliably, or that quotas and usage match the provider billing console. The route stays
 `implemented-unverified` and the matrix says `not live-verified`.
 
+### Live endpoint round-trip (2026-10-31, no credential)
+
+The workflow environment has outbound network access and no Gemini credential. The adapter was pointed at
+the real, live Generative Language endpoint with a deliberately invalid key, which is harmless, spends
+nothing and proves more than a fixture does:
+
+| Observation | Result |
+|---|---|
+| DNS/TLS/HTTP to `https://generativelanguage.googleapis.com/v1beta/models` | reached; Google answered |
+| Provider response for the invalid key | HTTP 400 `INVALID_ARGUMENT` with "API key not valid. Please pass a valid API key." |
+| Hutch `probe_models()` | `(False, "google rejected the credentials (API key not valid. Please pass a valid API key.). Check the API key.", [])` |
+| Hutch `health()` after the fix | `reachable, but the API key was rejected` |
+
+Two facts this produced that a fixture could not:
+
+1. Google signals an invalid API key with **400 INVALID_ARGUMENT**, not 401/403. The error mapper already
+   classified it correctly from the response body, but the health probe used `raise_for_status()` and
+   surfaced a raw `HTTPStatusError` string. Health now maps through the same typed path, and
+   `tests/test_provider_gemini.py` pins the 400-as-auth case.
+2. The transport, URL shape, header placement and JSON error envelope are exercised against the real
+   service, so an endpoint or header mistake would have failed here rather than in a user's first run.
+
+Still not established, and not claimed: authenticated model discovery, inference, streaming, tool calls,
+vision, usage reporting and quota behaviour. Those need a real key, and the matrix stays
+`not live-verified`.
 ### Visual re-check of the marketing provider section (2026-10-31)
 
 Served `website/` over HTTP and captured the expanded `#providers` panel at 1440x960, 1280x720, 900x1024,
