@@ -133,7 +133,10 @@ def test_skills_library_shows_invalid_candidates_instead_of_hiding_them(browser,
         body.get_by_text("broken-skill", exact=True).first.wait_for()
         assert "Invalid" in body.inner_text()
         assert "description" in body.inner_text()
-        body.get_by_text("good-skill").wait_for()
+        body.get_by_text("good-skill", exact=True).wait_for()
+        text = body.inner_text()
+        assert "Found on this computer (" in text and ".agents/skills" in text, "discovery says where skills came from"
+        assert f"Found in {home}/.agents/skills/good-skill" in text.replace("\n", " ")
         page.screenshot(path=str(OUT / "library-discovered-tablet.png"), animations="disabled")
         assert not errors, errors
     finally:

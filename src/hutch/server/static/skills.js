@@ -163,7 +163,8 @@
       </section>`);
       if (candidates.length) {
         sections.push(`<section aria-labelledby="skills-available-title">
-          <h2 class="skill-section-title" id="skills-available-title">Available to install (${candidates.length})</h2>
+          <h2 class="skill-section-title" id="skills-available-title">Found on this computer (${candidates.length})</h2>
+          <p class="hint">Hutch looks in the standard skill folders (<code>~/.agents/skills</code>, <code>~/.claude/skills</code>, and <code>.agents/skills</code> or <code>.claude/skills</code> in a project) and in its own samples. Finding a skill reads its description only; nothing is installed or shown to a model until you install it, review it and trust it.</p>
           <div class="skill-list">${candidates.map(candidateRow).join("")}</div>
         </section>`);
       }
@@ -233,6 +234,7 @@
         <div class="skill-candidate-copy"><b>${esc(item.name)}</b>
           <span class="skill-status tone-muted">${esc(item.source.scope)}</span>
           <div class="hint">${esc(item.description || "")}</div>
+          <div class="hint">Found in ${esc(item.source.path)}</div>
           ${item.shadowed_by ? `<div class="hint">A copy from ${esc(item.shadowed_by)} was shadowed.</div>` : ""}
         </div>
         <button class="btn small" type="button" data-install-builtin="${esc(item.name)}"

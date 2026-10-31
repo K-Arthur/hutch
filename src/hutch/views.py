@@ -21,6 +21,7 @@ from typing import Any, Optional
 
 from .lifecycle import TERMINAL
 from .models import ACTIVE_STATUSES, Bot, Run, RunStatus, iso, utcnow
+from .outcome_hints import interrupted_hint
 
 FINISHED = tuple(TERMINAL)    # one definition: hutch.lifecycle
 
@@ -220,6 +221,8 @@ def explain_outcome(run: Run, bot: Optional[Bot] = None) -> Optional[Wait]:
     if r == "loop":
         return Wait("The bot repeated the same tool call with the same arguments three times.",
                     "Open the transcript to see what it was stuck on; clarify the instructions.", kind="error")
+    if r == "interrupted":
+        return Wait(*interrupted_hint(run), kind="error")
     text = (run.error or "").lower()
     for needle, cause, fix in _ERROR_HINTS:
         if needle in text:
@@ -227,7 +230,6 @@ def explain_outcome(run: Run, bot: Optional[Bot] = None) -> Optional[Wait]:
     detail = (run.error or r or "unknown").strip()
     cause = detail[:200] if detail.lower().startswith("the run ended with an error:") else f"The run ended with an error: {detail[:200]}"
     return Wait(cause, "Open the transcript for the failing step.", kind="error")
-
 
 # ------------------------------------------------------------------ staleness
 
@@ -300,7 +302,6 @@ def stale_info(store, scheduler, bot: Bot, now: Optional[datetime] = None) -> Op
                  last_success=(last.finished_at or last.created_at) if last else None,
                  expected_after=iso(prev), last_run=latest)
 
-
 # ------------------------------------------------------------------ home
 
 
@@ -359,7 +360,6 @@ def home_state(store, scheduler, engine: Any = None, now: Optional[datetime] = N
         "spend_today": sum(r.cost_usd for r in runs_today),
     }
     return h
-
 
 # ------------------------------------------------------------------ meters
 
