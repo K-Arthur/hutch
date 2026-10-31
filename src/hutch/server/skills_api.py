@@ -12,21 +12,12 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from ..skills import MAX_SKILLS_PER_BOT, SkillError, SkillRegistry
-from ..skill_scan import scan_package
-from ..skill_update import compare_packages
 
 
 class SkillInstallRequest(BaseModel):
     source: Literal["path", "builtin"]
     path: Optional[str] = Field(default=None, max_length=4096)
     name: Optional[str] = Field(default=None, max_length=64)
-
-
-class SkillFetchRequest(BaseModel):
-    """A published package to download. Fetching is install-at-a-distance, never trust."""
-
-    url: str = Field(min_length=1, max_length=4096)
-    replace: bool = False
 
 
 def install_skills_routes(app: FastAPI, store, config) -> None:
@@ -52,16 +43,6 @@ def install_skills_routes(app: FastAPI, store, config) -> None:
             for bot in store.list_bots() if name in (bot.skills or [])
         ]
         detail["limits"] = {"max_skills_per_bot": MAX_SKILLS_PER_BOT}
-        # Content review is shown wherever a package is reviewed, including before trust. It is
-        # advisory: it never grants trust and never blocks an owner's decision.
-        if detail.get("directory"):
-            detail["scan"] = scan_package(detail["directory"])
-        # A staged update is a write path. Say what applying it would change, not just that a
-        # different hash is waiting: new requirements are the difference between reviewing and
-        # rubber-stamping.
-        staged = detail.get("staged_update") or {}
-        if staged.get("path"):
-            detail["staged_changes"] = compare_packages(detail.get("directory", ""), staged["path"])
         return detail
 
     @app.post("/api/v1/skills/install", status_code=201)
@@ -74,15 +55,6 @@ def install_skills_routes(app: FastAPI, store, config) -> None:
             if not body.path:
                 raise SkillError("a local directory path is required")
             return registry().install_path(body.path)
-        except SkillError as exc:
-            raise HTTPException(exc.status, str(exc)) from None
-
-    @app.post("/api/v1/skills/fetch", status_code=201)
-    def fetch_skill(body: SkillFetchRequest) -> dict:
-        """Install a package published at a URL. It lands untrusted, with its provenance recorded."""
-        from ..skill_remote import install_from_url
-        try:
-            return install_from_url(registry(), body.url, replace=body.replace)
         except SkillError as exc:
             raise HTTPException(exc.status, str(exc)) from None
 
