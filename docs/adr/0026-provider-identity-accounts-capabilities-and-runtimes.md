@@ -1,4 +1,4 @@
-# ADR-0025: Provider identity, account profiles, capability evidence and runtimes
+# ADR-0026: Provider identity, account profiles, capability evidence and runtimes
 
 Status: accepted (2026-10-30). Scope: additive provider-platform expansion.
 
