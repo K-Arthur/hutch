@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from ..connections import Connection, ConnectionBook
+from ..connections import Connection, ConnectionBook, load_templates
 from .catalog import Provider, bundled_catalog
 
 #: Local account states. None of these claims the provider works; they describe local readiness.
@@ -77,16 +77,23 @@ class ProviderAccounts:
     accounts: tuple[AccountProfile, ...]
 
 
+def auth_method_for_connection(conn: Connection) -> str:
+    """The mechanism label for a connection, from its template metadata or its auth flow."""
+    if conn.auth_type == "chatgpt-siws":
+        return "pkce"
+    template = load_templates().get(conn.template) or {}
+    return str(template.get("auth_method") or "api_key")
+
+
 def provider_for_connection(conn: Connection, catalog=None) -> Optional[Provider]:
     """Resolve the provider identity behind a connection without inventing one.
 
-    Priority: an explicit `provider` on the row (validated against the catalogue), then the bundled
-    connection template's provider, then known special cases. An unknown identity returns None so the
-    account is reported as needing configuration instead of being guessed.
+    The bundled connection template is the single identity authority for a connection; row-level
+    metadata cannot mint a second one. Known special cases cover the supported ChatGPT route and custom
+    compatible endpoints. An unknown identity returns None so the account is reported as needing
+    configuration instead of being guessed.
     """
     catalog = catalog or bundled_catalog()
-    if conn.provider:
-        return catalog.get(conn.provider)
     by_template = catalog.provider_for_template(conn.template)
     if by_template is not None:
         return by_template
@@ -117,12 +124,13 @@ def account_profile(book: ConnectionBook, name: str, catalog=None) -> AccountPro
     catalog = catalog or bundled_catalog()
     provider = provider_for_connection(conn, catalog)
     credential, source = _credential(book, conn)
-    auth_label = _AUTH_LABELS.get(conn.auth_method, conn.auth_method)
+    auth_method = auth_method_for_connection(conn)
+    auth_label = _AUTH_LABELS.get(auth_method, auth_method)
     if provider is not None:
         # Catalogue auth ids are provider-specific ("api-key", "chatgpt-sign-in"); the connection
         # carries a mechanism ("api_key", "pkce"). Match by id first, then by declared mechanism.
-        declared = provider.auth(conn.auth_method) or next(
-            (method for method in provider.auth_methods if method.type == conn.auth_method), None)
+        declared = provider.auth(auth_method) or next(
+            (method for method in provider.auth_methods if method.type == auth_method), None)
         if declared is not None:
             auth_label = declared.label
     if provider is None:
@@ -149,7 +157,7 @@ def account_profile(book: ConnectionBook, name: str, catalog=None) -> AccountPro
             detail = f"Credential source: {source}. A configured credential is not a live-availability claim."
     return AccountProfile(
         name=conn.name, title=conn.title, provider_id=provider_id, provider_title=provider_title,
-        provider_category=category, provider_status=provider_status, auth_method=conn.auth_method,
+        provider_category=category, provider_status=provider_status, auth_method=auth_method,
         auth_label=auth_label, billing=conn.billing, billing_label=_BILLING_LABELS.get(conn.billing, conn.billing),
         credential=credential, credential_source=source, endpoint=conn.base_url, protocol=conn.protocol,
         status=status, detail=detail,

@@ -41,10 +41,6 @@ WINDOWS = {"5h": 5 * 3600, "day": 24 * 3600, "week": 7 * 24 * 3600, "month": 30 
 PROTOCOLS = ("openai-chat", "anthropic")
 UNSUPPORTED_PROTOCOLS = ("openai-responses",)
 BILLING = ("per_token", "subscription", "free")
-#: How the account authenticates. A subscription sign-in is not an API key, and a cloud service
-#: account is not an operator-supplied endpoint credential.
-AUTH_METHODS = ("api_key", "pkce", "oauth", "device_code", "cli_managed", "service_account",
-                "custom_endpoint", "local_service")
 RESERVED = {"ollama", "openai", "anthropic", "lmstudio", "llamacpp", "llama.cpp", "vllm", "mock",
             "openai-compatible"}
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")
@@ -96,8 +92,6 @@ class Connection:
     quota_hint: str = ""
     model_protocol_hint: str = ""
     auth_type: str = "api_key"
-    auth_method: str = "api_key"
-    provider: str = ""
     auth_account_id: str = ""
     openrouter_policy: dict[str, Any] = field(default_factory=dict)
     output_token_limit_enforced: bool = True
@@ -182,12 +176,6 @@ class ConnectionBook:
         auth_type = merged.get("auth_type", "api_key")
         if auth_type not in ("api_key", "chatgpt-siws"):
             raise ValueError("unknown connection authentication flow")
-        provider = str(merged.get("provider") or "").strip().lower()
-        if provider and not SLUG.fullmatch(provider):
-            raise ValueError("provider must be a lowercase provider id (a-z, 0-9 and hyphens)")
-        auth_method = str(merged.get("auth_method") or ("pkce" if auth_type == "chatgpt-siws" else "api_key")).strip()
-        if auth_method not in AUTH_METHODS:
-            raise ValueError(f"unknown authentication method '{auth_method}'")
         proto = merged.get("protocol", "openai-chat")
         if proto == "openai-responses":
             if (auth_type != "chatgpt-siws" or row.get("template") != "chatgpt-plan" or
@@ -242,7 +230,6 @@ class ConnectionBook:
             get_key_url=merged.get("get_key_url", ""), source=merged.get("source", ""),
             models_endpoint=bool(merged.get("models_endpoint", True)), quota_hint=merged.get("quota_hint", ""),
             model_protocol_hint=merged.get("model_protocol_hint", ""), auth_type=auth_type,
-            auth_method=auth_method, provider=provider,
             auth_account_id=str(merged.get("auth_account_id", "")),
             output_token_limit_enforced=bool(merged.get("output_token_limit_enforced", True)),
             prefer_stored_key=merged.get("prefer_stored_key") is True)

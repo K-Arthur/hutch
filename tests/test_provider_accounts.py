@@ -41,9 +41,10 @@ def test_templates_declare_provider_and_auth_method(book):
     assert templates["custom-openai"]["provider"] == "custom-compatible"
     # The UI-facing template list deliberately withholds OAuth-backed templates from generic creation.
     assert "chatgpt-plan" not in book.templates()
-    conn = book.add("openai-api", "acct", title="Account")
-    assert conn.provider == "openai"
-    assert conn.auth_method == "api_key"
+    book.add("openai-api", "acct", title="Account")
+    profile = account_profile(book, "acct")
+    assert profile.provider_id == "openai"
+    assert profile.auth_method == "api_key"
 
 
 def test_multiple_accounts_group_under_one_provider(book):
@@ -137,15 +138,17 @@ def test_legacy_connection_rows_resolve_provider_through_the_template(tmp_path, 
     assert account_profile(book, "legacy-custom").provider_id == "custom-compatible"
 
 
-def test_invalid_explicit_provider_is_reported_not_guessed(tmp_path):
+def test_row_level_provider_metadata_cannot_mint_a_second_identity(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     state = tmp_path / "state"
     state.mkdir()
     (state / "connections.json").write_text(json.dumps({"connections": {
-        "bad": {"template": "openai-api", "provider": "Not A Slug"},
+        "openai-alias": {"template": "openai-api", "provider": "some-other-provider"},
     }}))
     book = ConnectionBook(state)
-    assert book.errors  # refused at load with a reason
-    assert "bad" not in book.names()
+    assert book.errors == []
+    # The template's provider wins; an unrecognised row-level identity is ignored, never guessed.
+    assert account_profile(book, "openai-alias").provider_id == "openai"
 
 
 def test_empty_store_has_no_groups(book):
