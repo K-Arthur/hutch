@@ -35,6 +35,7 @@ from typing import Any, Callable, Optional
 
 from .config import hutchConfig, get_config
 from . import action_receipts, bot_deletion_schema, durable_changes, fact_purge_schema, personal_schema
+from .integrations.grants import integration_tool_granted, integration_tool_names
 from .workflow import usage_budget as workflow_usage_budget
 from .money import format_usd
 from .lifecycle import TERMINAL, IllegalTransition, LeaseLost, allowed
@@ -2441,14 +2442,6 @@ def _migrate_81(db: sqlite3.Connection) -> None:
     migrate(db)
 
 
-def _integration_tool_names(db: sqlite3.Connection, bot_id: str) -> list[str]:
-    """Return sorted names for grants on enabled, operation-authorized integrations only."""
-    rows = db.execute("SELECT g.canonical_name FROM integration_tool_grants g "
-                      "JOIN integrations i USING (integration_id) "
-                      "WHERE g.bot_id = ? AND i.enabled = 1 AND i.state = 'operation_authorized' "
-                      "ORDER BY g.canonical_name", (bot_id,)).fetchall()
-    return [str(row["canonical_name"]) for row in rows]
-
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -3449,7 +3442,19 @@ class Store:
         if bot is None:
             return []
         with self._lock:
-            return _integration_tool_names(self._db, bot.id)
+            return integration_tool_names(self._db, bot.id)
+
+    def integration_tool_granted(self, bot_ref: str, integration_id: str, server_tool_name: str) -> bool:
+        """Whether one tool is still granted, enabled and operation-authorized for this Bot.
+
+        The execution boundary reads this before every dispatch (``runtime.dispatch``); see
+        ``integrations.grants`` for why configuration and enforcement share one query.
+        """
+        bot = self.get_bot(bot_ref)
+        if bot is None:
+            return False
+        with self._lock:
+            return integration_tool_granted(self._db, bot.id, integration_id, server_tool_name)
 
     def workspace_coordinator(self) -> Optional[dict[str, str]]:
         """Return the current named coordinator Bot, if the owner selected one."""

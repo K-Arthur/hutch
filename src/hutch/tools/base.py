@@ -62,6 +62,17 @@ class Tool:
         """
         return args
 
+    def integration_binding(self) -> Optional[tuple[str, str]]:
+        """``(integration_id, server_tool_name)`` when this tool acts through a reviewed external
+        integration; ``None`` for first-party tools.
+
+        Dispatch re-reads the grant for this pair before every call
+        (``runtime.steps._dispatch_refusal``), so revoking a tool takes effect on the next call
+        even when the run's tool dict was built while the grant still existed. A tool that names a
+        binding it was not constructed from is therefore refused, not trusted.
+        """
+        return None
+
     def spec(self) -> dict[str, Any]:
         """OpenAI-style function tool schema."""
         return {
