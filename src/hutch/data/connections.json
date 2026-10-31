@@ -3,6 +3,8 @@
   "templates": {
     "opencode-go": {
       "title": "OpenCode Go (flat subscription)",
+      "provider": "opencode-go",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://opencode.ai/inference/go/openai/v1",
       "anthropic_base_url": "https://opencode.ai/inference/go/anthropic",
@@ -23,6 +25,8 @@
     },
     "openai-api": {
       "title": "OpenAI API",
+      "provider": "openai",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://api.openai.com/v1",
       "api_key_env": "OPENAI_API_KEY",
@@ -38,6 +42,8 @@
     },
     "anthropic-api": {
       "title": "Anthropic API",
+      "provider": "anthropic",
+      "auth_method": "api_key",
       "protocol": "anthropic",
       "base_url": "https://api.anthropic.com",
       "api_key_env": "ANTHROPIC_API_KEY",
@@ -53,6 +59,8 @@
     },
     "chatgpt-plan": {
       "title": "ChatGPT plan (Sign in with ChatGPT preview)",
+      "provider": "openai",
+      "auth_method": "pkce",
       "protocol": "openai-responses",
       "base_url": "https://api.openai.com/v1",
       "api_key_env": "",
@@ -71,6 +79,8 @@
     },
     "xiaomi-token-plan-sgp": {
       "title": "Xiaomi MiMo Token Plan - Singapore (subscription credits)",
+      "provider": "xiaomi",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://token-plan-sgp.xiaomimimo.com/v1",
       "anthropic_base_url": "https://token-plan-sgp.xiaomimimo.com/anthropic",
@@ -88,6 +98,8 @@
     },
     "xiaomi-token-plan-cn": {
       "title": "Xiaomi MiMo Token Plan - China (subscription credits)",
+      "provider": "xiaomi",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
       "anthropic_base_url": "https://token-plan-cn.xiaomimimo.com/anthropic",
@@ -102,6 +114,8 @@
     },
     "xiaomi-token-plan-ams": {
       "title": "Xiaomi MiMo Token Plan - Amsterdam (subscription credits)",
+      "provider": "xiaomi",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://token-plan-ams.xiaomimimo.com/v1",
       "anthropic_base_url": "https://token-plan-ams.xiaomimimo.com/anthropic",
@@ -116,6 +130,8 @@
     },
     "xiaomi": {
       "title": "Xiaomi MiMo - pay as you go (per token)",
+      "provider": "xiaomi",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://api.xiaomimimo.com/v1",
       "api_key_env": "XIAOMI_API_KEY",
@@ -127,6 +143,8 @@
     },
     "openrouter": {
       "title": "OpenRouter",
+      "provider": "openrouter",
+      "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://openrouter.ai/api/v1",
       "api_key_env": "OPENROUTER_API_KEY",
@@ -143,6 +161,8 @@
     },
     "custom-openai": {
       "title": "Custom OpenAI-compatible endpoint",
+      "provider": "custom-compatible",
+      "auth_method": "custom_endpoint",
       "protocol": "openai-chat",
       "base_url": "https://",
       "api_key_env": "CUSTOM_API_KEY",
@@ -153,6 +173,8 @@
     },
     "custom-anthropic": {
       "title": "Custom Anthropic-compatible endpoint",
+      "provider": "custom-compatible",
+      "auth_method": "custom_endpoint",
       "protocol": "anthropic",
       "base_url": "https://",
       "api_key_env": "CUSTOM_API_KEY",
