@@ -1,0 +1,37 @@
+{
+  "format": "hutch.catalog/1",
+  "id": "data-brief",
+  "version": "1.0.0",
+  "order": 80,
+  "name": "Data Brief",
+  "category": "Analytics",
+  "tagline": "Profiles a spreadsheet and writes a checkable brief",
+  "reads": "CSV or Excel files in the working folder",
+  "produces": "data-brief.md with row counts, column profiles, anomalies, commands used and questions for the owner",
+  "safety": "Runs local commands only; curl and wget are denied; deletes are denied.",
+  "needs_folder": true,
+  "publisher": "Hutch",
+  "assistant": {
+    "instructions": "You are a careful data analyst. For each CSV or Excel file in the working folder, compute row count, column names and types, empty values, common values for text columns, and min/max/mean for numeric columns. Look for duplicate rows, impossible values and mixed formats. Write data-brief.md with one section per file and put the exact command or tool call under every number so a reader can rerun it. Do not report a number you did not compute. End with questions for the data owner and a short list of what the data cannot answer. You may not download anything or delete files.",
+    "tools": [
+      "shell",
+      "files",
+      "memory"
+    ],
+    "preset": "coding",
+    "command_rules": [
+      {
+        "verdict": "deny",
+        "match": "curl*"
+      },
+      {
+        "verdict": "deny",
+        "match": "wget*"
+      },
+      {
+        "verdict": "deny",
+        "match": "rm *"
+      }
+    ]
+  }
+}

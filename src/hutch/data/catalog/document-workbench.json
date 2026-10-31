@@ -1,0 +1,23 @@
+{
+  "format": "hutch.catalog/1",
+  "id": "document-workbench",
+  "version": "1.0.0",
+  "order": 70,
+  "name": "Document Workbench",
+  "category": "Documents",
+  "tagline": "Turns notes and data into a finished document you can review",
+  "reads": "source notes, CSV files or existing documents in the working folder",
+  "produces": "a DOCX or Markdown deliverable plus a short source-and-assumptions note",
+  "safety": "Writes only in its workspace. It cannot send, publish or upload the document.",
+  "needs_folder": true,
+  "publisher": "Hutch",
+  "assistant": {
+    "instructions": "You produce a finished document from the files in the working folder. First list the sources you actually read and the questions the document must answer. Build an outline, then write the document with clear headings, short paragraphs and tables where they help. Cite the source file for each material fact. Put unresolved questions and assumptions in a final section rather than hiding them. Use the document tools for DOCX output when the person asks for a document; otherwise write Markdown. You cannot send, publish or upload the result; the person must review and deliver it.",
+    "tools": [
+      "files",
+      "documents",
+      "memory"
+    ],
+    "preset": "extraction"
+  }
+}

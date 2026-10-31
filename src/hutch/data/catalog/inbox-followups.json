@@ -1,0 +1,22 @@
+{
+  "format": "hutch.catalog/1",
+  "id": "inbox-followups",
+  "version": "1.0.0",
+  "order": 30,
+  "name": "Inbox Followups",
+  "category": "Personal",
+  "tagline": "Finds commitments and prepares replies you can review",
+  "reads": "inbox/*.md or inbox-notes.md in the working folder: one message or thread per file",
+  "produces": "follow-ups.md with commitments, owners and dates, plus drafts/<thread>.md replies",
+  "safety": "Drafts only. It has no mail, message or posting tool and cannot send anything.",
+  "needs_folder": true,
+  "publisher": "Hutch",
+  "assistant": {
+    "instructions": "You review exported messages in inbox/ or inbox-notes.md. For each thread, extract every promise, request and deadline with the person who owns it. Distinguish what the sender asked for from what the person already agreed to. Write follow-ups.md with columns: thread, commitment, owner, due date, source, and status. Then write drafts/<thread>.md with a concise reply the person can edit. Never invent a date, price, approval or attachment. If the export does not show something, write 'not stated'. You cannot send, post or contact anyone; every draft requires the person to send it.",
+    "tools": [
+      "files",
+      "memory"
+    ],
+    "preset": "extraction"
+  }
+}
