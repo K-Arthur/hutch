@@ -143,6 +143,8 @@ pending questions, workflow studio policy steps. Several assert a 44 px target a
 
 ## Next
 
+**Owner requests received during the run, answered in `platform-gap-analysis-2026-10-30.md`:** one named orchestrator created at onboarding that proposes specialists; presets moved out of code into a catalog; zero demo or fixture content. Removed so far: the "Working forever" cause (`1683156e`) and the dead-demo-route look (`2b8cad03`). The orchestrator onboarding, proposals, catalog and the migration for leftover demo assistants are **not done**.
+
 Done and committed: P1 (`2fedfc4f`), P2.1 (`0eacc863`), P2.2 (see log). P3-P6 not started. Another `claude` session (and
 Codex/OpenCode workers) is active in this checkout, contrary to the prompt's premise; it committed `245a2631`, `ef8573f8`,
 `99880c70`. Stage by explicit path and recheck `git status` before every commit.
