@@ -22,10 +22,12 @@ from ..approvals import DeniedError
 from ..computer.control import ControlLease
 from ..computer.desktop import DesktopSession
 from ..computer.frames import FrameStore
+from ..computer.limits import ActionBudget
 from ..models import Event, EventType
 from ..safety import Decision, Verdict
 from .base import Tool, ToolContext, ToolResult, rehearsed
 from .computer_contract import ACTIONS as _ACTIONS, DESCRIPTION, PARAMETERS, STATEFUL as _STATEFUL
+from .computer_dispatch import account, dispatch
 
 _LAUNCH_TIMEOUT_SECONDS = 12.0     # how long a launched window may take to appear and settle
 _LAUNCH_POLL_SECONDS = 0.4
@@ -46,7 +48,7 @@ class ComputerTool(Tool):
         self._stopped = False
         self._owner_thread: Optional[int] = None
         self._lease: Optional[ControlLease] = None
-        self._budget = None
+        self._actions = ActionBudget()
         self._a11y: Any = None
 
     # ------------------------------------------------------------- recording
@@ -110,35 +112,12 @@ class ComputerTool(Tool):
             return ctx.begin_effect()
         session.before_dispatch = before_dispatch
 
-        if action == "launch":
-            return self._launch(args, ctx, session)
-        if action == "elements":
-            return self._result(session.elements(root=str(args.get("root") or "")))
-        if action == "activate":
-            return self._result(session.activate(str(args.get("snapshot_id") or ""),
-                                                 str(args.get("element_id") or "")))
-        if action == "set_text":
-            return self._result(session.set_element_text(str(args.get("snapshot_id") or ""),
-                                                         str(args.get("element_id") or ""), args.get("text") or ""))
-        if action == "observe":
-            return self._result(session.observe())
-        if action == "wait":
-            time.sleep(min(max(float(args.get("seconds") or 1), 0.0), 10.0))
-            return self._result(session.observe())
-        frame_id = str(args.get("frame_id") or "")
-        if action == "click":
-            count = int(args.get("count") or 1)
-            return self._result(session.click(frame_id, args.get("x"), args.get("y"),
-                                               button=str(args.get("button") or "left"), count=count))
-        if action == "type":
-            return self._result(session.type_text(frame_id, args.get("text") or ""))
-        if action == "key":
-            return self._result(session.key(frame_id, str(args.get("keys") or "")))
-        return ToolResult(False, f"unhandled action {action}")  # pragma: no cover
-
-    @staticmethod
-    def _result(res) -> ToolResult:
-        return ToolResult(res.ok, res.output, dict(res.data))
+        refusal = self._actions.spend(action, stateful=action in _STATEFUL)
+        if refusal is not None:
+            return ToolResult(False, f"error: {refusal.message()}",
+                              {"outcome": "not_dispatched", "dispatched": False, "limits": self._actions.state(),
+                               "stalled" if refusal.kind == "stalled" else "budget_exhausted": True})
+        return account(self._actions, action, dispatch(self, action, args, ctx, session))
 
     # ----------------------------------------------------------- environment
 

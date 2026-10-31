@@ -173,6 +173,23 @@ unlabelled targets. Zero or several matching elements are **refused** with a bou
 The desktop tool additionally reports whether the screen visibly changed. A driver return is never reported as an effect;
 the native scenario verifies the saved file on disk.
 
+### Run limits: a budget, and refusal once nothing changes
+
+Two harness-side failures account for most runaway computer use: an agent that keeps acting after it has stopped making
+progress, and a run whose cost nobody bounded. Both are refused in the tool rather than left to prompt instructions.
+
+* Every observation and every state-changing action spends one unit of a per-run budget (200, generous on purpose). At the
+  cap the tool refuses with `budget_exhausted` and asks the model to stop and report what it completed; nothing is dispatched.
+* After a state-changing action the tool knows whether the screen changed. Three in a row that leave the framebuffer
+  identical are treated as no progress: further state-changing actions are refused with `stalled`, and the message names the
+  action and asks for a different element or an explicit stop. **Observation stays allowed**, because looking is how an agent
+  recovers. A verified effect, or any changed frame, clears the count.
+* Neither rule ends a run or touches the session; each refuses one call and hands the decision back to the model and the
+  person. Every result carries `limits: {actions, limit, unchanged_actions, stalled, refusals}` so the panel can show it.
+
+Stall detection is frame-based, so it applies to the pixel path. A task that only uses semantic actions is still bounded by
+  the budget, but a semantic action that changes nothing is not counted as a stall: it has no framebuffer to compare.
+
 ## Profiles, iframe scope and governed files
 
 Profiles live at `browser-profiles/<immutable bot id>/browser-profile`, with one writer. Renaming an assistant preserves
