@@ -38,13 +38,6 @@ The limits of that are specific, and each is a real gap:
   unchanged. No bundled connector uses the vault today.
 - **The value is in the Hutch process.** It is decrypted into memory by design (see limitation 1).
   "The agent never sees it" is true of agent context; it is not a claim about process memory.
-- **Response scrubbing is exact-match.** \`mediate_http\` removes the credential string itself from a
-  response body and headers. A service that echoes it transformed — base64, URL-encoded, split across
-  fields, hashed — would not be caught. Scrubbing defends against an honest service leaking an
-  Authorization header, not against a hostile one.
-- **A process-executed run has no unlocked vault.** A delegated or strictly-offline run runs with its
-  own \`Store\`, so \`vault_for\` gives it a locked vault and a mediated use fails with \`VaultLocked\`.
-  That fails closed; it also means those runs cannot use the vault at all yet.
 - **Response scrubbing is exact-match.** `mediate_http` removes the credential string itself from a
   response body and headers. A service that echoes it transformed — base64, URL-encoded, split across
   fields, hashed — would not be caught. Scrubbing is a defence against an honest service leaking an
