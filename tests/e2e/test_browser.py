@@ -9088,7 +9088,7 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
             assert page.locator(".ctx-subtitle").inner_text() == f"AI assistant · {expected_role}"
             roster_name = page.locator('#roster-list [data-switch-bot="occupied-name"] .roster-name')
             assert roster_name.inner_text() == expected_person
-            assert page.locator('#roster-list [data-switch-bot="occupied-name"] .roster-sub').inner_text() == expected_role
+            assert page.locator('#roster-list [data-switch-bot="occupied-name"] .roster-sub').inner_text() == f"Needs a model route \u00b7 {expected_role}"   # the fixture runs on the retired mock route
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
             page.screenshot(path=str(out / f"chat-identity-{label}.png"), animations="disabled")
         page.goto(f"{base}/#/bot/occupied-name")

@@ -55,6 +55,7 @@ from ..documents.docgen.render import (LAYOUT_RENDER_FORMATS, STRUCTURE_PREVIEW_
 from ..durable_changes import SnapshotRequired
 from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
+from ..main_assistant import ensure_main_assistant
 from ..models import (
     ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, BotCreationSource, CatchUpPolicy, CommandRule, Event, EventType,
     Escalation, InferenceMode, Limits, MemoryItem, OverlapPolicy, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task,
@@ -4423,6 +4424,7 @@ def create_app() -> FastAPI:
             raise HTTPException(409, f"bot already exists: {body.name}")
         bot = bot_from_create_request(body)
         store.create_bot(bot)
+        ensure_main_assistant(store, bot)
         return bot_view(bot)
 
     @app.get("/api/bots/{ref}")

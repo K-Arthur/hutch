@@ -989,3 +989,10 @@ label.field { align-content: start; }
 /* On a small screen the options popover becomes a bottom sheet. It must never reach the header: the control that opened it
    is also the one that closes it. The popup script sizes a sheet to the whole viewport, hence !important. */
 .conversation-actions-panel[data-popup-layout="sheet"] { max-height: calc(100dvh - 136px) !important; }
+
+/* An assistant that cannot run says why and offers the two real ways out (docs/realignment/platform-gap-analysis C1). */
+.welcome-problem { width: min(100%, 560px); margin: 0 auto; padding: var(--s-3) var(--s-4); border: 1px solid var(--warn); border-radius: var(--r-panel); background: var(--sunken); text-align: left; }
+.welcome-problem p { margin: 0 0 var(--s-2); color: var(--text-2); font-size: var(--fs-sm); }
+.welcome-problem p:last-child { margin: 0; display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.welcome-problem strong { color: var(--text); }
+.setup-main-note { margin: 0 0 var(--s-3); }

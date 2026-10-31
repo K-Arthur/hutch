@@ -5186,6 +5186,8 @@ function welcomeHtml() {
         ${description ? `<p class="hint">${esc(description)}</p>` : ""}
       </div>
       <p class="welcome-intro">What would you like to work on?</p>
+      ${b.route_problem ? `<div class="welcome-problem" role="alert"><p><strong>This assistant can't run yet:</strong> ${esc(b.route_problem)}.</p>
+        <p><a class="btn small" href="#/bot/${encodeURIComponent(b.name)}">Choose a model route</a> <a class="btn ghost small" href="/bots/${encodeURIComponent(b.name)}/delete">Remove assistant</a></p></div>` : ""}
       <ul class="welcome-trust" aria-label="How this assistant works">
         <li>${icon("shield")}<span>${esc(botActionSummary(b.approval_mode))}</span></li>
         ${can ? `<li>${icon("wrench")}<span>${esc(can)}</span></li>` : ""}
@@ -12276,6 +12278,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
             ${purposeRefinementHtml()}
           </div>
         </details>` : ""}
+      ${botsCache.length ? "" : `<p class="hint setup-main-note">This will be your main assistant, the one you talk to first. You can add specialists later, and it can hand them work for you to review.</p>`}
       <div class="hutch-field"><label class="hutch-label" for="setup-display_name"><span id="setup-display-name-label">Assistant name</span></label><input class="hutch-input" id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Avery Chen" value="${esc(draft.display_name)}" required aria-labelledby="setup-display-name-label" aria-describedby="setup-display-name-hint"><span class="hutch-help" id="setup-display-name-hint">Suggested from your request. Rename it anytime.</span></div>
       <details class="setup-schedule setup-identity">
         <summary>Advanced details</summary>

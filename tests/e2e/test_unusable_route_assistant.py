@@ -74,3 +74,42 @@ def test_choosing_a_real_model_for_the_next_message_replaces_the_prompt(browser,
         wait_for_page(page, "!!document.querySelector('.ms-label') && document.querySelector('.ms-label').textContent.trim() !== 'Choose a model'", timeout=20_000)
     finally:
         page.context.close()
+
+
+def test_the_empty_chat_of_an_unusable_assistant_explains_and_offers_the_two_real_actions(browser, base):
+    page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
+    try:
+        page.goto(f"{base}/#/chat/old-demo", wait_until="domcontentloaded")
+        notice = page.locator(".welcome-problem")
+        notice.wait_for(timeout=20_000)
+        assert "can't run yet" in notice.inner_text() and "retired demo route" in notice.inner_text()
+        assert notice.get_by_role("link", name="Choose a model route").get_attribute("href") == "#/bot/old-demo"
+        assert notice.get_by_role("link", name="Remove assistant").get_attribute("href") == "/bots/old-demo/delete"
+        page.goto(f"{base}/#/chat/real-one", wait_until="domcontentloaded")
+        page.locator(".welcome h2", has_text="Real One").wait_for(timeout=20_000)
+        assert page.locator(".welcome-problem").count() == 0
+    finally:
+        page.context.close()
+
+
+def test_setup_names_the_main_assistant_only_for_the_first_one(browser, tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state-empty"))
+    with serve(create_app()) as empty_base:
+        page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
+        try:
+            page.goto(f"{empty_base}/#/assistant/new", wait_until="domcontentloaded")
+            note = page.locator(".setup-main-note")
+            note.wait_for(timeout=20_000)
+            assert "main assistant" in note.inner_text()
+        finally:
+            page.context.close()
+
+
+def test_setup_has_no_main_note_once_an_assistant_exists(browser, base):
+    page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
+    try:
+        page.goto(f"{base}/#/assistant/new", wait_until="domcontentloaded")
+        page.locator("#setup-purpose, #setup-display_name").first.wait_for(timeout=20_000)
+        assert page.locator(".setup-main-note").count() == 0
+    finally:
+        page.context.close()
