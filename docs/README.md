@@ -31,6 +31,7 @@ Where a document and the running code disagree, the code and the current
 |---|---|
 | [Requirements](requirements.md) | product requirements v0.2 and implementation status |
 | [Roadmap](roadmap.md) | product scope and phased direction |
+| [Commitments and Today](commitments.md) | personal commitments, the deterministic Today view, shared spaces and assistant tools |
 | [Dynamic workflows](workflows.md) | saved, reviewable multi-step plans |
 | [Skills](skills.md) | Agent Skills `SKILL.md` packages: trust, assignment and limits |
 | [Grounding](grounding.md) | live search and media checks, timestamps and source handling |

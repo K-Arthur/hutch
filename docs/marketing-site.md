@@ -117,6 +117,26 @@ host. It must not claim Word/Excel/PowerPoint desktop compatibility, malware-fre
 password-protected-input support; those are named limits in `docs/file-formats.md`. The capability evidence trail is
 `docs/file-formats.md` plus failure classes E1-E15 in `docs/realignment/evidence-ledger.md`.
 
+The site may describe Today as a read-only view of a person's own local records: approvals,
+commitments that are overdue, due today or upcoming, scheduled occurrences, real run state,
+documents generated today and shared-space summaries. It may say the view names what it leaves
+out. It must not claim that calendar or mailbox content is read automatically for that view, that
+the view is model-generated, or that a reported completion is verified work.
+
+The site may describe durable commitments with due dates, provenance and completion evidence, and
+must keep the distinction that an assistant can only propose a commitment and report completion
+while the owner confirms the proposal and verifies the completion. It must not claim that an
+assistant-reported completion is verified or that a proposal is already a commitment.
+
+The site may describe shared spaces for a household or project with recorded members and roles,
+shared commitments, and explicit per-assistant access grants that can be revoked. It must say the
+local server remains single-owner: spaces scope data for assistants and record who a space is for;
+they are not separate human logins, and they do not share connected accounts, credentials or
+personal records. Do not claim multi-user isolation, family accounts or guest authentication.
+Evidence: docs/commitments.md, ADR-0025, tests/test_commitments.py, tests/test_spaces.py,
+tests/test_personal_api.py, tests/test_commitment_tools.py, tests/e2e/test_personal_pages.py and
+the browser evidence under .pipeline/personal-operations/2026-10/evidence/.
+
 The site may say that files created through Hutch's `write_file` tool are downloadable from their originating run as verified
 snapshots (up to 4 MB per file and 16 MB per run). The Studio composer menu can browse saved text files and saved tool output
 from runs attached to that same conversation. An owner can also explicitly add one verified file reference to a selected other

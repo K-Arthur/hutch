@@ -588,6 +588,22 @@ whose templates are owned by an in-flight dashboard session. Exact idempotent re
 confirmation snapshot, whose `result_json` keeps `cleanup_state` as `pending`; the live cleanup state
 is returned separately and in the request history.
 
+## Personal operations: Today, commitments and shared spaces
+
+Today (dashboard, first primary destination) is a read-only projection of persisted state: approvals,
+commitments by due state, assistant proposals, reported completions awaiting verification, today's scheduled
+occurrences, real run state, today's documents and shared-space summaries. It makes no model call and names
+what it does not include. The browser sends its IANA timezone; unknown or missing zones are refused with 422
+rather than silently using UTC.
+
+Commitments live in schema v84 tables (commitments, commitment_events, spaces, space_members,
+bot_space_grants, commitment_dependencies) and are served under /api/v1/commitments, /api/v1/spaces and
+/api/v1/today. Owner completion requires evidence; assistant-reported completion stays unverified until the
+owner verifies it. A stale revision returns 409. Shared space access for an assistant is an explicit grant and
+is revoked immediately on revoke or archive; it never shares a connected account. See docs/commitments.md for
+routes, fields, limits and troubleshooting. The migration is additive and the usual pre-upgrade SQLite backup
+applies; rollback is code-only and leaves the new tables inert.
+
 ## Generated documents
 
 Documents created through the `create_document` tool are stored under `<state>/documents/` as immutable,

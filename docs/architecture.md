@@ -36,6 +36,16 @@ hash on every request through `/api/v1/documents/...` routes; previews are deriv
 or extracted structure) and never stand in for the exact file. See `docs/file-formats.md` for the verified capability
 matrix and the research file for the failure classes each defence answers.
 
+Schema v84 adds durable personal commitments, shared spaces with explicit per-assistant grants, and a
+deterministic Today projection. A commitment carries immutable provenance (source, conversation and run),
+a confirmed/proposed distinction and a reported/verified completion kind; assistant tools can only propose
+and report, while owner routes confirm and verify. An append-only event table records every mutation and
+edits are revision compare-and-swap. Spaces scope which commitments an assistant may read or change; they
+deliberately carry no credentials and are not a multi-user authentication system. Today composes
+commitments, scheduled occurrences, approvals, real run state, documents and space summaries from persisted
+rows with IANA-zone day boundaries that fail closed on unknown zones; it makes no model call and lists what
+it excludes. See docs/commitments.md and ADR-0025.
+
 hutch is a local-first multi-bot agent platform: one Python process family that stores everything
 in one state directory, drives LLM agents through a policy-gated tool layer, and exposes both a CLI
 and a local web dashboard.
