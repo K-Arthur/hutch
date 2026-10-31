@@ -1887,6 +1887,8 @@ async function renderAssistantSetupPage() {
 }
 
 const routes = [
+  [/^#\/today$/, () => window.hutchToday.renderTodayPage(), "today"],
+  [/^#\/shared$/, () => window.hutchShared.renderSharedPage(), "shared"],
   [/^#\/assistant\/new$/, renderAssistantSetupPage, "bots"],
   [/^#\/chat(?:\/([\w-]+))?$/, m => renderChatStudio(m ? m[1] : null), "chat"],
   [/^#\/conversation\/([\w-]+)$/, m => openConversation(m[1]), "chat"],
@@ -2213,7 +2215,7 @@ async function route(announce = false) {
         if (isActive) a.setAttribute("aria-current", "page");
         else a.removeAttribute("aria-current");
       });
-      if (["activity", "schedules", "bots", "runtime", "catalog"].includes(nav)) {
+      if (["activity", "schedules", "shared", "bots", "runtime", "catalog"].includes(nav)) {
         $("#monitor-nav").open = true;
       }
       document.title = hutchTitle.pageTitle(routeTitle(hash));

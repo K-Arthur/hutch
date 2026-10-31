@@ -9,6 +9,7 @@ SPA itself uses the same hash routes without the leading slash.
 """
 
 PRIMARY = (
+    ("today", "/#/today", "Today", "check"),
     ("chat", "/#/chat", "Chat", "chat"),
     ("tasks", "/#/tasks", "Tasks", "checklist"),
     ("approvals", "/#/approvals", "Needs you", "shield"),
@@ -17,6 +18,7 @@ PRIMARY = (
 MORE = (
     ("activity", "/#/activity", "Activity", "clock"),
     ("schedules", "/#/schedules", "Scheduled work", "calendar"),
+    ("shared", "/#/shared", "Shared", "users"),
     ("catalog", "/#/catalog", "Catalog", "layers"),
     ("models", "/models", "Models", "cpu"),
     ("usage", "/usage", "Usage", "chart"),

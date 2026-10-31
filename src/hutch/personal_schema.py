@@ -1,4 +1,4 @@
-"""Schema v82: durable personal commitments, shared spaces and bot scoping grants.
+"""Schema v84: durable personal commitments, shared spaces and bot scoping grants.
 
 Additive only: new tables, indexes and append-only triggers. No existing column or
 row is rewritten. The migration is idempotent (CREATE ... IF NOT EXISTS) so a

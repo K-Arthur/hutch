@@ -79,6 +79,7 @@
     function staticEntries() {
       const nav = (label, hash, icon, keywords = "") => ({ kind: "Go to", label, icon, keywords, run: () => { location.hash = hash; } });
       const go = [
+        nav("Today", "#/today", "check", "agenda commitments due overdue brief"),
         nav("Chat", "#/chat", "chat", "conversations home"),
         nav("Tasks", "#/tasks", "checklist", "delegated specialists assignments"),
         { kind: "Go to", label: "Needs you", icon: "shield", keywords: "approvals permissions requests review", run: () => ctx.openNeedsYou() },
@@ -86,6 +87,7 @@
         nav("Activity: History", "#/activity/history", "clock", "runs past results"),
         nav("Activity: Conversations", "#/activity/conversations", "inbox", "chats archive search library"),
         nav("Scheduled work", "#/schedules", "calendar", "routines cron"),
+        nav("Shared", "#/shared", "users", "household family space members"),
         nav("Catalog", "#/catalog", "layers", "agent store presets templates starters share"),
         nav("Catalog: Skills", "#/catalog/skills", "sparkles", "abilities skills instruction packages"),
         { kind: "Go to", label: "Models", icon: "gear", keywords: "model routes", run: () => { location.href = "/models"; } },
