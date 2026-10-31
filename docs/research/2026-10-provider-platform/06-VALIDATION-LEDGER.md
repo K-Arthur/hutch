@@ -139,7 +139,7 @@ from an SDK's behaviour.
 | Check | Command | Result |
 |---|---|---|
 | Contract tests for the native adapter | `uv run --frozen --no-sync pytest -q tests/test_provider_gemini.py` | 30 passed |
-| Provider, connection, catalogue and tool-profile batch | `uv run --frozen --no-sync pytest -q tests/test_provider_gemini.py tests/test_connections.py tests/test_provider_catalog.py tests/test_provider_accounts.py tests/test_provider_capabilities.py tests/test_provider_readiness.py tests/test_compat.py tests/test_providers.py tests/test_toolcalling_compiler.py tests/test_integration_contract_regressions.py tests/test_models_layer.py tests/test_provider_surfaces.py` | 241 passed, 3 xfailed (after the readiness correction added two tests) |
+| Provider, connection, catalogue and tool-profile batch | `uv run --frozen --no-sync pytest -q tests/test_provider_gemini.py tests/test_connections.py tests/test_provider_catalog.py tests/test_provider_accounts.py tests/test_provider_capabilities.py tests/test_provider_readiness.py tests/test_compat.py tests/test_providers.py tests/test_toolcalling_compiler.py tests/test_integration_contract_regressions.py tests/test_models_layer.py tests/test_provider_surfaces.py` | 242 passed, 3 xfailed (includes the readiness correction and the health regression test) |
 | Model switcher and provider surfaces | `uv run --frozen --no-sync pytest -q tests/test_provider_surfaces.py tests/test_model_switcher.py` | 39 passed |
 | Website asset hashes and metadata | `uv run --frozen --no-sync pytest -q tests/e2e/test_website.py -k "hash or metadata or faq"` | 2 passed |
 
