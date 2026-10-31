@@ -18,14 +18,29 @@ Existing mechanism: the agent's shell tools run as the same user. If such a tool
 memory or call its HTTP API with the owner's cookie, it can read secrets while the vault is unlocked.
 Only process-level isolation would change this.
 
-## 3. `use` is not yet stronger than `reveal`
+## 3. `use` reaches one shape of egress, and nothing else
 
-`resolve_for_use` returns a decrypted value to the caller. Nothing consumes it at a network boundary
-yet, so an agent-facing mediator does not exist. Until it does, the difference between `use` and
-`reveal` is who may ask and what the audit records, not whether the value leaves the vault.
+`vault_http_request` (through `vault.egress.mediate_http`) applies a value to one request header of
+one request to one origin the owner bound to that secret. An agent turn that calls it receives the
+service response and never the value; `test_vault_agent_turn.py` runs the real engine and asserts the
+value is in no event, message or table.
 
-**Not claimed:** "agents can use credentials without ever holding them". That claim becomes true only
-when the mediator ships and is tested with a real agent turn.
+The limits of that are specific, and each is a real gap:
+
+- **It is not a network sandbox.** A bot with the `shell` tool can make its own requests. If it also
+  has `reveal`, it can read a value and use it however it likes. Mediated use constrains the path it
+  provides; it does not constrain a path the agent already has. Process isolation would be required
+  for that, and Hutch has none for bots outside Strict Offline.
+- **One header, one request, no redirects.** A protocol that needs a credential in a query string, a
+  signed body, a multi-step exchange or an OAuth refresh is not served by this mediator yet. A 3xx is
+  reported, not followed; the follow-up request needs its own authorization and its own binding.
+- **Only tools that use it benefit.** A connector that reads a credential through any other path is
+  unchanged. No bundled connector uses the vault today.
+- **The value is in the Hutch process.** It is decrypted into memory by design (see limitation 1).
+  "The agent never sees it" is true of agent context; it is not a claim about process memory.
+
+**Not claimed:** "agents are sandboxed away from credentials", or that a bot with a shell and a
+reveal grant cannot exfiltrate a value.
 
 ## 4. Metadata is not encrypted
 
@@ -63,8 +78,10 @@ See `provider-integrations.md`.
 
 ## 10. No user-facing surface
 
-The vault is reachable only through the API. There is no dashboard page, no onboarding flow and no
-visual validation. Any screenshot or marketing claim about a vault UI would be false today.
+The vault is reachable only through the API and through one tool. There is no dashboard page, no
+onboarding flow and no visual validation. Binding a destination, granting a bot and setting an
+approval requirement are API operations today. Any screenshot or marketing claim about a vault UI
+would be false.
 
 ## 11. Reset and recovery are all-or-nothing
 

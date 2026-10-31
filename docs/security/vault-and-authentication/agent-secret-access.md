@@ -4,8 +4,9 @@ The rule this programme is built around:
 
 > An agent may *use* a credential. It may not *read* one, and it may not read one by accident.
 
-That rule is implemented as three mechanisms. Two are done; the third is designed and permissioned
-but not wired.
+That rule is implemented as three mechanisms, each with a test that fails if it regresses. The third
+(mediated use) is complete for HTTP requests; `security-limitations.md` §3 states exactly how far it
+reaches and where it does not.
 
 ## 1. A value is never in agent context — done
 
@@ -34,29 +35,45 @@ are not migrated yet, and no claim is made that they are.
 - `use` and `reveal` are different permissions and different audit actions, so "an agent used a
   credential" is never indistinguishable from "a person read a credential".
 
-## 3. Mediated use — not done
+## 3. Mediated use — done for one egress shape
 
-`VaultBook.resolve_for_use(ref, principal, destination=...)` exists, checks the grant, decrypts and
-records the use with a destination hostname. **Nothing calls it yet.**
+The chain is: `vault_http_request` (tool) → policy → approval gate → `vault.egress.mediate_http` →
+`VaultBook.resolve_for_use` → `safehttp.safe_request`.
 
-Until a tool or connector calls it, `use` returns a value into the calling process just as `reveal`
-does. The difference is who is allowed to ask and what the audit says — not whether the value stays
-inside the vault. Saying otherwise would be a claim without a mechanism.
+Each link enforces one thing, and none of them relies on another doing it by accident:
 
-### What completing this requires
+- **The tool** accepts only an opaque reference. Its JSON Schema pins the reference grammar
+  (`^secret://hutch/local/sec_[0-9a-f]{24}(#v\d+)?$`) and has no field that could carry a value, so
+  the model has nothing to put a key into.
+- **Policy** screens the URL before the vault is opened: scheme, credentials, internal names, every
+  IP-literal spelling. A private target fails here, whatever the grant says.
+- **The approval gate** raises the same style of detail a person reviews: destination, method,
+  header, reference. The detail has no value in it, which the ask-mode test asserts.
+- **`mediate_http`** refuses a header name Hutch sets, refuses a prefix that could split a header,
+  refuses a non-ASCII credential rather than mangling it, and rejects a body on `GET`/`HEAD`.
+- **`resolve_for_use`** checks the grant, then the destination binding, then decrypts. A grant with
+  no binding is `denied/no_destination` in the audit, not a success.
+- **`safe_request`** pins the connection to an address `resolve_public` approved, keeps `Host` and
+  SNI on the requested name, applies `Host` last so a caller cannot override it, and does not follow
+  redirects. A 3xx comes back as the result.
 
-1. A tool that accepts a `SecretRef` instead of a literal value, with the schema validating the
-   reference grammar before dispatch.
-2. A mediator per integration that applies the value at the network boundary: an `Authorization`
-   header, an OAuth token exchange. The mediator must never return the value in a tool result.
-3. A test that runs a real agent turn with an injected instruction ("print the API key") and asserts
-   the tool result, transcript and event log contain no secret, while the mediated operation succeeds.
+Three properties are enforced rather than described:
 
-### What it must not become
+1. **A credential cannot be walked to a new host.** Redirects are not followed, so a compromised or
+   honest-to-a-fault service returns 302 and the next request needs its own authorization.
+2. **A service cannot echo the credential back into context.** The response body and headers are
+   scrubbed of the exact value, and `set-cookie`/`authorization` response headers are dropped.
+3. **The value is not persisted.** `test_vault_http_tool.py` scans `events`, `runs`, `messages` and
+   `tool_actions` after a real dispatch; `test_vault_agent_turn.py` runs the real engine with a
+   runtime that prints the whole tool result and claims the injected instruction asked for the key.
+   The run succeeds, the request arrives with the right header, and the value is in no table.
 
-A proxy that any subprocess can bypass. If an agent can call `curl` directly with a credential it can
-read, a proxy does not help. Process isolation is a prerequisite, and this programme does not claim
-it.
+### What it must not become, and has not become
+
+This is not a proxy any subprocess is forced through. A bot with `shell` can still make its own
+requests; if it also has `reveal` it can read the value and do as it likes. Mediated use narrows the
+path it provides. It does not close a path the agent already has, and it is not claimed to. See
+`security-limitations.md` §3.
 
 ## Prompt injection
 
@@ -67,4 +84,5 @@ The threat that matters most. The mitigations that are real today:
 - It cannot widen a grant; only the owner can change grants, and that check is server-side.
 
 The mitigation that is not real yet: a bot that reads a plaintext key file with a shell tool. That is
-the gap the migration in `migration.md` exists to close.
+the gap the migration in `migration.md` exists to close. A bot holding `reveal` is also a bot that
+can be talked into printing a value; mediated use is the path that does not require that grant.

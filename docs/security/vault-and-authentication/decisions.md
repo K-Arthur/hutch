@@ -71,9 +71,10 @@ caller. They are separate rows in `vault_grants` and separate audit actions.
 claim is only meaningful if the code distinguishes the two acts. Collapsing them would make the
 claim untestable.
 
-**Current limitation.** Until mediated egress exists, `use` and `reveal` both return the value to a
-caller inside the process. `use` is therefore only as strong as the mediator that calls it. This is
-recorded in `agent-secret-access.md` and `security-limitations.md` and is not presented as isolation.
+**Update.** `vault.egress.mediate_http` is now the mediator, and `vault_http_request` is its caller,
+so `use` no longer implies a value returns to an arbitrary caller. It is still only as strong as the
+mediator: a bot holding `reveal` or `shell` is outside it. Recorded in `agent-secret-access.md` and
+`security-limitations.md`, and not presented as isolation.
 
 ## D6. Deny by default, with no wildcard principals
 
@@ -101,7 +102,7 @@ for remote unlock that does not widen the blast radius.
 ## D8. Audit rows carry codes, not free text
 
 **Decision.** `vault_audit.reason` is drawn from a closed vocabulary; `destination` must validate as
-a bare hostname. The table is protected by `BEFORE UPDATE`/`BEFORE DELETE` triggers.
+a canonical origin (scheme, host, port; no path, query, fragment or user information). The table is protected by `BEFORE UPDATE`/`BEFORE DELETE` triggers.
 
 **Why.** The most likely way a value ends up in the audit table is an exception message. A closed
 vocabulary makes that impossible by construction, and the triggers make tampering a failure rather
@@ -112,9 +113,39 @@ scope, outcome and destination answer the questions that matter.
 
 ## D9. No new dependency
 
-**Decision.** The vault imports only the standard library and `cryptography`.
+**Decision.** The vault and its egress mediator import only the standard library, `cryptography`, and
+the `httpx` that Hutch already depends on.
 
 **Why.** A security feature that expands the supply chain to protect secrets is a bad trade. The
 crypto audit surface stays small and inspectable.
 
 **Verified.** `pyproject.toml` is unchanged by this programme.
+
+## D10. A grant is not a destination
+
+**Decision.** `resolve_for_use` requires an owner-created binding from the secret to the exact
+canonical origin it is presented to. A grant alone is `denied/no_destination`.
+
+**Why.** OpenClaw separates credentials from egress for the same reason: a credential that can be
+sent anywhere is a credential whose grant effectively means "use this against whatever the model was
+talked into". Binding is cheap for the owner and makes an SSRF or prompt-injection exfiltration path
+fail closed instead of depending on the model's judgement.
+
+**Rejected.** A hostname allow-list in configuration, and a per-call allow flag. Configuration is not
+a per-secret decision, and a per-call flag is a decision the model can make.
+
+**Cost.** The owner must bind an origin before a bot can use a secret, and there is no UI for that
+yet, so it is an API operation. That friction is the point, and the missing UI is a stated gap.
+
+## D11. Mediation does not follow redirects
+
+**Decision.** `safe_request` returns 3xx responses; it never re-issues a request carrying the
+credential.
+
+**Why.** A redirect is an unauthenticated instruction from the service to send the same header
+somewhere else. Following it would let the service choose a destination the owner did not bind. The
+alternative — following only when the new origin is also bound — is defensible, but makes an ordinary
+301 into a second, implicit authorization. A caller can still make that request explicitly.
+
+**Cost.** A service that redirects an API call (a trailing slash, a moved endpoint) needs a second
+call. Accepted: it is visible and auditable instead of silent.

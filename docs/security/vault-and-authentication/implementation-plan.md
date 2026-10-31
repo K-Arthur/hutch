@@ -61,26 +61,33 @@ requirement in `research.md` §8 traces to a source.
 
 ## Checkpoint 4 — Agent-safe access
 
-**Status: partially done.**
+**Status: done for HTTP request egress; not done for connectors or other credential shapes.**
 
 Done:
 
 - Scoped grants per `(secret, principal, permission)` with deny-by-default.
 - `use` versus `reveal` as separate permissions and separate audit actions.
 - Scope enforcement that a grant cannot override.
+- Destination bindings: a use additionally requires an owner-created canonical origin, checked
+  inside `resolve_for_use`.
 - A `UsableSecret` whose `repr` is redacted, so an f-string or a debug log does not leak a value.
+- `vault.egress.mediate_http`: one header, one request, pinned address, no redirects, response
+  scrubbed of the value.
+- `vault_http_request`, the tool that lets a bot spend a credential it cannot read, wired through
+  policy, the approval gate, the action receipt and the audit.
 - HTTP surface that never returns a value outside the explicit reveal route.
 
 Not done, and not claimed:
 
-- Tool dispatch does not yet accept a `SecretRef`; no tool can spend a vault secret today.
-- No mediated egress, so `use` does not yet reach an external service without the value passing
-  through a mediator's memory.
-- No connector integration (Google, Outlook, Notion, Telegram) reads from the vault yet.
+- Connectors (Google, Outlook, Notion) still read their own credential stores; none reads the vault.
+- Credential shapes beyond one request header: signed bodies, credentials in query strings,
+  multi-step OAuth exchanges.
+- Any isolation from a bot that has `shell` and `reveal`. The mediator is not a proxy and no process
+  is forced through it; `security-limitations.md` §3 says so plainly.
 
-**Why this is the honest boundary.** Making `use` meaningful requires an egress or connector path
-that applies the value itself. Shipping the permission model without that path would be a claim
-without a mechanism, so the model ships and the claim waits.
+**Evidence.** `tests/test_vault_egress.py`, `tests/test_vault_http_tool.py` and
+`tests/test_vault_agent_turn.py`; the last runs the real engine and scans every table the value could
+have reached.
 
 ## Checkpoint 5 — Secure sign-in
 
@@ -134,8 +141,11 @@ Done in this pass:
   route passing a bare id, and reference errors surfacing as HTTP 500.
 
 Not done: a full-suite run, browser/visual validation (no UI), dependency scanning, and an
-independent review by another reviewer. The work is committed to `main` in small units; no branch
-merge was required.
+independent review by another reviewer. The work is committed to `main` in small units.
+
+Second review pass (same day) found and fixed: audit destinations that could not distinguish
+`https` from a non-default port, an audit vocabulary with no code for a missing binding, and a
+per-request vault book that would have made an unlock in Settings invisible to the run loop.
 
 ---
 
@@ -143,6 +153,8 @@ merge was required.
 
 The vault core is real: the cryptography is exercised, the database is real, the migration runs on a
 legacy fixture, the grants and audit behave, and the API is reachable through the app's own security
-middleware. The *agent-facing* half of the design — using a credential without a model ever seeing it
-— is designed, permissioned and audited, but not yet wired to a tool or an egress path. The UI,
-external providers and the migration of existing plaintext credentials are not started.
+middleware. The agent-facing half now has a mechanism: `vault_http_request` presents a bound
+credential at the network boundary and returns only the response, and a real engine turn proves the
+value reaches no event, message or table. That mechanism covers one header on one request with no
+redirect following; connectors, other credential shapes, the UI, external providers and the migration
+of existing plaintext credentials are not started.

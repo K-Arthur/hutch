@@ -188,17 +188,24 @@ repository's law and its backup story.
 
 ## 10. Files this programme will touch
 
-New:
+New (all delivered):
 
 - `src/hutch/vault/crypto.py` — KDF, AEAD, wrapping, recovery-key encoding.
 - `src/hutch/vault/refs.py` — `SecretRef`, categories, permissions.
 - `src/hutch/vault/schema.py` — `migrate(db)` tables, indexes, append-only triggers.
-- `src/hutch/vault/vault.py` — `VaultBook` lifecycle, grants, audit.
-- `tests/test_vault_crypto.py`, `tests/test_vault_refs.py`, `tests/test_vault.py`.
+- `src/hutch/vault/vault.py` — `VaultBook` lifecycle, grants, audit; `vault_for(store)` registry.
+- `src/hutch/vault/destinations.py` — canonical origins and the per-secret binding.
+- `src/hutch/vault/egress.py` — the mediator that presents a value and returns only a response.
+- `src/hutch/safehttp.py` — one-hop request: pinned address, no redirects, validated headers.
+- `src/hutch/tools/vault_http.py` — `vault_http_request`, the tool a bot calls.
+- `src/hutch/server/vault_api.py` — owner-only HTTP routes.
 
 Changed:
 
 - `src/hutch/store.py` — one migration entry (`_migrate_82` → `vault.schema.migrate`).
+- `src/hutch/tools/__init__.py`, `src/hutch/integrations/catalog.py`,
+  `src/hutch/skill_requirements.py`, `src/hutch/server/static/app.js` — tool registration and the
+  Strict Offline withholding list.
 
 Deliberately not changed in this checkpoint: `security.py`, `passkeys.py`, `connections.py`,
 `google_calendar.py`, the dashboard routes and templates. Those are later checkpoints and are

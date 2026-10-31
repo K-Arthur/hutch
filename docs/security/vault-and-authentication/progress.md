@@ -1,7 +1,82 @@
 # Progress
 
-A running ledger of the vault programme. Newest entries at the top of each checkpoint. Every entry
-names what was verified, not only what was written.
+A running ledger of the vault programme. Newest entries at the top. Every entry names what was
+verified, not only what was written.
+
+---
+
+## Pass 2 — 2026-10-31
+
+Goal of this pass: make the central product claim true — a bot uses a credential it cannot read —
+rather than leaving `use` and `reveal` as two labels on the same act.
+
+### Commits
+
+| Commit | What it contains |
+|---|---|
+| `b7f5ff2e` | Destination bindings: schema, canonical-origin parser, `resolve_for_use` enforcement, HTTP routes, shared process vault |
+| `520c156a` | `vault.egress.mediate_http` and `safehttp.safe_request`: one request, pinned address, no redirects, scrubbed response |
+| `6ab80702` | `vault_http_request` tool, registry/UI/offline wiring, tool test and real-engine agent-turn test |
+| (this commit) | Documentation and ledger brought in line with the shipped mechanism |
+
+### Checkpoint 4 — now done for one egress shape
+
+The gap recorded in pass 1 ("nothing calls `resolve_for_use`") is closed:
+
+- **Grants are not destinations.** A use requires an owner-created binding to a canonical origin.
+  `resolve_for_use` checks the grant, then the binding, then decrypts; a missing binding is
+  `denied/no_destination` in the audit.
+- **One request, one header, no redirects.** `safe_request` pins the connection to the address
+  `resolve_public` approved, keeps `Host`/SNI on the requested name, applies `Host` last, and returns
+  3xx responses instead of following them.
+- **Responses are scrubbed.** The exact credential is removed from the body and headers; `set-cookie`
+  and `authorization` response headers are dropped.
+- **The model never holds the value.** The tool's schema has no field for a value.
+
+Verified:
+
+- `test_vault_egress.py` (14): header placement, pinned address, redirect not followed, echo scrubbed,
+  header injection refused before the vault opens, non-ASCII credential refused, caller `Host`
+  refused.
+- `test_vault_http_tool.py` (6): real `call_tool` dispatch; scans events, runs, messages and
+  `tool_actions` for the value; ask-mode approval detail contains the reference, never the value.
+- `test_vault_agent_turn.py` (1): the real `Engine`, a scripted runtime that prints the entire tool
+  result and claims the injected instruction demanded the key. Run succeeds, request carries the
+  right header, service body reaches the model, value is in no table.
+- 344 tests across the vault, migration, netguard, tool and contract suites: all pass.
+- `npm run check:agent`: all four checks pass.
+
+### Defects found in this pass's own review and fixed
+
+1. `netguard.py` and `views.py` are frozen over-cap files; adding to them broke context hygiene. The
+   request code moved to `src/hutch/safehttp.py` and the `views.py` summary change was dropped.
+2. The audit `destination` column held a bare hostname, so `https://api.example.com` and
+   `http://api.example.com:8443` recorded identically. It now holds the canonical origin.
+3. The audit vocabulary had no reason code for "granted but not bound"; without it the refusal would
+   have raised instead of recording.
+4. `install_vault_routes` built a `VaultBook` per app while the run loop would have built another, so
+   unlocking in Settings could not enable a mediated use. Both now use `vault_for(store)`.
+5. The first version of the echo test used the fixture canary as the credential and as the redaction
+   marker, so the assertion could not fail. It now uses a distinct token.
+
+### Still not done, in priority order
+
+1. **Vault UI.** No page, no onboarding, no screenshots. Binding a destination and granting a bot are
+   API calls today; that is a real usability gap and blocks the marketing claim.
+2. **Migrate model keys and ChatGPT tokens** into the vault, with read-back verification before any
+   file is deleted.
+3. **Reauthentication before reveal.**
+4. **Connector mediation.** Google/Outlook/Notion still read their own credential stores.
+5. **Credential shapes beyond one header**: signed bodies, query-string credentials, OAuth exchanges.
+6. **A live vendor call.** The mediator is proved against an in-process HTTP transport, not a real
+   third-party API.
+7. **Independent review** of the egress path by someone other than its author.
+
+### Known defect carried over from pass 1
+
+Commit `ced92681` still contains ~23 lines of another session's schedule-outcome work in
+`app.py`. Nothing is lost; the attribution is wrong. The repair is the same rebase described in the
+pass-1 entry and it still needs a clean tree with no other session committing.
 
 ---
 

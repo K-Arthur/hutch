@@ -1,7 +1,7 @@
 # Architecture: vault, secret references and agent-safe credential access
 
-Status: design of record for the implemented core. Sections marked **[later]** are planned and are
-not implemented yet; they are named so nobody mistakes a diagram for shipped behaviour.
+Status: design of record for the implemented core. Everything here is implemented except the items
+in §11 (planned), which are named so nobody mistakes a diagram for shipped behaviour.
 
 ---
 
@@ -42,7 +42,7 @@ only path to a value is an explicit grant plus an unlocked vault plus an audited
 |                                                                        |
 |  bot run --> tool call --> shell/file tool --> OS user's whole FS      |
 |                    |                                                   |
-|                    +--> mediated credential use (later) --> egress     |
+|                    +--> vault_http_request --> egress (bound origin)    |
 +------------------------------------------------------------------------+
 ```
 
@@ -141,7 +141,7 @@ not.
 | Permission | Meaning | Default |
 |---|---|---|
 | `metadata` | See that a secret exists, its name, category, scope, timestamps | granted to owner |
-| `use` | Have Hutch apply the value at a mediated boundary without returning it | granted per bot explicitly |
+| `use` | Have Hutch apply the value at a mediated boundary without returning it | granted per bot explicitly, **and** the origin must be bound to the secret |
 | `reveal` | Receive the plaintext value | **never** implicitly; requires an explicit grant and is audited |
 | `rotate` | Replace the value, creating a new version | owner only by default |
 | `delete` | Soft-delete the secret | owner only by default |
@@ -178,36 +178,50 @@ The value never appears in the response, in an event, or in a log line.
 
 ## 7. Data flow: an agent uses a secret
 
-Implemented now: authorization, audit and the refusal path. Mediated egress is **[later]**.
+Implemented: `tools/vault_http.py` → `vault/egress.py` → `vault/access.py` → `safehttp.py`.
 
 ```mermaid
 sequenceDiagram
     participant Run as bot run
-    participant Tool as tool dispatcher
+    participant Tool as vault_http_request
     participant V as VaultBook
+    participant E as egress.mediate_http
+    participant N as safehttp
     participant DB as SQLite
 
-    Run->>Tool: call tool with SecretRef
-    Tool->>V: authorize(principal=bot:b1, ref, permission=use)
-    V->>DB: look up grant
+    Run->>Tool: secret://ref, url, method
+    Tool->>Tool: policy.check_url(url)  (private target: deny, vault untouched)
+    Tool->>Tool: gate.decide(destination, header, ref)  (no value in the detail)
+    Tool->>E: mediate_http(ref, principal, url)
+    E->>V: resolve_for_use(ref, principal, destination)
+    V->>DB: look up grant, then destination binding
     alt no grant
-        V->>DB: audit denied
-        V-->>Tool: AccessDenied (fail closed)
-    else grant present but vault locked
-        V->>DB: audit failed
-        V-->>Tool: VaultLocked (fail closed)
-    else authorized
+        V->>DB: audit denied / no_grant
+        V-->>E: AccessDenied (fail closed)
+    else grant but no binding for this origin
+        V->>DB: audit denied / no_destination
+        V-->>E: AccessDenied (fail closed)
+    else authorized and bound
         V->>V: decrypt in memory
-        V->>DB: audit ok (no value)
-        V-->>Tool: value to the mediator only
+        V->>DB: audit use ok (origin, no value)
+        V-->>E: UsableSecret to the mediator only
     end
-    Tool-->>Run: result of the mediated operation, never the value
+    E->>N: one request, pinned address, no redirects
+    N-->>E: status, headers, body
+    E->>E: scrub the exact value from the response
+    E-->>Tool: MediatedResponse (no value)
+    Tool-->>Run: response body and destination, never the value
 ```
 
-The rule: **a tool that returns a value to the model is not a mediated use.** Until egress or a
-connector performs the operation itself, `use` and `reveal` are the same act and must be labelled
-as such. This is enforced by making `resolve_for_use` return a `UsableSecret` that a mediator must
-consume, and by auditing the call with the principal and destination.
+Two rules hold this together:
+
+1. **A tool that returns a value to the model is not a mediated use.** `resolve_for_use` returns a
+   `UsableSecret` that only a mediator consumes, and `UsableSecret.__repr__` is redacted.
+2. **A grant is not a destination.** `resolve_for_use` requires an owner-created binding for the
+   exact canonical origin, so possessing `use` cannot send a value to a host the owner never named.
+
+Neither rule makes the agent safe from itself: a bot with `shell` and `reveal` can still exfiltrate a
+value directly. See `security-limitations.md` §3.
 
 ## 8. Data flow: unlock and lock
 
@@ -252,7 +266,8 @@ vault_key_wraps   version, kind ('passphrase'|'recovery'), kdf, params, nonce, w
 vault_secrets     id, scope, category, name, description, current_version, timestamps, deleted_at
 vault_secret_versions  secret_id, version, nonce, ciphertext, key_version, created_at
 vault_grants      secret_id, principal_kind, principal_id, permission, granted_at
-vault_audit       append-only: at, actor_kind, actor_id, action, secret_id, scope, outcome, reason
+vault_destinations  secret_id, origin (canonical scheme://host[:port]), created_at
+vault_audit       append-only: at, actor_kind, actor_id, action, secret_id, scope, outcome, reason, destination
 vault_unlock_failures  throttle window per vault
 ```
 
@@ -266,7 +281,11 @@ carrying a secret cannot reach the table.
 - External providers (1Password, Bitwarden, HashiCorp Vault). The `SecretRef` provider field and a
   resolver interface are the seams they will use; no adapter is claimed until one is validated
   against a real service.
-- Credential-aware egress proxy.
+- A credential-aware **egress proxy** any process is forced through. `vault_http_request` mediates one
+  HTTP request; it is not a proxy, and a tool with `shell` can bypass it. Closing that needs process
+  isolation, which this programme does not build.
+- Credential shapes the mediator does not speak: signed request bodies, credentials in query strings,
+  multi-step OAuth exchanges. Each needs its own mediator and its own tests.
 - Browser-side encryption or WebCrypto. Hutch's dashboard is server-rendered; adding client-side
   crypto would change the threat model without protecting against the attacker that matters
   (compromised app process), and is not claimed.
