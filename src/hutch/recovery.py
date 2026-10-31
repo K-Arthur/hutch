@@ -54,3 +54,40 @@ def settle_unverifiable_cleanup(store, run: Run, owned: Run, left: list) -> Opti
                                     event={"reason": "interrupted", "error": error})
     except (IllegalTransition, LeaseLost, KeyError):
         return None
+
+
+def unclosed_proc_runs(store, limit: int = 256) -> list[str]:
+    """Runs that still hold unreaped process rows, whatever their status.
+
+    A supervisor killed mid-run never executes its own cleanup, so a run can reach a terminal status while its `run_procs` rows
+    stay open. Those rows keep occupying a capacity slot and make the bot look busy forever, and because the run is terminal the
+    normal orphan scan does not see it. The caller decides whether the pids are really gone before freeing anything.
+    """
+    with store._lock:
+        rows = store._db.execute("SELECT DISTINCT run_id FROM run_procs WHERE ended_at IS NULL AND detached_at IS NULL LIMIT ?",
+                                 (int(limit),)).fetchall()
+    return [row["run_id"] for row in rows]
+
+
+def release_settled_process_rows(store, threads, pid_alive) -> None:
+    """Free capacity held by process rows whose processes are provably gone.
+
+    A run whose supervising process was killed (SIGTERM, OOM, a closed terminal) can end terminal with `run_procs` rows still
+    open; `claim_run` keeps counting the stale row as capacity, so every later run of that bot sits in `pending` for ever with no
+    error. The safety rule that made those rows count still holds: a row is closed only when every recorded pid is dead, so a live
+    descendant of an interrupted run keeps its slot, and a single live pid leaves the whole set alone.
+    """
+    from .models import ACTIVE_STATUSES
+    for run_id in unclosed_proc_runs(store):
+        if run_id in threads:
+            continue
+        procs = store.live_procs(run_id)
+        if not procs or any(pid_alive(str(p.get("pid") or "")) for p in procs):
+            continue
+        status = getattr(store.get_run(run_id), "status", None)
+        if status is not None and status in ACTIVE_STATUSES and status is not RunStatus.pending:
+            continue          # still owned by an expired/orphan pass; let it settle the run
+        try:
+            store.close_procs(run_id)
+        except Exception:  # noqa: BLE001 - reconciliation must never break a supervisor tick
+            continue

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from .fit import Fit, estimate_fit
-from .hardware import Hardware, probe
+from .hardware import GIB, Hardware, probe
 from .health import ProviderHealth, runtime_health
 from .presets import Resolution, catalog_meta, load_presets, resolve_preset, _data
 from .providers.base import ModelMeta
@@ -72,6 +72,25 @@ def _selfcheck_status(store: Any, model: str) -> str:
     if not rows:
         return "not run"
     return "passed" if any(json.loads(r["value"]).get("ok") for r in rows) else "failed"
+
+
+def residency_note(meta: ModelMeta) -> str:
+    """One line of *measured* facts about a loaded model, or "" when it is not loaded.
+
+    Deliberately separate from the fit estimate: fit is arithmetic about what should happen,
+    this is what the runtime says is happening. `size_vram` is the only evidence that a model
+    is on the GPU; reporting "GPU accelerated" without it would be a guess.
+    """
+    if meta.applied_context is None and meta.resident_bytes is None:
+        return ""
+    parts: list[str] = []
+    if meta.applied_context:
+        parts.append(f"loaded at {meta.applied_context:,} tokens")
+    if meta.resident_bytes:
+        parts.append(f"{meta.resident_bytes / GIB:.1f} GiB resident")
+    if meta.vram_bytes is not None:
+        parts.append("on the GPU" if meta.vram_bytes > 0 else "entirely on the CPU")
+    return ", ".join(parts)
 
 
 def installed(provider: Any) -> dict[str, ModelMeta]:

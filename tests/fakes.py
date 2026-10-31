@@ -11,6 +11,7 @@ stand-in, and `docs/local-models.md` says so.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 import time
@@ -62,6 +63,9 @@ class _Server:
 
             def do_POST(self):
                 outer._route(self, "POST", self.path, self._body())
+
+            def do_DELETE(self):
+                outer._route(self, "DELETE", self.path, self._body())
 
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), H)
         self.httpd.daemon_threads = True
@@ -149,6 +153,11 @@ class FakeOllama(_Server):
         self.version = "0.0-fake"
         self.vram_bytes = 0
         self.loads: list[tuple[str, float]] = []
+        #: pull behaviour for /api/pull: total bytes, events emitted, delay per event
+        self.pull_total = 1_000_000
+        self.pull_events = 4
+        self.pull_delay = 0.0
+        self.loaded_ctx: dict[str, int] = {}
         super().__init__()
 
     # ---- state
@@ -177,7 +186,50 @@ class FakeOllama(_Server):
         if path == "/api/ps":
             return self.send_json(h, {"models": [
                 {"name": n, "model": n, "size": self.models[n]["size"], "size_vram": self.vram_bytes,
+                 "context_length": self.models[n].get("applied_ctx") or self.loaded_ctx.get(n),
                  "expires_at": "2099-01-01T00:00:00Z"} for n in self.loaded if n in self.models]})
+        if path == "/api/pull":
+            # Mirrors the ndjson shape captured from Ollama 0.40.13: one event per blob,
+            # byte counters on each, then `success` once the model is in the registry.
+            name = body.get("model")
+            if not name:
+                return self.send_json(h, {"error": "model is required"}, status=400)
+            self.start_stream(h, "application/x-ndjson")
+
+            def emit(obj):
+                self.chunk(h, (json.dumps(obj) + "\n").encode())
+
+            digest = "sha256:" + (hashlib.sha256(name.encode()).hexdigest())
+            emit({"status": "pulling manifest"})
+            total = self.pull_total
+            step = max(1, total // max(1, self.pull_events))
+            pulled = 0
+            try:
+                while pulled < total:
+                    if self.pull_delay:
+                        time.sleep(self.pull_delay)
+                    pulled = min(total, pulled + step)
+                    emit({"status": f"pulling {digest[7:19]}", "digest": digest, "total": total,
+                          "completed": pulled})
+                emit({"status": "verifying sha256 digest", "digest": digest})
+                if name not in self.models:
+                    self.models[name] = {"params": "4.0B", "quant": "Q4_K_M", "ctx": 40960,
+                                         "caps": ["completion", "tools"], "layers": 36, "kv_heads": 8,
+                                         "head_dim": 128, "size": total, "template": "{{ .Prompt }}",
+                                         "digest": digest, "tokenizer": {}}
+                emit({"status": "success"})
+                self.end_stream(h)
+            except (BrokenPipeError, ConnectionResetError):
+                return          # the client cancelled: exactly what a real runtime sees
+            return
+        if path == "/api/delete":
+            name = body.get("model")
+            if name not in self.models:
+                return self.send_json(h, {"error": f"model '{name}' not found"}, status=404)
+            self.models.pop(name, None)
+            if name in self.loaded:
+                self.loaded.remove(name)
+            return self.send_json(h, {})
         if path == "/api/show":
             m = self.models.get(body.get("model"))
             if m is None:
@@ -342,79 +394,6 @@ class FakeOpenAI(_Server):
 
 # ================================================================= Anthropic
 
-class FakeAnthropic(_Server):
-    """/v1/messages, enough of it for the official SDK: SSE message_start .. message_stop."""
-
-    def __init__(self):
-        self.script: Callable[[dict], dict] = lambda body: {"content": "ok"}
-        self.force_status: Optional[tuple[int, dict, dict]] = None
-        self.stall_once = 0.0
-        self.first_event_delay_once = 0.0
-        super().__init__()
-
-    def _route(self, h, method, path, body):
-        self.record(method, path, body, h.headers)
-        if h.headers.get("x-api-key") in (None, "", "bad-key"):
-            return self.send_json(h, {"type": "error", "error": {"type": "authentication_error",
-                                                                 "message": "invalid x-api-key"}}, status=401)
-        if self.force_status:
-            code, obj, hdrs = self.force_status
-            return self.send_json(h, obj, status=code, headers=hdrs)
-        if path != "/v1/messages":
-            return self.send_json(h, {"type": "error", "error": {"type": "not_found_error", "message": "nope"}},
-                                  status=404)
-        reply = self.script(body)
-        text = reply.get("content", "")
-        calls = reply.get("tool_calls", [])
-        usage = {"input_tokens": reply.get("input_tokens", 50), "output_tokens": reply.get("output_tokens", 20),
-                 "cache_read_input_tokens": reply.get("cache_read", 0),
-                 "cache_creation_input_tokens": reply.get("cache_write", 0)}
-        stop = reply.get("stop_override") or ("refusal" if reply.get("refusal") else
-                                              ("tool_use" if calls else "end_turn"))
-        blocks: list[dict] = []
-        if text:
-            blocks.append({"type": "text", "text": text})
-        for i, c in enumerate(calls):
-            blocks.append({"type": "tool_use", "id": f"toolu_{i}", "name": c["name"], "input": c.get("arguments", {})})
-        message = {"id": "msg_fake", "type": "message", "role": "assistant", "model": body["model"],
-                   "content": blocks, "stop_reason": stop, "stop_sequence": None, "usage": usage}
-        if reply.get("refusal"):
-            message["stop_details"] = {"type": "refusal", "category": reply["refusal"], "explanation": "declined"}
-        if not body.get("stream"):
-            return self.send_json(h, message)
-        self.start_stream(h, "text/event-stream")
-        ev = lambda name, obj: self.chunk(h, f"event: {name}\ndata: {json.dumps(obj)}\n\n".encode())
-        if self.first_event_delay_once:
-            delay, self.first_event_delay_once = self.first_event_delay_once, 0.0
-            time.sleep(delay)
-        ev("message_start", {"type": "message_start", "message": {**message, "content": [], "stop_reason": None,
-                                                                  "usage": {**usage, "output_tokens": 1}}})
-        for i, b in enumerate(blocks):
-            if b["type"] == "text":
-                ev("content_block_start", {"type": "content_block_start", "index": i,
-                                           "content_block": {"type": "text", "text": ""}})
-                if self.stall_once:
-                    delay, self.stall_once = self.stall_once, 0.0
-                    time.sleep(delay)
-                ev("content_block_delta", {"type": "content_block_delta", "index": i,
-                                           "delta": {"type": "text_delta", "text": b["text"]}})
-            else:
-                ev("content_block_start", {"type": "content_block_start", "index": i, "content_block": {
-                    "type": "tool_use", "id": b["id"], "name": b["name"], "input": {}}})
-                raw = json.dumps(b["input"])
-                ev("content_block_delta", {"type": "content_block_delta", "index": i,
-                                           "delta": {"type": "input_json_delta", "partial_json": raw}})
-            ev("content_block_stop", {"type": "content_block_stop", "index": i})
-        delta: dict[str, Any] = {"stop_reason": stop, "stop_sequence": None}
-        if reply.get("refusal"):
-            delta["stop_details"] = message["stop_details"]
-        ev("message_delta", {"type": "message_delta", "delta": delta, "usage": {"output_tokens": usage["output_tokens"]}})
-        ev("message_stop", {"type": "message_stop"})
-        self.end_stream(h)
-
-
-# ============================================================ scripted agents
-
 def agent_script(replies: list, recall: bool = True):
     """A fake model for the Ollama server: auto-answers the context self-check like a well-behaved long-context
     model (recalling only what survived truncation), and plays ``replies`` in order for everything else.
@@ -434,3 +413,5 @@ def agent_script(replies: list, recall: bool = True):
         return dict(replies[i])
     script.calls = 0
     return script
+
+from tests.support.fake_anthropic import FakeAnthropic  # noqa: E402,F401  (re-exported: it lives in its own module)

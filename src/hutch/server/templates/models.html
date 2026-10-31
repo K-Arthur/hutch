@@ -5,7 +5,7 @@
 {% block title %}Models{% endblock %}
 {% block header_context %}<div class="ctx-id"><h1>Models</h1></div>{% endblock %}
 {% block flash %}{% endblock %}
-{% block head %}{% if not v.configured_routes %}<script src="/static/starter-route.js" defer></script><script src="/static/models-detect.js" defer></script>{% endif %}{% endblock %}
+{% block head %}<script src="/static/model-install.js" defer></script>{% if not v.configured_routes %}<script src="/static/starter-route.js" defer></script><script src="/static/models-detect.js" defer></script>{% endif %}{% endblock %}
 {% macro fitchip(f) -%}
   <span class="chip fit-{{ f.status }}">{{ f.label }}</span>
 {%- endmacro %}
@@ -186,6 +186,7 @@
     <p class="muted">Hutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps &amp; AI, then set the default in Settings.</p>
     <div class="card-actions">
       <a href="/#/connections" class="btn small primary">{{ icon("layers", 14) }} Add or repair a service</a>
+      {% if v.ollama_up %}<a href="#models-advanced" class="btn small">{{ icon("cpu", 14) }} Install a local model</a>{% endif %}
       <a href="/#/settings" class="btn small ghost">{{ icon("settings", 14) }} Set the default in Settings</a>
     </div>
   </div>
@@ -442,7 +443,7 @@
   <div class="conn-head">
     <div>
       <h2 id="sug-h" class="card-title">{{ icon("download", 18) }} Suggested models (not installed)</h2>
-      <p class="hint">Estimates from architecture numbers, until you install one and Hutch reads the real figures from the runtime.</p>
+      <p class="hint">Estimates from architecture numbers, until you install one and Hutch reads the real figures from the runtime. Installing is started only by the button here; choosing a model never downloads anything.</p>
     </div>
   </div>
   <div class="table-wrap" role="region" tabindex="0" aria-label="Suggested models table">
@@ -459,7 +460,17 @@
         <tr>
           <td class="mono bold" data-label="Model">{{ tag }}</td>
           <td data-label="Fit">{{ fitchip(f) }} <span class="muted small">{{ f.reason }}</span></td>
-          <td class="mono small install" data-label="Install">ollama pull {{ tag }}</td>
+          <td data-label="Install">
+            {% if v.ollama_up %}
+            <button class="btn small" type="button" data-install-model="{{ tag }}"
+                    data-install-size="{{ '%.1f' | format(m.size_bytes / 1073741824) if m.size_bytes else '' }}">Install{% if m.size_bytes %} ({{ '%.1f' | format(m.size_bytes / 1073741824) }} GiB){% endif %}</button>
+            <span class="install-state small" data-install-state="{{ tag }}" role="status" aria-live="polite"></span>
+            <div class="muted small mono">or run <code>ollama pull {{ tag }}</code></div>
+            {% else %}
+            <span class="mono small">ollama pull {{ tag }}</span>
+            <div class="muted small">Start Ollama to install from here.</div>
+            {% endif %}
+          </td>
         </tr>
       {% endfor %}
       </tbody>

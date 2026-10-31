@@ -23,9 +23,9 @@ import json
 import time
 from typing import Any, Optional
 
-from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall,
-                   Watchdog, abort_response, parse_tool_args, parse_tool_args_state,
-                   record_adapter_receipt)
+from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall, Watchdog, abort_response,
+                   parse_tool_args, parse_tool_args_state, record_adapter_receipt)
+from .ollama_extras import OllamaExtras, split_leaked_reasoning
 
 DEFAULT_BASE_URL = "http://localhost:11434"
 TRUNCATION_RATIO = 0.98
@@ -87,7 +87,7 @@ def to_ollama_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-class OllamaProvider(Provider):
+class OllamaProvider(OllamaExtras, Provider):
     name = "ollama"
     #: native chat accepts base64 image arrays on user messages (converted in to_ollama_messages)
     supports_media_input = True
@@ -247,7 +247,7 @@ class OllamaProvider(Provider):
             template_hash=(hashlib.sha256(j["template"].encode()).hexdigest()
                            if isinstance(j.get("template"), str) and j["template"] else ""),
             tokenizer_hash=tokenizer_hash, license=lic[0].strip() if lic else "",
-            digest=digest, size_bytes=_size_from_ps_or_none(self, model))
+            digest=digest, size_bytes=_size_from_ps_or_none(self, model), **self.measured_fields(model))
         self._caps[model] = meta.capabilities
         return meta
 
@@ -389,7 +389,7 @@ class OllamaProvider(Provider):
         p, e = int(last.get("prompt_eval_count") or 0), int(last.get("eval_count") or 0)
         ev_ns = last.get("eval_duration") or 0
         res = ChatResult(
-            content="".join(content), thinking="".join(thinking), tool_calls=calls, prompt_tokens=p,
+            content=(split := split_leaked_reasoning("".join(content), "".join(thinking)))[0], thinking=split[1], tool_calls=calls, prompt_tokens=p,
             completion_tokens=e, model=last.get("model", req.model), streamed=streamed,
             load_ms=(last.get("load_duration") or 0) / 1e6, total_ms=(last.get("total_duration") or 0) / 1e6,
             tokens_per_sec=(e / (ev_ns / 1e9)) if ev_ns and e else None,

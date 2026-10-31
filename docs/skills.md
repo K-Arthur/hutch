@@ -111,6 +111,22 @@ metadata:
   hutch.requires-connections: "outlook-mail"      # account prerequisites from a fixed vocabulary
 ```
 
+`hutch.requires-tools` also accepts a connector tool by its canonical name, for example
+`mcp__time__get_current_time`. Connector tools are granted store rows on an MCP server rather than
+entries in the Bot's allowlist, so they are checked against that grant, not against the allowlist:
+
+```yaml
+metadata:
+  hutch.requires-tools: "mcp__time__get_current_time"
+```
+
+A native tool the Bot does not enable and a connector tool the Bot was not granted fail
+separately, because they are fixed in different places. A missing native tool reports
+`requires_tools` and names the tool; a missing connector tool reports `requires_connector_tools`
+and names both the tool and Connectors, which is where the grant is made. A Strict Offline Bot
+cannot satisfy a connector requirement at all: its worker has no host network, so the tool is
+withheld even when a grant exists.
+
 Declared tools that the Bot does not enable, and declared connections that are not granted, keep
 the skill out of the run with the exact reason in readiness and the run log.
 

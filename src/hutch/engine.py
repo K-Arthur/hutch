@@ -970,7 +970,8 @@ class Engine:
                 granted_connections = available_connection_services(self.store, bot)
                 resolved_skills = SkillRegistry(self.config.state_dir).effective_for_bot(
                     bot, activation=list(run.skill_activation), runtime=bot.runtime.value,
-                    connections=granted_connections)
+                    connections=granted_connections,
+                    connector_tools=set(self.store.integration_tool_names(bot.id)))
             except Exception as exc:  # noqa: BLE001 - a skill-resolution bug must fail closed, not crash the worker
                 self._fail_skill_unavailable(run, f"skills could not be resolved: {exc}")
                 return

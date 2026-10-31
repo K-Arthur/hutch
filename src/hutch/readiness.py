@@ -116,10 +116,17 @@ def bot_readiness(store, config, bot: Bot) -> dict:
     skill_items: list[dict] = []
     registry = SkillRegistry(config.state_dir)
     requirement_status: dict[str, str] = {}
+    # The same connector grants the runtime passes: readiness and execution must not disagree
+    # about whether a skill can load.
+    try:
+        connector_tools = set(store.integration_tool_names(bot.id))
+    except Exception:  # noqa: BLE001 - a connector read must not break the settings page
+        connector_tools = set()
     try:
         for name in list(bot.skills or []):
             skill, reason, code = registry.resolve_binding(
-                bot, name, available_connections=granted_services)
+                bot, name, available_connections=granted_services,
+                connector_tools=connector_tools)
             if skill is not None:
                 skill_items.append({"name": name, "status": "ok", "detail": "reviewed and loadable"})
                 requirement_status[name] = "ok"
@@ -132,6 +139,7 @@ def bot_readiness(store, config, bot: Bot) -> dict:
                 "disabled": "warning",
                 "unreadable": "warning",
                 "requires_tools": "warning",
+                "requires_connector_tools": "warning",
                 "requires_connections": "warning",
             }.get(code, "warning")
             requirement_status[name] = code

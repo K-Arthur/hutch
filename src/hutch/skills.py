@@ -1197,26 +1197,20 @@ class SkillRegistry:
                 raise SkillError(f"skill '{name}' is not assigned to this Bot")
         return list(names)
 
-    def _available_tools_for(self, bot) -> set[str]:
-        from .tools import expand_tools
-        available = set(expand_tools(list(getattr(bot, "tools", []) or [])))
-        if getattr(getattr(bot, "inference_mode", None), "value", "") == "offline":
-            available -= {"web_fetch", "browser", "google_calendar_events", "google_calendar_create_event",
-                          "outlook_calendar_events", "outlook_calendar_create_event", "outlook_mail_search",
-                          "google_mail_search"}
-        if not getattr(bot, "memory_enabled", True):
-            available -= {"remember", "recall"}
-        return available
-
     def resolve_binding(self, bot, name: str, *, runtime: Optional[str] = None,
                         available_tools: Optional[set[str]] = None,
                         available_connections: Optional[set[str]] = None,
-                        document: Optional[dict] = None) -> tuple[Optional[ResolvedSkill], str, str]:
+                        document: Optional[dict] = None,
+                        connector_tools: Optional[set[str]] = None) -> tuple[Optional[ResolvedSkill], str, str]:
         """One binding's usability, the exact reason when it cannot load, and a stable reason code.
 
         The runtime resolver and the readiness report share this so both explain the same state.
         Codes: ok, not_installed, runtime_unsupported, modified, unreviewed, disabled, unreadable,
-        requires_tools, requires_connections.
+        requires_tools, requires_connector_tools, requires_connections.
+
+        ``connector_tools`` are this Bot's granted MCP tool names, from the same store reader the
+        run and the readiness report use; without them a skill declaring a connector tool looks
+        unsatisfiable.
         """
         runtime_kind = runtime or getattr(getattr(bot, "runtime", None), "value", "builtin")
         if document is None:
@@ -1245,11 +1239,14 @@ class SkillRegistry:
             return None, f"skill '{name}' has not been reviewed and was not loaded", "unreviewed"
         if not entry.get("enabled"):
             return None, f"skill '{name}' is disabled and was not loaded", "disabled"
-        tools = available_tools if available_tools is not None else self._available_tools_for(bot)
+        from .skill_requirements import available_tools_for
+        tools = available_tools if available_tools is not None else available_tools_for(bot, connector_tools)
         missing_tools = [tool for tool in dict.fromkeys(parsed.requires_tools)
                          if tool not in tools and not set(self._expand_one(tool)) & tools]
         if missing_tools:
-            return None, (f"skill '{name}' requires the {', '.join(missing_tools)} tool(s) this Bot does not enable"), "requires_tools"
+            from .skill_requirements import missing_tool_reason
+            reason, code = missing_tool_reason(name, missing_tools)
+            return None, reason, code
         if parsed.requires_connections:
             granted = available_connections if available_connections is not None else set()
             if getattr(getattr(bot, "inference_mode", None), "value", "") == "offline":
@@ -1292,7 +1289,8 @@ class SkillRegistry:
 
     def effective_for_bot(self, bot, *, activation: Optional[list[str]] = None,
                           runtime: Optional[str] = None,
-                          connections: Optional[set[str]] = None) -> ResolvedSkills:
+                          connections: Optional[set[str]] = None,
+                          connector_tools: Optional[set[str]] = None) -> ResolvedSkills:
         """Resolve the skills a run may see: trusted+enabled+compatible bindings, and explicitly
         requested bodies. Never mutates state; every exclusion is explained in ``warnings``."""
         resolved = ResolvedSkills()
@@ -1304,7 +1302,8 @@ class SkillRegistry:
                                            for name in (activation or [])]
             return resolved
         runtime_kind = runtime or getattr(getattr(bot, "runtime", None), "value", "builtin")
-        available_tools = self._available_tools_for(bot)
+        from .skill_requirements import available_tools_for
+        available_tools = available_tools_for(bot, connector_tools)
         available_connections = connections if connections is not None else set()
         by_name: dict[str, ResolvedSkill] = {}
         for name in list(getattr(bot, "skills", []) or []):

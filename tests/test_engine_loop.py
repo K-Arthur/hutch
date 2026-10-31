@@ -240,3 +240,45 @@ def test_shutdown_lets_in_flight_runs_record_their_outcome(store, config):
         time.sleep(0.05)
     engine.shutdown(timeout=8)
     assert store.get_run(run.id).status in (RunStatus.stopped, RunStatus.failed)   # recorded, not left 'running'
+
+
+def test_a_finished_run_whose_processes_never_settled_stops_blocking_its_bot(store, config):
+    """A supervisor killed mid-run leaves an open process row that outlives the run.
+
+    Reproduced on a real install: a run killed with SIGTERM ended `failed` with its
+    `run_procs` row still open, and every later run for that bot then sat in `pending`
+    for ever with no error - `claim_run` counted the stale row as capacity while the
+    orphan scan looks only at live and expired runs, so nothing ever cleared it.
+    """
+    from hutch.models import Run
+    from hutch.recovery import unclosed_proc_runs
+    bot = store.create_bot(_bot(name="wedge-bot"))
+    dead = store.create_run(Run(bot_id=bot.id, prompt="interrupted", status=RunStatus.failed,
+                                owner="2147483646", exit_reason="interrupted"))
+    store.add_proc(dead.id, pid=2147483646, pgid=2147483646, starttime=1)   # dead pid, never closed
+    assert unclosed_proc_runs(store) == [dead.id]
+
+    engine = Engine(config, store)
+    engine.recover_orphans()
+
+    assert unclosed_proc_runs(store) == [], "a dead process row must be settled"
+    queued = engine.submit(bot, "try again")
+    engine.dispatch_pending()
+    deadline = time.time() + 10
+    while time.time() < deadline and store.get_run(queued.id).status in (RunStatus.pending, RunStatus.running):
+        time.sleep(0.05)
+    assert store.get_run(queued.id).status is RunStatus.succeeded
+
+
+def test_a_live_descendant_keeps_its_slot(store, config):
+    """The safety rule survives the fix: only provably dead processes are settled."""
+    from hutch.models import Run
+    from hutch.recovery import unclosed_proc_runs
+    bot = store.create_bot(_bot(name="busy-bot"))
+    live = store.create_run(Run(bot_id=bot.id, prompt="still working", status=RunStatus.failed,
+                                owner="2147483646", exit_reason="interrupted"))
+    store.add_proc(live.id, pid=os.getpid(), pgid=os.getpid(), starttime=1)   # this process is alive
+
+    Engine(config, store).recover_orphans()
+
+    assert unclosed_proc_runs(store) == [live.id], "a live process must keep occupying capacity"

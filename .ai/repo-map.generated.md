@@ -6,7 +6,7 @@ no source line counts, no unstaged or ignored files. Ordinary source edits do
 not change it; stage file additions or removals, then regenerate. Do not edit
 this file by hand.
 
-Tracked files in scope: 2334.
+Tracked files in scope: 2343.
 
 ## Top-level layout
 
@@ -20,18 +20,18 @@ Tracked files in scope: 2334.
 | `app/` | 2 |
 | `benchmarks/` | 28 |
 | `desktop/` | 23 |
-| `docs/` | 1137 |
+| `docs/` | 1138 |
 | `native/` | 9 |
 | `scripts/` | 38 |
-| `src/` | 554 |
-| `tests/` | 432 |
+| `src/` | 558 |
+| `tests/` | 436 |
 | `website/` | 66 |
 
 ## Python package: src/hutch/
 
 | Path | Tracked files |
 | --- | ---: |
-| `(root files)` | 99 |
+| `(root files)` | 100 |
 | `actions/` | 3 |
 | `channels/` | 5 |
 | `computer/` | 13 |
@@ -43,9 +43,9 @@ Tracked files in scope: 2334.
 | `media/` | 10 |
 | `personal/` | 8 |
 | `platforms/` | 4 |
-| `providers/` | 18 |
+| `providers/` | 20 |
 | `runtime/` | 18 |
-| `server/` | 235 |
+| `server/` | 236 |
 | `sources/` | 4 |
 | `synthesis/` | 7 |
 | `toolcalling/` | 10 |
@@ -58,11 +58,11 @@ Tracked files in scope: 2334.
 
 | Path | Tracked files |
 | --- | ---: |
-| `(root files)` | 316 |
-| `e2e/` | 82 |
+| `(root files)` | 318 |
+| `e2e/` | 83 |
 | `fixtures/` | 17 |
 | `native/` | 1 |
-| `support/` | 16 |
+| `support/` | 17 |
 
 ## Desktop, dashboard sources and website
 
