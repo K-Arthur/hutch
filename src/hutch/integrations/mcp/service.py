@@ -69,6 +69,35 @@ def discover(store, *, integration_id: str, workspace: Optional[Path] = None) ->
     return {**result, "catalog": catalog_for(store._db, integration_id)}
 
 
+def _describe_failure(error: BaseException) -> str:
+    """A bounded, secret-free sentence for a transport or protocol failure.
+
+    Protocol and HTTP exceptions can carry server response bodies and request headers, so none of
+    their text is forwarded. What matters to the owner is which stage failed, because the fix
+    differs: a wrong URL, an endpoint that is not an MCP server, or one that never answered.
+    """
+    kinds: list[str] = []
+
+    def walk(item: BaseException, depth: int = 0) -> None:
+        if depth > 8:
+            return
+        kinds.append(type(item).__name__)
+        if isinstance(item, BaseExceptionGroup):
+            for child in item.exceptions:
+                walk(child, depth + 1)
+
+    walk(error)
+    if "TimeoutError" in kinds:
+        return (f"the connector did not answer within {DISCOVERY_DEADLINE_SECONDS} seconds; "
+                "check that the endpoint is reachable and is an MCP server")
+    if any("MCPError" in kind or "McpError" in kind for kind in kinds):
+        return ("the endpoint answered, but not as an MCP server; check the URL path and whether "
+                "it needs authentication")
+    if any("TransportError" in kind or "ConnectError" in kind for kind in kinds):
+        return "the connector could not be reached; check the URL, the certificate and the network"
+    return "the connector did not complete MCP discovery; check the definition and try again"
+
+
 def _list_tools_sync(definition: dict[str, Any], workspace: Path) -> list[Any]:
     import anyio
 
@@ -87,7 +116,14 @@ def _list_tools_sync(definition: dict[str, Any], workspace: Path) -> list[Any]:
                         return discovered
                 raise McpToolSchemaError("tool discovery exceeded Hutch's pagination limit")
 
-    return anyio.run(run)
+    try:
+        return anyio.run(run)
+    except (McpToolSchemaError, McpConfigurationError, McpStoreError):
+        raise
+    except BaseException as error:  # noqa: BLE001 - SDK and HTTP failures are one class here
+        # A wrong URL must read as "this is not an MCP endpoint", not as a 500 and not as an
+        # empty tool list. The SDK's exception text is discarded on purpose.
+        raise McpConfigurationError(_describe_failure(error)) from None
 
 
 def grant(store, *, integration_id: str, bot_ref: str, tool_names: list[str],
