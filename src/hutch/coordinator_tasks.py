@@ -13,6 +13,7 @@ import sqlite3
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from . import bot_lifecycle
 from .models import Bot, Event, EventType, Run, RunStatus, Task, iso, new_id, utcnow
 
 if TYPE_CHECKING:
@@ -151,6 +152,7 @@ def _verify_coordinator_and_roster(db: sqlite3.Connection, parent_conversation_i
             raise KeyError(t_id)
         if db.execute("SELECT 1 FROM workspace_specialists WHERE bot_id = ?", (t_id,)).fetchone() is None:
             raise PermissionError("select this Bot in the owner-approved specialist roster before assigning a task")
+        bot_lifecycle.assert_accepts_work(db, t_id)   # a retired specialist takes no new assignment
     return Bot.model_validate(json.loads(db.execute("SELECT doc FROM bots WHERE id = ?", (parent["bot_id"],)).fetchone()["doc"]))
 
 

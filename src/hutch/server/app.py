@@ -40,6 +40,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .. import __version__
 from .. import bot_lifecycle
+from ..bot_lifecycle import BotArchived
 from ..approvals import resolve_approval, resolve_approval_ex
 from ..action_receipts import ActionConflict
 from ..fact_memory import FactConflict
@@ -2063,6 +2064,13 @@ def create_app() -> FastAPI:
     @app.exception_handler(SkillError)
     async def skill_refused(_request: Request, exc: SkillError):
         return JSONResponse(status_code=exc.status, content={'detail': str(exc), 'code': 'skill_refused'})
+
+    @app.exception_handler(BotArchived)
+    async def assistant_retired(_request: Request, exc: BotArchived):
+        # One handler for every admission route: a route that forgets to catch the refusal still
+        # answers 409 with a machine-readable code instead of a 500.
+        return JSONResponse(status_code=409, content={'detail': str(exc), 'code': 'bot_archived',
+                                                      'bot_id': exc.bot_id})
 
     # ------------------------------------------------------------- helpers
 
