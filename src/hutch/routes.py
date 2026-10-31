@@ -50,6 +50,18 @@ def workspace_default(store) -> dict[str, Any]:
     return record
 
 
+def set_workspace_default(store, model: str, mode: str = "hybrid") -> None:
+    """Write the one default record. The only default writer in the product is the Settings API."""
+    store.kv_set(DEFAULTS_KEY, json.dumps({"model": (model or "").strip(), "inference_mode": mode,
+                                           "configured": bool((model or "").strip())},
+                                         sort_keys=True, separators=(",", ":")))
+
+
+def clear_workspace_default(store) -> None:
+    """Clear the default when the route it points at is deleted; takes no new route."""
+    set_workspace_default(store, "", workspace_default(store)["inference_mode"])
+
+
 def assistant_routes(bot) -> list[dict[str, Any]]:
     routes = [{"spec": (bot.model or "").strip(), "role": "primary"}]
     routes += [{"spec": spec, "role": "fallback"} for spec in (bot.fallbacks or []) if spec]

@@ -143,7 +143,9 @@ comes with a notice that whatever you send it leaves the computer and that free 
 learn from it, so use it for nothing private. The starter is only preselected: nothing is saved until you
 create the assistant. Change the default for new assistants in **Settings**, or one assistant's model on its
 **AI model** tab; add providers and connections in **Apps & AI**. A second assistant starts on the main
-assistant's route. For a local Ollama install, for example:
+assistant's route. If none of these is found, first run says what to install (the OpenCode command-line tool for
+a free model, or Ollama to stay on this computer) or to connect a provider you already use, and keeps your
+request. For a local Ollama install, for example:
 
 ```bash
 hutch bot create research-briefing --display-name "Research Briefing" --model ollama/llama3.2 --tools files,web_fetch --approvals ask

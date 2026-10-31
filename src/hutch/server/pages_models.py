@@ -23,21 +23,6 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
     def workspace_mode() -> str:
         return str(routes.workspace_default(store).get("inference_mode") or "hybrid")
 
-    def validated_route(spec: str, bot: Any = None, mode: str = "hybrid", owner: str = "this route") -> tuple[bool, str]:
-        """Reuse the same route validation as a Bot save, under the mode that will govern it."""
-        from ..modelchoices import ModelNotUsable, validate_override
-        from ..models import Bot, InferenceMode
-        if bot is None:
-            bot = Bot(name=owner, model=spec, tools=[], inference_mode=InferenceMode(mode))
-        try:
-            validate_override(config, store, bot, spec)
-        except ModelNotUsable as exc:
-            fix = str(getattr(exc, "fix", "") or "")
-            return False, f"{exc} - {fix}" if fix else str(exc)
-        except ValueError as exc:
-            return False, str(exc)
-        return True, spec
-
     @app.get("/models", response_class=HTMLResponse, include_in_schema=False)
     def models_page(request: Request):
         view = build_models_view(config, store)
@@ -118,73 +103,9 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
 
     @app.post("/models/add", include_in_schema=False)
     async def model_add(request: Request):
-        f = await read_form(request)
-        provider = (f.get("provider") or "").strip()
-        model_id = (f.get("model_id") or "").strip()
-        label = (f.get("label") or "").strip()
-        if not provider or not model_id:
-            return go("/models", error="Provider and Model ID are required.")
-        if provider == "chatgpt":
-            return go("/models", error="ChatGPT plan access needs Sign in with ChatGPT in Apps & AI; an API key is not enough.")
-        from ..connections import ConnectionBook
-        book = ConnectionBook(config.state_dir)
-        api_key = (f.get("api_key") or "").strip()
-        base_url = (f.get("base_url") or "").strip()
-        template = "custom-openai" if provider == "custom" else provider
-        conn_name = provider
-        created_connection = False
-        if provider == "custom":
-            import re
-            safe_name = re.sub(r"[^a-z0-9\-]", "-", f"custom-{model_id}".lower()).strip("-")[:35]
-            conn_name = safe_name or "custom-endpoint"
-        if conn_name != "ollama" and conn_name not in book.names():
-            if template in book._templates:
-                overrides = {}
-                if base_url:
-                    overrides["base_url"] = base_url
-                try:
-                    book.add(template, conn_name, **overrides)
-                    created_connection = True
-                except Exception as exc:
-                    return go("/models", error=f"Could not configure provider {conn_name}: {exc}")
-        if api_key and conn_name in book.names():
-            book.set_key(conn_name, api_key, prefer_stored=True)
-        spec = f"{conn_name}/{model_id}" if conn_name != "ollama" else f"ollama/{model_id}"
-        set_default = f.flag("set_default")
-        bot_id = (f.get("bot_id") or "").strip()
-        bot = store.get_bot(bot_id) if bot_id else None
-
-        def add_failed(detail: str, where: str):
-            if created_connection:
-                book.remove(conn_name)      # do not leave half-configured providers behind a failed add
-            return go("/models", error=f"Could not add {spec} {where}: {detail}")
-
-        if bot_id and bot is None:
-            return add_failed("that bot no longer exists", "for the selected bot")
-        if set_default:
-            ok, detail = validated_route(spec, mode=workspace_mode(), owner="the workspace default")
-            if not ok:
-                return add_failed(detail, "as the workspace default")
-        if bot is not None:
-            ok, detail = validated_route(spec, bot=bot)
-            if not ok:
-                return add_failed(detail, f"for {bot.name}")
-        if not set_default and bot is None:
-            ok, detail = validated_route(spec, owner="the saved route")
-            if not ok:
-                return add_failed(detail, "as a saved route")
-        if label:
-            store.kv_set(f"model_label:{spec}", label)
-        stored_routes = [s.strip() for s in (store.kv_get("configured_model_routes") or "").split(",") if s.strip()]
-        if spec not in stored_routes:
-            stored_routes.append(spec)
-            store.kv_set("configured_model_routes", ",".join(stored_routes))
-        if set_default:
-            set_workspace_default(spec)
-        if bot is not None:
-            bot.model = spec
-            store.upsert_bot(bot, preserve_schedules=True)
-        return go("/models", notice=f"Configured model route {spec}.")
+        """Compatibility redirect: accounts, keys and endpoints are added in Apps & AI; this page never creates them."""
+        await read_form(request)
+        return go("/#/connections", notice="Add or repair an AI service in Apps & AI, then choose its route.")
 
     @app.post("/models/delete", include_in_schema=False)
     async def model_delete(request: Request):
@@ -202,7 +123,7 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
                 store.upsert_bot(bot, preserve_schedules=True)
                 changed.append(bot.name)
         if cleared_default:
-            set_workspace_default("")
+            routes.clear_workspace_default(store)
         store.kv_set(f"model_label:{model}", "")
         if model in stored_routes:
             stored_routes.remove(model)

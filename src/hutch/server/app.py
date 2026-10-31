@@ -4022,8 +4022,6 @@ def create_app() -> FastAPI:
                     runtime=RuntimeKind(runtime))
         return choices_json(model_choices(config, store, draft))
 
-    _WORKSPACE_MODEL_DEFAULTS_KEY = "workspace:model-defaults"
-
     def get_workspace_model_defaults() -> dict:
         # One parser for this record lives in hutch.routes; the API, Models page and Settings all read it.
         return routes.workspace_default(store)
@@ -4056,7 +4054,7 @@ def create_app() -> FastAPI:
         elif body.inference_mode is InferenceMode.offline:
             raise HTTPException(422, "choose a verified local model route before making Strict offline the workspace default")
         result = {"model": model, "inference_mode": body.inference_mode.value, "configured": bool(model)}
-        store.kv_set(_WORKSPACE_MODEL_DEFAULTS_KEY, json.dumps(result, sort_keys=True, separators=(",", ":")))
+        routes.set_workspace_default(store, model, body.inference_mode.value)
         return {**result, "route_problem": None}
 
     @app.get("/api/v1/workspace/coordinator", response_model=WorkspaceCoordinatorResource)

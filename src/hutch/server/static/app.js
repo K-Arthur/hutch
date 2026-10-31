@@ -3158,6 +3158,14 @@ async function readFirstRunReadiness() {
       retry: true,
     };
   }
+  const noOpenCodeCli = failures.length === 1 && openCodeResult.status === "rejected"
+    && /not installed|not on this device/i.test(String(openCodeResult.reason?.message || ""));
+  if (noOpenCodeCli) {   // the free starter needs the OpenCode command-line tool: say so, with the private alternative
+    return {
+      state: "setup", choice: null, retry: true,
+      copy: "No ready AI service was found. For a free starting model, install the OpenCode command-line tool. For one that stays on this computer, install Ollama. Or connect a provider you already use. Your request stays here.",
+    };
+  }
   if (failures.length) {
     return {
       state: "setup",

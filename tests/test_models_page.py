@@ -149,3 +149,27 @@ def test_bot_model_assignment_without_prefix_resolves(client):
     page_html = client.get("/models").text
     assert 'href="/bots/bot-unprefixed"' in page_html
 
+
+
+def test_deleting_the_default_route_clears_it_without_an_error(client):
+    """A reachable Remove action on the default route must not 500; it clears the default record."""
+    store = client.app.state.store
+    store.kv_set("workspace:model-defaults", json.dumps(
+        {"model": "custom/gone", "inference_mode": "hybrid", "configured": True}))
+    response = client.post("/models/delete", data={"csrf": csrf(client), "model": "custom/gone"},
+                           follow_redirects=False)
+    assert response.status_code == 303, response.text
+    saved = json.loads(store.kv_get("workspace:model-defaults"))
+    assert saved["model"] == "" and saved["configured"] is False
+    assert client.get("/models").status_code == 200
+
+
+def test_the_add_route_endpoint_only_points_at_apps_and_ai(client):
+    """The old add form created providers/keys and could write the default; the endpoint now creates nothing."""
+    store = client.app.state.store
+    response = client.post("/models/add", data={"csrf": csrf(client), "provider": "custom", "model_id": "x"},
+                           follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"].startswith("/#/connections")
+    assert store.kv_get("configured_model_routes") is None
+    assert store.kv_get("workspace:model-defaults") is None

@@ -45,7 +45,7 @@ def base(tmp_path, monkeypatch):
         yield url
 
 
-def _page(browser, *, opencode, routes, size=(1440, 900)):
+def _page(browser, *, opencode, routes, size=(1440, 900), opencode_status=200):
     context = browser.new_context(viewport={"width": size[0], "height": size[1]})
     seen = []
 
@@ -54,7 +54,9 @@ def _page(browser, *, opencode, routes, size=(1440, 900)):
         bodies = {"/api/v1/opencode/status": opencode, "/api/v1/model-routes": routes,
                   "/api/v1/preferences/model-defaults": NOTHING_SAVED}
         seen.append(path)
-        if path in bodies:
+        if path == "/api/v1/opencode/status" and opencode_status != 200:
+            route.fulfill(status=opencode_status, content_type="application/json", body=json.dumps(opencode))
+        elif path in bodies:
             route.fulfill(status=200, content_type="application/json", body=json.dumps(bodies[path]))
         else:
             route.continue_()
@@ -139,3 +141,16 @@ def test_a_second_assistant_starts_where_the_main_one_works_and_asks_nothing_new
             assert "/api/v1/opencode/status" not in seen, "no detection when the main assistant already has a working route"
         finally:
             page.context.close()
+
+
+def test_without_the_opencode_tool_first_run_says_what_to_install_and_offers_the_private_choice(browser, base):
+    page, _, _ = _page(browser, opencode={"detail": "OpenCode CLI is not installed or is not on this device's PATH"}, routes=[], opencode_status=503)
+    try:
+        page.goto(f"{base}/#/chat", wait_until="domcontentloaded")
+        copy = page.locator("#first-run-ai-state")
+        copy.get_by_text("install the OpenCode command-line tool", exact=False).wait_for(timeout=20_000)
+        assert "install Ollama" in copy.inner_text() and "connect a provider you already use" in copy.inner_text()
+        assert page.locator("#first-run-route-notice .route-notice").count() == 0, "no route chosen, so no data-sharing notice"
+        assert page.locator("#first-run-ai-retry").is_visible()
+    finally:
+        page.context.close()
