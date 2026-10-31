@@ -67,6 +67,7 @@ from ..store import (ActiveRunConflict, AuthChallengeLimitExceeded, BotConflict,
                      PersonaConflict, RevisionConflict, Store)
 from ..state_snapshot import ExecutionHeld
 from ..skills import MAX_SKILLS_PER_BOT, SkillError
+from .. import routes
 from ..route_problem import run_is_legacy
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
@@ -158,6 +159,7 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("POST", "/api/v1/sources/{source_id}/check"): None,
     ("GET", "/api/v1/installation"): None,
     ("POST", "/api/v1/installation/review"): None,
+    ("GET", "/api/v1/routes"): None,
     ("GET", "/api/v1/jobs"): None,
     ("GET", "/api/v1/jobs/{job_id}"): None,
     ("POST", "/api/v1/jobs/{job_id}/cancel"): None,
@@ -4023,17 +4025,8 @@ def create_app() -> FastAPI:
     _WORKSPACE_MODEL_DEFAULTS_KEY = "workspace:model-defaults"
 
     def get_workspace_model_defaults() -> dict:
-        raw = store.kv_get(_WORKSPACE_MODEL_DEFAULTS_KEY)
-        if raw is None:
-            return {"model": "", "inference_mode": InferenceMode.hybrid.value, "configured": False, "route_problem": None}
-        try:
-            saved = json.loads(raw)
-            result = WorkspaceModelDefaultsUpdate.model_validate(saved)
-        except (json.JSONDecodeError, ValueError, TypeError):
-            raise HTTPException(500, "workspace model defaults are damaged; clear or restore the local state") from None
-        problem = store.route_problem(Bot(name="saved-workspace-default", model=result.model, tools=[])) if result.model else None
-        return {"model": result.model, "inference_mode": result.inference_mode.value,
-                "configured": bool(result.model), "route_problem": problem}
+        # One parser for this record lives in hutch.routes; the API, Models page and Settings all read it.
+        return routes.workspace_default(store)
 
     @app.get("/api/v1/preferences/model-defaults")
     def read_workspace_model_defaults() -> dict:
@@ -4057,6 +4050,9 @@ def create_app() -> FastAPI:
                 raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
             except ValueError as exc:
                 raise HTTPException(422, str(exc)) from None
+            problem = store.route_problem(draft)
+            if problem:      # a default that cannot seed a built-in assistant must not be saved
+                raise HTTPException(422, f"that route cannot run for a new assistant: {problem}")
         elif body.inference_mode is InferenceMode.offline:
             raise HTTPException(422, "choose a verified local model route before making Strict offline the workspace default")
         result = {"model": model, "inference_mode": body.inference_mode.value, "configured": bool(model)}
@@ -7271,6 +7267,8 @@ def create_app() -> FastAPI:
     install_catalog_routes(app, store, config)
     from .installation_api import install_installation_routes
     install_installation_routes(app, store)
+    from .routes_api import install_routes_api
+    install_routes_api(app, store, config)
     from .facts_api import install_fact_purge_routes; install_fact_purge_routes(app, store)
     from .tasks_api import install_workspace_task_routes
     install_workspace_task_routes(app, store, engine, config, idempotency_key=idempotency_key,

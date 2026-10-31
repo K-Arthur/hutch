@@ -20,11 +20,12 @@ from .models import Bot, Run, RunStatus, RuntimeKind
 LEGACY_ERROR_MARKERS = ("mock runtime was removed", "retired demo route", "retired demo runtime")
 
 
-def route_problem(bot: Bot) -> Optional[str]:
-    model = (bot.model or "").strip()
-    if bot.runtime is RuntimeKind.mock:
+def model_route_problem(model: str, runtime: RuntimeKind = RuntimeKind.builtin) -> Optional[str]:
+    """The same shape answer for a saved route string that may not be attached to an assistant yet."""
+    model = (model or "").strip()
+    if runtime is RuntimeKind.mock:
         return "it uses a retired demo runtime that can no longer run"
-    if bot.runtime not in (RuntimeKind.builtin, RuntimeKind.opencode):
+    if runtime not in (RuntimeKind.builtin, RuntimeKind.opencode):
         # These runtimes choose their own model; a saved route is not the thing that makes them runnable.
         return None
     if not model:
@@ -35,12 +36,16 @@ def route_problem(bot: Bot) -> Optional[str]:
         return "its saved model route is not a provider/model route, so it cannot run"
     if provider.lower() == "mock":
         return "it uses a retired demo route that can no longer run"
-    if bot.runtime is RuntimeKind.opencode:
+    if runtime is RuntimeKind.opencode:
         if provider.lower() != "opencode" or len(parts) != 3:
             return "its saved model route is not an OpenCode route, so it cannot run"
     elif provider.lower() == "opencode":
         return "its saved model route belongs to the OpenCode runtime, but this assistant uses the Hutch built-in runtime"
     return None
+
+
+def route_problem(bot: Bot) -> Optional[str]:
+    return model_route_problem(bot.model, bot.runtime)
 
 
 def run_is_legacy(run: Run, bot: Optional[Bot] = None) -> bool:

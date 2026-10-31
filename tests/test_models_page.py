@@ -8,6 +8,7 @@ import re
 import pytest
 from fastapi.testclient import TestClient
 
+from hutch.models import Bot
 from hutch.providers.pricing import PriceBook
 from hutch.server.app import create_app
 from tests.fakes import FakeOllama
@@ -39,6 +40,20 @@ def test_models_page_renders_every_section(client):
         assert needle in r.text, needle
     # The shared sidebar marks the current destination with aria-current only.
     assert re.search(r'<a href="/models"[^>]*aria-current="page"', r.text), "Models entry is current"
+
+
+def test_models_page_is_honest_about_defaults_and_assistant_routing(client):
+    """The top of the page answers who uses what; false/duplicate model options are gone (S6a)."""
+    client.app.state.store.create_bot(Bot(name="design-partner", display_name="Design Partner",
+                                          model="demo", tools=[]))
+    html = client.get("/models").text
+    assert "AI services and assistant routing" in html
+    assert "Design Partner" in html and "Needs a model route" in html
+    assert 'href="/#/bot/design-partner"' in html
+    assert "an empty route is never a valid default" in html
+    assert "<option value=\"chatgpt\">" not in html
+    assert "Hosted fallback:" not in html
+    assert "Open Apps &amp; AI" in html
 
 
 def test_page_flags_what_wont_fit_and_shows_real_context(client):

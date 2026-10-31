@@ -8,6 +8,7 @@ from typing import Any, Callable
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 
+from .. import routes
 from ..modelview import build_models_view
 from ..providers.pricing import PriceBook
 
@@ -16,27 +17,11 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
     config, store = app.state.config, app.state.store
 
     def workspace_default() -> str:
-        """The route used to seed new bots, read from the same key Settings writes."""
-        import json
-        raw = store.kv_get("workspace:model-defaults")
-        if raw:
-            try:
-                return str((json.loads(raw) or {}).get("model") or "")
-            except (ValueError, TypeError):
-                return ""
-        return store.kv_get("default_model") or ""
+        """The one parser for the route that seeds new built-in assistants (hutch.routes)."""
+        return str(routes.workspace_default(store).get("model") or "")
 
     def workspace_mode() -> str:
-        """The inference mode paired with the workspace default; never silently reset it."""
-        import json
-        raw = store.kv_get("workspace:model-defaults")
-        if raw:
-            try:
-                mode = str((json.loads(raw) or {}).get("inference_mode") or "hybrid")
-                return mode if mode in ("hybrid", "local", "offline") else "hybrid"
-            except (ValueError, TypeError):
-                return "hybrid"
-        return "hybrid"
+        return str(routes.workspace_default(store).get("inference_mode") or "hybrid")
 
     def set_workspace_default(model: str) -> None:
         import json
@@ -64,7 +49,8 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
         view = build_models_view(config, store)
         # Price errors belong beside the price form, not above the page head;
         # the template overrides the base flash and renders it inside #prices.
-        return page(request, "models.html", nav="models", v=view)
+        return page(request, "models.html", nav="models", v=view,
+                    authority=routes.authority(store, config))
 
     @app.post("/models/prices/save", include_in_schema=False)
     async def price_save(request: Request):

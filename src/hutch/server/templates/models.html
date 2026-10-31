@@ -64,6 +64,7 @@
 </div>
 
 <nav class="models-nav" aria-label="Page navigation">
+  <a href="#routes-authority">{{ icon("layers", 13) }}<span>AI services and assistant routing</span></a>
   <a href="#configured-models">{{ icon("cpu", 13) }}<span>Configured routes</span></a>
   <a href="#runtimes">{{ icon("zap", 13) }}<span>Runtimes and connections</span></a>
   <a href="#installed">{{ icon("layers", 13) }}<span>Installed models</span></a>
@@ -94,6 +95,41 @@
   <div id="detected-body" role="status" aria-live="polite"></div>
 </section>
 {% endif %}
+
+<section class="panel" id="routes-authority" aria-labelledby="routes-authority-h">
+  <header class="conn-head">
+    <div>
+      <h2 id="routes-authority-h" class="card-title">{{ icon("layers", 18) }} AI services and assistant routing</h2>
+      <p class="hint">One answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps &amp; AI; per-assistant routes are chosen in that assistant's settings.</p>
+    </div>
+    <a class="btn ghost small" href="/#/connections">Open Apps &amp; AI</a>
+  </header>
+  {% if authority.workspace_default.model %}
+  <p class="hint">New built-in assistants start from <span class="mono">{{ authority.workspace_default.model }}</span>
+    ({{ authority.workspace_default.inference_mode }}){% if authority.workspace_default.route_problem %} — <span class="tag danger">cannot run</span> {{ authority.workspace_default.route_problem }}{% endif %}.
+    <a href="/#/settings">Change the default in Settings</a>.</p>
+  {% else %}<p class="hint">No default route for new built-in assistants. <a href="/#/settings">Set one in Settings</a>.</p>{% endif %}
+  {% if authority.warnings %}<div class="models-notice" role="status">{% for warning in authority.warnings %}<p>{{ warning }}</p>{% endfor %}</div>{% endif %}
+  <div class="table-wrap" tabindex="0" role="region" aria-label="Assistant routes">
+    <table class="models-table-refined stack-table">
+      <thead><tr><th>Assistant</th><th>Route</th><th>Runtime</th><th>Mode</th><th>State</th><th><span class="visually-hidden">Fix</span></th></tr></thead>
+      <tbody>
+      {% for a in authority.assistants %}
+        <tr>
+          <td data-label="Assistant">{{ a.display_name }}</td>
+          <td data-label="Route"><span class="mono">{{ a.model or "not set" }}</span></td>
+          <td data-label="Runtime">{{ a.runtime }}</td>
+          <td data-label="Mode">{{ a.inference_mode }}</td>
+          <td data-label="State">{% if a.usable %}<span class="tag ok">Runnable</span>{% else %}<span class="tag danger">Needs a model route</span>{% endif %}</td>
+          <td>{% if not a.usable %}<a class="btn ghost small" href="{{ a.fix_href }}">Fix</a>{% endif %}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="muted">No assistants yet. <a href="/#/assistant/new">Create one</a>.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 
 <section class="panel" id="configured-models" aria-labelledby="cfg-models-h">
   <header class="conn-head">
@@ -209,7 +245,6 @@
               <option value="ollama">Ollama (Local)</option>
               <option value="custom">Custom (OpenAI-compatible)</option>
               <option value="opencode-go">OpenCode Go</option>
-              <option value="chatgpt">ChatGPT</option>
             </select>
             <p class="hutch-help" id="add-provider-help">Select the provider or runtime type.</p>
           </div>
@@ -238,7 +273,7 @@
         <legend class="hutch-legend">4. Defaults and Assistant Assignment</legend>
         <div class="hutch-cols-2">
           <div class="hutch-field">
-            {{ checkbox("set_default", "Set as default model for new bots", help="Will be chosen when a bot has no specific model assigned.") }}
+            {{ checkbox("set_default", "Use as the default route for new built-in assistants", help="Respected only for new built-in assistants created without a route; an assistant with its own route keeps it, and an empty route is never a valid default.") }}
           </div>
           {% if v.available_bots %}
           <div class="hutch-field">
@@ -428,9 +463,7 @@
       <div class="preset-cmd">{{ r.install_hint }}</div>
       {% endif %}
 
-      <div class="preset-fallback">
-        Hosted fallback: <span class="mono">{{ r.hosted }}</span>
-      </div>
+
     </article>
   {% else %}
     <div class="empty"><p class="muted">No task presets defined.</p></div>
