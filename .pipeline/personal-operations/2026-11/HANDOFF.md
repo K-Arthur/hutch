@@ -15,6 +15,7 @@ only what you reviewed.
 | ac5e6f04 | the review fixes: immediate revocation, JSON-guarded triggers, `not_queued`, deleted-assistant filtering, bounded calendar label |
 | 5a835791, 227b1c89, 40663956 | the pipeline record: session, run log, acceptance, handoff, and the gate measured at the committed tip instead of in the shared tree |
 | 48de6899, 33ef4461 | the second review round: schema v87 trigger repair, key-independent grant eviction, bounded source-list name, and the split that keeps the test file under the cap |
+| a113c709 | the third review round: a credential failure is decided at the call site, not by matching error text, so a provider-side revocation cannot render cached content |
 
 ## Status by capability
 
@@ -35,6 +36,10 @@ only what you reviewed.
   snapshot in the same request. An independent reviewer caught the opposite and it was a real
   trust bug, not a style issue; a second round caught that the first fix could not match the key
   of a removed grant. Eviction matches on assistant and kind, not on the exact cache key.
+- Never classify a failure by matching error text. A provider may revoke a credential with
+  any status it likes (Google uses HTTP 400 invalid_grant), and a missed classification is
+  not a cosmetic bug here: it means provider content keeps rendering after access ended.
+  `agenda_sources.py` asks the credential itself before and after a read.
 - A trigger body can only be replaced by dropping it. If you correct one of the notification
   triggers, add a migration step that drops and recreates it; editing `CREATE TRIGGER IF NOT
   EXISTS` in an already-applied migration changes nothing on a live database. Schema v87 exists

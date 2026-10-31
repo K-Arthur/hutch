@@ -131,6 +131,34 @@ The added trigger-repair test pushed `tests/test_notifications.py` past the 400-
 three migration-level tests moved to `tests/test_notification_schema.py` rather than growing the
 file.
 
+## Third independent verification
+
+A third read-only reviewer was asked whether `48de6899` closed the two MAJOR findings. It confirmed
+the trigger repair (built a v86 database with the verbatim pre-fix bodies, proved the old body
+aborts on a malformed document, upgraded through the real Store, proved the new body is live and
+both notification rows survive) and it confirmed the key-independent eviction against three defeat
+attempts. It then found one residual path:
+
+| Finding | Confirmation | Fix |
+|---|---|---|
+| **MAJOR, residual**: a Google-side credential revocation is answered with HTTP 400 `invalid_grant`, which the text-matching classifier did not recognise, so it became `provider_error` and the pre-revocation snapshot kept rendering as stale. | The reviewer reproduced it against the real functions and printed `classified reason: provider_error`, `in HARD_UNAVAILABLE: False`, then `status: stale ... rendered titles after revocation: ['Private salary review']`. | `a113c709`: the classifier is removed. The adapter obtains a token before reading and probes for one after a failed read, so a credential failure ends access regardless of status or wording, and a flaky provider still gets the stale treatment. |
+
+Two tests cover it and both fail with the call-site check removed in place: `test_a_revoked_refresh_token_is_a_grant_failure_whatever_status_google_chooses`
+and `test_a_credential_that_fails_mid_read_ends_access_instead_of_showing_stale`. A third test,
+`test_a_read_failure_with_a_working_credential_is_a_provider_error`, guards the opposite mistake:
+turning every failure into a grant failure would hide real provider outages.
+
+The browser test's fake book had no `access_token`, which is how it caught the regression when the
+adapter start requiring one; it now performs the same exchange with a separate `credential_fail`
+flag so the stale path still has a working credential. Screenshots were regenerated from the run
+that passes.
+
+Post-third-fix runs:
+
+- `pytest -q tests/test_personal_agenda.py tests/test_personal_api.py tests/test_notifications.py
+  tests/test_notification_schema.py` -> 42 passed.
+- `pytest -q tests/e2e/test_personal_today_agenda.py` -> 2 passed.
+
 One mistake of this session is recorded for the next one: the first attempt at the second-round
 fix staged `src/hutch/store.py` wholesale and so committed another session's in-flight
 `unclosed_proc_runs` method. It was caught by comparing the committed file against its baseline,
