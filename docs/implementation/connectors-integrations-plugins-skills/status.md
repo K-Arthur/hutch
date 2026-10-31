@@ -126,6 +126,30 @@ exception with no handler, so testing a connector with a wrong URL returned a 50
 or an unreachable host. The server's own text is discarded, because a response body is untrusted
 input, and no catalog is recorded.
 
+### 2.11 Skill content review
+
+Structural checks prove what a package is; they say nothing about what it asks a model to do.
+`src/hutch/skill_scan.py` reviews the content and reports: invisible or reordering characters
+(format characters, the Unicode tag block, bidi overrides) with their code points escaped so a
+reviewer can see what a model would read; language that changes what the assistant may do rather
+than describing a procedure; credential-location references; bundled programs, reported as inert
+because Hutch never runs them; and instruction files too large for their description to represent.
+
+The report is advisory in both directions, and the wording says so: a finding does not block trust,
+and a clean scan is not an endorsement. Findings appear in the inspector before trust and as
+`scan` on the skill detail.
+
+### 2.12 Installing a skill from a URL
+
+`src/hutch/skill_remote.py` fetches a published package and installs it untrusted, with its
+provenance recorded: requested URL, final URL after redirects, host, archive digest, size and fetch
+time. The fetch goes through `netguard`, so a private address or a redirect to one is refused before
+a body is read. Archives are inspected in memory against an 8 MiB download budget, a 64 MiB
+expansion budget and a 16 MiB per-member budget, and every member is written through a path check
+so nothing can escape the staging directory. Re-fetching over an existing install requires an
+explicit `replace`, and the install path writes `trust: null` for any new bytes: arriving over the
+network is not review, and anyone can publish a new version at the same URL.
+
 ## 3. Skills and plugins
 
 Not delivered in this pass, and the reason is a real dependency rather than an omission:

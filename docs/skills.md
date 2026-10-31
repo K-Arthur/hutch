@@ -42,9 +42,14 @@ discover/import → validate → review/trust → install/version → assign to 
   skill on demand with the `use_skill` tool.
 * **Update**: `update` stages a new version from the skill's recorded source. The reviewed
   version stays active and keeps running until the operator applies the update; the inspector shows
-  the staged instructions so "review the update" is literal. Applying re-reads and re-hashes the
-  staged bytes and refuses if they changed after staging. `discard` drops the staged version;
-  `rollback` restores the previous retained version (the last 3 are kept).
+  the staged instructions so "review the update" is literal. It also shows what applying would
+  change: new or dropped `requires-tools` and `requires-connections`, a changed `allowed-tools`
+  declaration, an instruction edit with its byte counts, and the files added, removed or modified,
+  each by sha256 rather than by size and timestamp. A change to what the skill requires is marked
+  material and listed first, because that is the difference between reviewing and rubber-stamping.
+  Applying re-reads and re-hashes the staged bytes and refuses if they changed after staging.
+  `discard` drops the staged version; `rollback` restores the previous retained version (the last
+  3 are kept).
 * **Disable/uninstall**: disabling stops future disclosure and activation immediately, even
   though earlier instructions may remain in an old transcript. Uninstalling removes the files;
   Bots that reference it show a visible "not installed" readiness reason rather than failing
@@ -118,6 +123,7 @@ entries in the Bot's allowlist, so they are checked against that grant, not agai
 ```yaml
 metadata:
   hutch.requires-tools: "mcp__time__get_current_time"
+  hutch.requires-skills: "workspace-summary"   # another skill whose procedure this one assumes
 ```
 
 A native tool the Bot does not enable and a connector tool the Bot was not granted fail
@@ -126,6 +132,12 @@ separately, because they are fixed in different places. A missing native tool re
 and names both the tool and Connectors, which is where the grant is made. A Strict Offline Bot
 cannot satisfy a connector requirement at all: its worker has no host network, so the tool is
 withheld even when a grant exists.
+
+A skill dependency is satisfied only when the named skill is installed, reviewed, enabled and
+assigned to the same Bot, because an installed but unreviewed or unassigned skill is one the
+model cannot load. It reports `requires_skills` and names the dependency and the missing state.
+The check is one level deep on purpose: a dependency that is itself unsatisfiable is reported
+when that skill is evaluated, and a transitive check would need its own cycle guard.
 
 Declared tools that the Bot does not enable, and declared connections that are not granted, keep
 the skill out of the run with the exact reason in readiness and the run log.
@@ -158,6 +170,7 @@ hutch run my-bot "summarize the folder" --skill workspace-summary
 GET    /api/v1/skills                          library: installed, available, collisions, scan notes
 GET    /api/v1/skills/{name}                   detail incl. instructions, resources, diagnostics, bound Bots
 POST   /api/v1/skills/install                  {source: "builtin"|"path", name|path}
+POST   /api/v1/skills/fetch                    {url, replace?}  installs untrusted, with provenance
 POST   /api/v1/skills/{name}/trust|enable|disable|recheck
 POST   /api/v1/skills/{name}/update            stage
 POST   /api/v1/skills/{name}/update/apply      make the reviewed update active
@@ -188,8 +201,42 @@ cannot manage skills or activate them (owner action).
 * Revocation takes effect at the next enforcement boundary: a run whose explicitly activated
   skill was disabled, uninstalled, or modified between submission and start **fails before
   starting** with the reason; assigned-only skills are excluded with a run-log warning.
-* Nothing in this subsystem fetches skills from the network, extracts archives, runs installation
-  hooks, or installs dependencies. Remote registries and marketplaces are not supported.
+* A package may be fetched from an `https` URL, and the rules that makes that safe are in
+  `src/hutch/skill_remote.py`: the request goes through `netguard`, so a URL resolving to a private
+  address, or redirecting to one, is refused before any body is read; the download is capped at
+  8 MiB; the archive is inspected in memory against a 64 MiB expansion budget and a 16 MiB
+  per-member budget before anything is written; each member is written through a path check, so no
+  entry can escape the staging directory or create a symlink; and a package without `SKILL.md` at
+  its root is refused. Installing from a URL records provenance (requested URL, final URL after
+  redirects, host, archive sha256, size, fetch time) and lands **untrusted**: arriving over the
+  network is not review.
+* Re-fetching over an existing install requires an explicit `replace`, and it never inherits trust:
+  the install path writes `trust: null` for any new bytes, because anyone can publish a new version
+  at the same URL.
+* Nothing runs installation hooks or resolves dependencies, and there is no marketplace: a URL is
+  something a person chose to fetch, not a registry entry Hutch browses on their behalf.
+
+## Content review
+
+Structure proves what a package *is*; it says nothing about what the instructions ask a model to
+do. Every package is also scanned for content an owner could only catch by reading carefully
+(`src/hutch/skill_scan.py`):
+
+* invisible or reordering characters (format characters, the Unicode tag block, bidi overrides),
+  where a reader and a model can see different words; reported with the code points escaped so the
+  character is visible in the finding;
+* language that changes what the assistant is allowed to do rather than describing a procedure:
+  ignoring prior instructions, overriding the system prompt, bypassing approvals or the sandbox,
+  concealing a step from the owner, or moving a credential out;
+* references to credential locations such as `~/.ssh`, `.env` or `~/.aws`;
+* bundled programs, reported as informational because Hutch never runs a skill's programs;
+* a file named as text that contains binary data, and an instruction file too large for its
+  description to represent.
+
+The report is **advisory**, in both directions. A finding does not block trust, and a clean result
+is not an endorsement: the wording says so wherever it appears. Findings are shown in the inspector
+before trust, so they are available at the moment of the decision, and the API returns them as
+`scan` on the skill detail.
 
 ## Bundled samples
 

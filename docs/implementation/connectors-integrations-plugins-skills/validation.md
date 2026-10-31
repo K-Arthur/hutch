@@ -154,7 +154,27 @@ that is not MCP, and an unreachable host. The API returns 409 with that sentence
 stays merely installed, and no catalog is recorded. Two tests cover it: one at the service layer
 asserting the server's text is not forwarded, one over HTTP asserting 409 rather than 500.
 
-## 9. What this record does not claim
+## 9. Skills: content review and URL install
+
+Both are covered by tests, not by a live third-party source.
+
+- Content review (`tests/test_skill_scan.py`, 22 cases) covers each finding class, one finding per
+  phrase family, the tag-block and bidi characters specifically, the finding cap, ordering, and the
+  two properties that matter most: **a finding does not block trust**, and **a clean scan does not
+  stand in for trust**.
+- URL install (`tests/test_skill_remote.py`, 16 cases) drives the real `netguard` fetch path with
+  an injected resolver and transport, the same seam the netguard suite uses. It covers a working
+  install with provenance, a single-file package, refusal of a private address, refusal to follow a
+  redirect to a link-local address, an HTTP error, an archive member that escapes the package, an
+  absolute member path, a package with no `SKILL.md`, an empty download, and a compression bomb
+  that fits the download budget but not the expansion budget. Two cases pin the trust semantics:
+  replacement requires `replace`, and a replacement never inherits the previous review.
+
+No package was fetched from a real public host: the suites use an in-process server and a fixed
+resolver, and no third-party skill package was reviewed. The egress rules themselves are the ones
+`tests/test_netguard.py` already exercises against DNS rebinding and redirect targets.
+
+## 10. What this record does not claim
 
 No third-party service was contacted. No connector was installed from a registry or marketplace,
 because none exists here. Nothing in this delivery is a live-provider acceptance result.
