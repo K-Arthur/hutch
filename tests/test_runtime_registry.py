@@ -46,6 +46,10 @@ def test_cli_detection_reports_installed_without_touching_credentials():
         calls.append(path)
         return {"installed": True, "version": "9.9.9-test", "error": ""}
 
+    def noisy(path):
+        calls.append(path)
+        return {"installed": True, "version": "PlatformError: Unknown: FileSystem.open (/home/user/log/x)", "error": ""}
+
     found = detect_installed_clis(finder=finder, runner=runner)
     assert set(found) == {"opencode", "claude-code", "codex", "pi", "gemini-cli"}
     assert found["opencode"]["installed"] is True
@@ -53,6 +57,8 @@ def test_cli_detection_reports_installed_without_touching_credentials():
     assert found["codex"]["installed"] is False
     assert len(calls) == 2
     assert all("secret" not in str(value).lower() for value in found.values())
+    noisy_found = detect_installed_clis(finder=finder, runner=noisy)
+    assert noisy_found["opencode"]["version"] == ""  # error text is never rendered as a version or path
 
 
 def test_registry_json_omits_binary_paths_and_can_skip_detection():

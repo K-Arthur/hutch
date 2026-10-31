@@ -108,7 +108,7 @@ def register_provider_pages(app: FastAPI, page: Callable, go: Callable, read_for
             if providers:
                 ecosystem.append({"category": category, "label": CATEGORY_LABELS.get(category, category),
                                   "providers": providers})
-        return page(request, "providers.html", nav="models", groups=accounts, ecosystem=ecosystem,
+        return page(request, "providers.html", nav="connections", groups=accounts, ecosystem=ecosystem,
                     reviewed_on=catalog.reviewed_on, provider_count=len(catalog.providers),
                     local_services=services_json(local_services()), runtime_catalog=runtime_catalog())
 

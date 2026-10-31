@@ -90,21 +90,20 @@
     <h2 id="runtimes-h" class="card-title">{{ icon("settings", 18) }} Execution runtimes</h2>
     <p class="hint">A runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.</p>
   </div></header>
-  <div class="table-wrap" role="region" tabindex="0" aria-label="Execution runtimes">
-    <table class="models-table-refined stack-table">
-      <thead><tr><th scope="col">Runtime</th><th scope="col">Status</th><th scope="col">Usage reservation</th><th scope="col">Boundary</th><th scope="col">CLI</th></tr></thead>
-      <tbody>
-      {% for runtime in runtime_catalog.runtimes %}
-        <tr>
-          <td data-label="Runtime"><strong>{{ runtime.title }}</strong><div class="model-meta-sub"><span class="tag mono">{{ runtime.id }}</span>{% if runtime.enabled %}<span class="tag">selectable</span>{% else %}<span class="tag">not selectable</span>{% endif %}</div></td>
-          <td data-label="Status"><span class="chip {% if runtime.status == 'implemented' %}st-succeeded{% elif runtime.status in ('experimental', 'documented') %}st-waiting_approval{% else %}st-failed{% endif %}">{{ runtime.status }}</span></td>
-          <td data-label="Usage reservation">{% if runtime.usage_reservation %}<span class="chip st-succeeded">reserved</span>{% else %}<span class="chip st-stopped">not reserved</span>{% endif %}</td>
-          <td data-label="Boundary"><span class="hint">{{ runtime.permission_boundary }}</span></td>
-          <td data-label="CLI">{% if runtime.cli %}{% if runtime.cli.installed %}<span class="chip st-succeeded">installed</span>{% if runtime.cli.version %}<span class="hint mono">{{ runtime.cli.version }}</span>{% endif %}{% else %}<span class="chip st-stopped">not installed</span>{% endif %}{% else %}<span class="muted small">n/a</span>{% endif %}</td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
+  <div class="plain-list" aria-label="Execution runtimes">
+    {% for runtime in runtime_catalog.runtimes %}
+    <div class="list-row"><div>
+      <strong>{{ runtime.title }}</strong>
+      <div class="tags">
+        <span class="tag mono">{{ runtime.id }}</span>
+        <span class="chip {% if runtime.status == 'implemented' %}st-succeeded{% elif runtime.status in ('experimental', 'documented') %}st-waiting_approval{% else %}st-failed{% endif %}">{{ runtime.status }}</span>
+        {% if runtime.enabled %}<span class="tag">selectable</span>{% else %}<span class="tag">not selectable</span>{% endif %}
+        {% if runtime.usage_reservation %}<span class="chip st-succeeded">reserves usage</span>{% else %}<span class="chip st-stopped">no usage reservation</span>{% endif %}
+        {% if runtime.cli %}{% if runtime.cli.installed %}<span class="chip st-succeeded">CLI installed</span>{% if runtime.cli.version %}<span class="tag mono">{{ runtime.cli.version }}</span>{% endif %}{% else %}<span class="chip st-stopped">CLI not installed</span>{% endif %}{% endif %}
+      </div>
+      <p class="hint">{{ runtime.permission_boundary }}</p>
+    </div></div>
+    {% endfor %}
   </div>
 </section>
 

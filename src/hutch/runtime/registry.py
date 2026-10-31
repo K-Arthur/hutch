@@ -12,6 +12,7 @@ for persisted Bot documents; this module is descriptive and is used by server/AP
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -113,6 +114,19 @@ def enabled() -> tuple[RuntimeDescriptor, ...]:
     return tuple(item for item in RUNTIMES if item.id in ENABLED_RUNTIME_IDS)
 
 
+_VERSION_TEXT = re.compile(r"^[A-Za-z0-9._:+ -]{1,40}$")
+
+
+def _clean_version(line: str) -> str:
+    """A short version token only. A CLI that prints an error, a path or a stack line reports no version."""
+    text = " ".join(str(line or "").split())
+    if not text or len(text) > 40 or not _VERSION_TEXT.fullmatch(text):
+        return ""
+    if any(char.isdigit() for char in text) and ("/" not in text and "\\" not in text):
+        return text
+    return ""
+
+
 def _version_runner(binary: str, timeout: float = 2.0) -> dict:
     """Run only --version, with a bounded timeout and no inherited provider environment.
 
@@ -129,7 +143,7 @@ def _version_runner(binary: str, timeout: float = 2.0) -> dict:
     except (OSError, subprocess.SubprocessError) as exc:
         return {"installed": True, "version": "", "error": type(exc).__name__}
     text = (completed.stdout or completed.stderr or "").strip().splitlines()
-    version = text[0][:120] if text else ""
+    version = _clean_version(text[0] if text else "")
     return {"installed": True, "version": version, "error": ""}
 
 
@@ -143,7 +157,10 @@ def detect_installed_clis(*, finder: Callable[[str], Optional[str]] = shutil.whi
         path = finder(item.cli_binary)
         out[item.id] = {"binary": item.cli_binary, "installed": bool(path)}
         if path:
-            out[item.id].update(runner(path))
+            detected = runner(path)
+            out[item.id]["installed"] = bool(detected.get("installed", True))
+            out[item.id]["version"] = _clean_version(detected.get("version", ""))
+            out[item.id]["error"] = str(detected.get("error", ""))[:80]
     return out
 
 
