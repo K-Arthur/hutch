@@ -162,6 +162,7 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .response-style-depth-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .response-style-preview-note { margin-top: var(--space-8); color: var(--color-semantic-text-3); font-size: var(--text-size-xs); line-height: 1.7; }
 .review-flow { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: var(--space-5); margin-bottom: var(--space-8); }
+.review-flow-pair { grid-template-columns: repeat(2, minmax(0,1fr)); }
 .review-flow article { min-width: 0; padding: var(--space-6); border: 1px solid var(--color-semantic-border); border-radius: var(--radius-panel); background: var(--color-semantic-surface); }
 .review-flow-heading { align-items: flex-start; }
 .review-flow-icon { display: grid; place-items: center; width: 32px; height: 32px; flex: none; color: var(--color-semantic-brand); }

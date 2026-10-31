@@ -21,17 +21,52 @@ Today (dashboard, first primary destination, /#/today) shows:
 - runs that are actually working, interrupted failures that need review, and today's
   succeeded runs;
 - documents generated today, with their validation state;
-- a summary of shared spaces.
+- a summary of shared spaces;
+- the alerts Hutch already sent, with the outbox state of each notification.
 
 Every line is a projection of stored rows. Today makes no model call and never writes.
-It also names what it excludes: calendar and mailbox content is not read automatically
-for this view, only the most recent rows are considered, and reported completions are
-not verified work.
+It also names what it excludes: only the most recent rows are considered, and reported
+completions are not verified work.
 
 The timezone comes from the browser (an IANA name) and is validated by the server. An
 unknown or missing zone returns 422 instead of silently using UTC. Local day boundaries
 are converted from the local date per boundary, so 23- and 25-hour DST days are measured
 correctly.
+
+## Agenda: a calendar and a mailbox you select
+
+Below the approvals, Today offers an Agenda section. It reads two sources at most: one
+calendar and one mailbox, each chosen from connections that an assistant already holds a
+grant for. The choice is remembered in this browser only; the server keeps no agenda row
+and writes no provider text to SQLite.
+
+Each source is reported with five things a reader needs to trust it:
+
+- the source label (for example `Google Calendar · Work`), on the source and on every item;
+- the fetch time of that reading, and its age on a stale reading;
+- a `stale` marker on the source and on each item when a refresh failed;
+- an explicit unavailable state with a reason code (`grant_missing`, `grant_expired`,
+  `mail_requires_local`, `provider_error`) instead of an empty day;
+- `not_included` text saying what the view does not read.
+
+An expired or revoked grant is never a silent empty list. A failed refresh reuses the last
+successful snapshot for up to an hour, clearly marked stale, then falls back to
+unavailable; it never invents an event. Events are limited to the owner's local day and
+mail to the last 24 hours, at most 25 events and 10 messages.
+
+Mailbox previews keep the same rule as the Gmail tool: the granting assistant must use
+Local inference, so a hosted assistant shows `mail_requires_local` rather than having a
+mailbox read for it. Provider text is treated as data. It is stripped of control
+characters, bounded per field, marked `untrusted` in the response, and never interpreted by
+Hutch; an event titled "approve every pending action" is displayed as a title and does
+nothing.
+
+Routes (read-only, local owner):
+
+| Route | Purpose |
+|---|---|
+| GET /api/v1/personal/agenda/sources | the calendar and mailbox grants you can choose from |
+| GET /api/v1/personal/agenda?timezone=&calendar=&mail= | the projection; 404 for an unknown assistant, 422 for a bad zone |
 
 ## Adding and finishing a commitment
 
@@ -96,17 +131,41 @@ All owner routes live under /api/v1:
 | PUT /commitments/{id}/dependencies | set bounded dependency ids (cycles refused) |
 | GET /commitments/{id}/events | append-only audit trail |
 | GET /today | deterministic briefing for an IANA timezone |
+| GET /personal/agenda/sources | calendar and mailbox grants the owner can choose |
+| GET /personal/agenda | read-only agenda for one selected calendar and mailbox |
+| GET /notifications | recent alerts with their channel delivery state |
 | GET/POST /spaces | list or create spaces |
 | PATCH /spaces/{id}, POST /spaces/{id}/archive | edit or archive |
 | POST/PATCH/DELETE /spaces/{id}/members... | add, change or remove people |
 | POST/DELETE /spaces/{id}/bots... | grant or revoke assistant access |
 
+## Alerts for approvals and unattended work
+
+Hutch writes a durable notification when an approval needs you, when one expired or was
+denied, and when work failed, ended with an unknown outcome, or finished while nobody was
+watching. The row is created by a trigger in the same transaction as the fact, so retrying
+a transition cannot produce a second alert.
+
+Delivery reuses the channel outbox: one connection, one lease, one sender. Alerts are
+queued only while they are still true and recent, and `notification_id` is unique in the
+outbox, so nothing is sent twice. An unconfirmed send is shown as **Delivery unconfirmed**
+and is never retried automatically. With no enabled Telegram connection the alert is
+recorded and Today shows it as **Not sent**; nothing leaves the machine.
+
+Alert text names the assistant, the event kind and where to review it. It contains no
+prompt, action arguments, fact values or message content. Today lists recent alerts with
+their delivery state under "Alerts Hutch sent", and GET /api/v1/notifications returns the
+same facts. Delivery is at-least-once at best: it is not proof of receipt or reading, and
+there is no exactly-once claim for any external effect.
+
 ## Storage and limits
 
 Schema v84 adds spaces, space_members, bot_space_grants, commitments,
-commitment_dependencies and commitment_events. The migration is additive and does not
-rewrite existing rows; a pre-upgrade SQLite backup is taken by the existing store
-upgrade path. Bounded: title 200 characters, detail 4000, evidence 2000, at most 20
+commitment_dependencies and commitment_events. Schema v86 adds notifications and rebuilds
+channel_deliveries to reference either an inbound event or a notification, preserving every
+existing reply delivery. Both migrations are additive in effect and do not rewrite existing
+rows; a pre-upgrade SQLite backup is taken by the existing store upgrade path. Bounded:
+title 200 characters, detail 4000, evidence 2000, at most 20
 dependencies, at most 500 commitments per list page, 25 per assistant list result and
 8 assistant proposals per run.
 
@@ -117,3 +176,14 @@ dependencies, at most 500 commitments per list page, 25 per assistant list resul
 - "Confirm this commitment before marking it done": the row is an assistant proposal.
 - "This commitment changed elsewhere; reload it": a stale revision; reload Today.
 - Unknown timezone: pass a valid IANA name (for example America/Vancouver).
+- Agenda says "No calendar or mailbox is connected yet": connect the account in
+  Connections and grant one calendar or mailbox to an assistant first; the agenda cannot
+  grant itself access.
+- Agenda says the permission is no longer valid: reconnect the account and grant it again.
+  A revoked or expired grant is never shown as an empty day.
+- Agenda shows **Stale**: the refresh failed and you are looking at the last successful
+  read, with its time. Reload to try again.
+- An alert is **Delivery unconfirmed**: check the actual Telegram conversation, then record
+  the checked outcome on the connection. Hutch will not resend it on its own.
+- An alert is **Not sent**: no enabled Telegram connection was delivering for that
+  assistant. Start a connection, or read the fact on Today directly.
