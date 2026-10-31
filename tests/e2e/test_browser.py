@@ -7123,7 +7123,7 @@ def test_server_page_navigation_uses_the_shared_sidebar(browser, live, tmp_path)
     toggle = page.locator("#nav-toggle")
     expected_links = {
         "/#/chat", "/#/tasks", "/#/approvals", "/#/activity", "/#/schedules",
-        "/#/skills", "/#/catalog", "/models", "/usage", "/#/runtime"}   # no "/#/bots": the manager is offered from ten assistants
+        "/#/catalog", "/models", "/usage", "/#/runtime"}   # no "/#/bots": the manager is offered from ten assistants
     try:
         for label, width, height in (("desktop", 1440, 960), ("narrow-desktop", 1366, 900),
                                      ("tablet", 900, 1024), ("phone", 390, 844),
@@ -7132,7 +7132,7 @@ def test_server_page_navigation_uses_the_shared_sidebar(browser, live, tmp_path)
             header = page.evaluate("() => document.querySelector('.app-top').getBoundingClientRect().height")
             assert header == 56, (label, header)      # stable height on every route/viewport
             links = nav.locator("a")
-            assert links.count() == 10
+            assert links.count() == 9
             assert {links.nth(i).get_attribute("href") for i in range(links.count())} == expected_links
             if width > 900:
                 assert rail.is_visible() and not rail.evaluate("el => el.inert")
@@ -7193,7 +7193,7 @@ def test_server_page_navigation_uses_the_shared_sidebar(browser, live, tmp_path)
                 nojs.goto(base + path, wait_until="domcontentloaded")
                 visible = nojs.evaluate("() => [...document.querySelectorAll('#primary-nav a')]"
                                         ".filter(a => { const r = a.getBoundingClientRect(); return r.width && r.height; }).length")
-                assert visible == 10, (path, visible)   # Assistants is offered from ten assistants
+                assert visible == 9, (path, visible)   # Assistants is offered from ten assistants
                 assert nojs.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, path
             assert not nojs.locator("#nav-toggle").is_visible()
         finally:

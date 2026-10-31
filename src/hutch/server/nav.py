@@ -17,7 +17,6 @@ PRIMARY = (
 MORE = (
     ("activity", "/#/activity", "Activity", "clock"),
     ("schedules", "/#/schedules", "Scheduled work", "calendar"),
-    ("skills", "/#/skills", "Skills", "file"),
     ("catalog", "/#/catalog", "Catalog", "layers"),
     ("models", "/models", "Models", "cpu"),
     ("usage", "/usage", "Usage", "chart"),

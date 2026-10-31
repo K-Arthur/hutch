@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from hutch import catalog
-from hutch.catalog import CatalogError, load_directory, parse_manifest
+from hutch.catalog import CatalogError, bundled, load_directory, parse_manifest
 from hutch.templates import TEMPLATE_INFO, TEMPLATES, gallery, instantiate
 
 # sha256 of [Bot dump without id/timestamps, gallery facts] for each preset, from the code that shipped them
@@ -110,3 +110,10 @@ def test_a_bad_file_becomes_a_diagnostic_not_a_crash(tmp_path):
     loaded = load_directory(tmp_path, "yours")
     assert [item.entry.id for item in loaded.entries] == ["day-planner"]
     assert len(loaded.diagnostics) == 3 and any("duplicate" in line for line in loaded.diagnostics)
+
+
+def test_a_catalog_view_name_cannot_be_an_entry_id():
+    manifest = next(item.entry for item in bundled().entries if item.entry.id == "day-planner").model_dump(mode="json")
+    manifest["id"] = "skills"
+    with pytest.raises(CatalogError, match="name of a catalog view"):
+        parse_manifest(manifest)

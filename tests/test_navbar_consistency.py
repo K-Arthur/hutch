@@ -203,11 +203,11 @@ def test_command_palette_destinations_are_the_nav_labels():
     text = (ROOT / "src" / "hutch" / "server" / "static" / "palette.js").read_text(encoding="utf-8")
     labels = set(re.findall(r'nav\("([^"]+)"', text))
     labels |= set(re.findall(r'kind: "Go to", label: "([^"]+)"', text))
-    shortcuts = {label for label in labels if label.startswith("Activity: ")}
+    shortcuts = {label for label in labels if label.startswith(("Activity: ", "Catalog: "))}
     destinations = labels - shortcuts
     expected = {label for group in (PRIMARY, MORE, FOOT) for _key, _href, label, _icon in group}
     assert destinations == expected, (sorted(destinations - expected), sorted(expected - destinations))
-    assert shortcuts == {"Activity: History", "Activity: Conversations"}
+    assert shortcuts == {"Activity: History", "Activity: Conversations", "Catalog: Skills"}
 
 
 def test_nested_and_destructive_routes_map_to_a_primary_destination():

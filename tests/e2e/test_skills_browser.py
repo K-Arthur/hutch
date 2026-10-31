@@ -86,7 +86,8 @@ def test_skills_library_review_inspect_and_trust(browser, live, tmp_path):
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(base + "/#/skills")
-        page.get_by_role("heading", name="Skills", exact=True).wait_for()
+        page.locator("#skills-import-path").wait_for()
+        assert page.get_by_role("link", name="Skills", exact=True).get_attribute("aria-current") == "page"
         card = page.locator('[data-skill="workspace-summary"]')
         card.wait_for()
         assert "Needs review" in card.inner_text()
@@ -128,7 +129,8 @@ def test_skills_library_shows_invalid_candidates_instead_of_hiding_them(browser,
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(base + "/#/skills")
-        page.get_by_role("heading", name="Skills", exact=True).wait_for()
+        page.locator("#skills-import-path").wait_for()
+        assert page.get_by_role("link", name="Skills", exact=True).get_attribute("aria-current") == "page"
         body = page.locator("#skills-body")
         body.get_by_text("broken-skill", exact=True).first.wait_for()
         assert "Invalid" in body.inner_text()

@@ -8,7 +8,7 @@ and Chromium 153, every destination captured at 1440 and 360 px with its visible
 read of the code behind each. Console and page errors across all 17 captures at both widths: none.
 
 Status words: **done** (changed and tested in this run), **recommended** (clear case, not yet changed),
-**decision** (changes the information architecture the product spine fixed; waits for the owner).
+**decision** (a product judgement about the orchestrator model; waits for the owner).
 
 ## 1. Verdict per page
 
@@ -22,7 +22,7 @@ Status words: **done** (changed and tested in this run), **recommended** (clear 
 | Activity > Conversations | Find a chat | Works | One search, three scopes. |
 | Scheduled work | What recurs | Works | Honest empty state with one action. Third copy of schedule management: the assistant's Schedule tab and Runtime's "Queue and automation". **Decision** D3. |
 | Runtime | Is this machine ready | Mixed | Machine/service/instance facts plus automation (watched sources, multi-step jobs, queue). The background-service offer appears on **three** surfaces (first-run setup check, Settings > Installation, this page). **Decision** D3. |
-| Skills | What can my assistants learn | Truthful gap | "Available to install (10)" were the person's own skills from `~/.claude/skills` and `~/.agents/skills`, labelled only `user`. **Done:** the section now reads "Found on this computer", names the folders Hutch looks in and shows each skill's path. Second store beside Catalog with the same trust model. **Decision** D1. |
+| Skills | What can my assistants learn | Truthful gap, merged | "Available to install (10)" were the person's own skills from `~/.claude/skills` and `~/.agents/skills`, labelled only `user`. **Done:** the section now reads "Found on this computer", names the folders Hutch looks in and shows each skill's path. It was a second store beside Catalog with the same trust model. **Done (D1):** it is now the *Skills* view of the Catalog; `#/skills` redirects. |
 | Catalog | Where do I get a ready-made assistant | Works | Publisher, version, hash and permissions on every entry; creating a copy goes through the normal setup review. |
 | Models | Which service is ready, which assistant uses what | Fixed earlier | One default writer (Settings), no duplicate add form, advanced routing collapsed and open when configured. |
 | Usage | Where did tokens and money go | Works | Owns spend and budgets. Cost also appears in Activity's accordion and Models' price table. **Recommended:** Usage owns it; the others link. |
@@ -36,16 +36,17 @@ Ten sidebar destinations is more than the product has distinct questions. Overla
 
 | # | Overlap | Evidence | Proposal | Status |
 |---|---|---|---|---|
-| D1 | **Skills and Catalog are two stores** | Both discover from folders, both hash-pin, both stay inert until reviewed and trusted, both install "from a local folder". Two top-level rows, two vocabularies ("Install" vs "Create a copy"). | One **Catalog** destination with views *Assistants* and *Skills* (the Activity tab pattern: a views list, one tab strip, legacy hashes redirected). `#/skills` keeps working as a redirect. | **decision** |
+| D1 | **Skills and Catalog are two stores** | Both discover from folders, both hash-pin, both stay inert until reviewed and trusted, both install "from a local folder". Two top-level rows, two vocabularies ("Install" vs "Create a copy"). | One **Catalog** destination with views *Assistants* and *Skills* (the Activity tab pattern: a views list, one tab strip, legacy hashes redirected). `#/skills` keeps working as a redirect; the id `skills` is reserved so no catalog entry can shadow the view. | **done** (`tests/e2e/test_skills_browser.py`, `test_page_titles.py`, `test_fresh_state_routes.py`, `tests/test_navbar_consistency.py`, `tests/test_catalog.py`) |
 | D2 | **Tasks, Needs you and Activity are three views of work** | Tasks = delegated assignments; Needs you = approvals; Activity Now = running plus needs-you plus failures. | Activity gets a *Tasks* view; the sidebar "Needs you" row stays as the quick drawer but lists the same set as Activity's section. | **decision** |
 | D3 | **Runtime, Scheduled work and Settings > Installation** | Background-service offer on three surfaces; automation split between Runtime and Scheduled work. | *Scheduled work* absorbs watched sources, multi-step jobs and the queue ("Automation"); machine and service health moves under Settings > Installation next to the setup check; Runtime row retires. | **decision** |
 | D4 | **Cost in three places** | Usage page, Activity accordion, Models price table. | Usage owns it; Activity and Models link. | **recommended** |
 | D5 | **Models and Apps & AI both say "add or repair a service"** | Models now links to Apps & AI for that. | Keep both: Models answers "which assistant uses what", Apps & AI holds accounts and keys. Revisit only if Models stays read-only. | no change |
 
-Net effect if D1 to D3 are accepted: ten destinations become seven (Chat, Needs you, Activity, Catalog,
-Automation, Models, Usage), with Apps & AI and Settings in the footer. They are reversible tab merges using
-a pattern already shipped for Activity, but each touches the nav model, the palette, page titles and about
-a dozen pinned tests, so they are held for an explicit yes rather than slipped into a release-candidate run.
+Net effect so far: ten sidebar destinations became nine (D1). If D2 and D3 are accepted they become seven
+(Chat, Needs you, Activity, Catalog, Automation, Models, Usage), with Apps & AI and Settings in the footer.
+D1 was a clear case (one trust model, two stores) and reused the tab pattern Activity already ships. D2 and D3
+change what the main assistant's Tasks board and the machine-health page are, which is a product judgement
+about the orchestrator model, so they wait for the owner.
 
 ## 3. Selecting a model and creating an assistant (owner request)
 

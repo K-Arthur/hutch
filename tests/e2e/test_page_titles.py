@@ -24,7 +24,7 @@ TITLE = re.compile(r"^[^—]+ — Hutch$")
 DESTINATIONS = {
     "#/chat": "chat", "#/tasks": "tasks", "#/activity": "activity", "#/activity/history": "activity",
     "#/activity/conversations": "activity", "#/overview": "activity", "#/runs": "activity", "#/chats": "activity",
-    "#/schedules": "schedules", "#/runtime": "runtime", "#/skills": "skills", "#/catalog": "catalog",
+    "#/schedules": "schedules", "#/runtime": "runtime", "#/skills": "catalog", "#/catalog": "catalog",
     "#/bots": "bots", "#/connections": "connections", "#/settings": "settings",
 }
 
@@ -81,8 +81,8 @@ def test_title_follows_navigation_and_names_the_assistant(browser, base):
     try:
         assert page.title() == f"{_label('tasks')} — Hutch"
         page.evaluate("location.hash = '#/skills'")
-        wait_for_page(page, "document.title.startsWith('Skills')")
-        assert page.title() == f"{_label('skills')} — Hutch"
+        wait_for_page(page, "document.title.startsWith('Catalog')")
+        assert page.title() == f"{_label('catalog')} — Hutch"      # Skills is a view of the Catalog
         page.evaluate("location.hash = '#/chat/title-check'")
         wait_for_page(page, "document.title.startsWith('Title Check')")
         assert page.title() == "Title Check — Hutch"

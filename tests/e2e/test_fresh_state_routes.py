@@ -31,7 +31,7 @@ ROUTES = (
     ("activity-conversations", "/#/activity/conversations", "Activity"),
     ("schedules", "/#/schedules", "Scheduled work"),
     ("runtime", "/#/runtime", "Runtime"),
-    ("skills", "/#/skills", "Skills"),
+    ("skills", "/#/skills", "Catalog"),   # a view of the Catalog; the old hash redirects
     ("catalog", "/#/catalog", "Catalog"),
     ("models", "/models", "Models"),
     ("usage", "/usage", "Usage"),

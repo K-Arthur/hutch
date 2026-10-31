@@ -80,6 +80,7 @@ def test_a_new_problem_after_a_review_appears_once(client):
 
 def test_a_ghost_live_row_is_listed_but_never_deleted(client):
     store = client.app.state.store
+    client.app.state.engine.recover_orphans = lambda *args, **kwargs: []   # the review lists the row; recovery is a separate act
     bot = store.create_bot(Bot(name="tidy-downloads", model="ollama/llama3.2:3b", tools=[]))
     store.set_workspace_coordinator(bot.id)
     run = store.create_run(Run(bot_id=bot.id, prompt="sort the downloads", status=RunStatus.cancelling,

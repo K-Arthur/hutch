@@ -25,6 +25,7 @@ FORMAT = "hutch.catalog/1"
 BUNDLED_DIR = Path(__file__).parent / "data" / "catalog"
 MAX_MANIFEST_BYTES = 64 * 1024
 _ID = r"^[a-z0-9][a-z0-9-]{1,40}$"
+RESERVED_IDS = frozenset({"skills"})      # `#/catalog/skills` is a view of the destination, not an entry
 _VERSION = r"^\d+\.\d+\.\d+$"
 
 
@@ -72,6 +73,13 @@ class CatalogEntry(_Strict):
     needs_folder: bool
     publisher: str = Field(min_length=1, max_length=60)
     assistant: AssistantSpec
+
+    @field_validator("id")
+    @classmethod
+    def _not_a_view_name(cls, value: str) -> str:
+        if value in RESERVED_IDS:
+            raise ValueError(f"{value} is the name of a catalog view, so an entry cannot use it")
+        return value
 
 
 @dataclass(frozen=True)

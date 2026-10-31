@@ -1897,7 +1897,7 @@ const routes = [
   [/^#\/runtime$/, renderRuntime, "runtime"],
   [/^#\/bots$/, renderBots, "bots"],
   [/^#\/activity\/history(?:\?(.*))?$/, m => renderRuns(m ? m[1] : ""), "activity"],
-  [/^#\/skills$/, () => window.hutchSkills.renderSkillsPage(), "skills"],
+  [/^#\/skills$/, () => { history.replaceState(null, "", "#/catalog/skills"); return window.hutchCatalog.render("skills"); }, "catalog"],
   [/^#\/tasks$/, () => window.hutchTasks.renderTasksPage(), "tasks"],
   [/^#\/catalog(?:\/([\w-]+))?$/, m => window.hutchCatalog.render(m ? m[1] : null), "catalog"],
   [/^#\/approvals$/, renderApprovals, "chat"],
@@ -2213,7 +2213,7 @@ async function route(announce = false) {
         if (isActive) a.setAttribute("aria-current", "page");
         else a.removeAttribute("aria-current");
       });
-      if (["activity", "schedules", "bots", "runtime", "skills", "catalog"].includes(nav)) {
+      if (["activity", "schedules", "bots", "runtime", "catalog"].includes(nav)) {
         $("#monitor-nav").open = true;
       }
       document.title = hutchTitle.pageTitle(routeTitle(hash));

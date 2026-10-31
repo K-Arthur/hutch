@@ -32,9 +32,19 @@
     return cached;
   }
 
-  function header() {
+  // One place to get things: assistants and skills are both reviewed, hash-pinned and inert until trusted.
+  // The strip reuses the Activity tab styling (plain links, each view deep-linkable).
+  const VIEWS = [{ key: "assistants", label: "Assistants", hash: "#/catalog" }, { key: "skills", label: "Skills", hash: "#/catalog/skills" }];
+  const ABOUT = { assistants: "Reviewed starters from Hutch, and the assistants you can share", skills: "Reusable instruction packages for your assistants" };
+
+  function tabs(key) {
+    return '<nav class="activity-tabs" aria-label="Catalog views">' + VIEWS.map(view => '<a href="' + view.hash + '"'
+      + (view.key === key ? ' aria-current="page"' : "") + ">" + view.label + "</a>").join("") + "</nav>";
+  }
+
+  function header(key = "assistants") {
     setHeader('<div class="ctx-id"><div class="ctx-heading"><h1>Catalog</h1>'
-      + '<span class="ctx-subtitle">Reviewed starters From Hutch, and the assistants you can share</span></div></div>');
+      + '<span class="ctx-subtitle">' + ABOUT[key] + '</span></div></div>');
   }
 
   function toolChips(permissions) {
@@ -60,7 +70,7 @@
   function listMarkup(data) {
     const entries = data.bundled.entries || [];
     const cards = entries.map(entryCard).join("");
-    return '<div class="page-scroll"><div class="container catalog-page">'
+    return '<div class="page-scroll"><div class="container catalog-page">' + tabs("assistants")
       + '<p class="page-subtitle">Ready-made assistants are reviewed data, not built-ins: each one carries its publisher,'
       + ' version and content hash. Creating a copy opens the normal setup review and only that separate action saves it.</p>'
       + '<div class="catalog-search-row"><label class="hutch-label" for="catalog-search">Search</label>'
@@ -192,6 +202,10 @@
   }
 
   async function render(capture) {
+    if (capture === "skills") {                       // a view of this destination, not an assistant entry
+      header("skills");
+      return window.hutchSkills.renderSkillsPage({ tabs: tabs("skills") });
+    }
     header();
     const root = page();
     if (!root) return;
