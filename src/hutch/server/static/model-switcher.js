@@ -99,15 +99,15 @@
       onOpen: () => { keyOf.clear(); renderMenu(); void refresh({ discover: true }); } });
 
     function paintButton() {
-      const spec = active();
-      const m = find(spec);
-      const custom = spec !== data.default;
-      label.textContent = bot.route_problem && spec === bot.model ? "Choose a model" : m ? m.label : shortName(spec);
-      slot.querySelector(".ms-route-icon").innerHTML = markHtml(spec, m ? m.hosted : null);
+      const spec = active(), m = find(spec);
+      const unset = !!bot.route_problem && spec === bot.model, custom = !unset && spec !== data.default;   // an unusable saved route names nothing
+      label.textContent = unset ? "Choose a model" : m ? m.label : shortName(spec);
+      slot.querySelector(".ms-route-icon").innerHTML = unset ? ico("chip", 16) : markHtml(spec, m ? m.hosted : null);
       btn.classList.toggle("is-custom", custom);
-      btn.title = custom ? `One-message override: ${spec}. The assistant default stays ${data.default}; this override clears after the next message is accepted.`
+      btn.title = unset ? "No model is set for this assistant yet. Choose one to send a message."
+        : custom ? `One-message override: ${spec}. The assistant default stays ${data.default}; this override clears after the next message is accepted.`
                          : `Model: ${spec} (this assistant's default). Choose another route for one message or save it as the assistant default.`;
-      btn.setAttribute("aria-label", custom
+      btn.setAttribute("aria-label", unset ? "No model is set. Choose a model." : custom
         ? `Model: ${m ? m.label : shortName(spec)}. One-message override for this conversation; assistant default is ${shortName(data.default)}. Change model.`
         : `Model: ${m ? m.label : shortName(spec)}. Assistant default. Change model.`);
     }

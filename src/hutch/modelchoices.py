@@ -25,6 +25,7 @@ from .fit import estimate_fit
 from .hardware import Hardware, probe
 from .models import Bot, RuntimeKind
 from .providers.pricing import LOCAL_PROVIDERS, PriceBook
+from .route_problem import route_problem
 from .providers.registry import is_local, parse_spec
 
 HOSTED_KEYS = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
@@ -316,19 +317,14 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
     from .estimate import RunEstimator
     est = RunEstimator(config, store, bot)
     choices: list[Choice] = []
+    unusable = route_problem(bot)    # no route, a retired demo route or a malformed one: it is not offered as a model at all
     own_local = is_local(bot.model) if bot.model else False
-    retired_fixture = bot.model.startswith("mock/")
-    own_hosted = bool(bot.model) and not own_local and not retired_fixture
-    own = Choice(spec=bot.model, label=short_label(bot.model) if bot.model else "Choose a model",
-                 group="This bot", state="setup" if not bot.model or retired_fixture else "ready",
-                 default=True, hosted=own_hosted,
-                 note=("no model route is configured" if not bot.model else
-                       "legacy test route; choose a real model" if retired_fixture else
-                       "this bot's own model" if own_local else "this bot's own hosted model route"),
-                 fix="Choose a configured Ollama, OpenAI, Anthropic, or compatible route" if not bot.model or retired_fixture else "",
+    own_hosted = bool(bot.model) and not own_local and not unusable
+    own = Choice(spec=bot.model, label=short_label(bot.model), group="This bot", state="ready", default=True,
+                 hosted=own_hosted, note="this bot's own model" if own_local else "this bot's own hosted model route",
                  detail=["this route sends the chat to a hosted model service"] if own_hosted else [])
-    choices.append(own)
-    seen = {bot.model}
+    choices.extend([] if unusable else [own])
+    seen = set() if unusable else {bot.model}
     allow_hosted_discovery = discover_hosted_models and bot.inference_mode.value not in ("local", "offline")
     opencode = (_opencode_choices(config, bot)
                 if bot.runtime is RuntimeKind.opencode and allow_hosted_discovery else [])

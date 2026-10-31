@@ -10774,8 +10774,8 @@ def test_model_picker_details_scope_and_small_positive_prices(browser, switcher_
         context.close()
 
 
-def test_retired_mock_route_is_visibly_unavailable_in_the_model_picker(browser, live):
-    """A migrated legacy row stays inspectable, but is never presented as a runnable model."""
+def test_retired_mock_route_is_never_offered_in_the_model_picker(browser, live):
+    """A migrated legacy row stays inspectable, but its dead route is not a model anywhere in the picker."""
     base, app = live
     app.state.store.create_bot(Bot(name="legacy-mock", model="mock/demo", tools=[]))
     page = browser.new_page(viewport={"width": 1280, "height": 800}, reduced_motion="reduce")
@@ -10783,20 +10783,15 @@ def test_retired_mock_route_is_visibly_unavailable_in_the_model_picker(browser, 
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(f"{base}/#/chat/legacy-mock")
-        page.locator(".ms-btn").wait_for()
-        page.locator(".ms-btn").click()
-        own = page.locator('.ms-item[data-spec="mock/demo"]')
-        own.wait_for(state="visible")
-        assert "legacy test route; choose a real model" in own.inner_text()
-        assert own.get_attribute("aria-checked") == "true"
+        chip = page.locator(".ms-btn")
+        chip.wait_for()
+        assert "Choose a model" in chip.inner_text() and "demo" not in (chip.get_attribute("title") or "").lower()
+        assert "demo" not in (chip.get_attribute("aria-label") or "").lower() and "No model is set" in chip.get_attribute("aria-label")
+        chip.click()
         page.locator(".ms-more").click()
-        row = page.locator('.ms-row:has(input[name="ms-pick"][value="mock/demo"])')
-        row.wait_for(state="visible")
-        assert "needs setup" in row.inner_text()
-        assert page.locator('input[name="ms-pick"][value="mock/demo"]').is_disabled()
-        assert "Choose a configured Ollama, OpenAI, Anthropic, or compatible route" in row.inner_text()
-        assert "leaves this machine" not in row.inner_text(), "a retired mock has no hosted destination"
-        page.screenshot(path="/tmp/hutch-legacy-mock-picker.png", animations="disabled")
+        page.locator(".ms-row").first.wait_for(state="visible")
+        assert page.locator('.ms-item[data-spec="mock/demo"], input[name="ms-pick"][value="mock/demo"]').count() == 0
+        assert "legacy test route" not in page.locator("body").inner_text()
         assert not errors, errors
     finally:
         page.close()
