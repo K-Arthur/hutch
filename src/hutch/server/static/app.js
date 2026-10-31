@@ -1899,6 +1899,7 @@ const routes = [
   [/^#\/activity\/history(?:\?(.*))?$/, m => renderRuns(m ? m[1] : ""), "activity"],
   [/^#\/skills$/, () => window.hutchSkills.renderSkillsPage(), "skills"],
   [/^#\/tasks$/, () => window.hutchTasks.renderTasksPage(), "tasks"],
+  [/^#\/catalog(?:\/([\w-]+))?$/, m => window.hutchCatalog.render(m ? m[1] : null), "catalog"],
   [/^#\/approvals$/, renderApprovals, "chat"],
   [/^#\/connections(?:\?.*)?$/, renderConnections, "connections"],
   [/^#\/bot\/([\w-]+)$/, m => renderBotDetail(decodeURIComponent(m[1])), "chat"],
@@ -2205,7 +2206,7 @@ async function route(announce = false) {
         if (isActive) a.setAttribute("aria-current", "page");
         else a.removeAttribute("aria-current");
       });
-      if (["activity", "schedules", "bots", "runtime", "skills"].includes(nav)) {
+      if (["activity", "schedules", "bots", "runtime", "skills", "catalog"].includes(nav)) {
         $("#monitor-nav").open = true;
       }
       document.title = hutchTitle.pageTitle(routeTitle(hash));
@@ -11972,9 +11973,10 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     modelSuggestionSource = "import";
     const addressInUse = occupiedAddresses.has(draft.name);
     draft.yamlImportExpanded = true;
+    const sourceLabel = config.catalog_template ? "Catalog template" : "YAML";
     draft.yamlImportStatus = addressInUse
-      ? "YAML validated. This assistant address is already in use; change it in Review or change the address before creating. Nothing has been saved."
-      : "YAML validated and copied into this unsaved draft. Review each step; no assistant or run has been created.";
+      ? `${sourceLabel} validated. This assistant address is already in use; change it in Review or change the address before creating. Nothing has been saved.`
+      : `${sourceLabel} validated and copied into this unsaved draft. Review each step; no assistant or run has been created.`;
   };
   const refreshContextCount = () => {
     const node = $("#setup-context-count");
@@ -12253,10 +12255,10 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         ${draft.forceAdvanced ? `<p class="setup-assistant">Only this request and earlier user messages you select are included in this assistant draft. Assistant replies and other chats stay private; selected text cannot change tools, accounts or permissions.</p>` : ""}`
         : ""}
       ${draft.forceAdvanced ? `<details class="setup-schedule setup-yaml-import" id="setup-yaml-import-details" ${draft.yamlImportExpanded ? "open" : ""}>
-        <summary>Load a saved YAML setup</summary>
-        <p class="hint">A validated file fills this unsaved draft. Review the name, model, tools, schedule, limits and permissions across all steps; only the separate <b>Create assistant</b> action saves it.</p>
-        <button type="button" class="btn small" id="setup-yaml-import-button">Choose YAML file</button>
-        <input id="setup-yaml-file" type="file" accept=".yaml,.yml,application/yaml,text/yaml" hidden>
+        <summary>Load a saved template</summary>
+        <p class="hint">A validated YAML setup or catalog template (JSON) fills this unsaved draft. Review the name, model, tools, schedule, limits and permissions across all steps; only the separate <b>Create assistant</b> action saves it.</p>
+        <button type="button" class="btn small" id="setup-yaml-import-button">Choose file</button>
+        <input id="setup-yaml-file" type="file" accept=".yaml,.yml,.json,application/yaml,text/yaml,application/json" hidden>
         <p class="hint" id="setup-yaml-import-status" role="status" aria-live="polite">${esc(draft.yamlImportStatus || "")}</p>
       </details>` : ""}
       ${(draft.forceAdvanced && conversationSource?.context_candidates || []).length ? `<details class="setup-schedule" id="setup-context-picker" ${draft.selectedContextMessageIds.size ? "open" : ""}>
@@ -12434,24 +12436,30 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       const status = $("#setup-yaml-import-status");
       if (!file) return;
       if (file.size > 65_536) {
-        if (status) status.textContent = "Choose a YAML file no larger than 64 KiB.";
+        if (status) status.textContent = "Choose a file no larger than 64 KiB.";
         input.value = "";
         return;
       }
       const choose = $("#setup-yaml-import-button");
       if (choose) choose.disabled = true;
-      if (status) status.textContent = "Checking the YAML file; nothing will be saved yet…";
+      const isCatalogTemplate = /\.json$/i.test(file.name);
+      if (status) status.textContent = isCatalogTemplate
+        ? "Checking the catalog template; nothing will be saved yet…"
+        : "Checking the YAML file; nothing will be saved yet…";
       try {
-        const result = await api("/v1/bot-configs/import", { method: "POST", body: { yaml: await file.text() } });
+        const text = await file.text();
+        const result = isCatalogTemplate
+          ? await api("/v1/catalog/import-draft", { method: "POST", body: { manifest: JSON.parse(text) } })
+          : await api("/v1/bot-configs/import", { method: "POST", body: { yaml: text } });
         if (result.configuration.local_browser_handoff && !browserHandoffReady) {
           throw new Error(`This file enables browser handoff, which is unavailable here: ${browserHandoffCapability.reason}`);
         }
         snapshotFields();
-        applyImportedConfiguration(result.configuration);
+        applyImportedConfiguration({ ...result.configuration, catalog_template: isCatalogTemplate });
         await renderStep();
         $("#setup-purpose")?.focus();
       } catch (error) {
-        if (status) status.textContent = `Could not load this YAML file: ${error.message}`;
+        if (status) status.textContent = `Could not load this file: ${error.message}`;
       } finally {
         input.value = "";
         const activeChoose = $("#setup-yaml-import-button");

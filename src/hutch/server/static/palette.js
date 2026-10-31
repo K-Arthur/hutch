@@ -87,6 +87,7 @@
         nav("Activity: Conversations", "#/activity/conversations", "inbox", "chats archive search library"),
         nav("Scheduled work", "#/schedules", "calendar", "routines cron"),
         nav("Skills", "#/skills", "sparkles", "abilities"),
+        nav("Catalog", "#/catalog", "layers", "agent store presets templates starters share"),
         { kind: "Go to", label: "Models", icon: "gear", keywords: "model routes", run: () => { location.href = "/models"; } },
         { kind: "Go to", label: "Usage", icon: "chart", keywords: "tokens cost spending", run: () => { location.href = "/usage"; } },
         nav("Runtime", "#/runtime", "terminal", "background sources"),

@@ -32,6 +32,7 @@ ROUTES = (
     ("schedules", "/#/schedules", "Scheduled work"),
     ("runtime", "/#/runtime", "Runtime"),
     ("skills", "/#/skills", "Skills"),
+    ("catalog", "/#/catalog", "Catalog"),
     ("models", "/models", "Models"),
     ("usage", "/usage", "Usage"),
     ("assistants", "/#/bots", None),

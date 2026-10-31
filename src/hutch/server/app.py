@@ -139,6 +139,16 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("PUT", "/api/v1/identity/person"): None,
     ("GET", "/api/v1/bots/{ref}/identity"): None,
     ("PUT", "/api/v1/bots/{ref}/identity"): None,
+    ("GET", "/api/v1/catalog"): None,
+    ("POST", "/api/v1/catalog/export-draft"): None,
+    ("POST", "/api/v1/catalog/import-draft"): None,
+    ("GET", "/api/v1/catalog/sources"): None,
+    ("POST", "/api/v1/catalog/sources"): None,
+    ("PUT", "/api/v1/catalog/sources/{source_id}"): None,
+    ("DELETE", "/api/v1/catalog/sources/{source_id}"): None,
+    ("POST", "/api/v1/catalog/sources/{source_id}/fetch"): None,
+    ("GET", "/api/v1/catalog/sources/{source_id}/entries/{entry_id}"): None,
+    ("POST", "/api/v1/catalog/sources/{source_id}/entries/{entry_id}/trust"): None,
     ("GET", "/api/v1/sources"): None,
     ("POST", "/api/v1/sources"): None,
     ("PUT", "/api/v1/sources/{source_id}"): None,
@@ -7249,6 +7259,8 @@ def create_app() -> FastAPI:
     install_skills_routes(app, store, config)
     from .identity_api import install_identity_routes
     install_identity_routes(app, store, config)
+    from .catalog_api import install_catalog_routes
+    install_catalog_routes(app, store, config)
     from .facts_api import install_fact_purge_routes; install_fact_purge_routes(app, store)
     from .tasks_api import install_workspace_task_routes
     install_workspace_task_routes(app, store, engine, config, idempotency_key=idempotency_key,

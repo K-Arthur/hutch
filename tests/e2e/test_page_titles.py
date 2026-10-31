@@ -24,7 +24,7 @@ TITLE = re.compile(r"^[^—]+ — Hutch$")
 DESTINATIONS = {
     "#/chat": "chat", "#/tasks": "tasks", "#/activity": "activity", "#/activity/history": "activity",
     "#/activity/conversations": "activity", "#/overview": "activity", "#/runs": "activity", "#/chats": "activity",
-    "#/schedules": "schedules", "#/runtime": "runtime", "#/skills": "skills",
+    "#/schedules": "schedules", "#/runtime": "runtime", "#/skills": "skills", "#/catalog": "catalog",
     "#/bots": "bots", "#/connections": "connections", "#/settings": "settings",
 }
 
