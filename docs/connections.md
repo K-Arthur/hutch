@@ -320,8 +320,8 @@ each tool is granted to a named assistant with an operation class. A local conne
 third-party code inside the same bubblewrap sandbox as a shell command; a remote connector is reached through
 pinned egress, and its authentication is either none or a bearer token read from an environment variable,
 not one of the OAuth account connections described here. Connector routes are local-owner only, so a paired
-phone cannot administer them. The Apps & AI screen does not list connectors yet; the HTTP API is the current
-surface.
+phone cannot administer them. Connectors have their own page in the main navigation; Apps & AI does not list
+them, and the assistant settings report which connector tools each assistant may call.
 
 See [Connectors](connectors.md) for the definition format, the sandbox a local server runs in, the five
 consent states, grant and revocation semantics, the HTTP API, troubleshooting and current limits.

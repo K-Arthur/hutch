@@ -30,8 +30,8 @@ path. A connector tool is an ordinary `Tool` in the one registry, under the cano
 receipt bracket as a native tool.
 
 Connecting a model provider is therefore not the same act as installing a connector, even when
-both appear under Apps & AI. Provider credentials pay for inference. Connector definitions
-name a program to run or an endpoint to reach.
+both are configured on the same local host. Provider credentials pay for inference. Connector
+definitions name a program to run or an endpoint to reach.
 
 ## The five states
 
@@ -43,7 +43,7 @@ gate, and a higher state never implies the ones below it.
 | `installed` | A definition passed validation and was saved. | The server has not necessarily been started, and nothing is enabled. |
 | `reachable` | The transport answered: a local process started, or a remote endpoint responded. | It says nothing about credentials or tools. |
 | `authenticated` | The credential the definition references was accepted by the server. | It does not authorize any operation. |
-| `capabilities_discovered` | A bounded `tools/list` result was read, normalized and stored, with at least one supported tool. | A catalog entry is review material, not authority. |
+| `capabilities_discovered` | A bounded `tools/list` result was read, normalized and stored, with at least one tool entry (an entry Hutch marks unsupported still counts, because its diagnostics are the review material). | A catalog entry is review material, not authority. |
 | `operation_authorized` | At least one assistant holds at least one grant on this connector. | It authorizes only the named tools on the named assistants. |
 
 What the connector operations write today: a saved definition is `installed`; a successful test
@@ -325,6 +325,31 @@ because the description is part of the record the owner reviewed.
 be saved or launched until it is reviewed again. This covers a replaced executable and any file
 inside a mounted read-only tree.
 
+## The Connectors page
+
+**Connectors** in the main navigation opens `/connectors`, a server-rendered page that installs,
+tests, reviews, grants and revokes (`src/hutch/server/connectors_page.py`). It is local-owner
+only: like the API, its routes are absent from the paired-phone inventory, so a paired phone
+receives 403. Every action is an ordinary form with CSRF, so the page works without JavaScript,
+and each action reports what it did and what it did not do.
+
+- **Save connector**, under **Add a connector**, takes the integration id, a title, and the fields
+  for one transport. A local definition fills `command`, `args` and `read_only_paths` with one
+  entry per line, and `env` as `NAME=value` lines, where `NAME=@SOURCE` reads `SOURCE` from the
+  environment when the server starts. A credential-shaped name must use the `@` form. A remote
+  definition takes the URL and, optionally, the name of the variable holding a bearer token;
+  leave it blank for no auth.
+- **Read tool list** is the test: it runs the server once, stores the catalog and calls no tool.
+- **Grant selected tools** chooses one assistant, the tools to grant, and an operation class per
+  tool. The default is `unknown`, which asks on every call.
+- **Revoke** removes one assistant's access, and **Remove connector** deletes the connector with
+  every grant derived from it.
+
+The assistant's own settings page reports the other half: the connector tools it may call, with
+their operation class, and the connectors that are installed but not granted to it
+(`src/hutch/readiness.py`). That makes installed and authorized visible where a person configures
+an assistant, not only on the connectors page.
+
 ## The HTTP API
 
 All connector routes live in `src/hutch/server/mcp_api.py` and are local-owner only. None of
@@ -528,9 +553,10 @@ one; check that the run workspace exists and is a directory.
   has been contacted, no TLS handshake with a third-party endpoint has been observed, and no
   bearer credential has been accepted by a real service. DNS, proxies, certificate rotation and
   provider rate limits are unmeasured here.
-- **No interface exists yet.** The connector routes are served, but the dashboard has no screen
-  that calls them; the API is the only surface. There is no connector discovery directory, no
-  registry integration and no package installation from a catalog.
+- **The Connectors page has no recorded browser journey.** Its routes are exercised through the
+  test client (`tests/test_connectors_page.py`), not a browser run, and the SPA client renders no
+  connector state. There is no connector discovery directory, no MCP registry integration and no
+  package installation from a catalog.
 - **OAuth for MCP endpoints is not implemented.** Only `none` and a bearer token read from an
   environment variable are supported.
 - **Resources and prompts are not supported.** Only tools are discovered and called. Server
