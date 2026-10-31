@@ -22,7 +22,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional
 
-from ..netguard import DEFAULT_MAX_BYTES, NetGuardError
+from ..netguard import NetGuardError
 from ..safehttp import safe_request
 from .destinations import request_origin
 from .model import VaultError
@@ -65,7 +65,7 @@ class MediatedResponse:
         return f"<MediatedResponse {self.status} {self.destination} redacted>"
 
 
-def _header_value(value: str, secret: str) -> str:
+def _header_value(value: str) -> str:
     if any(char in value for char in "\r\n\x00"):
         raise EgressError("The credential contains characters that cannot be sent in a header.")
     try:
@@ -102,6 +102,10 @@ def mediate_http(vault, *, ref, principal: Principal, method: str, url: str,
     the reference and that the URL is acceptable to policy. Those are separate decisions and this
     function does not hide them: it enforces the grant and the destination binding itself, so a
     caller that forgets one still cannot exfiltrate a value.
+
+    The audit row written by ``resolve_for_use`` says the value was **released** to a mediator for
+    this origin. It does not say the service accepted it: a network failure after release is
+    reported to the caller, not rewritten into the audit. Read the two together when investigating.
     """
     verb = (method or "").upper() if isinstance(method, str) else ""
     if verb not in ALLOWED_METHODS:
@@ -127,7 +131,7 @@ def mediate_http(vault, *, ref, principal: Principal, method: str, url: str,
     usable = vault.resolve_for_use(ref, principal, destination=destination)
     secret = usable.value()
     try:
-        headers = {header_name: _header_value(f"{value_prefix}{secret}", secret)}
+        headers = {header_name: _header_value(f"{value_prefix}{secret}")}
         if kind:
             headers["Content-Type"] = kind
         try:
@@ -146,10 +150,13 @@ def mediate_http(vault, *, ref, principal: Principal, method: str, url: str,
         return MediatedResponse(
             status=fetched.status, reason=fetched.reason, headers=response_headers,
             body=_scrub(fetched.text, secret), url=fetched.url, destination=destination,
-            truncated=fetched.truncated or len(fetched.body) >= min(max_bytes, DEFAULT_MAX_BYTES),
+            truncated=fetched.truncated,
         )
     finally:
-        del usable
+        # Drop this frame's reference so the string can be collected sooner. Python strings are
+        # immutable and cannot be overwritten, so this shortens the lifetime of one reference and
+        # is not memory cleansing; ``security-limitations.md`` §12 says the same about key buffers.
+        del usable, secret
 
 
 __all__ = [

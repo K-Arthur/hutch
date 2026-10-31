@@ -21,6 +21,10 @@ from .netguard import DEFAULT_MAX_BYTES, Fetched, NetGuardError, resolve_public,
 
 REQUEST_METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"})
 
+#: Request bodies are bounded separately from the response cap; a caller that wants a bigger one can
+#: raise this deliberately rather than by widening the response limit.
+MAX_REQUEST_BODY_BYTES = 2 * 1024 * 1024
+
 #: Headers a caller may never set: they change message framing or the destination.
 FORBIDDEN_REQUEST_HEADERS = frozenset({
     "host", "content-length", "transfer-encoding", "connection", "te", "trailer",
@@ -83,8 +87,8 @@ def safe_request(method: str, url: str, *, timeout: float = 20.0, max_bytes: int
         raise NetGuardError("a request body must be bytes")
     if content and verb in ("GET", "HEAD"):
         raise NetGuardError(f"a {verb} request cannot carry a body")
-    if len(content) > max_bytes:
-        raise NetGuardError("the request body is too large")
+    if len(content) > MAX_REQUEST_BODY_BYTES:
+        raise NetGuardError(f"a request body must be at most {MAX_REQUEST_BODY_BYTES} bytes")
     reason = screen_url(url)
     if reason:
         raise NetGuardError(reason)
@@ -117,6 +121,7 @@ def safe_request(method: str, url: str, *, timeout: float = 20.0, max_bytes: int
 
 __all__ = [
     "FORBIDDEN_REQUEST_HEADERS",
+    "MAX_REQUEST_BODY_BYTES",
     "REQUEST_METHODS",
     "checked_request_headers",
     "safe_request",
