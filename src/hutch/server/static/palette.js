@@ -90,6 +90,7 @@
         nav("Shared", "#/shared", "users", "household family space members"),
         nav("Catalog", "#/catalog", "layers", "agent store presets templates starters share"),
         nav("Catalog: Skills", "#/catalog/skills", "sparkles", "abilities skills instruction packages"),
+        { kind: "Go to", label: "Connectors", icon: "gear", keywords: "mcp servers integrations tools", run: () => { location.href = "/connectors"; } },
         { kind: "Go to", label: "Models", icon: "gear", keywords: "model routes", run: () => { location.href = "/models"; } },
         { kind: "Go to", label: "Usage", icon: "chart", keywords: "tokens cost spending", run: () => { location.href = "/usage"; } },
         nav("Runtime", "#/runtime", "terminal", "background sources"),

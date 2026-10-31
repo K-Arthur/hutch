@@ -551,6 +551,9 @@ def register_pages(app: FastAPI) -> None:
                           "warn" if c.quota.tokens and projected / c.quota.tokens >= c.quota.warn_at else "ok")}))
         return out
 
+    from .connectors_page import install_connectors_page
+    install_connectors_page(app, store, page=page, go=go, read_form=read_form)
+
     @app.get("/connections", response_class=HTMLResponse, include_in_schema=False)
     def connections_page():
         # Preserve the bookmark while sending people into Apps & AI in the
