@@ -150,6 +150,22 @@ install command when it is missing), measured swap costs, and the hosted price t
 Fit is **arithmetic, not a benchmark**: weights plus KV cache against the memory budget, using the runtime's own
 architecture numbers once a model is installed and catalog estimates before. It does not predict speed.
 
+### Where a connection's model list comes from (2026-10-31)
+
+Every one of the 25 hosted OpenAI-compatible connections added on 2026-10-31 is listed by asking its own
+`/models` endpoint, authenticated with that connection's key. Two consequences are worth knowing before
+blaming the picker:
+
+- **The list is the provider's, not Hutch's.** If a connection lists no models, the provider did not return
+  any for that key. Hutch makes no model up and greys nothing in silently.
+- **The list can live somewhere other than the chat URL.** OpenCode Go serves chat under
+  `.../inference/go/openai/v1` but publishes its catalogue under `.../inference/go/v1`; before that was
+  modelled, a valid key appeared to return `404`. A connection may therefore carry `models_base_url`
+  ([`connections.md`](connections.md)), which you normally never set by hand - templates do.
+
+A returned list still proves nothing about the models in it. It is a claim by the provider that the id
+exists for your key, not that the model takes tools, images, a given context length, or your budget.
+
 ## Measuring tool reliability: `hutch models bench`
 
 "Supports tools" on a model card does not tell you whether a model forms a valid call, gets argument types right,
@@ -323,4 +339,15 @@ the readiness panel says which account exists and shows a resolving spec such as
 `google-gemini/gemini-3.8-flash` instead of claiming no connection exists; it never picks an account for
 you, because that choice decides who pays. The same applies when an ambient key and a named account are
 both present: the detail names the key variable and asks you to choose.
+
+### Twenty-five hosted routes, no live inference (2026-10-31)
+
+The Models page and the switcher can now list models for 25 more providers, because each has a real
+connection template whose endpoint answered a credential-free request. Read the readiness label, not the
+presence of a name: those routes are `implemented-unverified`, which the page renders as
+"route only, untested - Hutch can reach this service, but no live account has run a request through it".
+
+No capability, price or context claim is made for any model behind them until a dated, authenticated run
+exists for that exact route and model. The only routes with that evidence are the DeepSeek text route and
+the managed OpenCode runtime with a DeepSeek model, both 2026-10-30.
 

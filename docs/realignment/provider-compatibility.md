@@ -37,6 +37,32 @@ credentials; capability evidence is recorded with a level, scope and date. No pr
 live-verified in this environment, so every hosted route above remains fixture-tested at best.
 Research and dated sources: docs/research/2026-10-provider-platform/. See ADR-0025.
 
+### Hosted OpenAI-compatible routes (2026-10-31)
+
+Twenty-five further connections ship on the "Named OpenAI-compatible connection" row above. They share
+its behaviour and its limits; none of them has a live-verified model, and the row's caveat - tool calls,
+usage and context depend on the configured server and model - applies unchanged.
+
+Mistral, xAI, MiniMax, Moonshot, Z.AI, Cohere, StepFun, Groq, Cerebras, Fireworks, Together, DeepInfra,
+Novita, Chutes, NVIDIA, Hugging Face, Synthetic, Venice, GMI Cloud, Arcee, Ollama Cloud, Volcengine,
+Tencent TokenHub, Kilocode and BytePlus each have a template and a real connection path. What is
+established is only that each endpoint answered a credential-free request on 2026-10-31 (host, TLS,
+`/models` path, then either a catalogue or an authentication challenge), recorded in
+[`endpoint-reachability-2026-10-31.json`](../research/2026-10-provider-platform/artifacts/live-verification/endpoint-reachability-2026-10-31.json).
+What is not established is anything about a model.
+
+Two route defects were found and fixed while verifying, both of which a fixture would have missed:
+
+- **A model list is not always under the chat base.** OpenCode Go serves chat at
+  `.../inference/go/openai/v1` and publishes its catalogue at `.../inference/go/v1`. Hutch asked the chat
+  base and got `404` for any key, so an expired key was reported as a broken endpoint. A connection can
+  now carry `models_base_url` (CN-10), and it is dropped if `base_url` is overridden to another origin so
+  chat and discovery never address different services.
+- **A redirect is refused, not followed.** A connection endpoint answering `3xx` is now reported as a
+  refusal naming the `Location`, because following it would send that connection's key to another host.
+  `health()` no longer treats a `3xx` as success. Measured on loopback: the redirect target was never
+  called. There is still no private-range allowlist or DNS pinning for operator-supplied endpoints.
+
 ## Calendar and mail connections
 
 These account integrations are separate from model-provider compatibility. Each is **experimental**: its local authorization, storage, grant, and API behavior has fixture coverage, but real account consent and provider requests have not been verified. A calendar or mailbox grant is separate from a Bot's model choice; returned text is untrusted and may be retained in that Bot's conversation/run history or sent to its selected model, except where Gmail's Local-only route check prevents hosted model transfer.
