@@ -25,6 +25,13 @@ class AccessibilityError(Exception):
     """The worker refused or failed one request, or its reply was unusable. Safe to show to a person."""
 
 
+#: Roles that exist to hold other widgets. They are worth listing when they carry a name, text, description or
+#: action (a titled panel, a labelled group), and pure noise when they do not: KWrite reports 37 fillers, 24 panels and
+#: 59 separators, none of which a model can act on.
+STRUCTURAL_ROLES = frozenset({"separator", "filler", "scroll bar", "split pane", "layered pane", "panel", "unknown",
+                              "viewport", "drawing area", "redundant object"})
+
+
 @dataclass(frozen=True)
 class Node:
     id: str
@@ -56,6 +63,11 @@ class Node:
         if self.state:
             record["state"] = list(self.state)
         return record
+
+    def plain_layout(self) -> bool:
+        """A container that carries no information and no action: it only holds other widgets."""
+        return (self.role in STRUCTURAL_ROLES and not self.name and not self.text and not self.actions
+                and not self.description)
 
     def line(self) -> str:
         """One compact, model-readable line: what the element is and how to act on it."""
@@ -94,16 +106,20 @@ class ElementSnapshot:
                 "truncated": self.truncated, "subtree": self.subtree, "pruned": self.pruned,
                 "nodes": [node.public() for node in self.nodes]}
 
-    def render(self, *, limit: int = 200) -> str:
+    def render(self, *, limit: int = 200, compact: bool = True) -> str:
         header = f"accessibility tree of {self.app or 'the application'}"
         if self.window:
             header += f" (window {json.dumps(self.window, ensure_ascii=False)})"
         lines = [f"{header}; {len(self.nodes)} element(s); snapshot {self.snapshot_id}. "
                  f"Act with snapshot_id {self.snapshot_id} and an element id, e.g. activate n12."]
-        for node in self.nodes[:limit]:
+        shown = [node for node in self.nodes if not (compact and node.plain_layout())]
+        skipped = len(self.nodes) - len(shown)
+        for node in shown[:limit]:
             lines.append(node.line())
-        if len(self.nodes) > limit:
-            lines.append(f"... {len(self.nodes) - limit} more element(s) not shown")
+        if len(shown) > limit:
+            lines.append(f"... {len(shown) - limit} more element(s) not shown")
+        if skipped:
+            lines.append(f"{skipped} unnamed layout container(s) not listed; pass a root element id to read one subtree.")
         if self.pruned:
             lines.append(f"{self.pruned} closed menu(s) and their items are not listed; "
                          f"open a menu to see its items.")

@@ -284,6 +284,25 @@ def test_the_tool_contract_covers_semantic_actions_and_redacts_text():
     assert typed == {"action": "type", "frame_id": "f1", "text": "[redacted]", "text_chars": 3}
 
 
+def test_the_compact_view_drops_only_containers_that_carry_nothing():
+    snapshot = parse_snapshot(_tree(
+        {"id": "n1", "role": "frame", "depth": 0, "name": "w"},
+        {"id": "n2", "role": "filler", "depth": 1},                                  # noise: dropped
+        {"id": "n3", "role": "separator", "depth": 1},                                # noise: dropped
+        {"id": "n4", "role": "panel", "depth": 1, "name": "Note"},                   # named: kept
+        {"id": "n5", "role": "text", "depth": 1, "name": "a.txt", "text": "body"},  # content: kept
+        {"id": "n6", "role": "filler", "depth": 1, "actions": ["Press"]},            # actionable: kept
+    ), "a0010")
+    compact = snapshot.render()
+    assert "n2 " not in compact and "n3 " not in compact
+    assert "n4 panel" in compact and "n5 text" in compact and "n6 filler" in compact
+    assert "2 unnamed layout container(s) not listed" in compact
+    full = snapshot.render(compact=False)
+    assert "n2 " in full and "n3 " in full
+    # data keeps every node either way: only the model-facing text is trimmed.
+    assert len(snapshot.public()["nodes"]) == 6
+
+
 def test_a_frame_beyond_the_model_limit_is_refused_with_its_reason(tmp_path):
     """Frame pixels are the coordinate space a model reasons in, so an image a provider would rescale is refused."""
     from hutch.computer.frames import MAX_FRAME_EDGE, FrameError, FrameStore
