@@ -12,7 +12,7 @@ import pytest
 
 from hutch.vault.refs import Principal
 from hutch.vault.vault import AccessDenied, VaultCorrupt
-from tests.support.vault_fixtures import BOT_A, BOT_B, CANARY, unlocked
+from tests.support.vault_fixtures import BOT_A, BOT_B, CANARY, DESTINATION, unlocked
 
 
 def test_ciphertext_is_absent_from_the_database_files(store):
@@ -94,7 +94,8 @@ def test_values_never_reach_the_log(caplog, store):
     vault = unlocked(store)
     meta = vault.put_secret(scope="workspace", category="api_key", name="notion", value=CANARY)
     vault.grant(meta.id, Principal.bot(BOT_A), "use")
-    vault.resolve_for_use(meta.ref, Principal.bot(BOT_A))
+    vault.bind_destination(meta.id, DESTINATION)
+    vault.resolve_for_use(meta.ref, Principal.bot(BOT_A), destination=DESTINATION)
     vault.reveal(meta.ref, Principal.owner())
     vault.lock()
     with pytest.raises(Exception):
@@ -116,10 +117,10 @@ def test_scope_cannot_be_smuggled_through_a_reference(store):
     meta = vault.put_secret(scope=f"bot:{BOT_A}", category="api_key", name="private", value=CANARY)
     # The reference carries no scope; the row decides it. Another bot naming the id gets nothing.
     with pytest.raises(AccessDenied):
-        vault.resolve_for_use(meta.ref, Principal.bot(BOT_B))
+        vault.resolve_for_use(meta.ref, Principal.bot(BOT_B), destination=DESTINATION)
     forged = f"secret://hutch/local/{meta.id}"
     with pytest.raises(AccessDenied):
-        vault.resolve_for_use(forged, Principal.bot(BOT_B))
+        vault.resolve_for_use(forged, Principal.bot(BOT_B), destination=DESTINATION)
     assert any(e.reason == "wrong_scope" for e in vault.audit_log() if e.outcome == "denied")
 
 

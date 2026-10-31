@@ -24,7 +24,7 @@ from hutch.vault.vault import (
     VaultThrottled,
     VaultUnlockError,
 )
-from tests.support.vault_fixtures import CANARY, PASSPHRASE, make_vault, unlocked
+from tests.support.vault_fixtures import CANARY, DESTINATION, PASSPHRASE, make_vault, unlocked
 
 
 def test_fresh_database_has_no_vault(store):
@@ -77,6 +77,7 @@ def test_weak_passphrase_is_refused_before_anything_is_written(store):
 def test_locked_vault_refuses_value_operations(store):
     vault = unlocked(store)
     meta = vault.put_secret(scope="workspace", category="api_key", name="notion", value=CANARY)
+    vault.bind_destination(meta.id, DESTINATION)
     vault.lock()
 
     assert vault.status().unlocked is False
@@ -85,7 +86,7 @@ def test_locked_vault_refuses_value_operations(store):
     with pytest.raises(VaultLocked):
         vault.reveal(meta.ref, Principal.owner())
     with pytest.raises(VaultLocked):
-        vault.resolve_for_use(meta.ref, Principal.owner())
+        vault.resolve_for_use(meta.ref, Principal.owner(), destination=DESTINATION)
     # Metadata remains readable while locked.
     assert vault.get_metadata(meta.id).name == "notion"
 

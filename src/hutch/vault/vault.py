@@ -15,8 +15,12 @@ own module so they can be read, tested and changed independently.
 
 from __future__ import annotations
 
+import threading
+from typing import Optional
+
 from .access import AccessMixin
 from .core import OWNER, _VaultCore
+from .destinations import DestinationError, DestinationsMixin
 from .lifecycle import LifecycleMixin
 from .model import (  # noqa: F401 - re-exported for callers of the vault package
     AccessDenied,
@@ -40,15 +44,33 @@ from .refs import Permission, Principal, SecretCategory, SecretRef
 from .secrets import SecretsMixin
 
 
-class VaultBook(LifecycleMixin, SecretsMixin, AccessMixin, _VaultCore):
+class VaultBook(LifecycleMixin, SecretsMixin, DestinationsMixin, AccessMixin, _VaultCore):
     """Vault lifecycle, secret storage, grants and resolution for one Hutch database."""
 
     def __init__(self, store, *, scrypt_params=None, clock=None):
         super().__init__(store, scrypt_params=scrypt_params, clock=clock)
 
 
+#: One unlock state per database path in this process. The dashboard and a bot run in the same
+#: process must share it: unlocking in Settings must make a mediated use possible in the run loop.
+_REGISTRY: dict[str, VaultBook] = {}
+_REGISTRY_LOCK = threading.Lock()
+
+
+def vault_for(store, *, scrypt_params=None) -> VaultBook:
+    """The process-wide vault for ``store``'s database. ``scrypt_params`` only applies on creation."""
+    key = str(store.config.db_path)
+    with _REGISTRY_LOCK:
+        book = _REGISTRY.get(key)
+        if book is None:
+            book = VaultBook(store, scrypt_params=scrypt_params)
+            _REGISTRY[key] = book
+        return book
+
+
 __all__ = [
     "AccessDenied",
+    "DestinationError",
     "Grant",
     "OWNER",
     "Permission",
@@ -70,4 +92,5 @@ __all__ = [
     "VaultStatus",
     "VaultThrottled",
     "VaultUnlockError",
+    "vault_for",
 ]

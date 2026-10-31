@@ -3,7 +3,7 @@
 Every row answers a narrow question: *who asked, for which secret, what did Hutch decide, and why*.
 Rows never carry a value, and ``reason`` is a closed vocabulary rather than free text, so an error
 message that happens to contain a secret cannot be stored here. ``destination`` is only written
-when it validates as a bare DNS hostname.
+when it validates as a canonical origin.
 
 The table's immutability is enforced by triggers in ``schema.py``; this module refuses to write
 anything it cannot validate before the trigger ever sees it.
@@ -11,7 +11,6 @@ anything it cannot validate before the trigger ever sees it.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -20,13 +19,14 @@ from ..models import iso, utcnow
 ACTIONS = frozenset({
     "create", "unlock", "lock", "change_passphrase", "rotate_recovery_key",
     "create_secret", "update_secret", "delete_secret", "restore_secret",
-    "grant", "revoke", "use", "reveal", "read_metadata",
+    "grant", "revoke", "bind_destination", "unbind_destination",
+    "use", "reveal", "read_metadata",
 })
 
 REASONS = frozenset({
     "", "ok", "wrong_passphrase", "wrong_recovery_key", "throttled", "no_grant",
     "wrong_scope", "locked", "not_initialized", "not_found", "deleted",
-    "corrupt", "conflict", "invalid", "owner_only",
+    "corrupt", "conflict", "invalid", "owner_only", "no_destination",
 })
 
 OUTCOMES = frozenset({"ok", "denied", "failed"})
@@ -34,8 +34,6 @@ OUTCOMES = frozenset({"ok", "denied", "failed"})
 MAX_ACTION_CHARS = 48
 MAX_REASON_CHARS = 64
 MAX_DESTINATION_CHARS = 253
-
-_HOSTNAME = re.compile(r"[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?\Z")
 
 
 class AuditError(ValueError):
@@ -61,15 +59,19 @@ class AuditEntry:
 
 
 def clean_destination(value: Optional[str]) -> str:
-    """A bare lowercase DNS hostname, or empty. Anything else is dropped, not stored."""
+    """A canonical origin, or empty. Anything else is dropped, not stored.
+
+    An origin is scheme + host + port with no path, query, fragment or user information, so a URL
+    that happened to contain a token cannot be written into the audit table.
+    """
+    from .destinations import DestinationError, canonical_origin
     if not value or not isinstance(value, str):
         return ""
-    host = value.strip().lower().rstrip(".")
-    if len(host) > MAX_DESTINATION_CHARS or not _HOSTNAME.fullmatch(host):
+    try:
+        origin = canonical_origin(value)
+    except DestinationError:
         return ""
-    if ".." in host or host.startswith(".") or host.endswith("."):
-        return ""
-    return host
+    return origin if len(origin) <= MAX_DESTINATION_CHARS else ""
 
 
 def record(db, *, actor_kind: str, actor_id: str, action: str, outcome: str,

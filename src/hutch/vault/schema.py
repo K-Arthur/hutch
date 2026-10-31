@@ -51,6 +51,12 @@ def migrate(db) -> None:
     db.execute("""CREATE UNIQUE INDEX IF NOT EXISTS vault_secrets_live_name
         ON vault_secrets(scope, name) WHERE deleted_at = ''""")
     db.execute("CREATE INDEX IF NOT EXISTS vault_secrets_scope ON vault_secrets(scope, created_at)")
+    db.execute("""CREATE TABLE IF NOT EXISTS vault_destinations (
+        secret_id TEXT NOT NULL REFERENCES vault_secrets(id) ON DELETE CASCADE,
+        origin TEXT NOT NULL CHECK (length(origin) BETWEEN 8 AND 253),
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (secret_id, origin)
+    )""")
     db.execute("""CREATE TABLE IF NOT EXISTS vault_secret_versions (
         secret_id TEXT NOT NULL REFERENCES vault_secrets(id) ON DELETE CASCADE,
         version INTEGER NOT NULL CHECK (version >= 1),

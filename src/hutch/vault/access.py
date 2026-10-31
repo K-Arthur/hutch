@@ -13,6 +13,7 @@ from typing import Optional, Union
 from . import audit as audit_mod
 from . import crypto
 from .core import OWNER
+from .destinations import canonical_origin
 from .model import (
     AccessDenied,
     Grant,
@@ -146,22 +147,29 @@ class AccessMixin:
     def _ref(secret_id: str, version: Optional[int]) -> SecretRef:
         return SecretRef.local_ref(secret_id, version=version)
 
-    def resolve_for_use(self, ref: RefLike, principal: Principal, *, destination: str = "") -> UsableSecret:
-        """Decrypt a value for a mediator that will apply it.
+    def resolve_for_use(self, ref: RefLike, principal: Principal, *, destination: str) -> UsableSecret:
+        """Decrypt a value for a mediator that will present it to a bound destination.
 
         The caller must hand ``UsableSecret.value()`` to the narrowest possible operation — an
         Authorization header, a protocol exchange — and must never return, print or persist it.
+        ``destination`` is a canonical origin; a grant alone is not enough to send the value
+        anywhere, because the secret must also be bound to that origin by the owner.
         """
         parsed_ref = SecretRef.parse(ref) if not isinstance(ref, SecretRef) else ref
         if not parsed_ref.local:
             raise VaultError("Only the local Hutch vault is implemented.")
+        origin = canonical_origin(destination)
         row = self._authorize(parsed_ref.secret_id, principal, Permission.USE,
-                              action="use", destination=destination)
+                              action="use", destination=origin)
+        if not self.destination_bound(parsed_ref.secret_id, origin):
+            self._audit(principal, "use", "denied", reason="no_destination",
+                        secret_id=row["id"], scope=row["scope"], destination=origin)
+            raise AccessDenied("This secret is not bound to that destination.")
         version, text = self._decrypt(row, parsed_ref.version, principal)
         self._audit(principal, "use", "ok", reason="ok", secret_id=row["id"], scope=row["scope"],
-                    destination=destination)
+                    destination=origin)
         return UsableSecret(text, ref=str(self._ref(row["id"], version)), principal=principal,
-                            destination=audit_mod.clean_destination(destination))
+                            destination=origin)
 
     def reveal(self, ref: RefLike, principal: Principal) -> UsableSecret:
         """Return a plaintext value to the caller. Separate permission, separate audit row."""

@@ -185,3 +185,48 @@ def test_the_value_never_appears_in_the_response_of_a_write(api):
         "scope": "workspace", "category": "api_key", "name": "n", "value": CANARY})
     assert response.status_code == 200
     assert CANARY not in response.text
+
+
+def test_destination_bindings_are_managed_over_http_and_listed(api):
+    client, _store, _vault = api
+    create(client)
+    meta = client.post("/api/v1/vault/secrets", headers=HEADERS, json={
+        "scope": "workspace", "category": "api_key", "name": "n", "value": CANARY}).json()
+
+    bound = client.post(f"/api/v1/vault/secrets/{meta['id']}/destinations", headers=HEADERS,
+                        json={"origin": "https://api.notion.com"})
+    assert bound.status_code == 200, bound.text
+    assert bound.json()["origin"] == "https://api.notion.com"
+
+    detail = client.get(f"/api/v1/vault/secrets/{meta['id']}").json()
+    assert detail["destinations"] == ["https://api.notion.com"]
+    assert CANARY not in client.get(f"/api/v1/vault/secrets/{meta['id']}").text
+
+    bad = client.post(f"/api/v1/vault/secrets/{meta['id']}/destinations", headers=HEADERS,
+                      json={"origin": "https://api.notion.com/v1/pages?x=1"})
+    assert bad.status_code == 422
+
+    removed = client.request("DELETE", f"/api/v1/vault/secrets/{meta['id']}/destinations",
+                             headers=HEADERS, json={"origin": "https://api.notion.com"})
+    assert removed.status_code == 200
+    assert client.get(f"/api/v1/vault/secrets/{meta['id']}").json()["destinations"] == []
+
+    actions = [entry["action"] for entry in client.get("/api/v1/vault/audit").json()["entries"]]
+    assert "bind_destination" in actions and "unbind_destination" in actions
+
+
+def test_destination_mutations_require_the_browser_request_header(api):
+    client, _store, _vault = api
+    create(client)
+    meta = client.post("/api/v1/vault/secrets", headers=HEADERS, json={
+        "scope": "workspace", "category": "api_key", "name": "n", "value": CANARY}).json()
+    response = client.post(f"/api/v1/vault/secrets/{meta['id']}/destinations",
+                           json={"origin": "https://api.notion.com"})
+    assert response.status_code == 403
+
+
+def test_the_http_surface_and_a_run_share_one_unlock_state(api):
+    """Unlocking in Settings must make a mediated use possible in the run loop, not a second vault."""
+    _client, store, vault = api
+    from hutch.vault import vault_for
+    assert vault_for(store) is vault

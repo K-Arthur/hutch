@@ -7,6 +7,7 @@ secret storage and access live in their own modules so each can be tested withou
 from __future__ import annotations
 
 from .audit import AuditEntry
+from .destinations import DestinationError, canonical_origin, request_origin
 from .refs import (
     CategoryProfile,
     Lifecycle,
@@ -35,12 +36,14 @@ from .vault import (
     VaultStatus,
     VaultThrottled,
     VaultUnlockError,
+    vault_for,
 )
 
 __all__ = [
     "AccessDenied",
     "AuditEntry",
     "CategoryProfile",
+    "DestinationError",
     "Grant",
     "Lifecycle",
     "Permission",
@@ -62,6 +65,9 @@ __all__ = [
     "VaultStatus",
     "VaultThrottled",
     "VaultUnlockError",
+    "canonical_origin",
     "category_profile",
     "migrate",
+    "request_origin",
+    "vault_for",
 ]

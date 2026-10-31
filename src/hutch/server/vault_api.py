@@ -32,6 +32,7 @@ from ..vault import (
     VaultNotInitialized,
     VaultThrottled,
     VaultUnlockError,
+    vault_for,
 )
 
 NO_STORE = {"Cache-Control": "no-store", "Pragma": "no-cache"}
@@ -70,6 +71,11 @@ class GrantBody(BaseModel):
     principal_kind: str = Field(min_length=1, max_length=32)
     principal_id: str = Field(default="", max_length=64)
     permission: str = Field(min_length=1, max_length=16)
+
+
+class DestinationBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    origin: str = Field(min_length=8, max_length=253)
 
 
 def _status_payload(vault: VaultBook) -> dict:
@@ -128,8 +134,12 @@ def _http_error(error: Exception) -> HTTPException:
 
 
 def install_vault_routes(app, store) -> VaultBook:
-    """One VaultBook per process: unlock state must outlive a single request."""
-    vault = VaultBook(store)
+    """One VaultBook per process: unlock state must outlive a single request.
+
+    It is shared with the run loop (``vault_for``), so unlocking here unlocks mediated use for a
+    bot and locking here closes it again. Two processes still unlock independently.
+    """
+    vault = vault_for(store)
     app.state.vault = vault
 
     def owner(request: Request) -> None:
@@ -211,7 +221,8 @@ def install_vault_routes(app, store) -> VaultBook:
         grants = guard(lambda: vault.grants(secret_id))
         return {"secret": _metadata(meta),
                 "grants": [{"principal_kind": g.principal_kind, "principal_id": g.principal_id,
-                            "permission": g.permission, "granted_at": g.granted_at} for g in grants]}
+                            "permission": g.permission, "granted_at": g.granted_at} for g in grants],
+                "destinations": guard(lambda: vault.destinations(secret_id))}
 
     @app.post("/api/v1/vault/secrets")
     def vault_create_secret(request: Request, body: SecretCreate, response: Response):
@@ -269,6 +280,20 @@ def install_vault_routes(app, store) -> VaultBook:
         principal = guard(lambda: Principal(body.principal_kind, body.principal_id))
         guard(lambda: vault.revoke(secret_id, principal, body.permission))
         return {"ok": True}
+
+    @app.post("/api/v1/vault/secrets/{secret_id}/destinations")
+    def vault_bind_destination(request: Request, secret_id: str, body: DestinationBody, response: Response):
+        owner(request)
+        response.headers.update(NO_STORE)
+        origin = guard(lambda: vault.bind_destination(secret_id, body.origin))
+        return {"ok": True, "origin": origin}
+
+    @app.delete("/api/v1/vault/secrets/{secret_id}/destinations")
+    def vault_unbind_destination(request: Request, secret_id: str, body: DestinationBody, response: Response):
+        owner(request)
+        response.headers.update(NO_STORE)
+        origin = guard(lambda: vault.unbind_destination(secret_id, body.origin))
+        return {"ok": True, "origin": origin}
 
     @app.get("/api/v1/vault/audit")
     def vault_audit(request: Request, response: Response, limit: int = 100, secret_id: str = ""):

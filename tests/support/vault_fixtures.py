@@ -13,6 +13,7 @@ PASSPHRASE = "a-long-enough-vault-passphrase"
 BOT_A = "bot_aaaaaaaaaaaa"
 BOT_B = "bot_bbbbbbbbbbbb"
 CANARY = "[redacted]"
+DESTINATION = "https://api.notion.com"
 
 
 def make_vault(store, **kwargs) -> VaultBook:
