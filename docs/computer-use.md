@@ -17,10 +17,44 @@ machinery as every other tool. This page says what that does and does not give y
 | --- | --- | --- |
 | Browser (Playwright Chromium) | per-bot persistent profile, headless or visible local desktop | **verified** (Linux, Chromium 153) |
 | Native desktop application | **isolated** disposable KWin Wayland session Hutch starts for the run | **verified** on KDE Plasma/KWin 6.7 Wayland (KWrite) |
+| Native desktop application, semantic control (AT-SPI) | the same isolated session, through its own accessibility bus | **verified** with KWrite: text replaced and Save pressed by accessible name, file on disk confirmed. Other toolkits **unexercised** |
 | Native desktop application | the person's **existing** desktop | **not implemented** (would be weaker isolation and needs the portal consent flow) |
 | Portal (ScreenCast/RemoteDesktop) capture and input | consent-gated | probed only (`hutch computer doctor`); **not exercised** |
 | GNOME/Mutter, X11-only, macOS, Windows | | **unsupported / untested** |
 | Authenticated human step control | owned browser / disposable KWin desktop | **verified locally** through HTTP and viewport emulation; physical phones and live remote networks **unverified** |
+
+## Semantic control: acting on controls, not coordinates
+
+A screenshot tells a model *where* something is. An accessibility tree tells it *what* something is, and lets it do the thing
+without a coordinate at all. Hutch starts a private accessibility bus inside its disposable session, and an out-of-process
+worker reads a bounded tree and invokes elements, so the model never has to guess a pixel position:
+
+```
+elements  → element ids, roles, names, text and available actions
+activate  → do the element's own action (press a button, choose a menu item) or focus it
+set_text  → replace an editable element's contents, then read it back
+```
+
+`set_text` reports `effect_verified` only when the element reads back the text that was set, which is a real postcondition
+rather than "the screen changed". Verified on this host by editing a file in KWrite and confirming the bytes on disk; no
+coordinates and no image model were involved.
+
+What this does and does not give you:
+
+* **The same fences as pixels.** Semantic actions take a control-lease ticket and re-check it before dispatch, so a takeover
+  or stop still wins. An id from a superseded snapshot is refused: read the tree, then act on that snapshot only.
+* **Bounded and pruned.** At most 240 elements, depth 14, 400 characters of text per element. Closed menus are pruned (KWrite
+  reports 382 menu items for menus nobody opened) and unnamed layout containers are dropped from the model-facing text while
+  remaining in the record. The output says how much was omitted.
+* **Secrets stay out.** Password and protected text is never returned by the worker; only `redacted: true`. Typed text is
+  redacted in events and receipts, as for `type`.
+* **It fails closed.** A session without the at-spi binaries or a PyGObject interpreter keeps pixel control and reports
+  `semantics: unavailable` with the reason in the observation record. `hutch computer doctor` states which case you are in.
+* **It is not a universal adapter.** It works where an application publishes an accessibility tree (KDE/Qt and GTK do; games,
+  canvas-only apps and many Electron shells do not). The pixel path stays available and is the documented fallback.
+* **The tree is not free.** As text it can cost more tokens than one screenshot: in the on-host bake-off below, three tree
+  reads were about 11.2k characters against five frames of about 99.7 KB. The tree wins on steps, on verification and on
+  not needing a vision model; it does not always win on tokens.
 
 ## How a session is bounded
 
@@ -101,9 +135,11 @@ still refuses before process creation.
 viewport/screen size, transform `scale 1.0 / crop none`, freshness status, and, for the browser, a value-free list of visible
 interactive elements) and one image frame.
 
-* Frames live in `<run dir>/frames` (directory 0700, files 0400), at most 900 KB and 2000 px on the long edge each, at most
-  64 frames / 8 MiB per run (oldest are evicted). Bytes are re-read and SHA-256 verified on every use. Nothing records the
-  screen continuously; there is no video.
+* Frames live in `<run dir>/frames` (directory 0700, files 0400), at most 900 KB and 1568 px on the long edge each, at
+  most 64 frames / 8 MiB per run (oldest are evicted). Bytes are re-read and SHA-256 verified on every use. Nothing records
+  the screen continuously; there is no video. The 1568 px bound is the documented long-edge limit of the vision routes: a
+  provider rescales anything larger before reading it, which would silently move every coordinate the model reports. The
+  browser viewport (1280x720) and the isolated desktop (1280x800) are chosen to stay inside it at the source.
 * Only the **newest** frame is sent to a model, converted to the route's real image format at the provider boundary.
   Older frames become text notes. Image bytes are never stored in the transcript or in message history.
 * Image-capable routes: documented exact OpenAI image models at the official endpoint, Anthropic `claude-*` models,
@@ -233,9 +269,31 @@ GET /api/v1/computer/readiness   # same data for the UI
 Isolated desktop prerequisites: `kwin_wayland`, `dbus-daemon`, `busctl`, `spectacle` (capture through KWin), `libei`,
 `bwrap`, `systemd-run`, `prlimit`, user namespace support and a
 Python with PyGObject for the input worker (`/usr/bin/python3` is found automatically; override with `HUTCH_GI_PYTHON`).
+Semantic control additionally needs `at-spi2-core` (`at-spi-bus-launcher` and `at-spi2-registryd`; some distributions keep
+them in `/usr/lib`, which is found) and a Python with the **Atspi** typelib. These are independent: without them the session
+still runs and reports `semantics: unavailable` with the reason.
 Bot settings: `computer_apps` (program **names** only, resolved on `PATH`), `local_dev_origins`, `observation_to_hosted`,
 `remote_computer_access`.
 Add `computer` to the Bot's tools to enable the tool; nothing is on by default.
+
+## Measured: semantic versus pixel on the same task
+
+`benchmarks/computer_semantic_ab.py` runs the same file-editing task in the real disposable session both ways and reports steps,
+observation size and how the effect was verified. Three repetitions on the reference host:
+
+| Quantity | Pixel path | Semantic path |
+| --- | --- | --- |
+| Tool calls | 5 | 4 |
+| Observation images | 5 frames, 99.7 KB | 0 |
+| Observation text | 281 characters | 11.2k characters (three tree reads) |
+| Verification available | `visual_change_only` | `effect_verified` (text read back) |
+| Wall time per task | 16.5 s median | 12.8 s median |
+
+Read this narrowly: there is **no model in the loop**, so it says nothing about model accuracy. The pixel arm supplies a fixed
+coordinate because a harness without a model has nothing else to draw on; that is a property of the benchmark, not proof a
+model would mis-click. What it does establish is that the semantic path needs no coordinate, needs no image tokens, takes one
+fewer step, and can confirm the result instead of inferring it from a changed screenshot. The tree is not free: three reads
+cost more characters than the frames cost bytes, and roughly half the token estimate of five screenshots.
 
 ## Privacy and retention
 
@@ -350,6 +408,7 @@ successful installation.
 ## Tests
 
 `tests/test_computer_*.py`, `tests/test_netguard_local_origins.py` (deterministic); `tests/e2e/test_computer_browser_real.py`,
-`test_computer_isolation.py`, `test_computer_transfers.py`, `test_computer_panel.py` (real Chromium/server); `tests/e2e/test_computer_native.py` and
-`test_computer_handoff_native.py` (real disposable KWin session; skipped when the prerequisites are absent). Fakes inject faults; they are not evidence that real
-capture or input works.
+`test_computer_isolation.py`, `test_computer_transfers.py`, `test_computer_panel.py` (real Chromium/server); `tests/e2e/test_computer_native.py`,
+`test_computer_semantic_native.py` and `test_computer_handoff_native.py` (real disposable KWin session; skipped when the prerequisites are
+absent). The semantic test contains no coordinates at all: it asserts the edited file on disk. Fakes inject faults; they are not evidence that
+real capture or input works. `benchmarks/computer_semantic_ab.py` measures the two observation paths on the same task.
