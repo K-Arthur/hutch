@@ -42,9 +42,14 @@ discover/import → validate → review/trust → install/version → assign to 
   skill on demand with the `use_skill` tool.
 * **Update**: `update` stages a new version from the skill's recorded source. The reviewed
   version stays active and keeps running until the operator applies the update; the inspector shows
-  the staged instructions so "review the update" is literal. Applying re-reads and re-hashes the
-  staged bytes and refuses if they changed after staging. `discard` drops the staged version;
-  `rollback` restores the previous retained version (the last 3 are kept).
+  the staged instructions so "review the update" is literal. It also shows what applying would
+  change: new or dropped `requires-tools` and `requires-connections`, a changed `allowed-tools`
+  declaration, an instruction edit with its byte counts, and the files added, removed or modified,
+  each by sha256 rather than by size and timestamp. A change to what the skill requires is marked
+  material and listed first, because that is the difference between reviewing and rubber-stamping.
+  Applying re-reads and re-hashes the staged bytes and refuses if they changed after staging.
+  `discard` drops the staged version; `rollback` restores the previous retained version (the last
+  3 are kept).
 * **Disable/uninstall**: disabling stops future disclosure and activation immediately, even
   though earlier instructions may remain in an old transcript. Uninstalling removes the files;
   Bots that reference it show a visible "not installed" readiness reason rather than failing
