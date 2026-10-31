@@ -163,17 +163,28 @@ pending questions, workflow studio policy steps. Several assert a 44 px target a
 
 ## Next
 
-**Owner requests received during the run, answered in `platform-gap-analysis-2026-10-30.md`:** one named orchestrator created at onboarding that proposes specialists; presets moved out of code into a catalog; zero demo or fixture content. Removed so far: the "Working forever" cause (`1683156e`) and the dead-demo-route look (`2b8cad03`). The orchestrator onboarding, proposals, catalog and the migration for leftover demo assistants are **not done**.
+**Platform work after the gap analysis (2026-10-30) is landed and verified in this tree.** The owner asked
+for one named main assistant that can grow specialists, presets as a reviewed catalog, and no demo or
+fixture content. The approved order is complete for this run:
 
-Done and committed: P1 (`2fedfc4f`), P2.1 (`0eacc863`), P2.2 (see log). P3-P6 not started. Another `claude` session (and
-Codex/OpenCode workers) is active in this checkout, contrary to the prompt's premise; it committed `245a2631`, `ef8573f8`,
-`99880c70`. Stage by explicit path and recheck `git status` before every commit.
+- **Honesty** (C1-C4, D3, F1): no canned prompts anywhere in `src/`; the browser no longer names the
+  retired demo route (server `route_problem` instead); a run that lost its owner reads "Interrupted"; every
+  chrome server page shares the SPA header contract (title in the shell header, "N working" and Stop all
+  only while work runs). Commits `a1e6c27f`, `51adca50`, `ca4e7efa`, `d864c581`.
+- **Orchestrator-first onboarding** (A1, A4, A5, A8, A9): the first assistant becomes the main assistant
+  (an existing choice is kept), marked with an icon badge on its avatar; one workspace "About you" profile
+  and one bounded identity per assistant are reviewed before saving and rendered into the prompt as
+  advisory context; the first request carries honest guidance copy; the main assistant is always a local
+  owned assistant. Commits `b8f94adb`, `b7fa6e44`, `0d249928`, `dab91904`.
+- **Catalog v1, local only** (B1-B4, B8): the eight presets are reviewed data manifests; a Catalog
+  destination lists them with publisher/version/hash/permissions and opens the normal setup review;
+  sharing runs a sanitising checklist and downloads only after review; catalog JSON import pre-fills the
+  same reviewed draft; local-folder and static-URL sources are explicitly fetched and inert until their
+  exact content hash is trusted. Commits `8c9be914`, `fc7cd74d`.
 
-Open follow-ups noted while viewing the Activity captures: copy still says "tasks" and "past work" (vocabulary slice); the
-History status filter and the tab strip share one green fill, so two similar controls stack at phone width (consider a quieter
-active state for the tabs); `#fleet-nav` stays hidden below ten assistants in the SPA but always shows on server pages (N6).
-
-Remaining in P2: header context C5 (server pages put the title in the body, the SPA in the shell header) and the final capture
-at 1440/900/360 on a fresh state. Python-sourced API error strings that the SPA shows (for example "Bot settings" in 6 modules) still say
-bot: out of this slice, noted for P4.
-Then P3-P6. Follow-ups: phone header wraps while the stop control shows (360 px); tab strip vs History filter share one green.
+Evidence for each row is in the "Platform work after the gap analysis" table above; the release checklist
+records the same state for the owner. **Deliberately still open:** A2/A3/A6 proposals and delegation;
+A7 verified first completion and D1/D2 live-route proof (this build host has no live model route);
+B5-B7/B9/B10 marketplace publishing, versions and scanning; E distribution (owner); F2-F6 visual backlog
+(per-page state kit, seeded-state pass, the pre-existing `test_browser.py` failures, axe/screen-reader,
+phone header wrap). Nothing was pushed, published or tagged.

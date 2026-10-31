@@ -48,11 +48,8 @@ Docker parity is claimed.
   physical-device phone validation.
 - **Not made on purpose:** a populated-dashboard capture for the public site. `PRODUCT.md` requires
   marketing captures to come from the actual empty first-run product.
-- **Header chrome (C5) is still not unified.** Server pages keep an always-visible Stop all and a
-  "live" chip and put the title in the body; the app shows work status and puts the title in its
-  header. Tracked in the progress file.
-- A running run whose owner process exited shows "Working" until the next supervisor beat, then
-  "Failed" with an `interrupted` reason; there is no distinct "Interrupted" chip.
+- The 19 `test_browser.py` failures above were not re-triaged in the platform follow-on run; the
+  focused browser modules that run touches were re-run instead.
 - Python-sourced API error strings that the app shows (for example "Bot settings") still say "bot".
 
 ## 3. Needs the owner
@@ -68,6 +65,30 @@ Docker parity is claimed.
 | **macOS and Windows** | Executors are not implemented; the README says so. |
 | **Product decision** | `archive/agent-connections-2026-10-11` (63 commits: skill ZIP import, versioned effective configuration, persisted assistant identity, others) is preserved at a tag, not merged. |
 | **Housekeeping** | Seven worktrees whose branches are merged still carry uncommitted edits (see `unmerged-branch-triage-2026-10-30.md`); `~/.hutch-tmp/hp26` (14.8 GiB, three registered worktrees) was not examined and was deliberately not pruned. |
+
+## 3b. Platform follow-on run (2026-10-30, after the release-readiness run)
+
+The owner reviewed the running product and asked for one named main assistant, presets as a reviewed
+catalog, and no demo or fixture content. That work is committed on `main` after this checklist's first
+gate run; the slice log is the "Platform work after the gap analysis" table in the progress file. What is
+now true and how it was checked:
+
+| Item | How it was checked | Result |
+|---|---|---|
+| No demo content in the product | `tests/test_no_demo_content.py`: no canned starter prompts anywhere in `src/` (Python and templates included), `mock` may only shrink per file and now appears only in migration/refusal code, a fresh install starts with zero assistants, no template points at a fixture or evidence tree | clean; the browser no longer names the retired route at all (roster/chip/workspace default read the server's `route_problem`) |
+| One header contract | `tests/test_server_shell_parity.py`, `tests/e2e/test_one_header_contract.py`, updated overlay/type tests | every chrome server page (Models, Usage, assistant, Connections, both deletion pages) puts its h1 in the shell header; work status and the global Stop all appear only while work runs; header grows at 200% text zoom |
+| Interrupted runs say so | `tests/test_orphaned_run_display.py`, `tests/e2e/test_interrupted_run_status.py` | a failed run with `exit_reason=interrupted` reads "Interrupted" in Task details, Activity rows and cards; a plain failure still reads "Failed"; `/api/overview` carries the reason |
+| One named main assistant | `tests/test_main_assistant.py`, `tests/e2e/test_identity_review.py` | the first assistant created is the main assistant when none is set (and an existing choice is kept); it carries an icon badge, not a text tag; a main assistant must be a local owned assistant |
+| Reviewed identity | `tests/test_identity.py`, `tests/test_identity_api.py`, `tests/e2e/test_identity_review.py` | one workspace "About you" profile and one bounded identity per assistant (sign-off, up to 8 boundaries) as 0600 JSON with revision CAS; rendered into the system prompt as advisory context; damaged files are reported and never applied; review-before-save from assistant Behavior and workspace Settings |
+| First request guidance | `tests/test_onboarding_page.py`, `tests/test_onboarding_chooser.py` | the first-run form and empty-chat welcome explain outcome, sources, constraints, hand-back and when to stop and ask — copy, not invented prompt buttons |
+| Presets are catalog data | `tests/test_catalog.py` | the eight presets moved losslessly to `src/hutch/data/catalog/*.json` with publisher, version and content hash; `templates.py` builds the old CLI/API/dashboard shapes from the data |
+| Catalog destination | `tests/e2e/test_catalog_destination.py` | a reachable searchable Catalog page with provenance, permissions, instructions and "Create a copy" that opens the normal setup review; 1440/900/360 with 0 overflow and 0 console errors |
+| Sharing is checked | `tests/test_catalog_export.py`, `tests/e2e/test_catalog_destination.py` | export runs a checklist (credentials block; URLs, e-mail, absolute paths warn), lists what is never included and only downloads after review; catalog JSON import pre-fills the same reviewed setup draft |
+| Sources are pinned | `tests/test_catalog_sources.py`, `tests/test_catalog_api.py` | local-folder and static-URL sources, explicit fetch only (netguard-bounded), entries inert until their exact manifest hash is trusted; changed content drops trust |
+
+Still open from the gap analysis after this run: proposals and delegation (A2, A3, A6), verified first
+completion on a live route (A7; no live route on the build host), marketplace publishing and scanning
+(B5-B7, B9, B10), distribution (E), and the visual backlog (F2-F6).
 
 ## 4. Reproduce
 
