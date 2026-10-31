@@ -1,4 +1,4 @@
-# ADR-0026: Archiving an assistant is a lifecycle state, not a permission
+# ADR-0027: Archiving an assistant is a lifecycle state, not a permission
 
 Status: accepted, 2026-10-30.
 

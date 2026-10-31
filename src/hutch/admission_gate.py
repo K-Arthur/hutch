@@ -4,7 +4,7 @@ Two refusals, one gate, answered inside the write transaction that would create 
 
 - a **restore hold**, because an operator is reviewing a database restore and nothing may start
   until they record that review (ADR-0008);
-- a **retired assistant**, because the owner archived it and it accepts no new work (ADR-0026).
+- a **retired assistant**, because the owner archived it and it accepts no new work (ADR-0027).
 
 Every transaction in the store that inserts a run calls this, passing the Bot it is about to give
 work to. That is what makes both promises structural rather than something each caller has to

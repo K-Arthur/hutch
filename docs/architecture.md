@@ -224,7 +224,7 @@ this assistant be given new work?". One predicate inside the admitting transacti
 messages, legacy runs, task runs and scheduled occurrences; the store keeps every conversation, run,
 event and memory record in both directions; and the scheduler skips an archived Bot the same way it
 skips a paused one. Archiving is refused while a run is active and for the workspace coordinator,
-and an archived Bot is not offered as a specialist. See ADR-0026.
+and an archived Bot is not offered as a specialist. See ADR-0027.
 
 ### D3: Scheduling correctness is a feature, not a detail
 
