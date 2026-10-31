@@ -1,0 +1,25 @@
+date: 2026-10-30T22:45:13-07:00
+--- provider credential env var NAMES present (values never read) ---
+count_provider_like=0
+--- local inference endpoints (2s timeout each) ---
+http://127.0.0.1:11434/api/tags -> 000
+unreachable
+http://127.0.0.1:1234/v1/models -> 000
+unreachable
+http://127.0.0.1:8000/v1/models -> 000
+unreachable
+http://127.0.0.1:30000/v1/models -> 000
+unreachable
+http://127.0.0.1:8080/v1/models -> 000
+unreachable
+--- coding CLIs on PATH ---
+opencode: /home/kevina/.opencode/bin/opencode
+claude: /home/kevina/.local/bin/claude
+gemini: not-installed
+codex: /home/kevina/.local/bin/codex
+qwen: not-installed
+pi: not-installed
+--- CLI versions (no auth, no credentials read) ---
+opencode: PlatformError: Unknown: FileSystem.open (/home/kevina/.local/share/opencode/log/opencode.log)
+claude: 2.1.314 (Claude Code)
+codex: WARNING: proceeding, even though we could not create PATH aliases: Read-only file system (os error 30)
