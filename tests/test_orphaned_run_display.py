@@ -43,7 +43,7 @@ def _seed(owner: str) -> str:
     config = get_config()
     store = Store(config)
     try:
-        bot = store.create_bot(Bot(name="orphan-check", display_name="Orphan Check", tools=[]))
+        bot = store.create_bot(Bot(name="orphan-check", display_name="Orphan Check", model="ollama/llama3.2:3b", tools=[]))
         run = store.create_run(Run(bot_id=bot.id, prompt="tidy my downloads", status=RunStatus.running, owner=owner))
         assert store.get_run(run.id).status is RunStatus.running
         return run.id

@@ -30,7 +30,7 @@ MOCK_ALLOWED = {
     "src/hutch/engine.py": 1,                  # docstring of the refusal to start them
     "src/hutch/modelchoices.py": 3,            # marks the route "setup" and refuses it
     "src/hutch/models.py": 2,                  # the legacy enum value, kept so old rows still load
-    "src/hutch/route_problem.py": 4,           # the single server-side answer
+    "src/hutch/route_problem.py": 3,           # the single server-side answer
     "src/hutch/runtime/__init__.py": 3,        # the refusal itself
     "src/hutch/runtime/builtin.py": 1,
     "src/hutch/server/pages_usage.py": 2,      # labels old usage rows truthfully

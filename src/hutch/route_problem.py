@@ -1,7 +1,7 @@
 """Why an assistant cannot run, decided from its saved model route.
 
-One answer for the roster, the composer chip, settings and `/api/bots`. The mock runtime was removed, but
-assistants created before that can still point at `mock/...`; older demo-era rows may also carry a model
+One answer for the roster, the composer chip, settings and `/api/bots`. The demo runtime was removed, but
+assistants created before that can still point at its route; older demo-era rows may also carry a model
 that is not a route at all (for example `demo`). Both used to look healthy ("Idle", a chip reading "demo")
 and only failed when a message was sent. `None` means nothing is known to be wrong at the route's shape
 level; whether the route is reachable and configured is the model picker's and `hutch doctor`'s job.
