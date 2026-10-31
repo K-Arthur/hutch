@@ -23,6 +23,9 @@ _SPECS: dict[str, tuple[str, str]] = {
     "write_file": ("files", "FilesWriteTool"),
     "remember": ("memory", "MemorySaveTool"),
     "recall": ("memory", "MemoryRecallTool"),
+    "capture_commitment": ("commitments", "CaptureCommitmentTool"),
+    "list_commitments": ("commitments", "ListCommitmentsTool"),
+    "report_commitment_done": ("commitments", "ReportCommitmentDoneTool"),
     "web_fetch": ("webfetch", "WebFetchTool"),
     "create_document": ("documents", "CreateDocumentTool"),
     "revise_document": ("documents", "ReviseDocumentTool"),
@@ -94,6 +97,7 @@ GROUPS: dict[str, list[str]] = {
     # predates these tools and is used by Bots that should only get local scratch access.
     "workspace_actions": ["plan_workspace_action", "run_workspace_plan"],
     "memory": ["remember", "recall"],
+    "commitments": ["capture_commitment", "list_commitments", "report_commitment_done"],
     "browser": ["browser"],
     "computer": ["computer"],
     "grounding": ["live_search", "inspect_media"],
