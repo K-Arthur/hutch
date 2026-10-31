@@ -135,6 +135,10 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("POST", "/api/v1/runtime/service/stop"): None,
     ("POST", "/api/v1/runtime/service/uninstall"): None,
     ("POST", "/api/v1/runtime/service/startup"): None,
+    ("GET", "/api/v1/identity/person"): None,
+    ("PUT", "/api/v1/identity/person"): None,
+    ("GET", "/api/v1/bots/{ref}/identity"): None,
+    ("PUT", "/api/v1/bots/{ref}/identity"): None,
     ("GET", "/api/v1/sources"): None,
     ("POST", "/api/v1/sources"): None,
     ("PUT", "/api/v1/sources/{source_id}"): None,
@@ -7243,6 +7247,8 @@ def create_app() -> FastAPI:
     install_kdeconnect_routes(app, store)
     from .skills_api import install_skills_routes
     install_skills_routes(app, store, config)
+    from .identity_api import install_identity_routes
+    install_identity_routes(app, store, config)
     from .facts_api import install_fact_purge_routes; install_fact_purge_routes(app, store)
     from .tasks_api import install_workspace_task_routes
     install_workspace_task_routes(app, store, engine, config, idempotency_key=idempotency_key,

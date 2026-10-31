@@ -2142,6 +2142,7 @@ async function renderWorkspaceSettings() {
       <div class="hutch-actions"><button class="btn primary" type="submit">Save workspace settings</button><a class="btn ghost" href="#/connections">Apps &amp; AI</a></div>
       <p id="workspace-settings-status" class="hint" role="status" aria-live="polite"></p>
     </form>
+    <div data-identity-slot="person"></div>
   </div></div>`;
   $("#workspace-settings-form")?.addEventListener("submit", async event => {
     event.preventDefault();
@@ -5191,6 +5192,7 @@ function welcomeHtml() {
         ${description ? `<p class="hint">${esc(description)}</p>` : ""}
       </div>
       <p class="welcome-intro">What would you like to work on?</p>
+      <p class="welcome-guide hint">Say what you want to end up with, where to look, what to avoid, what to hand back, and when to stop and ask.</p>
       ${b.route_problem ? `<div class="welcome-problem" role="alert"><p><strong>This assistant can't run yet:</strong> ${esc(b.route_problem)}.</p>
         <p><a class="btn small" href="#/bot/${encodeURIComponent(b.name)}">Choose a model route</a> <a class="btn ghost small" href="/bots/${encodeURIComponent(b.name)}/delete">Remove assistant</a></p></div>` : ""}
       <ul class="welcome-trust" aria-label="How this assistant works">
@@ -8449,6 +8451,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <div class="hutch-actions"><button class="btn primary small" type="submit">Save directions</button></div>
           </form>
           <div id="persona-form-slot"></div>
+          <div data-identity-slot="assistant"></div>
           ${specialistRosterHtml}
         </section>
         <section class="settings-pane" role="tabpanel" id="settings-pane-model" aria-labelledby="settings-tab-model" data-settings-pane="model" ${settingsSection === "model" ? "" : "hidden"}>

@@ -52,4 +52,13 @@ def build_system_prompt(ctx) -> str:
     if plan is not None:
         from ..persona import guidance
         prompt += "\n\n" + guidance(plan)
+    # Reviewed identity (the person's profile and this assistant's boundaries) is advisory context.
+    # A damaged file is never applied here and never breaks a run; the identity API reports it instead.
+    try:
+        from ..identity import prompt_block
+        reviewed = prompt_block(ctx.config.state_dir, ctx.bot.id)
+    except (AttributeError, OSError, ValueError):
+        reviewed = ""
+    if reviewed:
+        prompt += "\n\n" + reviewed
     return prompt
