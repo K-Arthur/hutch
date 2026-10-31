@@ -40,6 +40,19 @@
 .pd-empty p { margin: .2rem 0; }
 .pd-note { margin-top: var(--s-4); padding: var(--s-3); border-left: 3px solid var(--line-strong); }
 
+/* Agenda: owner-selected calendar and mail, each labelled with source, read time and staleness. */
+.pd-agenda-picker { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-2); margin-bottom: var(--s-3); }
+.pd-agenda-picker .hutch-field { margin: 0; flex: 1 1 14rem; min-width: 0; }
+.pd-agenda-picker .hutch-help { flex: 1 1 100%; margin: 0; }
+.pd-agenda-source { padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--panel); margin-bottom: var(--s-2); }
+.pd-agenda-source[data-agenda-status="unavailable"] { border-style: dashed; }
+.pd-agenda-head { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; }
+.pd-chip.stale { border-color: var(--warn-border, rgba(251,191,36,.45)); color: var(--warn-text, #fbbf24); }
+.pd-chip.unavailable { border-color: var(--danger-border, rgba(248,113,113,.45)); color: var(--danger-text, #f87171); }
+.pd-agenda-source .pd-list { margin-top: var(--s-2); }
+.pd-agenda-source .pd-item { background: transparent; }
+.pd-agenda-item-source { margin-top: .35rem; color: var(--text-3, var(--text-2)); }
+
 /* Quick capture and inline forms */
 .pd-capture, .pd-create-space { margin-top: var(--s-2); }
 .pd-capture-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-2); }

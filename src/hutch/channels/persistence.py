@@ -14,6 +14,7 @@ import uuid
 
 from ..models import Run, Task, iso, utcnow
 from . import ChannelConflict, ChannelError
+from .outbox import OutboxMixin
 
 CHANNEL_ID = re.compile(r"ch_[0-9a-f]{24}\Z")
 USER_ID = re.compile(r"[1-9][0-9]{0,19}\Z")
@@ -78,7 +79,7 @@ def public(row):
     return result
 
 
-class ChannelBook:
+class ChannelBook(OutboxMixin):
     def __init__(self, store):
         self.store = store
 
@@ -182,8 +183,8 @@ class ChannelBook:
             if forget:
                 db.execute("UPDATE channel_connections SET credential_ref='' WHERE id=?",(channel_id,))
             db.execute("UPDATE channel_events SET state='cancelled' WHERE channel_id=? AND state='pending'", (channel_id,))
-            db.execute("UPDATE channel_deliveries SET state='cancelled' WHERE state='pending' AND event_id IN "
-                       '(SELECT id FROM channel_events WHERE channel_id=?)', (channel_id,))
+            db.execute("UPDATE channel_deliveries SET state='cancelled' WHERE channel_id=? AND state='pending'",
+                       (channel_id,))
             runs = [x[0] for x in db.execute("SELECT id FROM runs WHERE json_extract(doc,'$.origin') LIKE ? "
                     "AND status NOT IN ('succeeded','failed','stopped')", (f'channel:{channel_id}:%',))]
         self.store.bus.notify('channels','state')
@@ -199,7 +200,7 @@ class ChannelBook:
                 return None
             # A lost sender can have crossed the network boundary. Never blindly resend.
             db.execute("UPDATE channel_deliveries SET state='uncertain',error='Sender stopped before confirming delivery.' "
-                       "WHERE state='sending' AND event_id IN (SELECT id FROM channel_events WHERE channel_id=?)", (channel_id,))
+                       "WHERE state='sending' AND channel_id=?", (channel_id,))
             return dict(db.execute('SELECT * FROM channel_connections WHERE id=?', (channel_id,)).fetchone())
 
     def release(self, channel_id, owner, *, delay=2, error=''):
@@ -304,75 +305,3 @@ class ChannelBook:
             admitted += 1
         return admitted
 
-    def queue_replies(self, channel_id):
-        with self.store._tx() as db:
-            self.store._assert_execution_ready(db)
-            events = db.execute("SELECT e.id,e.run_id,r.status FROM channel_events e JOIN runs r ON r.id=e.run_id "
-                "JOIN channel_connections c ON c.id=e.channel_id AND c.enabled=1 AND c.revision=e.revision "
-                "WHERE e.channel_id=? AND e.state='admitted' AND r.status IN ('succeeded','failed','stopped','skipped','outcome_unknown') "
-                "AND NOT EXISTS (SELECT 1 FROM channel_deliveries d WHERE d.event_id=e.id) LIMIT 20",(channel_id,)).fetchall()
-            for event in events:
-                answer = db.execute("SELECT content FROM messages WHERE run_id=? AND role='assistant' AND incomplete=0 "
-                                    'ORDER BY seq DESC LIMIT 1',(event['run_id'],)).fetchone()
-                text = answer[0] if event['status']=='succeeded' and answer and answer[0].strip() else 'This task needs attention. Open Hutch to review its status.'
-                if len(text)>3500:
-                    text = text[:3400]+'\n\n[Reply shortened. Open Hutch for the full answer and artifacts.]'
-                db.execute('INSERT INTO channel_deliveries(event_id,text,next_attempt_at) VALUES (?,?,?)',
-                           (event['id'],text,iso(utcnow())))
-
-    def take_reply(self, connection, owner):
-        with self.store._tx() as db:
-            self.store._assert_execution_ready(db)
-            row = db.execute("SELECT d.*,e.sender FROM channel_deliveries d JOIN channel_events e ON e.id=d.event_id "
-                "JOIN channel_connections c ON c.id=e.channel_id WHERE c.id=? AND c.enabled=1 AND c.revision=? "
-                "AND e.revision=c.revision AND c.lease_owner=? AND c.lease_until>? "
-                "AND d.state='pending' AND d.next_attempt_at<=? ORDER BY d.id LIMIT 1",
-                (connection['id'],connection['revision'],owner,iso(utcnow()),iso(utcnow()))).fetchone()
-            if row is None:
-                return None
-            db.execute("UPDATE channel_deliveries SET state='sending',attempts=attempts+1 WHERE id=?",(row['id'],))
-            return dict(row)
-
-    def finish_reply(self, delivery_id, *, state, message_id='', error='', retry_after=0):
-        if state not in ('sent','uncertain','failed','pending'):
-            raise ValueError('Invalid delivery outcome')
-        with self.store._tx() as db:
-            db.execute("UPDATE channel_deliveries SET state=?,provider_message_id=?,error=?,next_attempt_at=? "
-                       "WHERE id=? AND state='sending'",(state,message_id,error[:200],
-                       iso(utcnow()+timedelta(seconds=max(1,min(retry_after,3600)))),delivery_id))
-
-    def deliveries(self, channel_id):
-        with self.store._lock:
-            return [dict(row) for row in self.store._db.execute("SELECT d.id,d.state,d.attempts,d.provider_message_id,"
-                "d.error,d.reconciled_at,e.run_id FROM channel_deliveries d JOIN channel_events e ON e.id=d.event_id "
-                'WHERE e.channel_id=? ORDER BY d.id DESC LIMIT 50',(channel_id,))]
-
-    def next_wakeup(self):
-        from datetime import datetime
-        with self.store._lock:
-            row = self.store._db.execute("SELECT MIN(CASE WHEN lease_until>next_poll_at THEN lease_until ELSE next_poll_at END) "
-                                         'FROM channel_connections WHERE enabled=1').fetchone()
-        if not row[0]:
-            return 300.0
-        return max(.1,min(300.0,(datetime.fromisoformat(row[0])-utcnow()).total_seconds()))
-
-    def reconcile(self, channel_id, delivery_id, *, attempts, delivered, evidence):
-        evidence = evidence.strip()
-        if not 10 <= len(evidence) <= 500:
-            raise ChannelError('Record 10–500 characters of independent delivery evidence.')
-        with self.store._tx() as db:
-            self.store._assert_execution_ready(db)
-            row = db.execute('SELECT d.*,e.revision,c.revision AS current_revision,c.enabled '
-                'FROM channel_deliveries d JOIN channel_events e ON e.id=d.event_id '
-                'JOIN channel_connections c ON c.id=e.channel_id WHERE d.id=? AND c.id=?',
-                (delivery_id,channel_id)).fetchone()
-            if row is None:
-                raise KeyError(delivery_id)
-            if row['state'] != 'uncertain' or row['attempts'] != attempts:
-                raise ChannelConflict('This delivery changed. Reload its current outcome.')
-            state = 'sent' if delivered else 'pending' if row['enabled'] and row['revision']==row['current_revision'] else 'cancelled'
-            db.execute('UPDATE channel_deliveries SET state=?,reconciled_at=?,reconciliation=?,error=?,next_attempt_at=? WHERE id=?',
-                (state,iso(utcnow()),evidence,'',iso(utcnow()),delivery_id))
-            db.execute('UPDATE channel_connections SET next_poll_at=? WHERE id=?',(iso(utcnow()),channel_id))
-        self.store.bus.notify('channels','state')
-        return state

@@ -150,9 +150,27 @@ password-protected-input support; those are named limits in `docs/file-formats.m
 
 The site may describe Today as a read-only view of a person's own local records: approvals,
 commitments that are overdue, due today or upcoming, scheduled occurrences, real run state,
-documents generated today and shared-space summaries. It may say the view names what it leaves
-out. It must not claim that calendar or mailbox content is read automatically for that view, that
-the view is model-generated, or that a reported completion is verified work.
+documents generated today, shared-space summaries and the alerts Hutch already sent. It may say
+the view names what it leaves out. It must not claim that calendar or mailbox content is read
+automatically for that view, that the view is model-generated, or that a reported completion is
+verified work.
+
+The Agenda section may be described as reading one calendar and one mailbox that the owner
+selects, through a grant already given to an assistant, and labelling every item with its
+source, the time it was read and whether that reading is stale. It may say Today never treats
+mail or calendar text as instructions and never stores it in Hutch's database. It must not claim
+that mail is available for hosted-model assistants (mail reads require Local inference), that
+other calendars or mailboxes are read, that a stale reading is current, or that the agenda works
+without a connected account and a grant. Evidence: docs/commitments.md, tests/test_personal_agenda.py,
+tests/e2e/test_personal_today_agenda.py and .pipeline/personal-operations/2026-11/evidence/.
+
+Notifications may be described as alerts for an approval that needs you, an approval that
+expired or was denied, and work that failed or finished unattended, sent through the same Telegram
+connection and outbox that already carries replies. The site must say delivery is at-least-once
+and that an unconfirmed send is never automatically repeated: it is shown as delivery
+unconfirmed until the owner checks the actual conversation. It must not claim exactly-once
+delivery, guaranteed receipt, or that notifications contain prompts, action arguments or message
+contents. Evidence: docs/commitments.md, tests/test_notifications.py, docs/channels.md.
 
 The site may describe durable commitments with due dates, provenance and completion evidence, and
 must keep the distinction that an assistant can only propose a commitment and report completion

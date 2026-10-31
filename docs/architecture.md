@@ -46,6 +46,17 @@ commitments, scheduled occurrences, approvals, real run state, documents and spa
 rows with IANA-zone day boundaries that fail closed on unknown zones; it makes no model call and lists what
 it excludes. See docs/commitments.md and ADR-0025.
 
+Schema v86 adds the owner agenda and notification delivery. `src/hutch/personal/agenda.py` is a pure
+builder over injected readers: it reads at most one calendar grant and one mailbox grant, returns source
+label, fetch time and a stale marker per source and per item, and reports an unusable grant as a reason
+code rather than an empty day. Adapters in `agenda_sources.py` are the only place that touches grants,
+OAuth account metadata or provider clients; they read, never write, and keep a bounded snapshot in
+process memory for at most an hour so a failed refresh can be labelled stale. Provider text is stripped of
+control characters, bounded, marked untrusted and never interpreted. Notifications are written by SQL
+triggers in the same transaction as the approval or run transition, deduplicated by subject, and delivered
+by the existing `ChannelService` through the same outbox rows, lease and reconciliation; an uncertain send
+is never resent automatically.
+
 hutch is a local-first multi-bot agent platform: one Python process family that stores everything
 in one state directory, drives LLM agents through a policy-gated tool layer, and exposes both a CLI
 and a local web dashboard.

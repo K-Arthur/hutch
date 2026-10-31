@@ -592,9 +592,9 @@ is returned separately and in the request history.
 
 Today (dashboard, first primary destination) is a read-only projection of persisted state: approvals,
 commitments by due state, assistant proposals, reported completions awaiting verification, today's scheduled
-occurrences, real run state, today's documents and shared-space summaries. It makes no model call and names
-what it does not include. The browser sends its IANA timezone; unknown or missing zones are refused with 422
-rather than silently using UTC.
+occurrences, real run state, today's documents, shared-space summaries and the alerts Hutch already sent. It
+makes no model call and names what it does not include. The browser sends its IANA timezone; unknown or
+missing zones are refused with 422 rather than silently using UTC.
 
 Commitments live in schema v84 tables (commitments, commitment_events, spaces, space_members,
 bot_space_grants, commitment_dependencies) and are served under /api/v1/commitments, /api/v1/spaces and
@@ -603,6 +603,48 @@ owner verifies it. A stale revision returns 409. Shared space access for an assi
 is revoked immediately on revoke or archive; it never shares a connected account. See docs/commitments.md for
 routes, fields, limits and troubleshooting. The migration is additive and the usual pre-upgrade SQLite backup
 applies; rollback is code-only and leaves the new tables inert.
+
+### Agenda: selected calendar and mailbox
+
+The Agenda section is the only read path from the dashboard to a calendar or a mailbox. It reads at most
+one calendar and one mailbox, each chosen from grants an assistant already holds, through the same OAuth books
+the assistant tools use (`GET /api/v1/personal/agenda/sources` and `GET /api/v1/personal/agenda`).
+
+Operational properties to preserve:
+
+- No write path, no schema change, no provider text in SQLite. A bounded snapshot lives in process memory for
+  at most one hour so a failed refresh can be labelled stale instead of looking like an empty day.
+- Every source and every item carries its source label and fetch time; a failed refresh marks the re-used
+  snapshot `stale` on both. An unusable grant returns an explicit reason code (`grant_missing`,
+  `grant_expired`, `mail_requires_local`, `provider_error`) and never an empty list.
+- Mailbox previews keep the Gmail tool's rule: the granting assistant must use Local inference. Operators
+  should expect `mail_requires_local` for hybrid or hosted assistants instead of mailbox content.
+- Provider text is untrusted data. It is stripped of control characters, bounded per field, marked
+  `untrusted`, and never interpreted; no model reads it for this view.
+- Scope is one local day for events (`DAY_START`..`DAY_END`, DST-correct) and `newer_than:1d` for mail, at most
+  25 events and 10 messages.
+
+### Notification delivery
+
+Approvals and unattended runs write a durable `notifications` row through a SQL trigger in the same
+`BEGIN IMMEDIATE` transaction as the fact: an approval created, an approval expired or denied, and a run that
+failed, ended `outcome_unknown`, or succeeded from `schedule`, `source`, `job`, `workflow`,
+`workflow:continuation` or `workflow_auto`. The unique subject guard means a retried transition cannot
+produce a second row.
+
+Delivery is not a new loop. `ChannelService.once` leases the connection exactly as before, then queues this
+connection's own live alerts (`queue_notifications`) and sends at most one through `take_notification` with
+the existing outbox states, backoff and reconciliation; `notification_id` is unique, so two cycles or two
+supervisors cannot duplicate a send. A decided approval is skipped, so nothing arrives after the decision
+matters. There is no exactly-once claim: an unconfirmed send stays `uncertain` for explicit reconciliation
+and is never resent automatically. With no enabled connection the alert is recorded and Today shows it as
+not sent. `GET /api/v1/notifications` and Today's "Alerts Hutch sent" section expose the same content-free
+facts (kind, subject id, machine reason code, outbox state).
+
+Schema v86 adds `notifications` and rebuilds `channel_deliveries` to reference either an inbound event or a
+notification (each row has exactly one). The rebuild copies every existing reply delivery with its channel
+resolved from the inbound event, refuses to run if an orphan delivery exists, and reinstalls the durable
+change triggers; the normal pre-upgrade backup applies.
 
 ## Generated documents
 

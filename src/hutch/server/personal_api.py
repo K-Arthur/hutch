@@ -56,6 +56,7 @@ def request_digest(payload: dict) -> str:
 
 
 def install_personal_routes(app: FastAPI, store, config) -> None:
+    from .personal_agenda_api import install_personal_agenda_routes
     from .personal_spaces_api import install_personal_space_routes
     personal = PersonalStore(store)
 
@@ -186,3 +187,4 @@ def install_personal_routes(app: FastAPI, store, config) -> None:
         return {"items": personal.commitments.events(commitment_id, limit=limit)}
 
     install_personal_space_routes(app, store, personal)
+    install_personal_agenda_routes(app, store, config)

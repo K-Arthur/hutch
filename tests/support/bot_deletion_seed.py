@@ -180,7 +180,8 @@ def _seed_store_records(db, bot, seed, stamp, tag, digest, conversation, run) ->
                allowed_senders='[]', accept_after=stamp, next_poll_at=stamp, created_at=stamp)
     event_id = insert_row(db, 'channel_events', channel_id=channel, revision=1, external_id='ext-1',
                           sender=tag, text=tag, content_hash=digest, received_at=stamp, run_id=run)
-    insert_row(db, 'channel_deliveries', event_id=event_id, text=tag, next_attempt_at=stamp)
+    insert_row(db, 'channel_deliveries', channel_id=channel, event_id=event_id, text=tag,
+               next_attempt_at=stamp)
     insert_row(db, 'idempotency_keys', scope='api:v1:conversations:' + bot.id, key='receipt-key',
                request_hash=digest, response_json=json.dumps({'conversation_id': conversation, 'title': tag}),
                created_at=stamp)

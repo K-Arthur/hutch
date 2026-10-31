@@ -20,6 +20,16 @@ class ChannelService:
         self.thread = None
         store.register_shutdown(self.close)
 
+    def _deliver(self, transport, delivery):
+        """One send through the outbox state machine; an unknown outcome is never retried."""
+        try:
+            message_id = transport.send(delivery['sender'], delivery['text'])
+        except TelegramFailure as failure:
+            state = 'uncertain' if failure.uncertain else 'pending' if failure.retry_after else 'failed'
+            self.book.finish_reply(delivery['id'], state=state, error=str(failure), retry_after=failure.retry_after)
+            raise
+        self.book.finish_reply(delivery['id'], state='sent', message_id=message_id)
+
     def once(self):
         for entry in self.book.list():
             if not entry['enabled'] or self.stop_event.is_set():
@@ -36,14 +46,12 @@ class ChannelService:
                 self.book.queue_replies(connection['id'])
                 reply = self.book.take_reply(connection,self.owner)
                 if reply:
-                    try:
-                        message_id = transport.send(reply['sender'],reply['text'])
-                    except TelegramFailure as failure:
-                        state = 'uncertain' if failure.uncertain else 'pending' if failure.retry_after else 'failed'
-                        self.book.finish_reply(reply['id'],state=state,error=str(failure),retry_after=failure.retry_after)
-                        raise
-                    else:
-                        self.book.finish_reply(reply['id'],state='sent',message_id=message_id)
+                    self._deliver(transport, reply)
+                # Owner notifications share this outbox, this lease and this sender.
+                self.book.queue_notifications(connection['id'])
+                notification = self.book.take_notification(connection, self.owner)
+                if notification:
+                    self._deliver(transport, notification)
                 if self.stop_event.is_set():
                     continue
                 self.book.admit(connection['id'])

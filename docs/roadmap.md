@@ -80,6 +80,9 @@ pinned in the primary roster without hiding active work; pinning is a navigation
    Event creation, message sending and every
    external write need a fresh review showing account, destination and complete payload. Keep refresh
    credentials in the OS credential store rather than SQLite, transcripts, prompts or browser storage.
+   The dashboard reads one selected calendar and one selected mailbox for Today's Agenda section through the
+   same per-Bot grants, in process memory only, labelled with source and fetch time; that read adds no scope and
+   no write path. It has not been exercised against a live Google account or consent screen in this repository.
 
 5. Give the workspace and each Bot an explicit model default. The workspace choice seeds new-Bot
    setup; the coordinator and each specialist keep their own editable route and inference mode.
@@ -177,7 +180,7 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
 - [ ] Configurable policy packs per bot (site-specific allowlists, egress domains)
 - [ ] Strict Offline end-to-end gate. Experimental Linux worker isolation uses fresh bubblewrap network/PID namespaces and a per-run Unix-socket model broker; this host probe and a fixture-provider request pass. No live local model journey is verified, and model-server provenance remains outside the boundary. Local explicitly means local inference with ordinary tool policy.
 - [ ] Run retries with backoff + idempotency keys for external actions
-- [ ] Notifications beyond tab-open browser alerts (webhook, service-worker push and closed-tab delivery)
+- [~] Notifications beyond tab-open browser alerts: an approval needs-you/expired/denied or an unattended run failure/unknown-outcome/success now queues one durable alert for the assistant's Telegram connection and is delivered through the existing channel outbox with at-least-once semantics and explicit reconciliation of an uncertain send. Webhook targets, service-worker push and closed-app delivery to a phone app remain open.
 - [~] Guided new-Bot setup can preview, download, and import a strictly validated versioned YAML draft. Import fills an unsaved draft that still requires full review and explicit creation; importing or snapshotting existing Bot definitions remains open.
 - [ ] Secret per-bot credentials via OS keyring (referenced, never in prompts)
 

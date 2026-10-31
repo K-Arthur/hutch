@@ -87,6 +87,26 @@ implemented. A restored database is held, disconnected from source vault
 references and stripped of pending delivery authority; activation alone never
 resumes its old channel work or sends. Source credentials are not deleted.
 
+## Owner notifications share this outbox
+
+A connection also delivers short alerts for the owner: an approval that needs a
+decision, one that expired or was denied, and work that failed, ended with an
+unknown outcome, or finished while nobody was watching (scheduled, source, job and
+workflow origins). Alerts are written by a SQL trigger in the same transaction as
+the approval or run transition, so a crash cannot lose one and a repeated
+transition cannot duplicate one. They are queued only for the connection's own
+assistant and only while the fact is still true: an approval decided before the
+next cycle is not sent late.
+
+The alert text names the assistant, the kind of event and where to look. It carries
+no prompt, no action arguments, no fact value and no provider text. Delivery uses
+the same rows, lease, states and reconciliation as replies; `notification_id` is
+unique in the outbox, so two supervisor cycles cannot send the same alert twice and
+there is no second delivery path. An unconfirmed send becomes **Delivery
+unconfirmed** and is not retried automatically; the owner reviews it exactly as a
+reply would be reviewed. Disabling or pausing the connection queues nothing, and
+re-enabling does not replay old alerts beyond the bounded recency window.
+
 ## API v1
 
 These routes are local-owner only, under the existing authentication, origin and
@@ -102,8 +122,9 @@ No anonymous webhook ingress or public server exposure is enabled.
 | `PUT /api/v1/channels/{id}/configuration` | Change name/assistant/senders while paused, with `expected_revision` |
 | `PUT /api/v1/channels/{id}/token` | Replace a paused bot's token, binding its stable Telegram bot identity |
 | `DELETE /api/v1/channels/{id}?expected_revision=N` | Disconnect, remove referenced secret, retain evidence |
-| `GET /api/v1/channels/{id}/deliveries` | Latest 50 content-free delivery summaries; no reply bodies or credentials |
+| `GET /api/v1/channels/{id}/deliveries` | Latest 50 content-free delivery summaries (replies and alerts); no bodies or credentials |
 | `POST /api/v1/channels/{id}/deliveries/{delivery}/reconcile` | Exact uncertain delivery, attempt count, checked outcome and evidence |
+| `GET /api/v1/notifications` | Latest alerts with their outbox state; kind, subject id, machine reason code |
 
 Connection resources include `contract_version: 1`, identity, assistant, allowed
 senders, paused/enabled state, revision and safe error; never the token or vault
