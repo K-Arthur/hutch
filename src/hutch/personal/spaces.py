@@ -15,7 +15,7 @@ from ..store import RevisionConflict
 from .models import (
     Space, SpaceKind, SpaceMember, SpaceMemberStatus, SpaceRole,
 )
-from .commitments import ANY_SPACE, CommitmentRepo
+from .commitments import CommitmentRepo
 
 
 def space_public(space: Space, *, members: list[SpaceMember], bot_ids: list[str],

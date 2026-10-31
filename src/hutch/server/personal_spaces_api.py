@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 
 from ..personal import Space, SpaceMember
-from ..personal.models import SpaceKind, SpaceMemberStatus, SpaceRole
+from ..personal.models import SpaceMemberStatus, SpaceRole
 from ..personal.spaces import SpaceRepo
 from ..personal.store import PersonalStore
 from ..personal.today import InvalidTimezone, build_today

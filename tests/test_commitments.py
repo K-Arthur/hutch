@@ -6,7 +6,6 @@ import sqlite3
 
 import pytest
 
-from hutch.models import Bot
 from hutch.personal import Commitment, CompletionKind
 from hutch.personal.models import CommitmentPriority, CommitmentStatus
 from hutch.personal.store import PersonalStore
