@@ -18,6 +18,7 @@ from rich.table import Table
 
 from . import __version__
 from .cli_bot_deletion import install_bot_data_commands
+from .cli_bot_lifecycle import install_bot_lifecycle_commands
 from .config import get_config
 from .models import (
     ApprovalMode,
@@ -92,6 +93,7 @@ def _require_run(store: Store, run_id: str) -> "Run":
 
 
 install_bot_data_commands(bot_app, _store, _require_bot, err, console)
+install_bot_lifecycle_commands(bot_app, _store, _require_bot, err, console)
 
 
 @code_app.command("login")
@@ -653,7 +655,7 @@ def bot_list() -> None:
         return
     for b in bots:
         sched = b.schedule.cron if b.schedule else "on demand"
-        paused = "paused" if b.paused else "active"
+        paused = "archived" if b.archived else ("paused" if b.paused else "active")
         console.print(
             f"- {b.display_name} ({b.name})  model={b.model}  runtime={b.runtime.value}  "
             f"tools={','.join(b.tools) or '—'}  schedule={sched}  approvals={b.approval_mode.value}  {paused}"

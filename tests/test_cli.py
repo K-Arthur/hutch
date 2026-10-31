@@ -311,6 +311,32 @@ def test_bot_pause_resume_forget(state_env):
     assert runner.invoke(app, ["bot", "resume", "real-bot"]).exit_code == 0
 
 
+def test_bot_archive_and_restore_keep_the_assistant(state_env):
+    runner.invoke(app, ["init"])
+    assert runner.invoke(app, ["bot", "create", "retiring", "--model", "mock/demo"]).exit_code == 0
+
+    archived = runner.invoke(app, ["bot", "archive", "retiring"])
+    assert archived.exit_code == 0, archived.output
+    show = runner.invoke(app, ["bot", "show", "retiring"])
+    assert '"archived": true' in show.output
+    assert "history are kept" in archived.output or "memory are kept" in archived.output
+
+    # The assistant still exists; only new work is refused.
+    assert runner.invoke(app, ["bot", "list"]).exit_code == 0
+    repeated = runner.invoke(app, ["bot", "archive", "retiring"])
+    assert repeated.exit_code == 0 and "already in that state" in repeated.output
+
+    restored = runner.invoke(app, ["bot", "restore", "retiring"])
+    assert restored.exit_code == 0, restored.output
+    assert '"archived": false' in runner.invoke(app, ["bot", "show", "retiring"]).output
+
+
+def test_bot_archive_refuses_an_unknown_bot(state_env):
+    runner.invoke(app, ["init"])
+    result = runner.invoke(app, ["bot", "archive", "not-a-bot"])
+    assert result.exit_code != 0 and "no such bot" in result.output
+
+
 def test_fake_demo_seed_command_has_been_removed(state_env):
     result = runner.invoke(app, ["demo", "seed"])
     assert result.exit_code != 0
