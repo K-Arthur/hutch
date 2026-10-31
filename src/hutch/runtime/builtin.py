@@ -29,7 +29,8 @@ from typing import Any, Callable, Optional
 
 from ..approvals import DeniedError
 from ..admission import AdmissionCancelled, AdmissionError, inference_slot
-from ..context import check_prompt, plan_context, prompt_tokens as estimate_prompt_tokens, run_selfcheck
+from .. import selfcheck_plan
+from ..context import check_prompt, plan_context, prompt_tokens as estimate_prompt_tokens
 from ..hardware import Hardware, probe
 from ..models import Event, EventType, Run, RunStatus
 from ..persona_preview import (PREVIEW_MAX_INPUT_TOKENS, PREVIEW_MAX_OUTPUT_TOKENS,
@@ -471,8 +472,7 @@ class BuiltinRuntime:
             cached = ctx.store.kv_get(key)
             sc = json.loads(cached) if cached else None
             if sc is None:
-                self._log(ctx, run, "selfcheck", f"checking that {rung.model} really recalls a fact placed at the "
-                                                 f"top of a long prompt in a {num_ctx:,}-token window...")
+                self._log(ctx, run, "selfcheck", selfcheck_plan.announce(ctx.store, rung.model, num_ctx, self._hardware().accelerator))
                 request_runner = None
                 if run.workflow_run_id:
                     if guard is None:
@@ -514,7 +514,7 @@ class BuiltinRuntime:
                                 expected_fence=run.fence)
                         return response
 
-                res = run_selfcheck(provider, rung.model, num_ctx, request_runner=request_runner)
+                res = selfcheck_plan.run_planned_selfcheck(provider, ctx.store, rung.model, num_ctx, request_runner=request_runner, accelerator=self._hardware().accelerator)
                 sc = res.__dict__
                 if res.ok:
                     ctx.store.kv_set(key, json.dumps(sc))

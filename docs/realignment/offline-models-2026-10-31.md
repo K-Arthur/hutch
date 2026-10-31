@@ -1,6 +1,6 @@
 # Offline and local model ecosystem — 2026-10-31
 
-Status: phases A, B and E done and verified (see section 6); phase C and D open. Baseline and research recorded below from a live host with a real
+Status: phases A, B, C and E done and verified (see section 6); phase D open. Baseline and research recorded below from a live host with a real
 Ollama runtime and two real installed models. Nothing in this document is inferred from
 fixtures; every measurement names the command that produced it.
 
@@ -327,6 +327,15 @@ Appended as phases complete. Every row is a command that was actually run on the
 | (found in testing) stuck queue | A killed supervisor left process rows open, so every later run of that assistant sat in `pending` forever. `recovery.release_settled_process_rows` closes a row only when every recorded pid is dead | `tests/test_engine_loop.py` (both directions: a dead row is settled and the next run proceeds; a live descendant keeps its slot) |
 | E: truth | The Vision preset no longer says chat cannot send images | the preset text |
 
-Open: **C** (size the context self-check from measured throughput and say what it will cost before it runs; section 3.2) and **D** (a real
-prompt through the offline broker in the isolated worker; section 3.5). Model server isolation stays a recorded boundary (section 5).
+| C: self-check cost | `selfcheck_plan.py`: the recall probe is sized from measured prompt throughput to fit a 120 s budget (never below 1,024 tokens, never above the old 12,000), the estimate and the reason it was shortened are logged before it runs, and a shortened pass says how far it verified. The speed of every real probe is remembered per model. The runtime's own report of the applied window is checked after the probe and fails the check if smaller than requested. The check is never skipped | `tests/test_selfcheck_plan.py` (10: plan sizing with and without a measurement, GPU keeps the full probe, a fast machine keeps it, the estimate wording, a smaller applied window fails, the report is read after the probe, throughput is remembered even when the probe fails), plus the 500+ existing tests that run through the self-check. **Live, `qwen3:4b` on this CPU-only host (Ollama 0.40.13, 16,384-token window):** the first run announced "a 1,440-token probe (shortened from 12,000 to fit; throughput 12 tokens/s assumed for this hardware), about 2.0 minutes", passed ("recalled the code word ... verified to 1,440 tokens ... the runtime reports a 16,384-token window in effect"), remembered 17.11 tokens/s, and the whole first run finished in about 3 minutes, against more than 7 minutes for the old probe alone |
 
+**A bug the live run found that no fixture had.** The first version read the applied window before the probe and failed a healthy
+setup ("applied a 4,096-token window, not the 16,384 requested"): Hutch preloads a model without a window and Ollama then reports its
+own default until a request arrives at the target window. Reading it after the probe is correct, and `test_the_runtimes_report_is_read_after_the_probe_not_before`
+reproduces the sequence.
+
+What C does not claim: a probe of 1,440 tokens proves the window is applied and the model recalls from the top of that prompt; it
+does not prove recall at 12,000 tokens on a slow machine, and the result text says so. A person who wants the full probe can
+use `hutch doctor --deep`, which runs the unshortened check on request.
+
+Open: **D** (a real prompt through the offline broker in the isolated worker; section 3.5). Model server isolation stays a recorded boundary (section 5).

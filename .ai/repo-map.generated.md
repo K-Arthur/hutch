@@ -20,11 +20,11 @@ Tracked files in scope: 2365.
 | `app/` | 2 |
 | `benchmarks/` | 28 |
 | `desktop/` | 23 |
-| `docs/` | 1149 |
+| `docs/` | 1150 |
 | `native/` | 9 |
 | `scripts/` | 38 |
 | `src/` | 565 |
-| `tests/` | 440 |
+| `tests/` | 439 |
 | `website/` | 66 |
 
 ## Python package: src/hutch/
@@ -58,7 +58,7 @@ Tracked files in scope: 2365.
 
 | Path | Tracked files |
 | --- | ---: |
-| `(root files)` | 322 |
+| `(root files)` | 321 |
 | `e2e/` | 83 |
 | `fixtures/` | 17 |
 | `native/` | 1 |
