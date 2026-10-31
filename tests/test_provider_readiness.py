@@ -74,3 +74,33 @@ def test_provider_readiness_groups_accounts(book):
     assert all(account["state"] == "needs_authentication" for account in summary["accounts"])
     body = readiness_json(account_readiness(book, "openai-personal"))
     assert set(body) == {"state", "subject", "scope", "detail", "next_action", "ready"}
+
+
+# An OpenCode route is resolved by the OpenCode tool on this computer, not by a Hutch connection. The Models page used to say
+# "needs configuration: no account or ambient credential resolves this route" about a free OpenCode model right above a routing
+# table that called the same route "Runnable".
+
+OPENCODE_ROUTE = "opencode/opencode/deepseek-v4.1-flash-free"
+
+
+def test_an_opencode_route_is_not_called_unconfigured_when_the_tool_is_installed(book, monkeypatch):
+    monkeypatch.setattr("hutch.providers.readiness.shutil.which", lambda name: "/usr/bin/opencode")
+    result = route_readiness(book, OPENCODE_ROUTE)
+    assert result.state == "capability_unverified", "never 'available' from a listing alone, never 'needs configuration' either"
+    assert "OpenCode" in result.detail and "credential" not in result.detail
+    assert "Add a connection" not in result.next_action
+
+
+def test_an_opencode_route_without_the_tool_says_what_to_install(book, monkeypatch):
+    monkeypatch.setattr("hutch.providers.readiness.shutil.which", lambda name: None)
+    result = route_readiness(book, OPENCODE_ROUTE)
+    assert result.state == "needs_configuration"
+    assert "not found" in result.detail and "OpenCode" in result.next_action
+
+
+def test_a_saved_connection_named_opencode_is_judged_as_a_connection(book, monkeypatch):
+    monkeypatch.setattr("hutch.providers.readiness.shutil.which", lambda name: None)
+    book.add("openai-api", "opencode", title="My own")
+    book.set_key("opencode", "sk-unit-test-placeholder")
+    result = route_readiness(book, OPENCODE_ROUTE)
+    assert result.state == "capability_unverified" and "not found" not in result.detail

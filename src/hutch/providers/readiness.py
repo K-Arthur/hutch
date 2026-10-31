@@ -12,6 +12,7 @@ endpoint_unavailable, capability_unverified, unsupported_runtime, needs_configur
 from __future__ import annotations
 
 import os
+import shutil
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -114,6 +115,17 @@ def route_readiness(book: ConnectionBook, spec: str, *, catalog=None,
         return _make("needs_authentication", subject, "model",
                      "No " + variable + " is set and no named connection provides this provider.",
                      "Add a named connection with its own key, or set " + variable + " for the official host.")
+    if provider_id == "opencode":
+        # The OpenCode tool resolves these routes on this computer; no Hutch connection or key is involved, and its free
+        # models need no account. Nothing is probed here (local facts only), so capability stays unverified.
+        if not shutil.which("opencode"):
+            return _make("needs_configuration", subject, "model",
+                         "The OpenCode command line tool was not found on this computer, so this route cannot run.",
+                         "Install OpenCode, or choose a model from another service.")
+        return _make("capability_unverified", subject, "model",
+                     "Runs through the OpenCode tool on this computer, not a Hutch connection. Models whose name says free "
+                     "need no account; what you send them goes to OpenCode's service.",
+                     "Exercise the route through a normal Hutch run to verify it.")
     provider = catalog.get(provider_id)
     if provider is not None and provider.integration_status in ("blocked", "retired"):
         return _make("blocked_by_policy", subject, "model",
