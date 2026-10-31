@@ -13,6 +13,7 @@ only what you reviewed.
 | 614c331f | G05: notifications schema + outbox generalization + supervisor delivery + read API + tests |
 | 4a95f39e | docs, site section, marketing claims, pipeline session record |
 | ac5e6f04 | the review fixes: immediate revocation, JSON-guarded triggers, `not_queued`, deleted-assistant filtering, bounded calendar label |
+| 5a835791, 227b1c89, 40663956 | the pipeline record: session, run log, acceptance, handoff, and the gate measured at the committed tip instead of in the shared tree |
 
 ## Status by capability
 
