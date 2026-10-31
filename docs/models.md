@@ -309,3 +309,12 @@ Per-runtime health (also on the Models page): each call's outcome is recorded; t
 - **Not verified on real models.** The development machine has about 3 GiB free and no Ollama, so swap latency,
   cold-load times and context self-check results on real local models have not been measured. The pages and commands
   report "not measured" rather than showing numbers that were not.
+
+## Route readiness and provider evidence (2026-10-30)
+
+The Models page now shows an explicit readiness state for every configured route. States are computed
+from local configuration only: available, needs authentication, capability unverified, endpoint
+unavailable, needs configuration, blocked by policy, and similar. Capability unverified is not a
+failure; it means no dated evidence exists for that exact route and model in this build. A provider
+catalogue link opens the account, capability and runtime overview. See provider-platform.md.
+

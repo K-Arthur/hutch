@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Hutch — local-first AI assistants that run on your machine</title>
-  <meta name="description" content="Local-first, MIT-licensed AI assistants that run on your own Linux computer. Choose the models; assistants ask before important actions. Development preview.">
+  <meta name="description" content="Local-first, MIT-licensed AI assistants that run on your own Linux computer. Choose the provider, plan and account; assistants ask before important actions. Development preview.">
   <link rel="alternate" type="application/json" href="downloads.json?v=34dc6a4b" title="Hutch desktop release manifest">
   <meta name="theme-color" content="#09090b">
   <link rel="canonical" href="https://k-arthur.github.io/hutch/">
   <meta property="og:url" content="https://k-arthur.github.io/hutch/">
   <meta property="og:title" content="Hutch — local-first AI assistants that run on your machine">
-  <meta property="og:description" content="Personal AI assistants that run on your own computer, with the models you choose and approvals before important actions. Local-first, MIT-licensed, development preview.">
+  <meta property="og:description" content="Personal AI assistants that run on your own computer, with the provider, plan and account you choose, and approvals before important actions. Local-first, MIT-licensed, development preview.">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Hutch">
   <meta property="og:image" content="https://k-arthur.github.io/hutch/assets/og-card-1200x630.png?v=2cf67f59">
@@ -52,9 +52,10 @@
       "Local or hosted model routes: Ollama, llama.cpp, LM Studio, OpenAI, Anthropic, OpenRouter, OpenAI-compatible and OpenCode",
       "Estimated spend ceilings, usage reservations and run budgets",
       "Hash-verified transcripts and locally stored, versioned document files",
+      "A validated provider catalogue with multiple named accounts, explicit readiness states and separated execution runtimes",
       "Recurring tasks with IANA-timezone schedules that catch up after sleep"
     ],
-    "dateModified": "2026-10-28"
+    "dateModified": "2026-10-30"
   }
   </script>
   <script type="application/ld+json">
@@ -196,6 +197,14 @@
         "acceptedAnswer": {
           "@type": "Answer",
           "text": "OpenCode can connect a provider through an API key or a sign-in method its installed server reports, inside a private profile managed by Hutch; it does not import your regular OpenCode profile. Hutch reserves usage before the prompt and settles the provider-reported totals. OpenCode Go is also available as a user-supplied API key route. Sign in with ChatGPT is an opt-in local-app preview; eligibility for Hutch is unconfirmed and its Responses API does not enforce Hutch's output-token allowance. Scheduled or coordinator-assigned work needs your express permission for each Bot and connected account; the permission follows that Bot's current provider routes and can be revoked. Hutch never reuses consumer-app cookies or sessions, and no plan is silently upgraded or selected as a fallback."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I use more than one model provider or account?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Providers, plans, accounts and runtimes are separate choices. Add a named account for each API project or subscription, and every model route names the account it uses, so you always know which service receives data and which account pays. The in-app Providers page lists the provider catalogue with its real status (shipped, experimental, research-only, blocked or retired), the accounts configured on this machine, explicit readiness states such as needs authentication or capability unverified, the local inference services detected on loopback, and the execution runtimes with their boundaries. Hutch does not switch the provider, plan, account, endpoint or runtime on its own, and a provider being listed is not a support claim; only routes marked shipped are usable today."
         }
       },
       {
@@ -675,6 +684,69 @@
     </div>
   </section>
 
+  <!-- ============================================================= PROVIDERS -->
+  <section class="section" id="providers">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="section-heading">Not tied to one model vendor.</h2>
+        <p class="section-desc">Hutch keeps the provider, the plan, the account and the execution runtime as separate choices. Pick a direct API account, a subscription plan with an issued key, a gateway, a local model server or a custom compatible endpoint - and keep that choice visible while work runs.</p>
+      </div>
+
+      <div class="choice-grid">
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-ai" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="16" r="11"/><path d="M5 16h22M16 5c4 3.6 4 18 0 22M16 5c-4 3.6-4 18 0 22"/></svg></span><h3>Choose the account, not just the provider</h3></div>
+          <p>One provider can have several named accounts - a personal API project, a work project, a subscription plan - and every model route names the account it uses. Each account shows its authentication method, whether the credential is local, the billing relationship and what is missing.</p>
+          <p>Keys stay on your machine: Hutch shows where a credential comes from, never the value, and removing a local key is reported separately from provider-side revocation.</p>
+        </article>
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-apps" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h22M5 16h22M5 23h22"/><circle cx="10" cy="9" r="2"/><circle cx="22" cy="16" r="2"/><circle cx="14" cy="23" r="2"/></svg></span><h3>Kinds of route, all explicit</h3></div>
+          <p>Direct API keys, gateway accounts, subscription plans that issue their own provider key, local model servers and custom compatible endpoints are different routes. A gateway can answer with a different upstream model than the requested catalogue entry; Hutch records the model the provider reports instead of pretending the requested one answered.</p>
+          <p>Similar APIs are not assumed identical: tools, streaming, image input, context controls, usage reporting and cancellation are recorded per route and model, with dated sources.</p>
+        </article>
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-home" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="24" height="18" rx="3"/><path d="M4 13h24M9 17h6M9 21h10"/></svg></span><h3>Bring your own runtime</h3></div>
+          <p>The execution runtime is not the provider. The built-in runtime reserves provider usage before a model call and applies Hutch approvals and sandbox rules; the managed OpenCode runtime keeps its own tools and credentials; documented vendor CLIs stay documented until an approval, budget and process-lifecycle contract exists. Registering an engine never silently enables it.</p>
+        </article>
+      </div>
+
+      <details class="page-details technical-details">
+        <summary>See route categories, capability status and research-tracked providers</summary>
+        <div class="details-copy">
+          <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <article class="card feature border border-line bg-surface"><div class="card-body">
+              <h3 class="card-title">Shipped model routes</h3>
+              <p>OpenAI Platform API key, Anthropic Console API key, OpenRouter, custom OpenAI- and Anthropic-compatible endpoints, local Ollama, LM Studio, llama.cpp and vLLM, and the managed OpenCode runtime. OpenCode Go and Xiaomi Token Plan are shipped but experimental subscription-key routes; Sign in with ChatGPT is an opt-in local preview.</p>
+            </div></article>
+            <article class="card feature border border-line bg-surface"><div class="card-body">
+              <h3 class="card-title">Capabilities, not vendor promises</h3>
+              <p>Image input is implemented and gated on the selected route and model; a route that cannot receive an attachment refuses it instead of dropping it. Image generation ships through OpenAI Images and ComfyUI. Speech synthesis ships through OpenAI and Gemini TTS engines (protocol-tested, not live-verified). Local grounding streams from public sources. Video, music and provider-native search are research-tracked, not shipped.</p>
+            </div></article>
+            <article class="card feature border border-line bg-surface"><div class="card-body">
+              <h3 class="card-title">No silent substitution</h3>
+              <p>Hutch does not change the model, provider, account, endpoint, region, runtime or billing route on its own. There is no automatic fallback to another paid service and no consumer-session reuse or unsupported subscription bridge. A blocked or retired route is labelled, with the documented alternative, instead of being imitated.</p>
+            </div></article>
+          </div>
+
+          <div class="routes">
+            <span class="routes-k">shipped route families</span>
+            <ul class="routes-list">
+              <li class="badge badge-outline">openai api</li><li class="badge badge-outline">anthropic api</li><li class="badge badge-outline">openrouter</li><li class="badge badge-outline">openai-compatible</li><li class="badge badge-outline">anthropic-compatible</li><li class="badge badge-outline">opencode go (experimental)</li><li class="badge badge-outline">xiaomi token plan (experimental)</li><li class="badge badge-outline">ollama</li><li class="badge badge-outline">lm studio</li><li class="badge badge-outline">llama.cpp</li><li class="badge badge-outline">vllm</li><li class="badge badge-outline">openai images</li><li class="badge badge-outline">comfyui</li><li class="badge badge-outline">openai / gemini tts</li>
+            </ul>
+          </div>
+
+          <div class="routes">
+            <span class="routes-k">research-tracked, not shipped</span>
+            <ul class="routes-list">
+              <li class="badge badge-outline">google gemini</li><li class="badge badge-outline">vertex ai</li><li class="badge badge-outline">amazon bedrock</li><li class="badge badge-outline">bedrock mantle</li><li class="badge badge-outline">anthropic on vertex</li><li class="badge badge-outline">microsoft foundry</li><li class="badge badge-outline">minimax</li><li class="badge badge-outline">moonshot / kimi</li><li class="badge badge-outline">qwen</li><li class="badge badge-outline">xai grok</li><li class="badge badge-outline">z.ai glm</li><li class="badge badge-outline">mistral</li><li class="badge badge-outline">deepseek</li><li class="badge badge-outline">alibaba model studio</li><li class="badge badge-outline">stepfun</li><li class="badge badge-outline">volcengine</li><li class="badge badge-outline">tencent cloud</li><li class="badge badge-outline">baidu qianfan</li><li class="badge badge-outline">cohere</li><li class="badge badge-outline">synthetic</li><li class="badge badge-outline">venice</li><li class="badge badge-outline">arcee</li><li class="badge badge-outline">vydra</li><li class="badge badge-outline">gmi cloud</li><li class="badge badge-outline">byteplus</li><li class="badge badge-outline">cloudflare ai gateway</li><li class="badge badge-outline">vercel ai gateway</li><li class="badge badge-outline">clawrouter</li><li class="badge badge-outline">litellm</li><li class="badge badge-outline">groq</li><li class="badge badge-outline">cerebras</li><li class="badge badge-outline">together</li><li class="badge badge-outline">fireworks</li><li class="badge badge-outline">nvidia nim</li><li class="badge badge-outline">hugging face</li><li class="badge badge-outline">deepinfra</li><li class="badge badge-outline">chutes</li><li class="badge badge-outline">novita</li><li class="badge badge-outline">kilocode</li><li class="badge badge-outline">ollama cloud</li><li class="badge badge-outline">sglang</li><li class="badge badge-outline">inferrs</li><li class="badge badge-outline">ds4</li><li class="badge badge-outline">fal</li><li class="badge badge-outline">runway</li><li class="badge badge-outline">pixverse</li><li class="badge badge-outline">deepgram</li><li class="badge badge-outline">elevenlabs</li><li class="badge badge-outline">claude code cli</li><li class="badge badge-outline">codex cli</li><li class="badge badge-outline">gemini cli</li>
+            </ul>
+          </div>
+
+          <p class="details-note">This is a research catalogue, not a support claim. Some routes are blocked by provider policy (for example a Claude subscription API proxy or GitHub Copilot subscription reuse), and some flows are retired (for example the old Qwen portal OAuth and 2026 Gemini consumer CLI authentication). No vendor partnership or endorsement is implied. Each in-app provider entry shows its category, authentication methods, integration status and dated sources; the full research record ships in the repository under docs/research/2026-10-provider-platform/.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <!-- =============================================================== CONTROL -->
   <section class="band" id="control">
     <div class="wrap">
@@ -951,6 +1023,10 @@
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Can I run it on my ChatGPT or Claude subscription?</summary>
           <div class="collapse-content"><p>OpenCode can connect a provider through an API key or a sign-in method its installed server reports, inside a private profile managed by Hutch; it does not import your regular OpenCode profile. Hutch reserves usage before the prompt and settles the provider-reported totals. OpenCode Go is also available as a user-supplied API key route. Sign in with ChatGPT is an opt-in local-app preview; eligibility for Hutch is unconfirmed and its Responses API does not enforce Hutch's output-token allowance. Scheduled or coordinator-assigned work needs your express permission for each Bot and connected account; the permission follows that Bot's current provider routes and can be revoked. Hutch never reuses consumer-app cookies or sessions, and no plan is silently upgraded or selected as a fallback.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can I use more than one model provider or account?</summary>
+          <div class="collapse-content"><p>Yes. Providers, plans, accounts and runtimes are separate choices. Add a named account for each API project or subscription, and every model route names the account it uses, so you always know which service receives data and which account pays. The in-app Providers page lists the provider catalogue with its real status (shipped, experimental, research-only, blocked or retired), the accounts configured on this machine, explicit readiness states such as needs authentication or capability unverified, the local inference services detected on loopback, and the execution runtimes with their boundaries. Hutch does not switch the provider, plan, account, endpoint or runtime on its own, and a provider being listed is not a support claim; only routes marked shipped are usable today.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">What does a runaway bot cost me?</summary>

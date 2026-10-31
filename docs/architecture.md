@@ -571,3 +571,14 @@ The computer resource boundary lives in `computer/resources.py` (fresh authority
 `computer/frames.py` (cross-instance serialization). Readiness distinguishes implemented isolated KWin prerequisites from
 host portal/library discovery: clipboard/AT-SPI actions and other compositor adapters remain absent. The run-state API
 binds preview pixels to their recorded surface and that surface's owner; another surface's control event cannot relabel it.
+
+## Provider platform (2026-10-30)
+
+Provider identity is separated from authentication profiles, protocol adapters, execution runtimes and
+capability evidence. src/hutch/providers/catalog.py validates the bundled provider catalogue; the
+connection store gains optional provider/auth_method metadata resolved into account profiles
+(providers/accounts.py); capability evidence records levels with a dated source
+(providers/capabilities.py); explicit readiness comes from local facts (providers/readiness.py); and
+runtime/registry.py describes runtime boundaries without enabling new executors. See
+provider-platform.md and ADR-0025.
+

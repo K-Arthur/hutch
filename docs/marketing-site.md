@@ -345,3 +345,15 @@ marketing check, not live model-quality evidence. The headless runner cannot app
 
 Known gaps: no physical-device or screen-reader session; contrast is computed for declared token pairs, with rendered surfaces
 checked by eye at the two review widths; the frame grid is untested on very low-end GPUs.
+
+## Provider ecosystem section (2026-10-30)
+
+website/index.html gained a "Not tied to one model vendor" section with three route/account/runtime
+cards, a collapsed status panel containing shipped route families, capability status and a
+research-tracked provider list. Claims are deliberately split: the shipped list names only routes that
+exist in the product; the research list is labelled as a research catalogue, not a support claim, and
+names blocked and retired examples. No vendor marks are used in this section, no partnership is
+implied, and no provider was live-verified for this preview. The page was rebuilt from its CSS sources
+and captured at the five review widths; see the provider research package and
+docs/realignment/visual-validation.md for the evidence.
+
