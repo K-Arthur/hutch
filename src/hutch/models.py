@@ -412,10 +412,10 @@ class Bot(BaseModel):
     remote_computer_access: Literal["off", "view", "control"] = "off"  # viewing and step input are separate owner opt-ins
     remote_start_enabled: bool = False   # local-owner opt-in for passkey-paired phone starts; never grants new tools
     paused: bool = False
+    archived: bool = False           # owner-retired: refuses new work, keeps history
     pinned: bool = False              # workspace roster preference; does not affect execution
-    # --- dynamic workflows (schema v53): how Hutch may use a workflow for this Bot.
-    # New assistants default to Suggest; the schema-v57 migration pins older persisted
-    # assistants to their former Off behavior when this field was absent.
+    # --- dynamic workflows (schema v53): how Hutch may use a workflow for this Bot. New assistants
+    # default to Suggest; the schema-v57 migration pins older persisted ones to their former Off.
     workflow_mode: Literal["off", "suggest", "auto"] = "suggest"
     workflow_limits: dict = Field(default_factory=dict)  # auto scope: definitions + budget caps
     sidebar_hidden: bool = False       # removes an idle Bot from the main roster; never pauses work

@@ -39,6 +39,7 @@ from urllib.parse import quote as _url_quote
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .. import __version__
+from .. import bot_lifecycle
 from ..approvals import resolve_approval, resolve_approval_ex
 from ..action_receipts import ActionConflict
 from ..fact_memory import FactConflict
@@ -141,6 +142,7 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("PUT", "/api/v1/identity/person"): None,
     ("GET", "/api/v1/bots/{ref}/identity"): None,
     ("PUT", "/api/v1/bots/{ref}/identity"): None,
+    ("POST", "/api/v1/bots/{ref}/archive"): None,
     ("GET", "/api/v1/catalog"): None,
     ("POST", "/api/v1/catalog/export-draft"): None,
     ("POST", "/api/v1/catalog/import-draft"): None,
@@ -434,6 +436,12 @@ class RestorePageResource(BaseModel):
     items: list[RestoreItemResource]
     limit: int
     offset: int
+
+
+class ArchiveBotRequest(BaseModel):
+    """Retire or restore one assistant. The command is idempotent per key."""
+
+    archived: bool
 
 
 class BotPatch(BaseModel):
@@ -2158,6 +2166,7 @@ def create_app() -> FastAPI:
         return {
             "id": bot.id, "name": bot.name, "display_name": bot.display_name,
             "description": bot.description, "model": bot.model, "paused": bot.paused,
+            "archived": bot.archived,
             "adaptive_persona_enabled": config.adaptive_persona_enabled,
             **({"persona_profile_error": bot.persona_profile_error} if bot.persona_profile_error else {}),
             "remote_start_enabled": can_start and bot.remote_start_enabled,
@@ -3619,6 +3628,9 @@ def create_app() -> FastAPI:
             raise HTTPException(403, "phone starts use the Bot's locally configured model and policy")
         if is_paired_phone(request) and body.skills:
             raise HTTPException(403, "skill activation is a local owner action")
+        if bot.archived:
+            raise HTTPException(409, f"{bot.display_name or bot.name} is archived; restore this assistant "
+                                     "before starting new work")
         if body.correction:
             require_adaptive_persona()
         if body.correction and bot.runtime.value != "builtin":
@@ -4691,6 +4703,30 @@ def create_app() -> FastAPI:
         return {"run_id": run.id, "status": run.status.value, "replayed": not created,
                 "profile_revision": run.persona_preview_revision, "model": run.model_override,
                 "budget": quote}
+
+    @app.post("/api/v1/bots/{ref}/archive", response_model=dict)
+    def archive_bot_v1(ref: str, body: ArchiveBotRequest, request: Request) -> dict:
+        """Retire an assistant (keeping its history) or restore it.
+
+        Local-owner-only: a paired phone can supervise work but does not change an assistant's
+        lifecycle. Archiving while a run is active is refused rather than silently killing work.
+        """
+        bot = bot_or_404(ref)
+        key = idempotency_key(request)
+        digest = request_digest({"bot_id": bot.id, "archived": body.archived})
+        try:
+            saved, _changed = bot_lifecycle.archive_bot(store, bot.id, body.archived,
+                                                        idem_key=key, request_hash=digest)
+        except KeyError:
+            raise HTTPException(404, f"no such bot: {ref}") from None
+        except PermissionError as exc:
+            raise HTTPException(409, str(exc)) from None
+        except bot_lifecycle.ArchiveRefused as exc:
+            action = "archiving" if body.archived else "restoring"
+            raise HTTPException(409, f"Stop or finish run {exc.run_id} before {action} this assistant") from None
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        return bot_view(saved)
 
     @app.delete("/api/bots/{ref}")
     def delete_bot(ref: str) -> dict:

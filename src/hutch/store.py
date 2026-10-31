@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from .config import hutchConfig, get_config
-from . import action_receipts, bot_deletion_schema, durable_changes, fact_purge_schema, personal_schema
+from . import action_receipts, bot_deletion_schema, bot_lifecycle, durable_changes, fact_purge_schema, personal_schema
 from .workflow import usage_budget as workflow_usage_budget
 from .money import format_usd
 from .lifecycle import TERMINAL, IllegalTransition, LeaseLost, allowed
@@ -3481,6 +3481,8 @@ class Store:
         bots = []
         for row in rows:
             bot = Bot.from_store_json(row["doc"])
+            if bot.archived:  # retired: not offered for delegated work, history stays readable
+                continue
             bots.append({"id": str(row["id"]), "name": str(row["name"]),
                          "display_name": bot.display_name})
         eligible_ids = {bot["id"] for bot in bots}
@@ -4265,6 +4267,7 @@ class Store:
             self._assert_execution_ready(db)
             if not self._remote_run_allowed(db, run):
                 raise PermissionError("remote start authority is missing, revoked, or disabled")
+            bot_lifecycle.assert_accepts_work(db, run.bot_id)
             db.execute(
                 "INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, conversation_context) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -4285,6 +4288,7 @@ class Store:
             self._assert_execution_ready(db)
             if not self._remote_run_allowed(db, run):
                 raise PermissionError("remote start authority is missing, revoked, or disabled")
+            bot_lifecycle.assert_accepts_work(db, run.bot_id)
             db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
                        "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
                        (task.id, task.bot_id, task.kind, task.prompt, task.created_at, run.id))
@@ -5567,6 +5571,7 @@ class Store:
                 raise KeyError(conversation_id)
             if conversation["bot_id"] != run.bot_id:
                 raise PermissionError("conversation belongs to another bot")
+            bot_lifecycle.assert_accepts_work(db, run.bot_id)
             if conversation["archived"]:
                 raise ValueError("conversation is archived")
 
@@ -6378,8 +6383,8 @@ class Store:
             from .engine import Engine
             current_bot = Bot.from_store_json(row["bot_doc"])
             saved_snapshot = json.loads(row["capability_snapshot_json"] or "{}")
-            if current_bot.paused:
-                return unavailable("Unpause the specialist Bot before continuing this task.")
+            if current_bot.archived or current_bot.paused:
+                return unavailable("Restore or unpause the specialist assistant before continuing this task.")
             if saved_snapshot.get("runtime") != "builtin":
                 return unavailable("Safe checkpoint continuation is currently available only for the built-in runtime.")
             if not saved_snapshot or saved_snapshot != Engine.capability_snapshot(current_bot):
@@ -6755,7 +6760,7 @@ class Store:
                 return None
             current_schedules = current_bot.schedules or ([current_bot.schedule] if current_bot.schedule else [])
             current_schedule = next((item for item in current_schedules if item.id == schedule_id), None)
-            if current_bot.paused or (current_schedules and
+            if current_bot.paused or current_bot.archived or (current_schedules and
                                       (current_schedule is None or not current_schedule.enabled)) or (
                     not current_schedules and not legacy_implicit_schedule):
                 return None
@@ -6832,7 +6837,7 @@ class Store:
                 return False
             schedules = bot.schedules or ([bot.schedule] if bot.schedule else [])
             schedule = next((item for item in schedules if item.id == schedule_id), None)
-            if bot.paused or schedule is None or not schedule.enabled:
+            if bot.paused or bot.archived or schedule is None or not schedule.enabled:
                 return False
             marker_row = db.execute("SELECT value FROM kv WHERE key = ?", (marker_key,)).fetchone()
             if (marker_row["value"] if marker_row else None) != expected_marker:
