@@ -610,7 +610,11 @@ resolve once through compare-and-swap, and full-request rewrites are refused.
 The computer resource boundary lives in `computer/resources.py` (fresh authority and whole-clean-workspace grant),
 `computer/budgets.py` (independent sampled limits), `native/virtual.py` (owned capture/app process lifecycle) and
 `computer/frames.py` (cross-instance serialization). Readiness distinguishes implemented isolated KWin prerequisites from
-host portal/library discovery: clipboard/AT-SPI actions and other compositor adapters remain absent. The run-state API
+host portal/library discovery: portal adapters, clipboard and other compositor adapters remain absent; semantic (AT-SPI)
+control exists only inside Hutch's own disposable session, through the private bus `native/a11y_bus.py` starts, the
+out-of-process worker in `native/a11y_worker.py`, and the host-side client `computer/accessibility.py` (validated, bounded,
+fenced in `computer/a11y_tree.py`). `computer/limits.py` holds the per-run action budget and the no-progress rule that
+refuses a stalled agent rather than letting it loop. The run-state API
 binds preview pixels to their recorded surface and that surface's owner; another surface's control event cannot relabel it.
 
 ## Provider platform (2026-10-30)
