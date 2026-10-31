@@ -57,6 +57,10 @@ retired assistant; an archived assistant is not offered as a specialist and admi
 event source while keeping its recorded events; and over HTTP the refusal is 409, the state round-
 trips, and a missing idempotency key is 428.
 
+| `pytest` over 8 more files (monitoring, schedule, restore, workflow, routes, pairing) | 92 passed |
+| After merging `main` to `2a49c981`: `pytest` over 22 files | 458 passed |
+| `audit_context_hygiene` / `audit_tool_contracts` / `audit_constitution` / `audit_emoji` | all pass (44 tools, 938 files, 2178 files scanned) |
+
 ## Real CLI, real state directory
 
 `HUTCH_STATE_DIR=/tmp/hutch-cli-abc`, `hutch init`, then:
@@ -177,44 +181,65 @@ not "fixed" by lowering the threshold.
 `tests/test_api.py::test_full_mock_run_via_api` failed once in the same loaded batch with "event
 flush timed out" and passes in isolation in 5.7 s. Same cause.
 
-One gate is red on `main` before this branch touches it:
+One gate was red on `main` before this branch touched it, and has since been fixed upstream by the
+session that owned it:
 
 ```
-$ python scripts/audit_emoji.py
+$ python scripts/audit_emoji.py     # at 4a95f39e
  EMOJI  docs/research/2026-10-connectors-ecosystem/research.md:257
 ```
 
-The line quotes a GitHub label verbatim (`merge-risk: [emoji] security-boundary`) and belongs to
-another session's document, committed on `main` as `826609bf`. Confirmed pre-existing by reading
-the file out of `main` directly. Left alone rather than edited: the emoji is part of a source quote,
-so the owner's call is a waiver comment, not deleting the character.
+The line quoted a GitHub label verbatim (`merge-risk: [emoji] security-boundary`) in another
+session's document, committed on `main` as `826609bf`. It was confirmed pre-existing by reading the
+file out of `main` directly, and left alone because the emoji is part of a source quote. After the
+merge to `2a49c981` the audit passes (2178 files scanned, 10 waivers), so nothing from this work
+needs a waiver.
 
 ## Integration state
 
-The branch contains `main` (`git merge-base --is-ancestor main agents/bots-conversations` succeeds), so
-landing it is a fast-forward with no rewrite and no risk to main's history.
+The branch contains `main` at `2a49c981` and has been merged twice as `main` advanced (44 then 18
+commits), so landing it is a fast-forward: no rewrite, no risk to main's history.
 
-It is **not yet on `main`**, for one reason outside this work:
+It is **not yet on `main`**, and after direct observation the blocker is not a stale tree but live
+concurrent work:
 
 ```
 $ git merge --ff-only agents/bots-conversations        # in the primary worktree
  error: Your local changes to the following files would be overwritten by merge:
         src/hutch/cli.py
-        src/hutch/server/app.py
-        src/hutch/server/static/app.js
-        src/hutch/server/static/studio.css
-        tests/test_cli.py
+        src/hutch/engine.py
+        src/hutch/store.py
 ```
 
-Another active session has uncommitted edits in the primary worktree to exactly the five files
-overlapping this change. Stashing, committing or resetting them would destroy or misattribute
-someone else's work, which the repository rules forbid, so the fast-forward is left to run once
-that session commits. Nothing else is pending; the command above is the whole remaining step.
+What the tree did while this was being checked, over ~5 minutes on 2026-10-31 between 03:35 and
+03:50:
 
-Two facts about the remote, so no CI claim is implied: local `main` is 251 commits ahead of
-`origin/main`, and the last three CI runs on `origin/main` completed as `failure`. Pushing either
-`main` or this branch is therefore a separate, much larger publication decision than this task, and
-was not done.
+- dirty paths grew from 17 to 28;
+- `src/hutch/engine.py` changed hash mid-observation (03:37);
+- new untracked modules appeared: `cli_models.py`, `providers/model_install.py`,
+  `providers/ollama_extras.py`, `skill_requirements.py`, `server/static/model-install.js`,
+  `tests/e2e/test_model_install.py`;
+- a live agent session was caught writing and running `tests/e2e/test_model_install.py` for a
+  feature called offline models, and `uv run hutch serve` was running its validation server.
+
+So at least one session is actively editing the same repository, and three of its uncommitted files
+overlap this change. Moving `main` forward now would not merely conflict: any later `git add -A`
+in that tree would stage the *pre-change* content of every file this branch touched and revert the
+feature, including deleting the new modules. Stashing, committing or resetting another session's
+work is forbidden by the repository rules and would be wrong regardless.
+
+The single remaining step, once that tree is quiet and either clean or committed:
+
+```
+git merge --ff-only agents/bots-conversations
+```
+
+Two facts about the remote, so no CI claim is implied: local `main` is far ahead of `origin/main`,
+and the last three CI runs on `origin/main` completed as `failure`. Pushing either `main` or this
+branch is therefore a separate publication decision, and was not done.
+
+Re-verified after the second merge (458 tests and all four agent audits green) - see the coverage
+table above.
 
 ## What was not verified
 
