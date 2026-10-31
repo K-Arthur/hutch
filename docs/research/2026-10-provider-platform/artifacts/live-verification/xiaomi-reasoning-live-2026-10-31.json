@@ -1,0 +1,37 @@
+{
+  "checked_on": "2026-10-31",
+  "provider": "xiaomi",
+  "model": "mimo-v2.6-flash",
+  "credential": "owner's installed credential store, read in memory only",
+  "observations": [
+    {
+      "max_tokens": 12,
+      "content": "",
+      "thinking_len": 33,
+      "thinking_head": "The user wants me to say \"HUTCH_L",
+      "finish": "length",
+      "tokens": [
+        15,
+        12
+      ],
+      "notes": [
+        "the provider billed 11 of 12 completion tokens as reasoning",
+        "the model returned no visible answer; raise the output limit or ask for a shorter answer"
+      ]
+    },
+    {
+      "max_tokens": 64,
+      "content": "HUTCH_LIVE_OK",
+      "thinking_len": 41,
+      "thinking_head": "The user wants me to say \"HUTCH_LIVE_OK\".",
+      "finish": "stop",
+      "tokens": [
+        15,
+        23
+      ],
+      "notes": [
+        "the provider billed 15 of 23 completion tokens as reasoning"
+      ]
+    }
+  ]
+}

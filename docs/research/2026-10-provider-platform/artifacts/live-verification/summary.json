@@ -57,6 +57,24 @@
       "artifact": "opencode-managed-runtime-live.json",
       "error": "Provider reported an expired OpenCode Go API key.",
       "honesty": "The run failed explicitly, cost 0.0, and no retry or alternate account was used."
+    },
+    {
+      "provider": "xiaomi",
+      "route": "xiaomi-token-plan-sgp (owner's Token Plan key), built-in runtime, openai-chat adapter",
+      "checked_on": "2026-10-31",
+      "result": "succeeded",
+      "capability": "text generation on mimo-v2.6-flash and mimo-v2.6-pro",
+      "artifact": "xiaomi-chat-live-2026-10-31.json",
+      "notes": "Two bounded requests per model. The replies carried reasoning_content that the adapter previously discarded; a second dated artifact records the fix."
+    },
+    {
+      "provider": "xiaomi",
+      "route": "xiaomi-token-plan-sgp, reasoning capture and truncation reporting",
+      "checked_on": "2026-10-31",
+      "result": "succeeded",
+      "capability": "reasoning text retained; all-reasoning answer explained",
+      "artifact": "xiaomi-reasoning-live-2026-10-31.json",
+      "notes": "caps 12 and 64 on mimo-v2.6-flash; 12 produced no visible answer and said so in the notes."
     }
   ]
 }

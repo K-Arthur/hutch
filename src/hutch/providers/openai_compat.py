@@ -22,6 +22,7 @@ from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, Provide
                    Watchdog, abort_response, parse_tool_args_state, record_adapter_receipt)
 from ..connection_endpoints import redirect_refusal
 from .model_list import parse_catalog_ids
+from .openai_result import build_result, reasoning_text
 from .openrouter_policy import validate_policy
 
 PRESET_URLS = {
@@ -233,6 +234,11 @@ class OpenAICompatProvider(Provider):
         except Exception as exc:
             raise self._wrap_exc(exc)
 
+    def _stream_result(self, content: str, tcs: list[ToolCall], usage: dict[str, Any], finish: str,
+                      model: str, req: ChatRequest) -> ChatResult:
+        return build_result(content, tcs, usage, finish, model, provider_name=self.name,
+                            num_ctx=int(req.num_ctx or 0), streamed=True)
+
     def _catalog_ids(self, payload: Any) -> list[str]:
         return parse_catalog_ids(payload, self.name)
 
@@ -387,8 +393,8 @@ class OpenAICompatProvider(Provider):
             args, err, state, double = parse_tool_args_state(slot["arguments"])
             tcs.append(ToolCall(id=slot["id"], name=slot["name"], arguments=args, raw=slot["arguments"],
                                 parse_error=err, arguments_state=state, double_decoded=double))
-        result = self._result(assembler.content, tcs, assembler.usage, assembler.finish,
-                              assembler.model or req.model, req, streamed=True)
+        result = self._stream_result(assembler.content, tcs, assembler.usage, assembler.finish,
+                                     assembler.model or req.model, req)
         result.notes.extend(assembler.notes)
         return result
 
@@ -436,31 +442,6 @@ class OpenAICompatProvider(Provider):
             err = ProviderError("refused", f"{self.name} filtered the response (content_filter)", provider=self.name)
             err.category = "content_filter"  # type: ignore[attr-defined]
             raise err
-        return self._result(msg.get("content") or "", tcs, j.get("usage") or {}, finish,
-                            j.get("model", req.model), req, streamed=False)
-
-    def _result(self, content: str, tcs: list[ToolCall], usage: dict[str, Any], finish: str, model: str,
-                req: ChatRequest, streamed: bool) -> ChatResult:
-        details = usage.get("prompt_tokens_details") or {}
-        # Truncation is the stronger fact: a partially streamed tool call must
-        # never be reported as a complete tool request.
-        reason = "length" if finish == "length" else ("tool_calls" if tcs else "stop")
-        reported = None
-        raw_cost = usage.get("cost")
-        if raw_cost is not None and not isinstance(raw_cost, bool):
-            try:
-                candidate = float(raw_cost)
-                if math.isfinite(candidate) and candidate >= 0:
-                    reported = candidate
-            except (TypeError, ValueError, OverflowError):
-                reported = None
-        res = ChatResult(content=content, tool_calls=tcs, prompt_tokens=int(usage.get("prompt_tokens") or 0),
-                         completion_tokens=int(usage.get("completion_tokens") or 0),
-                         cached_tokens=int(details.get("cached_tokens") or 0), finish_reason=reason, model=model,
-                         streamed=streamed, context_window=int(req.num_ctx or 0),
-                         reported_cost_usd=reported)
-        if reported is not None:
-            res.notes.append("the provider reported this call's charge (usage.cost)")
-        if not usage:
-            res.notes.append("the server reported no token usage; counts are estimates")
-        return res
+        return build_result(msg.get("content") or "", tcs, j.get("usage") or {}, finish,
+                            j.get("model", req.model), provider_name=self.name,
+                            num_ctx=int(req.num_ctx or 0), streamed=False, thinking=reasoning_text(msg))

@@ -34,7 +34,7 @@ How to read the columns:
 | qwen | vendor | chat, tools, coding_cli | openai-chat, anthropic | api-key [per_token; documented]; coding-plan [subscription; documented]; portal-oauth [subscription; retired] | documented | 01-core | not live-verified |
 | stepfun | vendor | chat, speech, transcription | openai-chat | api-key [per_token; implemented] | implemented-unverified | 02-hosted | not live-verified |
 | xai | vendor | chat, search, code_execution, images, video, speech, transcription | openai-chat, custom | api-key [per_token; implemented]; oauth [subscription; documented] | implemented-unverified | 01-core | not live-verified |
-| xiaomi | vendor | chat | openai-chat, anthropic | api-key [credits; implemented] | implemented-unverified | 02-hosted | not live-verified |
+| xiaomi | vendor | chat | openai-chat, anthropic | api-key [credits; implemented] | implemented | 02-hosted | live-verified 2026-10-31 (text only: mimo-v2.6-flash, mimo-v2.6-pro; built-in runtime; reasoning capture and truncation reporting exercised) |
 | zai | vendor | chat, tools, coding_cli | openai-chat, anthropic | api-key [per_token; implemented]; coding-plan [subscription; documented] | implemented-unverified | 01-core | not live-verified |
 | alibaba-model-studio | serving_platform | chat, embeddings, images, tools | openai-chat | api-key [per_token; documented] | documented | 02-hosted | not live-verified |
 | qianfan | serving_platform | chat, embeddings, images | custom | api-key [per_token; documented]; oauth [per_token; documented] | documented | 02-hosted | not live-verified |

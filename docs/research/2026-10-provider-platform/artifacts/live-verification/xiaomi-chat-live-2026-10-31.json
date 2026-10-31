@@ -1,0 +1,32 @@
+{
+  "checked_on": "2026-10-31",
+  "provider": "xiaomi",
+  "connection": "xiaomi-token-plan-sgp",
+  "credential": "owner's installed OpenCode credential store, read in memory, not stored by Hutch",
+  "requests": [
+    {
+      "model": "mimo-v2.6-flash",
+      "result": "succeeded",
+      "reply": "",
+      "prompt_tokens": 22,
+      "completion_tokens": 12,
+      "cached_tokens": 0,
+      "finish_reason": "length",
+      "model_reported": "mimo-v2.6-flash",
+      "streamed": false,
+      "elapsed_ms": 4034
+    },
+    {
+      "model": "mimo-v2.6-pro",
+      "result": "succeeded",
+      "reply": "",
+      "prompt_tokens": 22,
+      "completion_tokens": 12,
+      "cached_tokens": 0,
+      "finish_reason": "length",
+      "model_reported": "mimo-v2.6-pro",
+      "streamed": false,
+      "elapsed_ms": 2764
+    }
+  ]
+}

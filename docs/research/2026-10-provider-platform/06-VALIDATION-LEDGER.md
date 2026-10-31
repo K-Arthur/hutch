@@ -350,3 +350,59 @@ called. Both routes keep their existing status; neither is live-verified for inf
 Housekeeping: the Xiaomi key authenticating is a new, dated fact about an endpoint Hutch already shipped.
 It does not upgrade any capability claim - a model list is not a working chat request, and the six models
 listed are speech and transcription models rather than chat models.
+
+## Xiaomi Token Plan live inference (2026-10-31)
+
+A second credential in the installed OpenCode store turned out to be valid: `xiaomi-token-plan-sgp`.
+Its `/models` endpoint returned six ids - two chat models and four speech/transcription models. The
+chat models were exercised through Hutch's own connection and adapter, with the key read in memory and
+never written to the repository or an artifact.
+
+| Model | Request | Result | Tokens (prompt / completion) |
+|---|---|---|---|
+| `mimo-v2.6-flash` | non-streaming, "Say: HUTCH_LIVE_OK", cap 64, temperature 0 | reply `HUTCH_LIVE_OK`, finish `stop` | 15 / 23 |
+| `mimo-v2.6-pro` | same | succeeded | 22 / 12 |
+| `mimo-v2.6-flash` | same, cap 12 | no visible answer, finish `length` | 15 / 12 |
+
+Artifacts: `artifacts/live-verification/xiaomi-chat-live-2026-10-31.json` and
+`xiaomi-reasoning-live-2026-10-31.json`.
+
+### A real defect the live call exposed
+
+The raw reply carries the model's thinking in a `reasoning_content` field next to `content`:
+
+    {"message": {"content": "HUTCH_LIVE_OK",
+                 "reasoning_content": "The user wants me to say ...",
+                 "role": "assistant", "tool_calls": []},
+     "usage": {"completion_tokens": 23, "prompt_tokens": 15,
+               "completion_tokens_details": {"reasoning_tokens": 15}}}
+
+Hutch's OpenAI-compatible adapter read only `message.content`. Two consequences, both bad:
+
+1. **Billed work disappeared.** 15 of 23 completion tokens were reasoning and Hutch showed none of it,
+   so the usage line charged for tokens with no visible output anywhere.
+2. **An empty answer looked like a model fault.** With a cap of 12 the model spent 11 tokens thinking,
+   hit the limit, and returned `content: ""`. Hutch reported an empty string and stopped. A person would
+   reasonably conclude the model was broken; the model had answered the only way it could.
+
+Fixed in `providers/openai_result.py`, which now owns result construction and keeps `thinking` (also
+accepting a `reasoning` field, which other servers use), plus notes when the provider bills reasoning
+tokens and when an answer was entirely reasoning. `tests/test_provider_reasoning.py` uses the real
+response shape above as its fixture. Live confirmation afterwards: cap 12 returns no content and says
+"the model returned no visible answer; raise the output limit or ask for a shorter answer"; cap 64
+returns `HUTCH_LIVE_OK` with "the provider billed 15 of 23 completion tokens as reasoning".
+
+The adapter file had to shrink rather than grow (it is a frozen over-cap file), so result construction
+moved into its own module - a separation worth having anyway, because the honesty rules now live beside
+each other and can be tested without a transport.
+
+### What this does and does not establish
+
+- Established: authenticated model discovery for this account, text generation on two chat models,
+  usage reporting, and the two reporting behaviours above, all through Hutch's own code path.
+- Not established: streaming, tool calling, vision, the speech/transcription models, other regions, or
+  any price. The Token Plan bills in credits and Hutch does not convert credits to currency, so the
+  route stays `subscription` billing with no currency estimate.
+- Streaming was not exercised: `Provider.chat` takes no per-call delta callback, and driving the
+  streaming path live would need a harness whose result would not tell us anything about a user's run.
+  Recorded as a gap rather than implied.

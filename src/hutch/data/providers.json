@@ -605,7 +605,7 @@
         }
       ],
       "docs": [],
-      "integration_status": "implemented-unverified",
+      "integration_status": "implemented",
       "connection_templates": [
         "xiaomi-token-plan-sgp",
         "xiaomi-token-plan-cn",
@@ -617,7 +617,7 @@
         "cn",
         "ams"
       ],
-      "notes": "Regional Token Plan endpoints and pay-as-you-go billing are separate; a region switch is an explicit account change."
+      "notes": "Token Plan is a subscription-credit route with regional hosts; a key works only on its own region. Live-verified for text generation on 2026-10-31 (mimo-v2.6-flash, mimo-v2.6-pro) through the built-in runtime. Vision, tools and streaming are not live-verified."
     },
     {
       "id": "stepfun",
