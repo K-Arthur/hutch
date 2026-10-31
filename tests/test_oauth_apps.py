@@ -99,3 +99,26 @@ def test_microsoft_worker_uses_same_build_registration_as_server(publisher_apps,
     monkeypatch.setenv("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "operator-registration")
     assert OutlookCalendarBook(tmp_path, "", secrets_store=MemorySecrets()).client_id == "operator-registration"
     assert OutlookCalendarBook(tmp_path, "explicit", secrets_store=MemorySecrets()).client_id == "explicit"
+
+
+def test_one_saved_google_app_enables_every_google_connection_and_clearing_it_disables_them(publisher_apps, tmp_path, monkeypatch):
+    """An open-source build ships no Google registration, so a person brings their own. The Apps & AI cards say one id serves them all."""
+    (publisher_apps / "data/oauth-apps.json").write_text(json.dumps({"version": 1, "apps": {"google": {"client_id": ""}}}))
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+
+    def states(client):
+        overview = client.get("/api/connections").json()
+        return {"calendar": overview["google_calendar"]["configured"], "mail": overview["google_mail"]["configured"],
+                "mail_send": overview["google_mail_send"]["configured"],
+                "workspace": client.get("/api/v1/connections/google-workspace").json()["configured"]}
+
+    with TestClient(create_app(), base_url="http://127.0.0.1:18787") as client:
+        assert client.get("/api/v1/connections/google-oauth-client").json()["source"] == "unset"
+        assert set(states(client).values()) == {False}
+        assert client.put("/api/v1/connections/google-oauth-client", json={"client_id": "not a client id"}).status_code == 422
+        assert set(states(client).values()) == {False}, "a malformed id enables nothing"
+        saved = client.put("/api/v1/connections/google-oauth-client", json={"client_id": "mine.apps.googleusercontent.com"})
+        assert saved.status_code == 200 and saved.json()["source"] == "hutch" and saved.json()["configured"]
+        assert set(states(client).values()) == {True}, states(client)
+        assert client.delete("/api/v1/connections/google-oauth-client").json()["configured"] is False
+        assert set(states(client).values()) == {False}

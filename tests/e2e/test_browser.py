@@ -4537,9 +4537,9 @@ def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(brows
         assert "account-wide" in text and "cannot send" in text
         assert card.get_by_role("button").count() == 0
         page.locator("#google-mail-access summary").click()
-        assert "publisher must configure its registration" in card.inner_text().lower()
+        assert "needs an app registration of your own" in card.inner_text().lower()
         assert card.get_by_role("link", name="Review Google's Gmail scope requirements").count() == 1
-        card.get_by_role("button", name="Developer settings").click()
+        card.get_by_role("button", name="Set up your Google app").click()
         page.wait_for_url("**/#/connections?app=google-calendar&developer=1")
         setup = page.locator("#google-oauth-setup")
         setup.wait_for()
@@ -4722,11 +4722,11 @@ def test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone(browser, l
         card = page.locator('[aria-labelledby="google-mail-title"]')
         card.wait_for()
         page.locator("#google-mail-access summary").click()
-        card.get_by_role("button", name="Developer settings").click()
+        card.get_by_role("button", name="Set up your Google app").click()
         page.locator("#google-oauth-client-id").wait_for()
         page.locator("#google-oauth-client-id").fill("fixture-client.apps.googleusercontent.com")
         page.locator("#google-oauth-client-save").click()
-        client_change_review = page.locator(".modal-card[role='dialog']")
+        client_change_review = page.locator("[role='dialog'][data-hutch-modal]")
         client_change_review.wait_for()
         client_review_sizes = []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),

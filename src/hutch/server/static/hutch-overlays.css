@@ -284,6 +284,12 @@ dialog.hutch-modal .modal-card { display: contents; }
 .hutch-modal__actions button[hidden] { display: none; }
 .hutch-modal__actions .btn,
 .hutch-modal__actions button { min-block-size: 40px; }
+/* The same 44 px touch target the rest of the product uses on phones and touch screens. */
+@media (max-width: 640px), (pointer: coarse) {
+  .hutch-modal__actions .btn,
+  .hutch-modal__actions button { min-block-size: 44px; }
+  .hutch-modal__close { inline-size: 44px; block-size: 44px; }
+}
 .hutch-modal__close {
   flex: none;
   display: inline-grid;

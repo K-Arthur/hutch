@@ -9727,7 +9727,7 @@ async function renderConnections() {
       <section class="google-file-accounts" aria-label="${service.title} accounts"><div class="google-file-section-head"><h2>${connected.length ? "Connected accounts" : "Connect an account"}</h2>
         ${googleWorkspace.configured && googleWorkspace.secret_store_available ? `<button class="btn ${connected.length || available.length ? "ghost" : "primary"}" type="button" data-google-file-connect="${service.id}">${connected.length || available.length ? "Connect another Google account" : `Connect ${service.title}`}</button>` : ""}</div>
         ${workspaceError ? `<p class="hint bad" role="alert">Could not load this connection: ${esc(workspaceError)}</p>` : ""}
-        ${!googleWorkspace.configured ? '<p class="hint" role="status">Google sign-in is not enabled in this build. Hutch’s publisher must configure its app registration.</p>' : !googleWorkspace.secret_store_available ? '<p class="hint" role="alert">Unlock the operating system’s secure credential store before connecting.</p>' : ""}
+        ${!googleWorkspace.configured ? '<p class="hint" role="status">Google needs an app registration of your own before this can connect. <a class="inline-link" href="#/connections?app=google-calendar&developer=1">Set up your Google app</a>. One client ID turns on every Google connection.</p>' : !googleWorkspace.secret_store_available ? '<p class="hint" role="alert">Unlock the operating system’s secure credential store before connecting.</p>' : ""}
         ${connected.map(account => accountCard(account, true)).join("") || `<p class="hint">No ${service.title} accounts connected.</p>`}
         ${available.length ? `<div class="google-file-reuse"><h3>Use an existing Google connection</h3><p class="hint">Enable ${service.title} with its existing per-file permission. No new Google sign-in or assistant permissions.</p>${available.map(account => accountCard(account, false)).join("")}</div>` : ""}
       </section>
@@ -9738,14 +9738,14 @@ async function renderConnections() {
   };
   const appTiles = [
     tile("calendar", "Google Calendar", "See upcoming events. An assistant can create an event only after you approve it.",
-      googleCalendar.accounts.length ? "Connected" : googleCalendar.configured ? "Ready to connect" : "Not enabled in this build",
+      googleCalendar.accounts.length ? "Connected" : googleCalendar.configured ? "Ready to connect" : "Needs your Google app",
       googleCalendar.accounts.length ? "connected" : "setup", "google-calendar",
-      googleCalendar.accounts.length ? "Manage access" : googleCalendar.configured ? "Connect Google" : "Connection details"),
+      googleCalendar.accounts.length ? "Manage access" : googleCalendar.configured ? "Connect Google" : "Set up Google"),
     ...fileServices.map(service => {
       const connected = googleWorkspace.accounts.some(account => enabledFileServices(account).includes(service.id));
       return tile(service.id, service.title, service.description,
-        workspaceError ? "Could not load" : connected ? "Connected" : googleWorkspace.configured ? "Ready to connect" : "Not enabled in this build",
-        connected ? "connected" : "setup", `google-${service.id}`, connected ? "Manage access" : "Connection details");
+        workspaceError ? "Could not load" : connected ? "Connected" : googleWorkspace.configured ? "Ready to connect" : "Needs your Google app",
+        connected ? "connected" : "setup", `google-${service.id}`, connected ? "Manage access" : googleWorkspace.configured ? "Connection details" : "Set up Google");
     }),
     tile("telegram", "Telegram", "Message an assistant privately, with chosen senders and delivery review.",
       !channelConnections ? "Could not load" : telegramConnected ? "Connected" : "Private text preview",
@@ -9754,15 +9754,15 @@ async function renderConnections() {
       notionError ? "Could not load" : notion.accounts.length ? "Connected" : notion.secret_store_available ? "Ready to connect" : "Secure storage required",
       notion.accounts.length ? "connected" : "setup", "notion", notion.accounts.length ? "Manage access" : "Connect Notion"),
     tile("gmail", "Gmail", "Find emails without sending, editing, or deleting messages.",
-      googleMail.accounts.length ? "Connected" : googleMail.configured ? "Limited preview" : "Not enabled in this build",
+      googleMail.accounts.length ? "Connected" : googleMail.configured ? "Limited preview" : "Needs your Google app",
       googleMail.accounts.length ? "connected" : googleMail.configured ? "preview" : "setup", "gmail",
-      googleMail.accounts.length ? "Manage access" : googleMail.configured ? "Connect Google" : "Connection details"),
+      googleMail.accounts.length ? "Manage access" : googleMail.configured ? "Connect Google" : "Set up Google"),
     tile("outlook", "Microsoft Outlook", "Use mail or calendar, then choose which assistant can reach each account.",
       outlookCalendar.accounts.length || outlookMail.accounts.length || outlookMailSend.accounts.length ? "Connected"
-        : outlookCalendar.configured && outlookCalendar.secret_store_available ? "Ready to connect" : "Not available here",
+        : outlookCalendar.configured && outlookCalendar.secret_store_available ? "Ready to connect" : "Needs your Microsoft app",
       outlookCalendar.accounts.length || outlookMail.accounts.length || outlookMailSend.accounts.length ? "connected" : "setup", "outlook-calendar",
       outlookCalendar.accounts.length || outlookMail.accounts.length || outlookMailSend.accounts.length ? "Manage access"
-        : outlookCalendar.configured && outlookCalendar.secret_store_available ? "Connect Microsoft" : "Connection details"),
+        : outlookCalendar.configured && outlookCalendar.secret_store_available ? "Connect Microsoft" : "Set up Microsoft"),
   ].join("");
   const phoneTile = tile("phone", "Hutch on your phone", "Follow work, review approvals and stop runs from your phone. This connects your phone to Hutch; it does not read phone apps or messages.",
     devices.length ? `${devices.length} paired` : phoneSetup.ready ? "Ready to pair" : "Private connection required",
@@ -9849,9 +9849,9 @@ async function renderConnections() {
         <p class="hint">Connect with Google's official installed-app flow. By default, Hutch reads event titles, times and locations from one calendar you grant to one assistant. You can separately request event-creation access; Hutch shows each guest-free event in chat and waits for your exact approval before creating it.</p>
         <p class="hint"><strong>Google permission:</strong> event creation requires a broader account-level scope that can change or delete events on calendars you own. Google desktop OAuth cannot add that scope later, so it needs a separate sign-in. Hutch exposes only guest-free event creation on the one calendar you choose; it offers no event edits, deletes or invitations. Public OAuth verification and live account tests remain incomplete.</p>
         <details class="google-oauth-setup summary-row-sm" id="google-oauth-setup" ${googleOAuthSetupOpen ? "open" : ""}>
-          <summary><span class="summary-row-copy"><strong>Developer settings for Google</strong></span><span class="chip ${googleOAuthClient.configured ? "ok" : "warn"}">${googleOAuthClient.configured ? "client ready" : "setup needed"}</span></summary>
+          <summary><span class="summary-row-copy"><strong>Your Google app</strong></span><span class="chip ${googleOAuthClient.configured ? "ok" : "warn"}">${googleOAuthClient.configured ? "client ready" : "setup needed"}</span></summary>
           <div class="google-oauth-setup-body">
-            <p class="hint">Released builds should include Hutch’s app registration. These advanced settings let developers override it with their own <strong>Desktop app</strong> registration. Never paste a client secret or access token.</p>
+            <p class="hint">${googleOAuthClient.source === "distribution" ? "This build includes a Google registration; saving your own replaces it." : "This copy of Hutch ships no Google registration, so Google connections use one of your own."} Create a <strong>Desktop app</strong> OAuth client in your Google Cloud project and paste its client ID. Never paste a client secret or access token.</p>
             <div class="hutch-field"><label class="hutch-label" for="google-oauth-client-id">Google Desktop OAuth client ID</label><input class="hutch-input" id="google-oauth-client-id" type="text" maxlength="512" autocomplete="off" spellcheck="false"value="${esc(googleOAuthClient.client_id || "")}" placeholder="your-client-id.apps.googleusercontent.com"aria-describedby="google-oauth-client-help" ${googleOAuthClient.editable ? "" : "readonly"}></div>
             <div class="google-oauth-setup-actions">
               <button class="btn primary small" id="google-oauth-client-save" type="button" ${googleOAuthClient.editable ? "" : "disabled"}>Save client ID</button>
@@ -9862,7 +9862,7 @@ async function renderConnections() {
             <p class="hint" role="status" aria-live="polite" tabindex="-1" id="google-oauth-client-status">${esc(googleOAuthClient.detail || "")}</p>
           </div>
         </details>
-        ${!googleCalendar.configured ? '<p class="hint" role="status">Google sign-in is not enabled in this build. Hutch’s publisher must configure its Google registration before this connection can work.</p>' : ''}
+        ${!googleCalendar.configured ? '<p class="hint" role="status">Save your Google app’s client ID above to turn on Google sign-in. One client ID turns on every Google connection.</p>' : ''}
         ${googleCalendar.configured && !googleCalendar.secret_store_available ? '<p class="hint" role="alert">Your operating system’s secure credential store is unavailable. Unlock it before connecting an account. On Linux, install <code>secret-tool</code> if needed. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
         <div class="google-calendar-connect">
           <details class="connection-nickname"><summary>Nickname (optional)</summary><div class="hutch-field"><label class="hutch-label" for="google-calendar-label">Account label</label><input class="hutch-input" id="google-calendar-label" type="text" maxlength="80" autocomplete="off" placeholder="Personal or Work" aria-describedby="google-calendar-label-help"></div></details>
@@ -9896,7 +9896,7 @@ async function renderConnections() {
         <details class="outlook-calendar-details summary-row-sm" id="google-mail-access" ${googleMailAccessOpen ? "open" : ""}>
           <summary><span class="summary-row-copy"><strong>Manage Gmail access</strong></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
           <div class="outlook-calendar-details-body">
-          ${!googleMail.configured ? '<p class="hint" role="status">Google sign-in is not enabled in this build. Hutch’s publisher must configure its registration. <button class="inline-link" type="button" data-google-oauth-setup-link>Developer settings</button> Gmail asks for restricted <code>gmail.readonly</code> consent, separately from Calendar.</p>' : ''}
+          ${!googleMail.configured ? '<p class="hint" role="status">Google needs an app registration of your own before this can connect. <button class="inline-link" type="button" data-google-oauth-setup-link>Set up your Google app</button> Gmail asks for restricted <code>gmail.readonly</code> consent, separately from Calendar.</p>' : ''}
           ${googleMail.configured && !googleMail.secret_store_available ? '<p class="hint" role="alert">Your operating system’s secure credential store is unavailable. Unlock it before connecting. On Linux, install <code>secret-tool</code> if needed. Refresh tokens stay outside SQLite and browser storage.</p>' : ''}
           ${googleMail.configured && googleMail.secret_store_available ? `<div class="google-calendar-connect outlook-calendar-connect">
             <details class="connection-nickname"><summary>Nickname (optional)</summary><div class="hutch-field"><label class="hutch-label" for="google-mail-label">Account label</label><input class="hutch-input" id="google-mail-label" type="text" maxlength="80" autocomplete="off" placeholder="Personal or Work" aria-describedby="google-mail-label-help"></div></details>
@@ -9912,7 +9912,7 @@ async function renderConnections() {
           <div class="outlook-calendar-details-body">
           <p class="hint">This is a separate Google connection with <code>gmail.send</code> only. It cannot read or search your mailbox. An assistant can prepare one plain-text message; you approve the exact sender, recipients, subject and message each time, even in automatic mode. No attachments, CC, BCC, replies or forwards.</p>
           <p class="hint"><strong>Google permission:</strong> <code>gmail.send</code> is sensitive and requires additional OAuth app verification for public distribution. It is separate from restricted <code>gmail.readonly</code>. Hutch is a private preview; no live Google account or consent flow has been verified.</p>
-          ${!googleMailSend.configured ? '<p class="hint" role="status">Google sign-in is not enabled in this build. Hutch’s publisher must configure its registration before connecting a send-only account.</p>' : ''}
+          ${!googleMailSend.configured ? '<p class="hint" role="status">Google needs an app registration of your own before connecting a send-only account. <a class="inline-link" href="#/connections?app=google-calendar&developer=1">Set up your Google app</a></p>' : ''}
           ${googleMailSend.configured && !googleMailSend.secret_store_available ? '<p class="hint" role="alert">Your operating system’s secure credential store is unavailable. Unlock it before connecting. On Linux, install <code>secret-tool</code> if needed. Refresh tokens stay outside SQLite and browser storage.</p>' : ''}
           ${googleMailSend.configured && googleMailSend.secret_store_available ? `<div class="google-calendar-connect outlook-calendar-connect">
             <details class="connection-nickname"><summary>Nickname (optional)</summary><div class="hutch-field"><label class="hutch-label" for="google-mail-send-label">Account label</label><input class="hutch-input" id="google-mail-send-label" type="text" maxlength="80" autocomplete="off" placeholder="Work sender" aria-describedby="google-mail-send-help"></div></details>
@@ -9933,7 +9933,7 @@ async function renderConnections() {
         <details class="outlook-calendar-details summary-row-sm" id="outlook-calendar-access">
           <summary><span class="summary-row-copy"><strong>Manage Outlook Calendar access</strong></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
           <div class="outlook-calendar-details-body">
-          ${!outlookCalendar.configured ? '<p class="hint" role="status">Microsoft sign-in is not enabled in this build. Hutch’s publisher must supply its app registration.</p>' : ''}
+          ${!outlookCalendar.configured ? '<p class="hint" role="status">Microsoft needs an app registration of your own. Set <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> to its application (client) ID and restart Hutch.</p>' : ''}
           ${outlookCalendar.configured && !outlookCalendar.secret_store_available ? '<p class="hint" role="alert">Your operating system’s secure credential store is unavailable. Unlock it before connecting an account. On Linux, install <code>secret-tool</code> if needed. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
           <div class="google-calendar-connect outlook-calendar-connect">
             <details class="connection-nickname"><summary>Nickname (optional)</summary><div class="hutch-field"><label class="hutch-label" for="outlook-calendar-label">Account label</label><input class="hutch-input" id="outlook-calendar-label" type="text" maxlength="80" autocomplete="off" placeholder="Work or Personal" aria-describedby="outlook-calendar-label-help"></div></details>
@@ -9949,7 +9949,7 @@ async function renderConnections() {
           <div class="outlook-calendar-details-body">
           <p class="hint">This needs a separate Microsoft sign-in for <code>Calendars.ReadWrite</code>. Microsoft grants that permission to create, read, change and delete events across the signed-in user's calendars. Hutch keeps this token separate and only gives an assistant the ability to create guest-free events on the one calendar you select. Hutch does not expose event editing or deletion.</p>
           <div class="outlook-mail-send-safety"><strong>Every event needs your exact approval.</strong><p class="hint">The approval shows the title, time, description, location, account and calendar. Hutch creates once, checks the event details with Microsoft, and never retries an uncertain result. Disconnect removes Hutch's credential; revoke Microsoft's broader account permission in your Microsoft account or organisation settings.</p></div>
-          ${!outlookCalendarWrite.configured ? '<p class="hint" role="status">Microsoft sign-in is not enabled in this build. Hutch’s publisher must supply its app registration.</p>' : ''}
+          ${!outlookCalendarWrite.configured ? '<p class="hint" role="status">Microsoft needs an app registration of your own. Set <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> to its application (client) ID and restart Hutch.</p>' : ''}
           ${outlookCalendarWrite.configured && !outlookCalendarWrite.secret_store_available ? '<p class="hint" role="alert">Your operating system’s secure credential store is unavailable. Unlock it before connecting an account. On Linux, install <code>secret-tool</code> if needed. Refresh tokens stay outside SQLite and browser storage.</p>' : ''}
           <div class="google-calendar-connect outlook-calendar-connect">
             <details class="connection-nickname"><summary>Nickname (optional)</summary><div class="hutch-field"><label class="hutch-label" for="outlook-calendar-write-label">Event-creation account label</label><input class="hutch-input" id="outlook-calendar-write-label" type="text" maxlength="80" autocomplete="off" placeholder="Work calendar" aria-describedby="outlook-calendar-write-help"></div></details>
@@ -9966,7 +9966,7 @@ async function renderConnections() {
           <span class="tag">experimental</span><span class="tag">separate read and send access</span></div>
         <p class="hint">Search across a connected mailbox, including Deleted Items and Clutter. Hutch returns sender, subject, received time and a short, untrusted preview for up to 10 matches. Grant one mailbox to an assistant from here.</p>
         <p class="hint"><strong>Permission boundary:</strong> Microsoft's delegated <code>Mail.Read</code> consent applies to the signed-in account; Hutch enables search only for an assistant you grant. Reading and sending use separate account sign-ins and separate assistant grants. Mail previews are sent to that assistant's selected model and kept in its run history. Local disconnect clears Hutch's credential and grants; provider consent must be revoked separately.</p>
-        ${!outlookMail.configured ? '<p class="hint" role="status">Microsoft sign-in is not enabled in this build. Hutch’s publisher must supply its app registration.</p>' : ''}
+        ${!outlookMail.configured ? '<p class="hint" role="status">Microsoft needs an app registration of your own. Set <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> to its application (client) ID and restart Hutch.</p>' : ''}
         ${outlookMail.configured && !outlookMail.secret_store_available ? '<p class="hint" role="alert">Your operating system’s secure credential store is unavailable. Unlock it before connecting an account. On Linux, install <code>secret-tool</code> if needed. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
         <details class="outlook-calendar-details summary-row-sm" id="outlook-mail-access">
           <summary><span class="summary-row-copy"><strong>Manage Outlook Mail access</strong></span><span class="summary-row-action"><span class="when-closed">Show</span><span class="when-open">Hide</span>${icon("down")}</span></summary>
@@ -9992,7 +9992,7 @@ async function renderConnections() {
             </button>
             <p class="hint" id="outlook-mail-send-label-help">A new sign-in is required for delegated <code>Mail.Send</code>; Hutch never upgrades a read-only account. Register <code>http://localhost/api/v1/connections/outlook-mail-send/callback</code> as a desktop redirect.</p>
           </div>
-          ${!outlookMailSend.configured ? '<p class="hint" role="status">Microsoft sign-in is not enabled in this build. Hutch’s publisher must supply its app registration.</p>' : ''}
+          ${!outlookMailSend.configured ? '<p class="hint" role="status">Microsoft needs an app registration of your own. Set <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> to its application (client) ID and restart Hutch.</p>' : ''}
           ${outlookMailSend.configured && !outlookMailSend.secret_store_available ? '<p class="hint" role="alert">Your operating system’s secure credential store is unavailable. Unlock it before connecting. On Linux, install <code>secret-tool</code> if needed. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
           ${outlookMailSendAccountsHtml || '<p class="hint">No Outlook Mail sending accounts connected.</p>'}
           ${orphanOutlookMailSendGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved send grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookMailSendGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Outlook Mail send access</p></div><button class="btn ghost small" data-outlook-mail-send-ungrant="${esc(grant.bot_id)}">Revoke send access</button></div>`).join("")}</div>` : ""}
