@@ -30,6 +30,7 @@ import json
 import sqlite3
 from typing import Any, Iterable, Optional
 
+from .. import bot_lifecycle
 from ..lifecycle import IllegalTransition, LeaseLost, TERMINAL
 from ..models import Bot, Run, RunStatus, Task, iso, new_id, utcnow
 from . import budget_rules
@@ -830,6 +831,7 @@ def submit_workflow_run(store: Any, *, plan: dict[str, Any], definition_id: Opti
                 if row is None:
                     raise RuntimeError("idempotent workflow response points to missing state")
                 return _row_to_workflow(row), False
+        bot_lifecycle.assert_accepts_work(db, bot_id)
         if expected_auto_policy is not None:
             expected_conversation = str(expected_auto_policy.get("conversation_id") or "")
             current_bot_row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
@@ -1289,6 +1291,7 @@ def admit_workflow_continuation(store: Any, wf_id: str) -> Optional[Run]:
         row = db.execute("SELECT * FROM workflow_runs WHERE id = ?", (wf_id,)).fetchone()
         if row is None:
             raise KeyError(wf_id)
+        bot_lifecycle.assert_accepts_work(db, str(row["bot_id"]))
         if (str(row["status"]) not in ("pending", "running", "waiting")
                 or int(row["stop_requested"])):
             return None
@@ -1452,9 +1455,9 @@ def submit_step_run(store: Any, *, workflow_run_id: str, site_id: str, instance_
     run.task_id = task.id
     scope = f"workflow:{workflow_run_id}:{site_id}"
     from ..store import _RUN_COLS
-
     with store._tx() as db:
         store._assert_execution_ready(db)
+        bot_lifecycle.assert_accepts_work(db, run.bot_id)
         replay = store._idempotency_replay(db, scope, idem_key, request_hash)
         if replay is not None:
             row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (replay["run_id"],)).fetchone()

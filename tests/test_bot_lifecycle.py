@@ -126,6 +126,21 @@ def test_archived_assistant_is_not_offered_as_a_specialist(client):
     assert store.workspace_specialists()["bots"] == []
 
 
+def test_archived_assistant_cannot_start_a_workflow(client):
+    """The workflow path inserts its own run rows, so it needs the same admission guard."""
+    from hutch.workflow import persistence as workflow_store
+
+    store = client.app.state.store
+    bot = make_bot(store, "workflow-bot")
+    archive_bot(store, bot.name, True, idem_key="archive-wf", request_hash="h1")
+    with pytest.raises(BotArchived):
+        workflow_store.submit_workflow_run(
+            store, plan={"name": "blocked", "nodes": []}, definition_id=None, revision_id=None,
+            plan_hash="0" * 64, bot_id=bot.id, inputs={}, budget={}, origin="test",
+            conversation_id="", run=Run(bot_id=bot.id, prompt="workflow: blocked", kind="workflow"),
+            task=Task(bot_id=bot.id, kind="workflow", prompt="workflow: blocked"))
+
+
 def test_archived_bot_refuses_a_message_over_http(client):
     store = client.app.state.store
     bot = make_bot(store, "http-bot")
