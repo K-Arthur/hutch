@@ -21,6 +21,8 @@ CANNED = (
 )
 
 # file -> most `mock` mentions allowed. Lower these as the legacy handling is removed (gap analysis C3).
+# The browser no longer names the retired route at all: the roster, picker and workspace default read the
+# server's `route_problem` instead, so only migration and refusal code keeps the name.
 MOCK_ALLOWED = {
     "src/hutch/connections.py": 1,             # `mock` stays a reserved connection name
     "src/hutch/doctor.py": 1,                  # warns about assistants still on a mock route
@@ -31,8 +33,6 @@ MOCK_ALLOWED = {
     "src/hutch/runtime/__init__.py": 3,        # the refusal itself
     "src/hutch/runtime/builtin.py": 1,
     "src/hutch/server/pages_usage.py": 2,      # labels old usage rows truthfully
-    "src/hutch/server/static/app.js": 5,       # workspace-default guard and the "Retired mock" label
-    "src/hutch/server/static/model-switcher.js": 1,
 }
 
 
@@ -45,8 +45,6 @@ def _product_files():
 def test_the_interface_invents_no_starter_prompts():
     found = []
     for path in _product_files():
-        if path.suffix == ".py":
-            continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         found += [(path.name, phrase) for phrase in CANNED if phrase in text]
     assert found == [], f"canned prompts in the interface: {found}"
@@ -65,8 +63,26 @@ def test_mock_mentions_in_product_source_only_shrink():
     assert grown == {}, f"`mock` grew (found, allowed): {grown}"
 
 
-def test_no_seeded_assistants_or_sample_runs_are_created_by_the_product():
+def test_no_seeded_assistants_or_sample_runs_are_created_by_the_product(tmp_path, monkeypatch):
     """`hutch init` and startup create no assistants (PRODUCT.md: no demo runtime or seeded demo command)."""
     text = (SRC / "hutch" / "cli.py").read_text(encoding="utf-8")
     init = text[text.index("def init("):text.index("def init(") + 3500]
     assert "create_bot" not in init and "TEMPLATES" not in init
+    # And a real fresh install starts empty: no module seeds an assistant at import or startup.
+    from fastapi.testclient import TestClient
+    from hutch.runtime.ladder import reset_provider_cache
+    from hutch.server.app import create_app
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:9")
+    reset_provider_cache()
+    with TestClient(create_app()) as client:
+        assert client.get("/api/bots").json() == []
+
+
+def test_the_templates_render_no_fixture_or_evidence_content():
+    """Product templates never point at a fixture tree or a captured evidence file."""
+    templates = SRC / "hutch" / "server" / "templates"
+    forbidden = ("fixtures/", "docs/artifacts", "docs/onboarding/evidence")
+    found = [(path.name, token) for path in sorted(templates.glob("*.html"))
+             for token in forbidden if token in path.read_text(encoding="utf-8", errors="ignore")]
+    assert found == [], f"template content points at non-product files: {found}"

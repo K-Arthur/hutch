@@ -3116,7 +3116,7 @@ async function readFirstRunReadiness() {
   const readyRoutes = routes.filter(route =>
     route?.state === "ready" && typeof route.spec === "string");
   const savedModel = typeof defaults?.model === "string" ? defaults.model.trim() : "";
-  const workspaceModel = savedModel.startsWith("mock/") ? "" : savedModel;
+  const workspaceModel = defaults?.route_problem ? "" : savedModel;
   const openCodeModels = Array.isArray(openCode?.models) ? openCode.models : [];
 
   if (workspaceModel) {
@@ -8299,11 +8299,11 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   let taskPresetsError = "";
   try { taskPresets = await api("/v1/task-presets"); }
   catch (error) { taskPresetsError = error.message; }
-  const runtimeNames = { builtin: "Hutch built-in", opencode: "OpenCode", pi: "Pi", mock: "Retired mock" };
-  const runtimeName = runtimeNames[b.runtime] || b.runtime || "Unknown";
+  const runtimeNames = { builtin: "Hutch built-in", opencode: "OpenCode", pi: "Pi" };
   const runtimeUnavailable = !["builtin", "opencode"].includes(b.runtime);
+  const runtimeName = runtimeNames[b.runtime] || (runtimeUnavailable ? "Unavailable runtime" : "Unknown");
   const runtimeSwitchBlocked = b.active_run_id ? "Stop or wait for the active run before switching runtimes."
-    : !b.model || b.model.startsWith("mock/") ? "Save a real Hutch model route above before switching."
+    : b.route_problem ? "Save a real Hutch model route above before switching."
       : "";
   const factsPage = await api(`/v1/bots/${encodeURIComponent(name)}/facts?all_scopes=true&limit=20&offset=${factOffset}&include_archived=${showArchivedFacts}`);
   const factSharesPage = await api(`/v1/bots/${encodeURIComponent(name)}/fact-shares?limit=20`)
@@ -11616,7 +11616,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     ? "Experimental on this Linux desktop. A person enters passwords, passcodes and verification codes in the visible browser. Hutch never types them or accepts them in chat. This does not enable phone browser control."
     : `Unavailable on this host: ${browserHandoffCapability.reason} This does not enable phone browser control.`;
   const chosenTemplate = templates.find(item => item.name === preselect) || null;
-  const firstRunModel = firstRunChoice?.model && !firstRunChoice.model.startsWith("mock/") ? firstRunChoice.model : "";
+  const firstRunModel = firstRunChoice?.model || "";
   let modelSuggestion = duplicateBot?.model || conversationSource?.model_suggestion || workspaceDefaults.model || firstRunModel || "";
   let modelSuggestionSource = duplicateBot ? "duplicate" : conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : firstRunModel ? "first_run" : "";
   const draft = {

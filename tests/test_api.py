@@ -1033,13 +1033,13 @@ def test_workspace_model_defaults_seed_only_new_bots_and_explicit_routes_win(cli
 
     before = client.get("/api/v1/preferences/model-defaults")
     assert before.status_code == 200, before.text
-    assert before.json() == {"model": "", "inference_mode": "hybrid", "configured": False}
+    assert before.json() == {"model": "", "inference_mode": "hybrid", "configured": False, "route_problem": None}
 
     saved = client.put("/api/v1/preferences/model-defaults", json={
         "model": "openai/gpt-4o-mini", "inference_mode": "hybrid",
     })
     assert saved.status_code == 200, saved.text
-    assert saved.json() == {"model": "openai/gpt-4o-mini", "inference_mode": "hybrid", "configured": True}
+    assert saved.json() == {"model": "openai/gpt-4o-mini", "inference_mode": "hybrid", "configured": True, "route_problem": None}
     assert client.app.state.store.get_bot(existing["id"]).model == "openai/gpt-4o-mini"
 
     inherited = client.post("/api/v1/bots", headers={"Idempotency-Key": "workspace-default-bot"}, json={
@@ -1078,7 +1078,7 @@ def test_workspace_model_defaults_reject_unavailable_routes_and_can_be_cleared(c
 
     cleared = client.put("/api/v1/preferences/model-defaults", json={"model": "", "inference_mode": "hybrid"})
     assert cleared.status_code == 200, cleared.text
-    assert cleared.json() == {"model": "", "inference_mode": "hybrid", "configured": False}
+    assert cleared.json() == {"model": "", "inference_mode": "hybrid", "configured": False, "route_problem": None}
 
     mode_only = client.put("/api/v1/preferences/model-defaults", json={"model": "", "inference_mode": "local"})
     assert mode_only.status_code == 200, mode_only.text

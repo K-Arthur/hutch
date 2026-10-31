@@ -4007,14 +4007,15 @@ def create_app() -> FastAPI:
     def get_workspace_model_defaults() -> dict:
         raw = store.kv_get(_WORKSPACE_MODEL_DEFAULTS_KEY)
         if raw is None:
-            return {"model": "", "inference_mode": InferenceMode.hybrid.value, "configured": False}
+            return {"model": "", "inference_mode": InferenceMode.hybrid.value, "configured": False, "route_problem": None}
         try:
             saved = json.loads(raw)
             result = WorkspaceModelDefaultsUpdate.model_validate(saved)
         except (json.JSONDecodeError, ValueError, TypeError):
             raise HTTPException(500, "workspace model defaults are damaged; clear or restore the local state") from None
+        problem = store.route_problem(Bot(name="saved-workspace-default", model=result.model, tools=[])) if result.model else None
         return {"model": result.model, "inference_mode": result.inference_mode.value,
-                "configured": bool(result.model)}
+                "configured": bool(result.model), "route_problem": problem}
 
     @app.get("/api/v1/preferences/model-defaults")
     def read_workspace_model_defaults() -> dict:
@@ -4042,7 +4043,7 @@ def create_app() -> FastAPI:
             raise HTTPException(422, "choose a verified local model route before making Strict offline the workspace default")
         result = {"model": model, "inference_mode": body.inference_mode.value, "configured": bool(model)}
         store.kv_set(_WORKSPACE_MODEL_DEFAULTS_KEY, json.dumps(result, sort_keys=True, separators=(",", ":")))
-        return result
+        return {**result, "route_problem": None}
 
     @app.get("/api/v1/workspace/coordinator", response_model=WorkspaceCoordinatorResource)
     def read_workspace_coordinator() -> dict:

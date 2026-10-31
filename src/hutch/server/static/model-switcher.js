@@ -34,7 +34,7 @@
   // The route names its maker: a provider or connection such as openai, chatgpt, anthropic or claude, or the vendor segment of
   // connection/vendor/model. A local runtime never carries a maker's artwork, whatever the model is called.
   const brandOfMaker = maker => /^(openai|chatgpt)/.test(maker) ? "openai" : /^(anthropic|claude)/.test(maker) ? "anthropic" : "";
-  const LOCAL_RUNTIMES = new Set(["ollama", "llamacpp", "llama.cpp", "lmstudio", "vllm", "mock"]);
+  const LOCAL_RUNTIMES = new Set(["ollama", "llamacpp", "llama.cpp", "lmstudio", "vllm"]);
   const hash = text => [...String(text)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
   function markOf(spec) {
     const parts = String(spec).split("/");
@@ -73,7 +73,7 @@
     const recent = () => { try { return JSON.parse(store.get(recentKey) || "[]").filter(spec => typeof spec === "string").slice(0, 8); } catch { return []; } };
     const remember = spec => { if (find(spec)) store.set(recentKey, JSON.stringify([spec, ...recent().filter(item => item !== spec)].slice(0, 8))); };
     let data = { default: bot.model, models: [{ spec: bot.model, label: shortName(bot.model), group: "This assistant",
-                                                  state: "ready", default: true, note: "this assistant's own model" }] };
+                                                  state: bot.route_problem ? "setup" : "ready", hosted: bot.route_problem ? false : null, default: true, note: "this assistant's own model" }] };
     let selected = store.get(key) || "";
     let refreshRevision = 0;
 

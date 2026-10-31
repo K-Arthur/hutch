@@ -44,3 +44,15 @@ def test_the_roster_api_carries_the_problem_for_the_ui(client):
     by_name = {item["name"]: item for item in client.get("/api/bots").json()}
     assert "retired demo route" in by_name["old-demo"]["route_problem"]
     assert by_name["real-one"]["route_problem"] is None
+
+
+def test_the_saved_workspace_default_carries_its_problem(client):
+    """A legacy saved default is not shown as a usable route: first run reads the same server answer."""
+    assert client.get("/api/v1/preferences/model-defaults").json()["route_problem"] is None
+    client.app.state.store.kv_set("workspace:model-defaults",
+                                  '{"model": "mock/demo", "inference_mode": "hybrid"}')
+    legacy = client.get("/api/v1/preferences/model-defaults").json()
+    assert legacy["model"] == "mock/demo" and "retired demo route" in legacy["route_problem"]
+    client.app.state.store.kv_set("workspace:model-defaults",
+                                  '{"model": "ollama/llama3.2:3b", "inference_mode": "hybrid"}')
+    assert client.get("/api/v1/preferences/model-defaults").json()["route_problem"] is None
