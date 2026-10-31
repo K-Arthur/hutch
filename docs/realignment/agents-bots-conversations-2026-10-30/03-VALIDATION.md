@@ -164,13 +164,57 @@ archived assistant's records are not gated by the new check, so retirement never
 
 ### A flaky threshold, reported honestly
 
-One run of the 19-file regression batch failed
-`tests/test_store_events.py::test_batched_writer_sustains_over_1000_events_per_second` at 877
-events/s. It passes in isolation (twice), passes when re-run with `test_conversations.py`, and the
-batch writer path is untouched by this diff (`git diff` over `store.py` shows no change to
-`_insert_events` or the flush path). The measurement is wall-clock and the machine was running two
-reviewers and a live server at the time. Treated as load-sensitive, not a regression; not
-suppressed and not "fixed" by lowering the threshold.
+`tests/test_store_events.py::test_batched_writer_sustains_over_1000_events_per_second` is a
+wall-clock throughput gate. It failed at 877, then 287, then 265 events/s across three runs while
+the host carried a load average of 8-13 from two other sessions running full test suites.
+
+The decisive check: a clean detached worktree at `main` -> `pytest tests/test_store_events.py -k
+batched_writer` -> **also fails, at 265 events/s**. The same test passed at 4.5 s when first run on
+this branch before the load rose. It is a pre-existing, load-sensitive measurement, not a
+regression from this change, and the batch writer path is untouched by the diff. Not suppressed and
+not "fixed" by lowering the threshold.
+
+`tests/test_api.py::test_full_mock_run_via_api` failed once in the same loaded batch with "event
+flush timed out" and passes in isolation in 5.7 s. Same cause.
+
+One gate is red on `main` before this branch touches it:
+
+```
+$ python scripts/audit_emoji.py
+ EMOJI  docs/research/2026-10-connectors-ecosystem/research.md:257
+```
+
+The line quotes a GitHub label verbatim (`merge-risk: [emoji] security-boundary`) and belongs to
+another session's document, committed on `main` as `826609bf`. Confirmed pre-existing by reading
+the file out of `main` directly. Left alone rather than edited: the emoji is part of a source quote,
+so the owner's call is a waiver comment, not deleting the character.
+
+## Integration state
+
+The branch contains `main` (`git merge-base --is-ancestor main agents/bots-conversations` succeeds), so
+landing it is a fast-forward with no rewrite and no risk to main's history.
+
+It is **not yet on `main`**, for one reason outside this work:
+
+```
+$ git merge --ff-only agents/bots-conversations        # in the primary worktree
+ error: Your local changes to the following files would be overwritten by merge:
+        src/hutch/cli.py
+        src/hutch/server/app.py
+        src/hutch/server/static/app.js
+        src/hutch/server/static/studio.css
+        tests/test_cli.py
+```
+
+Another active session has uncommitted edits in the primary worktree to exactly the five files
+overlapping this change. Stashing, committing or resetting them would destroy or misattribute
+someone else's work, which the repository rules forbid, so the fast-forward is left to run once
+that session commits. Nothing else is pending; the command above is the whole remaining step.
+
+Two facts about the remote, so no CI claim is implied: local `main` is 251 commits ahead of
+`origin/main`, and the last three CI runs on `origin/main` completed as `failure`. Pushing either
+`main` or this branch is therefore a separate, much larger publication decision than this task, and
+was not done.
 
 ## What was not verified
 
