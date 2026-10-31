@@ -71,3 +71,12 @@ never enabled by registration. See docs/runtime-setup.md for prerequisites.
   and recorded, not silently assumed safe.
 - Media expansion is research-complete but not shipped: video, music, transcription and provider-native
   search adapters are deferred rather than stubbed, and no demo fixtures exist.
+
+## Live evidence (2026-10-30)
+
+Owner-authorized live testing exercised the direct DeepSeek route (built-in runtime) and the managed
+OpenCode runtime with a DeepSeek model. Both completed a real text request and returned the expected token;
+the capability registry carries two dated live-verified text entries for exactly those model routes.
+No other provider, and no tool, streaming, vision, audio, video, music or search capability, was
+live-verified. The stored OpenCode Go key reported expired and the attempted managed run failed explicitly
+with zero recorded cost; that failure is kept as evidence rather than retried or routed elsewhere.

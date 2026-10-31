@@ -39,3 +39,25 @@ independent verifier separately re-runs the definition-of-done checks.
 
 The verifier teammate re-runs the checks independently; its report is stored beside this file as
 verifier-report.md when available.
+
+## Live-testing handling (2026-10-30, owner-authorized)
+
+The owner explicitly authorized using the installed OpenCode CLI account, including its DeepSeek key, for
+live tests. Handling rules used:
+
+- Credentials were extracted only in memory from the owner's own OpenCode export for the duration of a
+  single test process. They were never written to the repository, a committed artifact, a connection
+  template, a document, a screenshot, or the final report.
+- Isolated test state directories were deleted immediately after each test; the copied private-profile
+  credential was removed with them.
+- The final artifacts under artifacts/live-verification/ contain model ids, run ids, token counts, provider
+  errors and assistant text only. A secret-pattern scan of the changed files found no credential.
+- One failure is kept as evidence rather than retried: the stored OpenCode Go key was expired, the managed
+  run failed explicitly with cost 0.0, and no account switch occurred.
+
+Disclosure: while discovering where the installed OpenCode account stores providers, a credential-export
+command printed provider credential values into this session's local agent transcript. Those values were
+not copied into any file, commit or artifact, and no further export output was printed. Because local
+session transcripts can be retained by the harness, the owner should treat the OpenCode account
+credentials that appeared there as potentially exposed and rotate any long-lived API key among them if
+that transcript may be shared. This was a testing-tooling mistake, not a product-code path.

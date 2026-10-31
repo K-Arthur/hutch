@@ -380,3 +380,11 @@ implied, and no provider was live-verified for this preview. The page was rebuil
 and captured at the five review widths; see the provider research package and
 docs/realignment/visual-validation.md for the evidence.
 
+### Live verification note (2026-10-30)
+
+The site now lists the DeepSeek direct API route among shipped routes with an explicit live-verified date.
+The underlying evidence is two owner-authorized real text requests: DeepSeek direct through the built-in
+runtime and the managed OpenCode runtime with a DeepSeek model. Only text generation was exercised; the
+site does not claim tool, streaming, vision, audio, video, music or search verification, and every other
+provider remains research-tracked or blocked. The OpenCode Go attempt surfaced an expired provider key and
+is recorded as a failure, not a success.

@@ -1,17 +1,20 @@
 # 03 - Provider capability matrix
 
-Date: 2026-10-30. Live verification: none. Every row below is at most implemented-unverified; the
-column exists so no reader can mistake a code path for a working provider account. Research detail and
-dated sources are in drafts/01-core-providers.md (core), drafts/02-hosting-gateway-local.md (hosted,
-gateway, enterprise, local) and drafts/03-media-speech-search.md (media, speech, search).
+Date: 2026-10-30. Live verification: two owner-authorized real routes were exercised on 2026-10-30 -
+the direct DeepSeek connection through the built-in runtime and the managed OpenCode runtime with a
+DeepSeek model. Text generation succeeded on both; tool calling, streaming, image input, other
+modalities and every other provider were not live-exercised. The column exists so a code path is never
+mistaken for a working provider account. Research detail and dated sources are in
+drafts/01-core-providers.md, drafts/02-hosting-gateway-local.md and drafts/03-media-speech-search.md.
 
 How to read the columns:
 
 - **Category** describes what the service is, not whether Hutch supports it.
-- **Integration status** is Hutch's code status: implemented (live-exercised), implemented-unverified,
-  experimental, documented (research only), blocked, retired, deferred.
-- **Live verification** is the real-account column. In this environment no credentials exist, so every
-  row is not live-verified. A future live exercise must add a dated row in 06-VALIDATION-LEDGER.md.
+- **Integration status** is Hutch's code status: implemented, implemented-unverified, experimental,
+  documented (research only), blocked, retired, deferred.
+- **Live verification** is the real-account column. Only rows with a dated entry belong in the live
+  verification ledger section of 06-VALIDATION-LEDGER.md; evidence files live under
+  artifacts/live-verification/ with a machine-readable summary.json.
 - An auth method's status is separate from the provider's: a provider can have an implemented API-key
   route and a retired or blocked subscription route.
 
@@ -21,13 +24,13 @@ How to read the columns:
 | anthropic | vendor | chat, tools, coding_cli | anthropic | api-key [per_token; implemented] | implemented-unverified | 01-core | not live-verified |
 | arcee | vendor | chat | openai-chat | api-key [per_token; documented] | documented | 02-hosted | not live-verified |
 | cohere | vendor | chat, embeddings | custom | api-key [per_token; documented] | documented | 02-hosted | not live-verified |
-| deepseek | vendor | chat, tools | openai-chat, anthropic | api-key [per_token; documented] | documented | 02-hosted | not live-verified |
+| deepseek | vendor | chat, tools | openai-chat, anthropic | api-key [per_token; implemented] | implemented | 02-hosted | live-verified 2026-10-30 (text; built-in runtime; deepseek-flash) |
 | google | vendor | chat, images, video, speech, transcription, search, grounding, tools, coding_cli | gemini | api-key [per_token; documented]; oauth-consumer [unknown; blocked] | documented | 01-core | not live-verified |
 | minimax | vendor | chat, images, image_editing, video, music, speech, transcription | openai-chat, anthropic, custom | api-key [per_token; documented]; coding-plan-oauth [subscription; documented] | documented | 01-core | not live-verified |
 | mistral | vendor | chat, embeddings, code_execution | openai-chat | api-key [per_token; documented] | documented | 02-hosted | not live-verified |
 | moonshot | vendor | chat, tools, coding_cli | openai-chat, anthropic | api-key [per_token; documented]; kimi-coding-key [subscription; documented] | documented | 01-core | not live-verified |
 | openai | vendor | chat, responses, embeddings, images, speech, transcription, tools, batch | openai-chat, openai-responses | api-key [per_token; implemented]; chatgpt-sign-in [subscription; experimental] | implemented-unverified | 01-core | not live-verified |
-| opencode | vendor | coding_runtime, coding_cli, chat | openai-chat, anthropic | managed-session [subscription; implemented]; cli-sign-in [subscription; experimental] | implemented-unverified | 01-core | not live-verified |
+| opencode | vendor | coding_runtime, coding_cli, chat | openai-chat, anthropic | managed-session [subscription; implemented]; cli-sign-in [subscription; experimental] | implemented | 01-core | live-verified 2026-10-30 (text; managed runtime; deepseek/deepseek-flash) |
 | qwen | vendor | chat, tools, coding_cli | openai-chat, anthropic | api-key [per_token; documented]; coding-plan [subscription; documented]; portal-oauth [subscription; retired] | documented | 01-core | not live-verified |
 | stepfun | vendor | chat, speech, transcription | openai-chat | api-key [per_token; documented] | documented | 02-hosted | not live-verified |
 | xai | vendor | chat, search, code_execution, images, video, speech, transcription | openai-chat, custom | api-key [per_token; documented]; oauth [subscription; documented] | documented | 01-core | not live-verified |
@@ -82,23 +85,18 @@ How to read the columns:
 | custom-compatible | compatible_endpoint | chat, responses, tools | openai-chat, anthropic | custom-endpoint [unknown; implemented] | implemented-unverified | 02-hosted | not live-verified |
 <!--MATRIX:END-->
 
+## Live-verified routes (2026-10-30)
+
+| Route | Runtime | Model | Result | Recorded usage | Artifact |
+|---|---|---|---|---|---|
+| DeepSeek direct connection (owner-authorized), OpenAI-shaped API | Hutch built-in | deepseek-flash | succeeded; reply matched requested token | 612 prompt / 9 completion tokens; cost 0.0 because the model was unpriced locally | artifacts/live-verification/deepseek-builtin-runtime-live.json |
+| OpenCode managed runtime, private profile connected to the owner's DeepSeek key | Hutch managed OpenCode 2.2.0 | opencode/deepseek/deepseek-flash | succeeded; reply matched requested token | 4452 prompt / 8 completion tokens; provider-reported cost $0.0006726 | artifacts/live-verification/opencode-managed-runtime-deepseek-live.json |
+| OpenCode CLI external reference | OpenCode CLI 2.2.0 | deepseek/deepseek-flash | succeeded | not reported by the CLI JSON stream | artifacts/live-verification/opencode-cli-deepseek.json |
+| OpenCode Go stored API key | Hutch managed OpenCode 2.2.0 | opencode/opencode-go/iceman-contributor-free | failed explicitly: provider reported the key expired; no retry, cost 0.0 | none | artifacts/live-verification/opencode-managed-runtime-live.json |
+
 ## Blocked, retired and deferred routes (summary)
 
-| Route | Status | Reason and nearest legitimate alternative |
-|---|---|---|
-| Anthropic consumer subscription routed through an API proxy | blocked | Vendor terms prohibit third-party routing of plan credentials; use a Console API key or the documented setup-token for Claude Code. |
-| GitHub Copilot subscription as a model API | blocked | No GitHub-documented third-party inference contract for Hutch's use; GitHub documents the Copilot SDK. No client impersonation. |
-| Qwen Portal OAuth | retired | Discontinued; use QwenCloud/Model Studio Token Plan or Coding Plan keys at documented endpoints. |
-| Gemini consumer CLI authentication (free/AI Pro/Ultra) | retired | Retired 2026-06-18; use paid API/Vertex keys, or Code Assist entitlement where applicable. |
-| OpenAI Sora/Videos, gpt-image-1, Google Veo 3.1 previews, MiniMax paid music | retired/closed | Provider shut them down or closed them to new users; not stubbed in Hutch. |
-| Gemini, general OpenAI Responses, media, speech and search adapters | deferred | Research recorded; no verified live contract or test path in this environment. Not shipped as fake implementations. |
-
-## Capability-evidence rules applied
-
-1. A model listing proves authentication and discovery only.
-2. A text success does not prove tool calls; a tool call does not prove image, audio or video input.
-3. Provider image generation is not image understanding.
-4. Context/output limits and usage reporting are per endpoint and model; missing metadata is unknown,
-   never zero cost.
-5. A gateway's price/capability claim is scoped to that gateway route; the upstream vendor identity
-   must be recorded from the response when it can differ.
+The blocked, retired and deferred rows from the matrix remain as recorded in the provider catalogue:
+GitHub Copilot subscription reuse and the Claude Max proxy are blocked by policy; the old Qwen portal
+OAuth, Gemini consumer CLI authentication and several media APIs are retired; media, speech, video,
+provider-native search adapters and additional CLI executors are deferred. None are stubbed.

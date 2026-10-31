@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-30",
+  "authorization": "Owner explicitly authorized using the installed OpenCode CLI account (including its DeepSeek key) for live testing. Credentials were read in memory only; no secret was written to the repository or to a committed artifact. Test state directories were deleted after each run.",
+  "verifications": [
+    {
+      "provider": "deepseek",
+      "runtime": "Hutch built-in runtime",
+      "route": "deepseek direct connection (openai-chat)",
+      "model": "deepseek-flash",
+      "result": "succeeded",
+      "artifact": "deepseek-builtin-runtime-live.json",
+      "catalogue": {
+        "ok": true,
+        "models": [
+          "deepseek-flash",
+          "deepseek-v4-pro"
+        ]
+      },
+      "usage": {
+        "prompt_tokens": 612,
+        "completion_tokens": 9,
+        "cached_tokens": 0,
+        "cost_usd": 0.0
+      },
+      "cost_note": "No reviewed price row existed for the live model, so the recorded 0.0 is unpriced, not a free-service claim.",
+      "capability_exercised": "text generation only"
+    },
+    {
+      "provider": "opencode",
+      "runtime": "Hutch managed OpenCode 2.2.0 runtime",
+      "route": "private profile, owner DeepSeek key connected",
+      "model": "opencode/deepseek/deepseek-flash",
+      "result": "succeeded",
+      "artifact": "opencode-managed-runtime-deepseek-live.json",
+      "usage": {
+        "prompt_tokens": 4452,
+        "completion_tokens": 8,
+        "cost_usd": 0.0006726
+      },
+      "capability_exercised": "text generation only"
+    },
+    {
+      "provider": "deepseek",
+      "runtime": "OpenCode CLI 2.2.0 (external tool, not a Hutch runtime)",
+      "route": "opencode run -m deepseek/deepseek-flash",
+      "model": "deepseek/deepseek-flash",
+      "result": "succeeded",
+      "artifact": "opencode-cli-deepseek.json",
+      "capability_exercised": "text generation only"
+    },
+    {
+      "provider": "opencode-go",
+      "runtime": "Hutch managed OpenCode 2.2.0 runtime",
+      "route": "local API login reuse from auth.json",
+      "model": "opencode/opencode-go/iceman-contributor-free",
+      "result": "failed",
+      "artifact": "opencode-managed-runtime-live.json",
+      "error": "Provider reported an expired OpenCode Go API key.",
+      "honesty": "The run failed explicitly, cost 0.0, and no retry or alternate account was used."
+    }
+  ]
+}

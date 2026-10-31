@@ -77,3 +77,13 @@ Date: 2026-10-30. Status: first implementation slices landed on branch provider-
 - drafts/04-current-state.md (repo archaeology with file:line references)
 - drafts/01-core-providers.md, 02-hosting-gateway-local.md, 03-media-speech-search.md (dated sources)
 - ADR-0026 (docs/adr/0026-provider-identity-accounts-capabilities-and-runtimes.md)
+
+## Live evidence addendum (2026-10-30)
+
+After the initial slice, owner-authorized live tests added two dated live-verified text entries to the
+capability registry: deepseek/deepseek-flash through the built-in runtime and
+opencode/deepseek/deepseek-flash through the managed OpenCode runtime. The registry still refuses to
+generalize from those runs: no tool, streaming, vision or cross-provider claim is derived from them.
+The direct DeepSeek route is now a real implemented connection template; the managed OpenCode runtime was
+already implemented and is now live-verified for text. Everything else remains unverified, and the
+custom-endpoint SSRF-adjacent hardening gap is unchanged.

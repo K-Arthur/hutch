@@ -53,3 +53,11 @@ Outside Strict Offline a custom endpoint is operator-configured and keeps the ex
 but there is no private-range allowlist or redirect/DNS pinning in the provider layer. Recorded as a
 carried-over hardening gap (00-SCOPE, 04-ARCHITECTURE-AND-ADRS, docs/provider-platform.md); do not present
 custom endpoints as validated against SSRF for untrusted input until that gap is closed.
+
+## Live verification addendum (2026-10-30)
+
+Two text routes are live-verified with owner-authorized credentials: direct DeepSeek via the built-in runtime
+and managed OpenCode runtime with a DeepSeek model. Live evidence is recorded under
+artifacts/live-verification/ with a summary.json consumed by the research audit. If the ephemeral test
+credential is rotated or removed, the live-verified rows must be re-evaluated or downgraded; they are dated
+2026-10-30 and must not be presented as a guarantee for other accounts, models or capabilities.

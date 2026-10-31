@@ -1,16 +1,19 @@
 # 06 - Validation ledger
 
-Exact commands and observed results. Status: complete for this delivery; the live-verification boundary below still applies. Every hosted route in this package is not live-verified. Hosted live verification is `BLOCKED` for
-this delivery because no provider credentials exist in the execution environment; nothing below should
-be read as proof that a hosted provider works live.
+Exact commands and observed results. Status: complete for this delivery plus live verification. On 2026-10-30 the
+owner authorized live testing through the installed OpenCode CLI account (including its DeepSeek key). Two
+owner-authorized routes were exercised for real: the direct DeepSeek connection through Hutch's built-in
+runtime, and the managed OpenCode runtime with a DeepSeek model. Both succeeded for text generation. Tool
+calling, streaming, image input, other modalities and every other provider were not live-exercised.
+OpenCode Go's stored key reported expired and the run failed explicitly with no spend.
 
 ## Environment probes
 
 | Probe | Command | Observed | Verdict |
 |---|---|---|---|
-| Provider credential variables | names-only scan of the process environment | 0 provider-like variables | BLOCKED for hosted live calls |
+| Provider credential variables | names-only scan of the process environment | 0 provider-like variables in the process environment | Owner-authorized live testing used the installed OpenCode account in memory (see live section); no direct provider variable was required |
 | Local inference services | HTTP probe of 127.0.0.1:11434, 1234, 8000, 30000, 8080 | all unreachable (000) | no local model to exercise |
-| Installed coding CLIs | `command -v` / `--version` | claude 2.1.314; codex and opencode installed (opencode version probe blocked by read-only log path); gemini/qwen/pi absent | CLI runtimes not live-exercised |
+| Installed coding CLIs | command -v / --version | claude 2.1.314; codex installed; OpenCode 2.2.0 installed and used live; gemini/qwen/pi absent | OpenCode CLI and the Hutch-managed OpenCode runtime were live-exercised; Claude Code/Codex/Gemini CLIs were not |
 | Artifact | `artifacts/env-probe.txt` | recorded | evidence |
 
 ## Baseline automated tests (HEAD 1c454c32, clean worktree)
@@ -30,11 +33,24 @@ An earlier run on the shared main checkout (which included another session's in-
 230 tests with 1 skipped in 165 s; it is not a clean baseline and is recorded only as context. The full
 focused batch command and its final count are in the delivery report and the completion-round evidence.
 
-## Live provider validation
+## Live provider validation (2026-10-30)
 
-| Provider | Auth | Catalogue | Inference | Streaming | Tools | Capability | Verdict |
+Owner authorization: the installed OpenCode CLI account may be used for testing, including its DeepSeek key.
+Credentials were read only in memory for the duration of a test; no secret was written to the repository or
+to a committed artifact, and the isolated test state directories were deleted after each run.
+
+| Route | Auth source | Catalogue | Inference | Streaming | Tools | Result | Artifact |
 |---|---|---|---|---|---|---|---|
-| all hosted providers | not available | not available | not available | not available | not available | not available | BLOCKED |
+| DeepSeek direct connection, built-in runtime, deepseek-flash | owner OpenCode account, in-memory transfer to an isolated Hutch connection | authenticated; 2 models (deepseek-flash, deepseek-v4-pro) | one-step run succeeded; reply HUTCH_BUILTIN_OK; 612 prompt / 9 completion tokens | not tested live | not tested live (tools disabled for the run) | PASS (text only) | artifacts/live-verification/deepseek-builtin-runtime-live.json |
+| Managed OpenCode 2.2.0 runtime, opencode/deepseek/deepseek-flash | owner DeepSeek key connected to Hutch's private OpenCode profile | private profile exposed DeepSeek models | one-step managed run succeeded; reply HUTCH_HUTCH_OK; 4452 prompt / 8 completion tokens; provider-reported cost $0.0006726 | not tested live | not tested live (empty tool list) | PASS (text only) | artifacts/live-verification/opencode-managed-runtime-deepseek-live.json |
+| OpenCode CLI 2.2.0, deepseek/deepseek-flash | installed OpenCode account | model id accepted | real response HUTCH_LIVE_OK_2026 | n/a | n/a | PASS (external tool reference) | artifacts/live-verification/opencode-cli-deepseek.json |
+| OpenCode Go stored API key, managed runtime | local OpenCode auth.json API login | 30 models exposed after transfer | provider rejected the key as expired; run failed explicitly | not reached | not reached | FAIL (honest provider error, no spend) | artifacts/live-verification/opencode-managed-runtime-live.json |
+
+Cost note: the direct DeepSeek run recorded cost_usd 0.0 because no reviewed local price row existed for the
+live model. That is unpriced, not a free-service claim; the managed OpenCode run reported $0.0006726 from the
+provider. Tool calling, streaming, vision, audio, video, music and search remain not live-verified anywhere.
+Blocked or unavailable: every other provider has no usable credential in this environment; the OpenCode Go
+stored key is expired; no local inference server is running.
 
 ## Visual validation (real app, real browser, 2026-10-30)
 
@@ -81,7 +97,9 @@ authenticated provider state cannot be shown because no credential exists.
 
 ## Gaps that remain
 
-- No hosted provider was live-verified; every hosted route remains implemented-unverified.
+- Only the DeepSeek text routes above were live-verified. Every other hosted route and every other capability
+  (tools, streaming, images, audio, video, music, provider-native search) remains implemented-unverified or
+  documented. No local inference server was available.
 - No local inference server was available, so discovery is exercised with injected transports and real
   failed probes, not a running model.
 - Deferred: Gemini/Responses protocol generalisation, media/speech adapters with a verified job contract,
@@ -97,3 +115,14 @@ authenticated provider state cannot be shown because no credential exists.
 - Branch audits: context hygiene passed, agent map check passed (118 lines), tool contracts passed, constitution passed, provider research audit PASS, emoji audit clean on branch files.
 - Main checkout verification after fast-forward: provider research audit PASS, agent map check passed, context hygiene passed. The main working tree still contains another session's uncommitted files; they were not modified, staged or reverted. Audits that scan those files (for example a working-tree emoji scan over .codewhale state and another session's research file) are not attributable to this slice and are reported in the delivery report.
 - Security review: artifacts/security-review.md (no blocking finding; one documented SSRF-adjacent hardening gap carried over from before this slice).
+
+## Live verification addendum (2026-10-30)
+
+- Live tests performed after the initial delivery with the owner's explicit authorization: direct DeepSeek
+  text generation through the built-in runtime, managed OpenCode runtime text generation with a DeepSeek
+  model, and an external OpenCode CLI reference request. All three produced the expected text.
+- The provider catalogue now records DeepSeek as an implemented direct route and OpenCode as implemented;
+  capability evidence contains two dated live-verified text entries; the capability matrix marks only those
+  routes live-verified and the page/website still state that everything else is unverified.
+- Failure-path evidence: the stored OpenCode Go API key is expired; Hutch surfaced the provider error in a
+  failed run with cost 0.0 and performed no retry or silent account switch.

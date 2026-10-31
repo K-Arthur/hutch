@@ -82,3 +82,13 @@ The official protocol sources checked for this matrix include [OpenCode 2.0.24 p
 and the [vLLM OpenAI-compatible server](https://docs.vllm.ai/en/stable/serving/online_serving/openai_compatible_server/).
 OpenRouter's model-list and chat-completion shape were checked against its [model catalog](https://openrouter.ai/docs/api/api-reference/models/get-models)
 and [chat completion reference](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request).
+
+### DeepSeek direct route (live-verified 2026-10-30)
+
+The new DeepSeek connection template uses the OpenAI-shaped endpoint at https://api.deepseek.com/v1.
+Model discovery authenticated and returned deepseek-flash and deepseek-v4-pro; one one-step text run
+through the built-in runtime returned the expected token and recorded 612 prompt / 9 completion tokens.
+The local price row was absent, so the recorded cost of 0.0 is unpriced and not a free-service claim.
+Tool calling, streaming, image input and every other capability remain unverified for this route. The
+managed OpenCode runtime was separately live-verified with a DeepSeek model (see the research package
+live-verification artifacts). Blocked, retired and deferred provider routes are unchanged.

@@ -116,3 +116,13 @@ private-range allowlist or redirect/DNS pinning for those custom endpoints. This
 platform slice and is not a credential leak by itself; it is recorded here, in
 04-ARCHITECTURE-AND-ADRS.md, docs/provider-platform.md and 07-ROLLOUT-AND-MIGRATION.md so it is not
 silently assumed safe. It must be addressed before endorsing untrusted operator-supplied endpoints.
+
+## Live verification addendum (2026-10-30)
+
+The owner subsequently authorized live testing through the installed OpenCode CLI account, including its
+DeepSeek key. In-memory credentials were used for two real text-generation routes: the direct DeepSeek
+connection through Hutch's built-in runtime and the managed OpenCode runtime with a DeepSeek model. Both
+succeeded, and the capability matrix/validation ledger now record exactly those routes as live-verified for
+text. Tool calling, streaming, image input, every other modality and every other provider remain unverified.
+No secret was written to the repository or to a committed artifact; isolated test state was deleted. The
+custom-endpoint SSRF-adjacent gap recorded below is unchanged.

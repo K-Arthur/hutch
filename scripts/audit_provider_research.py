@@ -89,16 +89,44 @@ def main() -> int:
     else:
         checks.append(f"capability matrix covers {len(ids)} provider identities")
 
-    live_rows = [row for row in rows if not row.rstrip().endswith("not live-verified |")]
     if len(rows) != len(providers):
         _fail(problems, f"capability matrix has {len(rows)} rows for {len(providers)} providers")
-    if live_rows:
-        _fail(problems, f"{len(live_rows)} matrix row(s) claim something other than not live-verified")
+    summary_path = PACKAGE / "artifacts" / "live-verification" / "summary.json"
+    backed: dict[str, str] = {}
+    if summary_path.is_file():
+        try:
+            summary = json.loads(summary_path.read_text())
+            for entry in summary.get("verifications", []):
+                if not isinstance(entry, dict) or entry.get("result") != "succeeded":
+                    continue
+                provider_id = entry.get("provider")
+                artifact = entry.get("artifact")
+                if isinstance(provider_id, str) and isinstance(artifact, str):
+                    backed[provider_id] = artifact
+        except (OSError, ValueError) as exc:
+            _fail(problems, f"live-verification summary cannot be read: {exc}")
+    live_claims = 0
+    for row in rows:
+        cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
+        if len(cells) < 2:
+            continue
+        provider_id, live_cell = cells[0], cells[-1]
+        if live_cell.startswith("live-verified"):
+            live_claims += 1
+            artifact = backed.get(provider_id)
+            if artifact is None:
+                _fail(problems, f"matrix row {provider_id!r} claims live verification without a succeeded artifact")
+            elif not (PACKAGE / "artifacts" / "live-verification" / artifact).is_file():
+                _fail(problems, f"live-verification artifact missing for {provider_id!r}: {artifact}")
+        elif live_cell != "not live-verified":
+            _fail(problems, f"matrix row {provider_id!r} has an unexpected live-verification value: {live_cell}")
+    if live_claims:
+        checks.append(f"live verification rows backed by artifacts ({live_claims})")
     else:
         checks.append("no matrix row claims live verification")
 
     ledger = (PACKAGE / "06-VALIDATION-LEDGER.md").read_text() if (PACKAGE / "06-VALIDATION-LEDGER.md").is_file() else ""
-    for needle in ("BLOCKED", "no provider credentials", "not live-verified"):
+    for needle in ("live-verified", "2026-10-30", "OpenCode"):
         if needle not in ledger:
             _fail(problems, f"validation ledger does not record: {needle}")
 
