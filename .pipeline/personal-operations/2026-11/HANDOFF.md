@@ -14,6 +14,7 @@ only what you reviewed.
 | 4a95f39e | docs, site section, marketing claims, pipeline session record |
 | ac5e6f04 | the review fixes: immediate revocation, JSON-guarded triggers, `not_queued`, deleted-assistant filtering, bounded calendar label |
 | 5a835791, 227b1c89, 40663956 | the pipeline record: session, run log, acceptance, handoff, and the gate measured at the committed tip instead of in the shared tree |
+| 48de6899, 33ef4461 | the second review round: schema v87 trigger repair, key-independent grant eviction, bounded source-list name, and the split that keeps the test file under the cap |
 
 ## Status by capability
 
@@ -32,7 +33,12 @@ only what you reviewed.
   `build_today`. Keep it that way; its separate route is what makes its limits statable.
 - A grant reason (`grant_missing`, `grant_expired`, `mail_requires_local`) must discard any cached
   snapshot in the same request. An independent reviewer caught the opposite and it was a real
-  trust bug, not a style issue.
+  trust bug, not a style issue; a second round caught that the first fix could not match the key
+  of a removed grant. Eviction matches on assistant and kind, not on the exact cache key.
+- A trigger body can only be replaced by dropping it. If you correct one of the notification
+  triggers, add a migration step that drops and recreates it; editing `CREATE TRIGGER IF NOT
+  EXISTS` in an already-applied migration changes nothing on a live database. Schema v87 exists
+  for exactly that reason and its test is the template.
 - Mailbox previews require a Local-inference assistant. Preserve that when adding Outlook or any
   second mail source.
 - There is no second delivery path and no exactly-once claim. An uncertain send is only resolved by

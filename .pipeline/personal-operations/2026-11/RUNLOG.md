@@ -108,6 +108,51 @@ Post-fix runs:
   tests/test_navbar_consistency.py tests/test_approval_cas.py` -> 156 passed.
 - `pytest -q tests/e2e/test_personal_today_agenda.py` -> 2 passed.
 
+## Second independent verification (and what it caught)
+
+A second read-only reviewer was asked whether the fixes were real or only asserted. It found that
+three of them were correct in source and inert, or incomplete, in practice. All three were
+confirmed here and fixed in `48de6899`.
+
+| Finding | How it was confirmed | Fix |
+|---|---|---|
+| **MAJOR**: the JSON trigger guard never reached an existing database. `CREATE TRIGGER IF NOT EXISTS` cannot replace a live body, and the migration that installs those triggers had already run. | Copied the real state database (`~/.local/state/hutch/hutch.db`, `user_version` 86); all three triggers still lacked `json_valid`. | Schema v87 = `notification_schema.repair`, which drops and recreates the three triggers. Re-ran the upgrade against a fresh copy: version 86 -> 87, both existing notification rows preserved, the two document-reading triggers gained the guard, and `.db.bak-v86` was written. Both copies deleted afterwards. |
+| **MAJOR**: `grant_missing` eviction missed the case it was written for. A source whose grant was removed carries no calendar id, so its cache key could never equal the snapshot's key. | `AgendaSource.missing(...)` builds a key without `calendar_id`; the snapshot's key has one. Proved in a test that asserts the two keys differ. | `_evict` matches on assistant and kind instead of the exact key. |
+| **MINOR**: `list_sources()` still returned the raw provider calendar name to the Today picker. | Read the function; it passed `grant[...]` through unchanged. | `clean(..., 120)`, with a test using a name containing NUL and an escape sequence. |
+
+Each fix has a test that fails without it, proved by reverting the code in place and re-running:
+
+| Test | Reverted code | Observed failure |
+|---|---|---|
+| `test_a_database_that_already_ran_the_migration_gets_the_corrected_triggers` | removed the `repair` entry from `_MIGRATIONS` | `assert 86 > 86` |
+| `test_removing_a_grant_evicts_even_though_the_missing_source_has_no_calendar_id` | `_evict` reduced to `cache.pop(selected.key, None)` | retained `calendar\|bot_cal\|gcal_aaa...\|work` holding "Private salary review" |
+
+The added trigger-repair test pushed `tests/test_notifications.py` past the 400-line cap, so the
+three migration-level tests moved to `tests/test_notification_schema.py` rather than growing the
+file.
+
+One mistake of this session is recorded for the next one: the first attempt at the second-round
+fix staged `src/hutch/store.py` wholesale and so committed another session's in-flight
+`unclosed_proc_runs` method. It was caught by comparing the committed file against its baseline,
+the commit was amended to contain only this slice's line, and their method was restored to the
+working tree unstaged. `git show <commit> -- <file>` is the check that catches this; `git diff`
+against HEAD does not, because it cannot tell whose hunk is whose.
+
+Post-second-fix runs:
+
+- `pytest -q tests/test_personal_agenda.py tests/test_notifications.py
+  tests/test_notification_schema.py` -> 32 passed.
+- `pytest -q tests/test_notifications.py tests/test_notification_schema.py tests/test_personal_agenda.py
+  tests/test_migration.py tests/test_channels.py tests/test_personal_api.py tests/test_bot_deletion.py`
+  -> 128 passed.
+- `pytest -q tests/test_personal_agenda.py tests/test_notifications.py tests/test_channels.py
+  tests/test_channels_api.py tests/test_personal_api.py tests/test_bot_deletion.py
+  tests/test_bot_deletion_schema.py tests/test_migration.py tests/test_commitments.py
+  tests/test_spaces.py tests/test_commitment_tools.py tests/test_navbar_consistency.py` -> 172 passed.
+- `pytest -q tests/e2e/test_personal_today_agenda.py` -> 2 passed.
+- All four audits at committed tip `33ef4461`: context hygiene passed (932 source files, 117 frozen),
+  constitution passed, agent map passed, tool contracts passed.
+
 ## Full non-e2e regression (post-fix, disk-backed TMPDIR)
 
 Command: `TMPDIR=~/.hutch-tmp/full3 UV_CACHE_DIR=/tmp/uv-cache uv run --frozen --no-sync pytest -q
