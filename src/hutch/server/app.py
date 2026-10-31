@@ -1282,6 +1282,8 @@ class ScheduleResource(BaseModel):
     last_dispatched: Optional[str] = None
     last_skip: Optional[dict] = None
     blocked: Optional[dict] = None
+    last_occurrence: Optional[dict] = None
+    needs_attention: bool = False
     preview: list[dict] = Field(default_factory=list)
 
 
@@ -2044,6 +2046,8 @@ def create_app() -> FastAPI:
     app.state.channels = channels
     from .channels_api import install_channel_routes
     install_channel_routes(app,store,engine)
+    from .vault_api import install_vault_routes
+    install_vault_routes(app, store)
     app.add_middleware(SecurityMiddleware, auth_token=os.environ.get("HUTCH_AUTH_TOKEN") or None,
                        device_auth=store.authenticate_session)
 
@@ -3177,6 +3181,20 @@ def create_app() -> FastAPI:
     def put_schedule_control(body: ScheduleControlPut) -> dict:
         return store.set_workspace_schedules_paused(body.paused)
 
+    def _occurrence_outcome(row: dict) -> dict:
+        """The most recent claimed window, with the run outcome behind it.
+
+        The question this answers is "why didn't it run?". A claim whose run can no longer
+        be read is reported as having no recorded result and asks for attention; the page
+        never infers success from a missing row.
+        """
+        status = str(row.get("run_status") or "")
+        return {"occurrence": row["occurrence"], "run_id": row["run_id"],
+                "claimed_at": row["claimed_at"], "run_status": status,
+                "exit_reason": str(row.get("exit_reason") or ""),
+                "missed_windows": int(row.get("missed_windows") or 0),
+                "needs_attention": not status or status in ("failed", "outcome_unknown")}
+
     def _schedule_resource(bot: Bot, scheduled: Schedule, *, workspace_paused: bool,
                            include_preview: bool = False) -> dict:
         nxt = scheduler.next_fire(bot, schedule=scheduled)
@@ -3184,6 +3202,9 @@ def create_app() -> FastAPI:
         if include_preview:
             preview = [{"at": p.at.isoformat(), "timezone": p.timezone, "utc_offset": p.utc_offset,
                         "note": p.note} for p in scheduler.preview(scheduled, limit=8)]
+        blocked = scheduler.blocked(scheduled)
+        recent = store.list_schedule_occurrences(scheduled.id, limit=1)
+        last_outcome = _occurrence_outcome(recent[0]) if recent else None
         return {"id": scheduled.id, "bot_id": bot.id, "bot_name": bot.name,
                 "bot_display_name": bot.display_name, "name": scheduled.name,
                 "trigger": scheduled.trigger.value, "cron": scheduled.cron,
@@ -3200,7 +3221,9 @@ def create_app() -> FastAPI:
                 "next_fire": nxt.isoformat() if nxt else None,
                 "last_dispatched": scheduler._last_dispatched(bot, scheduled).isoformat(),
                 "last_skip": scheduler.last_skip(bot, scheduled),
-                "blocked": scheduler.blocked(scheduled), "preview": preview}
+                "blocked": blocked, "last_occurrence": last_outcome,
+                "needs_attention": bool(blocked) or bool(last_outcome and last_outcome["needs_attention"]),
+                "preview": preview}
 
     @app.get("/api/v1/schedules", response_model=list[ScheduleResource])
     def list_schedules(bot: Optional[str] = None, limit: int = 100, offset: int = 0,
