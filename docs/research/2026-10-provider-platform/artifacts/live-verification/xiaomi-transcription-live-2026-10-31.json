@@ -28,7 +28,8 @@
       "format": "wav",
       "billing": "subscription",
       "note": "the audio leaves this machine; the provider's plan may charge for it"
-    }
+    },
+    "gate_note": "The live harness used a recording gate that captured the exact decision the tool requests; the real ApprovalGate (stored approvals, expiry, outward/sticky rules) was not exercised live. tests/test_transcribe_tool.py asserts the decision is outward and names the destination."
   },
   "result": {
     "ok": true,
