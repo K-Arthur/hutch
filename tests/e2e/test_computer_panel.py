@@ -254,6 +254,21 @@ def test_the_panel_says_whether_the_session_can_read_controls_or_only_pixels(bro
     try:
         text = page.locator("[data-computer-panel]").inner_text()
         assert "reading the screen only" in text and "at-spi2-registryd is not installed" in text
+        _shot(page, "semantics-unavailable")
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("width,height", [(360, 780), (768, 1024)])
+def test_the_semantics_sentence_does_not_break_the_narrow_panel(browser, live, width, height):
+    base, app = live
+    page = _open(browser, base, _seed(app, semantics="unavailable",
+                                      semantics_reason="at-spi2-registryd is not installed"), width, height)
+    try:
+        assert "reading the screen only" in page.locator("[data-computer-panel]").inner_text()
+        wait_for_page(page, "() => document.documentElement.scrollWidth <= window.innerWidth + 1", timeout=10000)
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
+        _shot(page, f"semantics-unavailable-{width}")
     finally:
         page.close()
 
