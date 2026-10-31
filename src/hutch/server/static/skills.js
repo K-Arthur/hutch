@@ -90,17 +90,18 @@
         <div class="panel-title" id="skills-import-title">Add a skill</div>
         <div class="skill-import-grid">
           <form id="skills-import-path" class="skill-import-form hutch-form hutch-inline">
-            <div class="hutch-field"><label class="hutch-label" for="skills-import-path-input">From a local folder</label><input class="hutch-input" type="text" id="skills-import-path-input" name="path" placeholder="~/my-skills/meeting-notes" autocomplete="off" spellcheck="false"></div>
-            <div class="hutch-actions"><button class="btn small" type="submit">Install from folder</button></div>
+            <div class="hutch-field"><label class="hutch-label" for="skills-import-path-input">From a folder or a package URL</label><input class="hutch-input" type="text" id="skills-import-path-input" name="path" placeholder="~/my-skills/meeting-notes or https://example.com/skill.zip" autocomplete="off" spellcheck="false"></div>
+            <div class="hutch-actions"><button class="btn small" type="submit">Install</button></div>
           </form>
           <div class="skill-import-bundled">
             <p class="hint">Or install one of the skills Hutch ships, each reviewed:</p>
             <div class="hutch-actions" id="skills-bundled"></div>
           </div>
         </div>
-        <p class="hint">Import reads a folder on this machine only; Hutch never fetches skills from the network.
-          Installation is inert until you review the files and trust the exact content hash.</p>
+        <p class="hint">Import reads a folder on this machine, or downloads a package from an https URL.
+          A download is not trusted because it arrived: everything installs inert until you review the files and trust the exact content hash.</p>
       </section>
+      ${window.HutchSkillReview.registrySectionHtml()}
       <div id="skills-body"><div class="empty-state"><div class="spinner" role="status" aria-label="Loading"></div><p>Loading skills…</p></div></div>
     </div></div>`;
 
@@ -109,10 +110,10 @@
       event.preventDefault();
       const input = q('input[name="path"]', event.target);
       const path = input.value.trim();
-      if (!path) { notify("Enter a folder path to import.", true); return; }
+      if (!path) { notify("Enter a folder path or a package URL.", true); return; }
       await withBusy(q("button", event.target), async () => {
         try {
-          const detail = await callApi("/v1/skills/install", { method: "POST", body: { source: "path", path } });
+          const detail = await window.HutchSkillReview.installSource(path, callApi);
           notify(`Installed ${detail.name}. Review it, then trust it to enable it.`);
           await refresh();
           await openInspector(detail.name);
@@ -122,6 +123,7 @@
 
     async function refresh() {
       const body = q("#skills-body");
+      void window.HutchSkillReview.mountRegistry(q("#skills-registry"), { callApi, notify, reload: refresh });
       if (!body || generation !== skillsRenderGeneration) return;   // the user left this route
       body.innerHTML = `<div class="empty-state"><div class="spinner" role="status" aria-label="Loading"></div><p>Loading skills…</p></div>`;
       const errorSlot = q("#skills-error");
@@ -303,14 +305,17 @@
       const staged = detail.staged_update
         ? `<p class="hint tone-info">Staged update ${esc(detail.staged_update.hash.slice(0, 12))} from ${esc(detail.staged_update.staged_at)}.
              The reviewed version stays active until you apply this from the card.</p>
+           ${window.HutchSkillReview.stagedChangesHtml(detail)}
            ${detail.staged_body ? `<details class="skill-instructions" open><summary>Staged update instructions (what applying would activate)</summary>
              <pre tabindex="0" aria-label="Staged skill instructions">${esc(detail.staged_body)}</pre></details>` : ""}` : "";
+      const scanBlock = window.HutchSkillReview.scanHtml(detail);
       const html = `
         <div class="skill-inspector">
           <div class="skill-inspector-head">${statusChip(detail.status)}
             <span class="skill-meta"><span title="${esc(detail.hash)}">hash ${esc((detail.hash || "").slice(0, 12))}</span>
             <span>source ${esc(detail.source.kind)}: ${esc(detail.source.detail || "")}</span></span></div>
           <p>${esc(detail.description || "")}</p>
+          ${scanBlock}
           ${staged}
           <dl class="skill-facts">
             <dt>Installed</dt><dd>${esc(detail.installed_at)}</dd>

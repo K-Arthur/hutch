@@ -171,6 +171,12 @@ GET    /api/v1/skills                          library: installed, available, co
 GET    /api/v1/skills/{name}                   detail incl. instructions, resources, diagnostics, bound Bots
 POST   /api/v1/skills/install                  {source: "builtin"|"path", name|path}
 POST   /api/v1/skills/fetch                    {url, replace?}  installs untrusted, with provenance
+GET    /api/v1/skills/registries               configured indexes + last read status
+POST   /api/v1/skills/registries               {id, url, title?}
+DEL    /api/v1/skills/registries/{id}
+GET    /api/v1/skills/available                listed packages, marked installed or not
+POST   /api/v1/skills/registries/install       {name, replace?}  verifies the published digest
+GET    /api/v1/skills/{name}/dependencies      what is missing, and where it is listed
 POST   /api/v1/skills/{name}/trust|enable|disable|recheck
 POST   /api/v1/skills/{name}/update            stage
 POST   /api/v1/skills/{name}/update/apply      make the reviewed update active
@@ -215,6 +221,57 @@ cannot manage skills or activate them (owner action).
   at the same URL.
 * Nothing runs installation hooks or resolves dependencies, and there is no marketplace: a URL is
   something a person chose to fetch, not a registry entry Hutch browses on their behalf.
+
+## Published registries
+
+A registry is a JSON document at an `https` URL that lists packages. Configure one and Hutch can
+show what it offers; nothing is installed because a registry exists.
+
+```json
+{
+  "format": "hutch.skill-index/1",
+  "skills": [
+    {"name": "meeting-notes", "url": "https://example.com/meeting-notes.zip",
+     "version": "1.2", "description": "Turn a transcript into decisions.",
+     "publisher": "someone", "license": "MIT", "sha256": "<64 lowercase hex>"}
+  ]
+}
+```
+
+Every field is validated before it can appear in an interface. A name must match the skill name
+pattern, a package URL must be `https`, a digest must be a full sha256, and the whole document is
+refused if its `format` is not exactly `hutch.skill-index/1`. An index is capped at 500 entries and
+512 KiB; a larger one is truncated with a diagnostic rather than trusted.
+
+What a digest is, and is not: when an entry publishes `sha256`, the downloaded package must match
+it byte for byte or the install is refused, which protects against a package being swapped after
+the index was published. It does **not** prove who wrote the package, and it does not protect
+against a malicious index, because an index that lies about a digest is indistinguishable from one
+that lies about a URL. Hutch does not verify signatures, and no surveyed platform documents an
+interoperable skill signature format.
+
+Reading a registry is tolerant of failure in a specific way. If an index cannot be fetched, Hutch
+shows the last listing it saved and says so with the time it was read, instead of presenting an
+empty catalogue as if nothing were published. If two registries list the same name, the first
+configured registry wins and the duplicate is reported.
+
+Installing from a registry is one row, one click, and one explicit act. The package lands
+untrusted, exactly like a URL download, and the skill detail shows both the registry it came from
+and the digest that was checked.
+
+## Dependencies between skills
+
+`hutch.requires-skills` names another skill whose procedure a package assumes. Readiness refuses
+the dependent skill while the dependency cannot load, and the dependency report says what is
+missing and where it could come from:
+
+```bash
+curl -s localhost:8787/api/v1/skills/meeting-notes/dependencies
+```
+
+For each missing dependency the report lists whether a configured registry lists it, with the
+version, publisher and digest it publishes. The walk is bounded to three levels and reports a
+cycle rather than chasing it. It is a report, not an installer: nothing is downloaded by asking.
 
 ## Content review
 

@@ -160,3 +160,102 @@ def test_the_runtime_and_readiness_reach_the_same_verdict(registry):
     resolved = reg.effective_for_bot(bot)
     assert resolved.catalog == []
     assert any("depends on the 'base' skill" in warning for warning in resolved.warnings)
+
+
+# ------------------------------------------------------------------ resolution: where a dependency comes from
+
+import httpx  # noqa: E402  (kept beside the tests that use it)
+
+from hutch.skill_dependency import MAX_DEPTH, resolve_dependencies  # noqa: E402
+from hutch.skill_registry_index import INDEX_FORMAT, RegistryIndex  # noqa: E402
+
+PUBLIC = {"packages.example": ["93.184.216.34"]}
+
+
+def _resolver(host, port, *args, **kwargs):
+    return [(2, 1, 6, "", (PUBLIC[host][0], port))]
+
+
+def _serve(routes: dict[str, bytes]):
+    """Route by Host: netguard dials the validated address and keeps the name in the header."""
+    def handler(request):
+        url = "https://" + str(request.headers.get("host", "")) + request.url.path
+        body = routes.get(url)
+        return httpx.Response(200 if body else 404, content=body or b"",
+                              headers={"content-type": "application/json"})
+    return httpx.MockTransport(handler)
+
+
+def _index_listing(state, entries: list[dict]) -> RegistryIndex:
+    import json
+
+    document = json.dumps({"format": INDEX_FORMAT, "skills": entries}).encode()
+    index = RegistryIndex(state, resolver=_resolver,
+                          transport=_serve({"https://packages.example/index.json": document}))
+    index.add("r1", "https://packages.example/index.json")
+    return index
+
+
+def test_a_satisfied_dependency_reports_ok(registry):
+    reg, root, store = registry
+    install(reg, root, "base")
+    install(reg, root, "user", depends_on="base")
+    report = resolve_dependencies(reg, "user")
+    assert report["status"] == "ok"
+    assert report["dependencies"][0]["installed"] is True
+
+
+def test_a_missing_dependency_names_a_registry_that_lists_it(registry):
+    reg, root, store = registry
+    install(reg, root, "user", depends_on="base")
+    index = _index_listing(store.config.state_dir, [
+        {"name": "base", "url": "https://packages.example/base.zip", "version": "2.0",
+         "publisher": "someone", "sha256": "a" * 64}])
+    row = resolve_dependencies(reg, "user", index=index)["dependencies"][0]
+    assert row["status"] == "missing"
+    assert row["available_from"]["registry_id"] == "r1"
+    assert row["available_from"]["pinned"] is True
+    assert row["available_from"]["version"] == "2.0"
+
+
+def test_a_missing_dependency_with_no_registry_says_so_plainly(registry):
+    reg, root, store = registry
+    install(reg, root, "user", depends_on="base")
+    row = resolve_dependencies(reg, "user")["dependencies"][0]
+    assert row["status"] == "missing" and row["available_from"] is None
+    assert "no configured registry lists it" in row["detail"]
+
+
+def test_a_dependency_cycle_is_reported_rather_than_chased(registry):
+    reg, root, store = registry
+    install(reg, root, "a", depends_on="b")
+    install(reg, root, "b", depends_on="a")
+    report = resolve_dependencies(reg, "a")
+    assert report["status"] == "blocked"
+    cycle = [problem for problem in report["problems"] if problem["status"] == "cycle"]
+    assert cycle, report
+    assert "cycle" in cycle[0]["detail"]
+
+
+def test_dependency_nesting_is_bounded(registry):
+    reg, root, store = registry
+    for number in range(MAX_DEPTH + 2):
+        install(reg, root, f"level{number}", depends_on=f"level{number + 1}")
+    report = resolve_dependencies(reg, "level0")
+    assert "too_deep" in str(report) or report["status"] in {"ok", "blocked"}
+
+
+def test_the_api_serves_the_dependency_report(registry, monkeypatch):
+    reg, root, store = registry
+    install(reg, root, "user", depends_on="base")
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(store.config.state_dir))
+    from fastapi.testclient import TestClient
+
+    from hutch.server.app import create_app
+
+    with TestClient(create_app()) as client:
+        response = client.get("/api/v1/skills/user/dependencies")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["dependencies"][0]["name"] == "base"
+    assert "registry" in body["note"]

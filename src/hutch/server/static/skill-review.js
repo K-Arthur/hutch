@@ -55,5 +55,67 @@
     return callApi("/v1/skills/install", { method: "POST", body: { source: "path", path: source } });
   }
 
-  window.HutchSkillReview = Object.freeze({ scanHtml, stagedChangesHtml, installSource });
+
+
+  /** The registry panel: what configured indexes list, and an explicit install for each entry.
+
+      Discovery never installs. Every row is a separate act, and the row says what it is before the
+      button does anything: a listing someone published, with a digest that pins bytes and not
+      authorship. */
+  function registrySectionHtml() {
+    return `<section class="panel" id="skills-registry" aria-labelledby="skills-registry-title" hidden>
+      <div class="panel-title" id="skills-registry-title">From a published registry</div>
+      <div id="skills-registry-body"><p class="hint">Reading configured registries...</p></div>
+    </section>`;
+  }
+
+  async function mountRegistry(container, { callApi, notify, reload }) {
+    if (!container) return;
+    let data;
+    try {
+      data = await callApi("/v1/skills/available");
+    } catch (error) {
+      container.hidden = false;
+      document.getElementById("skills-registry-body").innerHTML =
+        `<p class="hint">Registries could not be read: ${esc(error.message)}</p>`;
+      return;
+    }
+    const body = document.getElementById("skills-registry-body");
+    if (!body) return;
+    container.hidden = false;
+    const failures = (data.registries || []).filter(item => !item.ok)
+      .map(item => `<li>${esc(item.registry_id)}: ${esc(item.reason)}</li>`).join("");
+    const rows = (data.entries || []).map(entry => `<div class="list-row">
+        <div><strong>${esc(entry.name)}</strong> <span class="tag">${esc(entry.registry_id)}</span>
+        ${entry.version ? `<span class="mono small">${esc(entry.version)}</span>` : ""}
+        ${entry.sha256 ? `<span class="tag">digest pinned</span>` : `<span class="tag">no digest</span>`}
+        <p class="hint">${esc(entry.description || "The registry did not describe this package.")}</p></div>
+        <div class="card-actions">${entry.installed
+          ? `<span class="hint">Already installed</span>`
+          : `<button class="btn small" data-registry-install="${esc(entry.name)}">Install</button>`}</div>
+      </div>`).join("");
+    body.innerHTML = !rows
+      ? `<p class="hint">No configured registry lists a package${(data.registries || []).length ? "" : ". Add one below."}</p>
+         ${failures ? `<ul class="hint">${failures}</ul>` : ""}
+         <form class="hutch-form hutch-inline" id="skills-registry-add">
+           <div class="hutch-field"><label class="hutch-label" for="skills-registry-url">Registry index URL</label>
+             <input class="hutch-input" id="skills-registry-url" name="url" placeholder="https://example.com/skills.json" autocomplete="off" spellcheck="false"></div>
+           <div class="hutch-actions"><button class="btn small" type="submit">Add registry</button></div>
+         </form>`
+      : `<div class="plain-list">${rows}</div>${failures ? `<ul class="hint">${failures}</ul>` : ""}
+         <p class="hint">${esc(data.note || "")}</p>`;
+    body.querySelectorAll("[data-registry-install]").forEach(button => {
+      button.onclick = async () => {
+        button.disabled = true;
+        try {
+          await callApi("/v1/skills/registries/install", { method: "POST", body: { name: button.dataset.registryInstall } });
+          notify(`Installed ${button.dataset.registryInstall}. Review it, then trust it.`);
+          await reload();
+        } catch (error) { notify(`Not installed: ${error.message}`, true); button.disabled = false; }
+      };
+    });
+  }
+
+  window.HutchSkillReview = Object.freeze({ scanHtml, stagedChangesHtml, installSource,
+                                            registrySectionHtml, mountRegistry });
 })();

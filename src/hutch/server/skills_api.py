@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Literal, Optional
 
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..skills import MAX_SKILLS_PER_BOT, SkillError, SkillRegistry
 from ..skill_scan import scan_package
@@ -29,6 +29,19 @@ class SkillFetchRequest(BaseModel):
     replace: bool = False
 
 
+class RegistryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(min_length=1, max_length=32)
+    url: str = Field(min_length=1, max_length=2048)
+    title: str = Field(default="", max_length=80)
+
+
+class RegistryInstallRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=64)
+    replace: bool = False
+
+
 def install_skills_routes(app: FastAPI, store, config) -> None:
     def registry() -> SkillRegistry:
         return SkillRegistry(config.state_dir)
@@ -43,6 +56,46 @@ def install_skills_routes(app: FastAPI, store, config) -> None:
     def list_skills(workspace: Optional[str] = Query(default=None, max_length=4096)) -> dict:
         """Installed skills, discovered candidates, collisions and scan diagnostics (bounded)."""
         return registry().library(workspace=workspace)
+
+    # -- configured registries: discovery only; nothing here installs implicitly -------------
+
+    def index_client():
+        from ..skill_registry_index import RegistryIndex
+        return RegistryIndex(store.config.state_dir)
+
+    @app.get("/api/v1/skills/registries")
+    def list_registries() -> dict:
+        client = index_client()
+        catalog = client.catalog()
+        return {"registries": client.configured(), "read": [state.__dict__ for state in catalog.states],
+                "note": catalog.to_dict()["note"]}
+
+    @app.post("/api/v1/skills/registries", status_code=201)
+    def add_registry(body: RegistryRequest) -> dict:
+        from ..skill_registry_index import RegistryError
+        try:
+            return index_client().add(body.id, body.url, title=body.title)
+        except RegistryError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
+
+    @app.delete("/api/v1/skills/registries/{registry_id}")
+    def remove_registry(registry_id: str) -> dict:
+        return {"removed": index_client().remove(registry_id)}
+
+    @app.get("/api/v1/skills/available")
+    def available_skills() -> dict:
+        """What the configured registries list, annotated with what is already installed."""
+        installed = {entry["name"] for entry in registry().library().get("skills", [])}
+        return index_client().catalog().to_dict(installed=installed)
+
+    @app.post("/api/v1/skills/registries/install", status_code=201)
+    def install_from_registry(body: RegistryInstallRequest) -> dict:
+        """Install one listed package, verifying the digest the registry published."""
+        from ..skill_registry_index import RegistryError
+        try:
+            return index_client().install(registry(), body.name, replace=body.replace)
+        except RegistryError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
 
     @app.get("/api/v1/skills/{name}")
     def skill_detail(name: str) -> dict:
@@ -85,6 +138,13 @@ def install_skills_routes(app: FastAPI, store, config) -> None:
             return install_from_url(registry(), body.url, replace=body.replace)
         except SkillError as exc:
             raise HTTPException(exc.status, str(exc)) from None
+
+    @app.get("/api/v1/skills/{name}/dependencies")
+    def skill_dependencies(name: str) -> dict:
+        """What this skill depends on, what is missing, and where each missing one is listed."""
+        skill_or_404(name)
+        from ..skill_dependency import resolve_dependencies
+        return resolve_dependencies(registry(), name, index=index_client())
 
     @app.post("/api/v1/skills/{name}/trust")
     def trust_skill(name: str) -> dict:
