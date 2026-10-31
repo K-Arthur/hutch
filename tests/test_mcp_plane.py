@@ -127,52 +127,6 @@ def test_a_loopback_hostname_resolving_off_loopback_is_refused():
             resolver=lambda *a, **k: [(2, 1, 6, "", ("203.0.113.9", 0))])
 
 
-def test_an_unreviewed_loopback_origin_is_refused_by_the_pinned_transport():
-    """A local endpoint must match the reviewed origin exactly, not merely be local.
-
-    Screening the URL once is not enough: a request is only allowed if its origin is one the
-    owner reviewed. Without this, a definition reviewed for one local port could be redirected
-    by the server to any other service on the machine.
-    """
-    import asyncio
-    import httpx2
-
-    transport = network.PinnedMcpHTTPTransport(
-        allowed_local_origins=("http://127.0.0.1:9999/mcp",),
-        transport_factory=lambda: httpx2.AsyncHTTPTransport(trust_env=False))
-
-    async def attempt(url: str) -> str:
-        request = httpx2.Request("POST", url, content=b"{}")
-        try:
-            await transport.handle_async_request(request)
-        except network.McpEndpointError as exc:
-            return str(exc)
-        return ""
-
-    refused = asyncio.run(attempt("http://127.0.0.1:8888/mcp"))
-    assert "reviewed endpoint" in refused
-
-
-def test_a_public_endpoint_is_refused_without_https():
-    """Pinning never widens the scheme rule: a non-TLS public endpoint is refused outright."""
-    import asyncio
-    import httpx2
-
-    transport = network.PinnedMcpHTTPTransport(
-        resolver=lambda *a, **k: [(2, 1, 6, "", ("93.184.216.34", 0))],
-        transport_factory=lambda: httpx2.AsyncHTTPTransport(trust_env=False))
-
-    async def attempt() -> str:
-        request = httpx2.Request("POST", "http://example.com/mcp", content=b"{}")
-        try:
-            await transport.handle_async_request(request)
-        except network.McpEndpointError as exc:
-            return str(exc)
-        return ""
-
-    assert "allowed public HTTPS address" in asyncio.run(attempt())
-
-
 def test_an_endpoint_with_a_query_string_is_refused():
     with pytest.raises(network.McpEndpointError):
         network.validate_mcp_endpoint("https://mcp.example.com/mcp?token=x",

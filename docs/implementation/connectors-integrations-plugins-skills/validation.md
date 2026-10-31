@@ -60,17 +60,11 @@ the connector code.
 
 | Capability | Label | Evidence or reason |
 |---|---|---|
-| **Third-party MCP server, discovery and call** | **Real provider, live** | `live_validate_third_party.py` installs `mcp-server-time==2025.9.25` from PyPI into its own virtual environment, registers it through the real service layer, discovers 2 tools, grants one to an assistant, and calls it. The call returned a real timezone record: `{"timezone": "Europe/London", "datetime": "2026-10-31T10:45:33+00:00", "day_of_week": "Saturday", "is_dst": false}`. Evidence: `artifacts/third-party-live-validation.json` |
-| Third-party schema enforced before dispatch | **Real provider, live** | Calling the granted tool with `{"nonsense": 1}` was refused with `missing required argument 'timezone'. Nothing was run.` The schema that refused it is the one the server published, not a Hutch guess |
-| Ungranted third-party tool unreachable | **Real provider, live** | `mcp__time__convert_time` was absent from the built tool set entirely and refused as an unknown tool, even though the server advertises it |
 | Local stdio connector, discovery and call | **Real process, sandboxed** | `test_mcp_transport.py` launches the fixture through `stdio_launch_argv`, pages its catalog, calls a granted tool, and the child reports its own environment and network state |
 | Sandbox containment of a connector | **Real process, sandboxed** | The child reports `secret_env: null` (Hutch's environment is not inherited), `home: /tmp/hutch-home`, `network: isolated` |
 | Install, test, grant, revoke, remove over HTTP | **Real process, sandboxed** | `test_mcp_api.py`, `test_connectors_page.py` |
-| **Remote Streamable HTTP connector** | **Real server, live (loopback)** | `live_validate_http.py` starts an MCP server on loopback with the SDK's Streamable HTTP transport, registers it as a connector, discovers 2 tools and calls one, which returned real structured output. Evidence: `artifacts/http-live-validation.json` |
-| Private-address and scheme screening | **Automated, offline, with a live-address check** | The live run refused `mcp.example.com` resolving to `10.1.2.3` before anything started. Two tests prove the pinned transport refuses an unreviewed loopback origin and a non-TLS public endpoint |
-| **Public HTTPS through the pinned transport** | **Real public origin, live** | `live_validate_public_https.py` screens `https://example.com/mcp`, completes a real TLS request through `PinnedMcpHTTPTransport` (200, 577 bytes), and shows that pointing a connector at an origin with no MCP endpoint fails as a bounded connector error rather than a hang or a crash. Evidence: `artifacts/public-https-live-validation.json` |
-| A connector against a real third-party MCP service | **Not tested** | No public MCP server and no credential were available. Bearer-token acceptance, redirects across origins, and provider rate limiting have not been observed |
-| Third-party MCP server | **Real provider, live** | See above: `mcp-server-time` from PyPI, installed and called through the sandbox. Only this one server has been exercised; general third-party compatibility is not claimed |
+| Remote Streamable HTTP connector | **Not tested against a live endpoint** | Endpoint screening and address pinning are unit-covered with injected resolvers; no real endpoint or credential was available, so no TLS handshake, bearer acceptance, redirect or DNS answer has been observed |
+| Third-party MCP server | **Blocked** | No third-party server was installed on this host. Every connector test uses `tests/fixtures/mcp_stdio_server.py` |
 | OAuth for a connector endpoint | **Blocked, not implemented** | Only `none` and a bearer token from an environment variable exist |
 | Approval on a non-read connector call | **Automated, offline, with a real approval gate** | `test_mcp_guarantees.py` raises a real approval card in a worker thread, resolves it, and asserts the transport was reached only after approval |
 | Revocation mid-run | **Automated, offline** | `test_integration_dispatch.py::test_revocation_takes_effect_on_the_next_call_without_rebuilding_tools` |
@@ -101,60 +95,7 @@ I inspected each capture. Four defects were found by looking and fixed:
 Not verified: a screen-reader run, 200 percent text scaling, and touch interaction on a physical
 device. Keyboard reach and focus visibility were checked, not full screen-reader semantics.
 
-## 6. A real compatibility finding
-
-Installing the official time server produced the failure class the research predicted, and the
-research note now has a live instance of it rather than a citation. `mcp-server-time==2025.9.25`
-imports `McpError` from `mcp.shared.exceptions`; the pinned SDK 2.x renamed it `MCPError`. With
-the SDK resolved normally, the server dies at import:
-
-```
-ImportError: cannot import name 'McpError' from 'mcp.shared.exceptions'
-```
-
-That is not a Hutch bug and Hutch cannot paper over it: an MCP server built against SDK 1.x needs
-SDK 1.x in *its own* environment. The working definition therefore pins the server's dependencies
-in an isolated virtual environment and mounts that tree read-only, which is what an operator has
-to do today. Two consequences worth stating plainly:
-
-- A connector definition that "works" can still fail after a package update moves its SDK, which
-  is why the definition fingerprint covers the executable and every reviewed mount. A changed
-  package tree is refused until the owner reviews it again.
-- The failure is legible. Discovery reported the transport failure as a connector configuration
-  error, not as an empty tool list, so an owner sees "this did not start" rather than "this has no
-  tools".
-
-Hutch does not attempt to install a server's dependencies, and this record does not claim
-otherwise.
-
-## 7. Skills that require a connector tool
-
-A skill can now declare a connector tool in `hutch.requires-tools`, and the check reads the
-connector grant rather than the Bot's allowlist. The tests are in
-`tests/test_skill_connector_requirements.py` (7 cases: ungranted, granted, native still native,
-runtime and readiness agree, readiness names Connectors, granted makes the skill ready, Strict
-Offline withholds). Verified by those tests; not exercised end to end with a real model run.
-
-## 8. What the public-origin run found
-
-The first public-HTTPS run exposed a defect rather than confirming one. Discovery against an
-origin that answers HTTP but is not an MCP server raised the SDK's protocol exception, and no
-route caught it, so `POST /api/v1/integrations/{id}/test` would have returned a 500 for an
-ordinary operator mistake: a wrong URL.
-
-Discovery now translates the whole failure class into one sentence that names the stage, with the
-server's own text discarded because a response body is untrusted input:
-
-```
-the endpoint answered, but not as an MCP server; check the URL path and whether it needs authentication
-```
-
-Three shapes are distinguished because the fix differs: no answer within the deadline, an answer
-that is not MCP, and an unreachable host. The API returns 409 with that sentence, the connector
-stays merely installed, and no catalog is recorded. Two tests cover it: one at the service layer
-asserting the server's text is not forwarded, one over HTTP asserting 409 rather than 500.
-
-## 9. What this record does not claim
+## 6. What this record does not claim
 
 No third-party service was contacted. No connector was installed from a registry or marketplace,
 because none exists here. Nothing in this delivery is a live-provider acceptance result.

@@ -300,13 +300,9 @@
       const bound = detail.bound_bots.length
         ? detail.bound_bots.map(b => `<span class="skill-status tone-muted">${esc(b.display_name || b.name)}</span>`).join(" ")
         : `<span class="hint">Not assigned to any assistant.</span>`;
-      const changes = detail.staged_changes?.comparable
-        ? `<p class="hint ${detail.staged_changes.material.length ? "tone-warn" : "tone-info"}" role="status">What applying changes: ${esc(detail.staged_changes.summary)}.</p>`
-        : (detail.staged_changes ? `<p class="hint tone-muted">This update could not be compared with the installed version: ${esc(detail.staged_changes.reason)}.</p>` : "");
       const staged = detail.staged_update
         ? `<p class="hint tone-info">Staged update ${esc(detail.staged_update.hash.slice(0, 12))} from ${esc(detail.staged_update.staged_at)}.
              The reviewed version stays active until you apply this from the card.</p>
-           ${changes}
            ${detail.staged_body ? `<details class="skill-instructions" open><summary>Staged update instructions (what applying would activate)</summary>
              <pre tabindex="0" aria-label="Staged skill instructions">${esc(detail.staged_body)}</pre></details>` : ""}` : "";
       const html = `
