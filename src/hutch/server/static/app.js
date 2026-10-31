@@ -8463,6 +8463,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <button type="button" class="settings-tab" role="tab" id="settings-tab-schedule" aria-controls="settings-pane-schedule" data-settings-tab="schedule" aria-selected="${settingsSection === "schedule" ? "true" : "false"}" tabindex="${settingsSection === "schedule" ? "0" : "-1"}">${icon("calendar")}<span>Schedule</span></button>
             <button type="button" class="settings-tab" role="tab" id="settings-tab-safety" aria-controls="settings-pane-safety" data-settings-tab="safety" aria-selected="${settingsSection === "safety" ? "true" : "false"}" tabindex="${settingsSection === "safety" ? "0" : "-1"}">${icon("shield")}<span>Safety</span></button>
             <button type="button" class="settings-tab" role="tab" id="settings-tab-limits" aria-controls="settings-pane-limits" data-settings-tab="limits" aria-selected="${settingsSection === "limits" ? "true" : "false"}" tabindex="${settingsSection === "limits" ? "0" : "-1"}">${icon("chart")}<span>Limits and memory</span></button>
+            <button type="button" class="settings-tab" role="tab" id="settings-tab-lifecycle" aria-controls="settings-pane-lifecycle" data-settings-tab="lifecycle" aria-selected="${settingsSection === "lifecycle" ? "true" : "false"}" tabindex="${settingsSection === "lifecycle" ? "0" : "-1"}">${icon("folder")}<span>Retirement</span></button>
         </div>
         <div class="settings-panes">
         <section class="settings-pane" role="tabpanel" id="settings-pane-profile" aria-labelledby="settings-tab-profile" data-settings-pane="profile" ${settingsSection === "profile" ? "" : "hidden"}>
@@ -8655,6 +8656,18 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
               </div>`).join("") || `<p class="empty-inline">None — every risky command asks.</p>`}
           </div>
         </section>
+        <section class="settings-pane" role="tabpanel" id="settings-pane-lifecycle" aria-labelledby="settings-tab-lifecycle" data-settings-pane="lifecycle" ${settingsSection === "lifecycle" ? "" : "hidden"}>
+          <header class="settings-pane-head"><h2>Retirement</h2><p>What happens when you set this assistant aside.</p></header>
+          <div class="panel">
+            <div class="panel-title">${b.archived ? "This assistant is archived" : "Archive this assistant"}</div>
+            <p class="hint">Archiving stops new work: no messages, runs or scheduled tasks. Conversations, runs and saved notes stay readable, schedules are kept, and you can restore it at any time.</p>
+            <p class="hint">It is not deletion, and it does not free disk space or revoke anything outside this assistant. ${b.is_workspace_coordinator ? "The main assistant cannot be archived; make another assistant main first." : b.archived ? "Restore it to send messages, run tasks or resume schedules." : "Stop any active run before archiving."}</p>
+            <div class="hutch-actions">
+              ${b.is_workspace_coordinator ? "" : `<button class="btn ${b.archived ? "primary" : "ghost"} small" type="button" id="settings-archive">${icon("folder")} ${b.archived ? "Restore assistant" : "Archive assistant"}</button>`}
+              <a class="btn ghost small" href="/bots/${encodeURIComponent(b.name)}/delete">Remove permanently</a>
+            </div>
+          </div>
+        </section>
         <section class="settings-pane" role="tabpanel" id="settings-pane-limits" aria-labelledby="settings-tab-limits" data-settings-pane="limits" ${settingsSection === "limits" ? "" : "hidden"}>
           <header class="settings-pane-head"><h2>Limits and memory</h2><p>Usage limits and the notes it has kept.</p></header>
           <div class="panel assistant-usage-panel">
@@ -8729,6 +8742,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     void refreshRoster();
     return true;
   };
+  $("#settings-archive")?.addEventListener("click", () => void setBotArchived(b, !b.archived));
   $("#form-identity").addEventListener("submit", ev => {
     ev.preventDefault();
     const fd = new FormData(ev.target);
