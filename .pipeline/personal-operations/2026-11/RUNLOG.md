@@ -58,9 +58,7 @@ Commands and results:
   -> 9 failed, 118 passed; all 9 were the deletion fixture's missing `channel_id` and passed after
   the fixture fix (22 passed for the two deletion files).
 - Full non-e2e suite attempt #1 (before the review fixes) was invalidated by `/tmp` reaching 100%
-  on a 12 GB tmpfs: 140 failed / 294 errors, all of files whose fixtures write to `TMPDIR`. The
-  same files pass in isolation and in a disk-backed run, so the run is recorded as void rather
-  than as a regression.
+  on a 12 GB tmpfs; see "Full non-e2e suite attempt #1 (void)" below.
 
 ### M3: docs, site and evidence (4a95f39e)
 
@@ -109,6 +107,33 @@ Post-fix runs:
   tests/test_commitment_tools.py tests/test_commitments.py tests/test_spaces.py
   tests/test_navbar_consistency.py tests/test_approval_cas.py` -> 156 passed.
 - `pytest -q tests/e2e/test_personal_today_agenda.py` -> 2 passed.
+
+## Full non-e2e regression (post-fix, disk-backed TMPDIR)
+
+Command: `TMPDIR=~/.hutch-tmp/full3 UV_CACHE_DIR=/tmp/uv-cache uv run --frozen --no-sync pytest -q
+--no-header --tb=line --ignore=tests/e2e -p no:cacheprovider`.
+
+Result: **4,719 passed, 63 skipped, 3 xfailed, 6 failed** in 32m28s.
+
+Every failure is attributed below; none is in this slice's files (`git diff --stat` at the time of
+the run shows the concurrent session's work only: `cli.py`, `engine.py`, `providers/*`,
+`modelview.py`, `pages_models.py`, `store.py`, `presets.json`, `tests/fakes.py`,
+`tests/test_models_layer.py`).
+
+| Failure | Attribution |
+|---|---|
+| `test_context_hygiene::test_real_repository_has_no_context_violations` | `cli.py` (+93), `engine.py` (+33), `providers/ollama.py` (+88), `store.py` (+15) are grown by the other session's uncommitted work. The same audit passes at a clean detached worktree of HEAD (924 source files, 117 frozen files). |
+| `test_emoji_audit::test_repository_is_emoji_clean` | The only violations are in `.codewhale/state/subagents.v1.json`, the agent runtime's own untracked state. That file is excluded by `.codewhale/state/.gitignore` and nothing under `.codewhale/` is tracked (`git ls-files .codewhale` -> 0). `scripts/audit_emoji.py` walks the tree with `rglob` and its `SKIP_DIRS` does not include that directory. Recorded as an audit-scope edge, not a content violation. |
+| `test_models_layer::test_vision_needs_a_vision_model_and_is_hosted_only_on_small_machines` | The other session is editing `data/presets.json` (vision description), `providers/base.py`, `modelview.py` and `tests/test_models_layer.py` while the run was in flight. The file passes on its own (23 passed). |
+| `test_remote_pairing` (two tests) | Port 8787 is held by a running `hutch serve` (PID 2171206), the same environment limit the 2026-10 RUNLOG records. |
+| `test_routes::test_a_default_that_cannot_run_is_refused` | Fails standalone too, and asserts that `opencode/opencode/big-pickle` is refused with 422 while the tree answers 200 / `configured: true`. That is the other session's uncommitted route/capability change; the 2026-10 RUNLOG records the same failure for the same reason. |
+
+## Full non-e2e suite attempt #1 (void)
+
+The first attempt (before the review fixes) ran with `TMPDIR` on the 12 GB `/tmp` tmpfs. It
+reported 140 failed / 294 errors, every one of them a fixture trying to write to a full disk. The
+same files pass in isolation and in the disk-backed run above, so that run is recorded as void
+rather than as a regression, and every later run uses `~/.hutch-tmp`.
 
 ## Gate status
 

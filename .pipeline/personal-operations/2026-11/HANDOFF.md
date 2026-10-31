@@ -75,3 +75,9 @@ it once, producing 434 failures and errors that were all fixture writes, not pro
   belongs to another session's commit `2ba2f7eb`, which changed site copy without the test.
 - `npm run check:agent` is blocked by four frozen files grown by that other session's uncommitted
   work. It passes at a clean worktree of HEAD.
+- `tests/test_emoji_audit.py` fails only because the agent runtime keeps state in
+  `.codewhale/state/`, which is untracked and self-ignored but not in the audit's `SKIP_DIRS`. If
+  that becomes a nuisance, the fix is one line in `scripts/audit_emoji.py`, not a change to any
+  content.
+- The full non-e2e suite is green except six attributed failures; see `RUNLOG.md` before treating
+  any of them as new.
