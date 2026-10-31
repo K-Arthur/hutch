@@ -141,3 +141,69 @@ The auditor teammate re-ran a read-only verification on the integrated tree afte
 - Committed HEAD schema is 85: v84 is this slice's personal migration, v85 is the later MCP migration from the
   other session's fd3002a4. personal_schema.py remains additive-only.
 - The agent map was regenerated after the MCP commit and is committed with this record.
+
+## 2026-10-31, after the handoff: G01, G05 and the first G06 slice
+
+The handoff above was written at HEAD `fd3002a4`. Work continued past it and this
+section is the correction, so the next session does not redo it.
+
+### Shipped after that handoff (all ancestors of `main`)
+
+| Commit | Scope |
+|---|---|
+| `bb992832` | Read-only agenda projection: `src/hutch/personal/agenda.py` + `agenda_sources.py`, `GET /api/v1/personal/agenda[/sources]`, Today agenda card with source labels, read time, stale marker and reason codes; injected readers; browser coverage at 1440/834/390/320 plus keyboard |
+| `614c331f` | Outbound notifications through the existing channel outbox: SQL triggers on approval/run transitions, one lease and one state machine, `notification_id` unique in the outbox, uncertain sends never resent; `channel_deliveries` rebuilt to reference either an inbound event or a notification |
+| `ac5e6f04` | Review fixes: a revoked or expired grant discards the cached agenda snapshot in the same request (only a provider failure may show stale), malformed run documents skip the alert, `not_queued` named identically on both surfaces, alerts for removed assistants are hidden, provider calendar names bounded |
+| `48de6899` | Made the two review fixes reach a running system (migration repair, cache eviction path) with `tests/test_notification_schema.py` |
+| `a113c709` | Credential failure decided where the credential is used, not by the wording of the error |
+| `4a95f39e` | Durable docs, operations notes, roadmap and marketing claims for the agenda and the alert path |
+
+Nothing in that pass added a second delivery path or a model call on the read side.
+
+### G06 first slice, this session
+
+The schedules page could say when a routine would next run, but not why the last
+one did not. The overview row and the assistant's History panel now state the most
+recent claimed occurrence with the run's own status and exit reason.
+
+- `src/hutch/server/app.py`: `_occurrence_outcome` projects the last claim from
+  `store.list_schedule_occurrences(..., limit=1)`; the schedule resource gains
+  `last_occurrence` and a derived `needs_attention` (blocked, or last run `failed`
+  or `outcome_unknown`; a cancelled run is reported but is not attention).
+- `src/hutch/server/static/app.js`, `style.css`: the last-run line, an attention
+  summary naming the actual causes, and the History panel showing the exit reason
+  in the reader's local time.
+- `tests/test_schedule_outcomes.py` (9 passed): every state through the real API,
+  plus the projection's exact keys so a prompt or error body cannot leak in.
+- `tests/e2e/test_schedules_attention.py` (3 passed): real server and browser at
+  1440/834/390/320 with no console errors and no horizontal overflow, and the
+  assistant page History panel.
+- `docs/operations.md`: a `Scheduled work: what the owner is told` section.
+- Evidence: `.pipeline/personal-operations/2026-10/evidence/schedules-attention-1440.png`,
+  `schedules-attention-320.png` and `schedules-history-1440.png`.
+
+Deliberately not done here: no new table, no migration, and no change to
+`src/hutch/store.py`. Another session held uncommitted work in `store.py`,
+`connections.py`, `skills.py`, `providers/`, `vault/` and the computer modules at
+the time of writing; `npm run check:agent` is red in the shared worktree for those
+files only. G02, G03 and G04 each need a migration registration line in `store.py`,
+so they were not attempted in this window.
+
+### Gate at this commit
+
+- `npm run check:agent` in an isolated worktree at this commit: green (the shared
+  worktree is red only for another session's in-flight files).
+- Focused: `tests/test_schedule_outcomes.py tests/test_scheduler.py tests/test_schedule_durability.py tests/test_api.py tests/test_navbar_consistency.py` -> 91 passed.
+- Browser: `tests/e2e/test_schedules_attention.py` -> 3 passed.
+
+### Integration hazard observed
+
+`src/hutch/server/app.py` was sitting in the shared worktree with this slice's
+schedule-resource hunk when another session committed `ced92681` ("Reach the vault
+from the dashboard's own HTTP surface"). That commit therefore carries the
+`last_occurrence` / `needs_attention` projection under its own message, while this
+commit carries the tests, UI, docs and records. The tree at the resulting HEAD is
+correct and `git log -S last_occurrence -- src/hutch/server/app.py` names
+`ced92681`. The other session's history was not rewritten. Expect the split
+attribution, and prefer an isolated worktree for any further `store.py` work while
+that session is active.

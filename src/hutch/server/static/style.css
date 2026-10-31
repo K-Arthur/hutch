@@ -1589,6 +1589,10 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
 .schedule-overview-timing dd { margin: 2px 0 0; overflow-wrap: anywhere; font-size: var(--fs-sm); }
 .schedule-overview-timing code { font: 500 var(--fs-xs)/1.5 var(--mono); color: var(--text); }
 .schedule-overview-task .schedule-skip { margin: var(--s-2) 0 0; color: var(--text-2); font-size: var(--fs-xs); }
+.schedule-overview-task .schedule-last { margin: var(--s-2) 0 0; color: var(--text-2); font-size: var(--fs-xs); }
+.schedule-overview-task .schedule-last-attention { color: var(--danger); }
+.schedule-attention-note { margin: 0; padding: var(--s-3) var(--s-4); border: 1px solid var(--warn-line); border-radius: var(--r-panel); background: var(--warn-wash); }
+.schedule-occurrence-attention { color: var(--danger); }
 .schedule-overview-next { display: grid; gap: var(--s-1); min-width: 0; }
 .schedule-overview-next > span, .schedule-overview-next > small { color: var(--text-2); font-size: var(--fs-xs); }
 .schedule-overview-next time, .schedule-overview-next strong { overflow-wrap: anywhere; font-size: var(--fs-sm); font-weight: 650; }

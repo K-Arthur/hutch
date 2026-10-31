@@ -7105,6 +7105,44 @@ function schedulePauseStatus(row) {
   return "On";
 }
 
+// "Why didn't it run?" is the scheduler question an owner actually asks. The last
+// claimed window carries the run's own outcome; anything unrecognised is shown as
+// having no recorded result rather than assumed to have succeeded.
+const SCHEDULE_ACTIVE_OUTCOMES = new Set(["pending", "loading_model", "running", "waiting_approval",
+  "waiting_human", "waiting_resources", "waiting_workflow", "waiting_child", "recovering", "cancelling"]);
+function scheduleOutcomeLabel(status) {
+  if (status === "succeeded") return "succeeded";
+  if (status === "failed") return "failed";
+  if (status === "outcome_unknown") return "ended with an unknown outcome";
+  if (status === "stopped") return "was cancelled";
+  if (status === "skipped") return "was skipped";
+  if (SCHEDULE_ACTIVE_OUTCOMES.has(status)) return "is still running";
+  return "has no recorded result";
+}
+function scheduleOutcomeLine(last) {
+  const reason = String(last.exit_reason || "").replaceAll("_", " ");
+  const missed = Number(last.missed_windows || 0);
+  const parts = [`Last run ${timeAgo(last.occurrence)} ${scheduleOutcomeLabel(last.run_status || "")}`];
+  if (reason) parts.push(reason);
+  if (missed) parts.push(`${missed.toLocaleString()} missed window${missed === 1 ? "" : "s"} covered`);
+  return parts.join(" · ");
+}
+function scheduleAttentionNote(rows) {
+  if (!rows.length) return "";
+  const failed = rows.filter(row => row.last_occurrence?.needs_attention).length;
+  const cannotRun = rows.filter(row => row.blocked?.reason).length;
+  const causes = [];
+  if (failed) causes.push(`${failed} with a failed last run`);
+  if (cannotRun) causes.push(`${cannotRun} that cannot run yet`);
+  const count = `${rows.length} recurring task${rows.length === 1 ? " needs" : "s need"} attention`;
+  return `${count}${causes.length ? `: ${causes.join(", ")}` : ""}. Each card says why.`;
+}
+function scheduleOccurrenceTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return String(value || "");
+  return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
 function scheduleTriggerLabel(row) {
   if (row.trigger === "interval" && row.interval_seconds) {
     const minutes = row.interval_seconds / 60;
@@ -7124,6 +7162,7 @@ function paintSchedules() {
   const previousScroll = $('.page-scroll', view)?.scrollTop || 0;
   const paused = !!control?.paused;
   const empty = rows.length === 0;
+  const attentionRows = rows.filter(row => row.needs_attention);
   const emptyDetails = bots.length === 1
     ? `<a class="btn primary" href="#/bot/${encodeURIComponent(bots[0].name)}">Set up a schedule for ${esc(bots[0].display_name || bots[0].name)}</a>`
     : bots.length > 1
@@ -7147,6 +7186,7 @@ function paintSchedules() {
     <div class="page-scroll"><div class="container schedule-overview">
       <p class="schedule-overview-note">See what’s coming up. Pausing prevents new scheduled starts; anything already in progress can finish.</p>
       ${paused ? `<p class="schedule-paused-note" role="status">Scheduled starts are paused. When you resume, each task follows its saved choice for missed times.</p>` : ""}
+      ${attentionRows.length ? `<p class="schedule-attention-note" role="status">${esc(scheduleAttentionNote(attentionRows))}</p>` : ""}
       ${empty ? `<section class="empty-state schedule-empty" aria-labelledby="schedule-empty-title">
           ${icon("clock", "icon-lg")}<h2 id="schedule-empty-title">No recurring tasks yet</h2>
           <p class="hint">Choose an assistant and pick a task you’d like them to repeat.</p>${emptyDetails}
@@ -7176,6 +7216,7 @@ function paintSchedules() {
                 </details>
                 ${row.blocked?.reason ? `<p class="schedule-skip" role="status">Blocked: ${esc(row.blocked.reason.replaceAll("_", " "))}${row.blocked.detail ? ` (${esc(row.blocked.detail)})` : ""}. Repair the timezone or trigger before it can run.</p>` : ""}
                 ${row.last_skip?.windows ? `<p class="schedule-skip" role="status">Last skipped ${Number(row.last_skip.windows).toLocaleString()} missed window${Number(row.last_skip.windows) === 1 ? "" : "s"}${row.last_skip.reason ? ` · ${esc(String(row.last_skip.reason).replaceAll("_", " "))}` : ""}${row.last_skip.at ? ` · ${esc(timeAgo(row.last_skip.at))}` : ""}.</p>` : ""}
+                ${row.last_occurrence ? `<p class="schedule-last${row.last_occurrence.needs_attention ? " schedule-last-attention" : ""}" role="status">${esc(scheduleOutcomeLine(row.last_occurrence))} · <a href="#/run/${encodeURIComponent(row.last_occurrence.run_id)}">open run</a></p>` : ""}
               </div>
               <div class="schedule-overview-next"><span>${row.effective_paused ? "Next scheduled time" : "Next run"}</span>
                 ${row.next_fire ? `<time datetime="${esc(row.next_fire)}">${esc(scheduleNextTime(row))}</time>` : `<strong>Unavailable</strong>`}
@@ -9037,7 +9078,11 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     try {
       const rows = await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(scheduleId)}/occurrences?limit=20`);
       list.innerHTML = rows.length
-        ? `<ol>${rows.map(row => `<li><time datetime="${esc(row.occurrence)}">${esc(row.occurrence)}</time> · ${esc(row.run_status || "unknown")}${row.missed_windows ? ` · missed ${esc(row.missed_windows)}` : ""} · <a href="#/run/${encodeURIComponent(row.run_id)}">open run</a></li>`).join("")}</ol>`
+        ? `<ol>${rows.map(row => {
+            const reason = String(row.exit_reason || "").replaceAll("_", " ");
+            const attention = row.run_status === "failed" || row.run_status === "outcome_unknown";
+            return `<li${attention ? ' class="schedule-occurrence-attention"' : ""}><time datetime="${esc(row.occurrence)}">${esc(scheduleOccurrenceTime(row.occurrence))}</time> · ${esc(scheduleOutcomeLabel(row.run_status || ""))}${reason ? ` · ${esc(reason)}` : ""}${row.missed_windows ? ` · missed ${esc(row.missed_windows)}` : ""} · <a href="#/run/${encodeURIComponent(row.run_id)}">open run</a></li>`;
+          }).join("")}</ol>`
         : "No claimed occurrences yet.";
     } catch (err) { list.textContent = `History unavailable: ${err.message}`; }
   }));

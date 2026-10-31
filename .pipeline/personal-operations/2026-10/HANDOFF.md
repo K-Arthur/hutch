@@ -16,6 +16,12 @@ RUNLOG.md and ACCEPTANCE-CRITERIA.md. This is the durable memory for the next se
 
 ## Status by capability
 
+> **Correction, 2026-10-31 after this handoff.** G01 and G05 below have since shipped and are
+> ancestors of `main`: the read-only agenda (`bb992832`, with review fixes `ac5e6f04`, `48de6899`,
+> `a113c709` and docs `4a95f39e`) and owner notifications through the existing channel outbox
+> (`614c331f`). The first G06 slice (why the last scheduled run did not succeed) shipped in the same
+> pass. See the later section in RUNLOG.md. Do not treat "agenda" or "notifications" as open work.
+
 - Personal commitments (durable, provenance, confirmation, evidence, dependencies, audit): implemented and
   tested at store/API/tool/UI level. See tests/test_commitments.py, tests/test_spaces.py,
   tests/test_personal_api.py, tests/test_commitment_tools.py, tests/e2e/test_personal_pages.py.
@@ -65,13 +71,22 @@ commits above contain only this slice's hunks (app.js/index.html were committed 
 from HEAD plus this slice's lines). If that work later lands, re-read the merged files and re-run the nav and
 browser tests; a conflict is possible in app.js and index.html.
 
-## Next priorities (from GAP-REGISTER)
+## Next priorities (from GAP-REGISTER, revised 2026-10-31)
 
-1. G01 calendar/mail agenda projection for Today (read-only, grant-gated, staleness disclosed).
-2. G02 coding handoff verification gate and worktree lifecycle (hutch code verify/prune) with receipts.
-3. G03 automation revision history, approval checkpoints and bounded conditions.
-4. G04 inbound webhook/event triggers admitted through the existing admission policy.
-5. G05 outbound notifications for needs-you, failure and results, using the channel supervisor.
+Done since this handoff: G01 (agenda), G05 (notifications), and the first G06 slice (last-run outcome
+and attention on Scheduled work). Still open, in order:
+
+1. G02 coding handoff verification gate and worktree lifecycle (`hutch code verify|prune`) with
+   content-free receipts. Needs one registration line in `src/hutch/store.py` for a new migration
+   module; coordinate before editing that file.
+2. G03 automation revision journal (sub-slice 1 only), then the approval checkpoint, then bounded
+   conditions. Also needs a `store.py` registration line.
+3. G04 inbound webhook/event triggers admitted through the existing admission policy. Also needs a
+   `store.py` registration line.
+4. G06 remainder: a "needs attention" filter on `#/schedules` and per-routine failure history beyond
+   the last 20 windows (the last-run outcome and exit reason are already shipped).
+5. G08 commitment-to-calendar reminder; G09 mail/calendar item to a proposed commitment with
+   server-derived provenance.
 6. G07 an ADR for real multi-participant authentication before any family-account promise.
 
 ## Concurrent integration log (corrected timeline)

@@ -43,6 +43,27 @@ A document pipeline registers inputs immutably, extracts per-page text with popp
 summary artifact with a coverage receipt. Interruptions resume at the last verified step; a step whose external effect may have
 happened is marked unknown and blocks the job for review instead of being replayed.
 
+## Scheduled work: what the owner is told
+
+**Scheduled work** (`#/schedules`, under More) lists every recurring task with its next run or
+`Unavailable`, its paused/draft state, the last skip, and the most recent claimed occurrence. That
+last line is the answer to "why didn't it run?" and it comes only from persisted rows: the claim in
+`schedule_occurrences_v20` and the run it created. The row states the run's own status and exit
+reason (`failed · model_unavailable`, for example), how many missed windows the occurrence covered,
+and a link to the run. A run with no recorded result is shown as having none; the page never infers
+success from the absence of an error.
+
+The attention summary at the top counts routines that need the owner, and each row repeats the reason.
+A routine is `needs_attention` when the scheduler has recorded a blocked state for it, or when its
+last run ended `failed` or `outcome_unknown`. A run the owner cancelled (`stopped`) is reported but is
+not attention, and a routine that has never fired has no last-run line at all. The assistant's
+Schedule pane carries the same outcome in its **History** panel, so the two surfaces cannot disagree.
+
+This projection is read-only and model-free: it adds no column, no query per occurrence beyond the
+one bounded lookup per listed routine, and no prompt, error body, or credential. `tests/test_schedule_outcomes.py`
+covers each state through the real API; `tests/e2e/test_schedules_attention.py` checks the rendered
+result at 1440, 834, 390 and 320 pixels.
+
 ## Linux shell requirements
 
 `sandbox: strict` needs bubblewrap, util-linux `prlimit`, a working user `systemd-run --user --scope`, and permission to create

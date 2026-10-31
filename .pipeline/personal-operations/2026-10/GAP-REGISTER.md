@@ -212,6 +212,12 @@ decided (ADR) before more UI assumes single-owner semantics.
 
 ## G06. Per-routine automation observability
 
+**Status 2026-10-31: first slice shipped, remainder open.** `GET /api/v1/schedules` now returns
+`last_occurrence` (run status, exit reason, missed windows, `needs_attention`) plus a per-routine
+`needs_attention`, and `#/schedules` plus the assistant History panel render it. Still open from the
+list below: a "needs attention" filter over the list, missed-window counts across more than the last
+claimed occurrence, and a linked workflow-run status per routine.
+
 - **Current state.** Runtime page shows global queue/jobs/sources (`app.js:13680-13780,14017-14025`); the
   schedules page shows next fire, preview, last skip and blocked reason (`app.py:3161-3190`); occurrence history
   is an API (`app.py:3384-3410`) but the schedule page does not expand into it, and there is no failure/alert
