@@ -64,6 +64,7 @@ _NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 #: The metadata namespace Hutch reads. Everything else is preserved verbatim and never interpreted.
 HUTCH_META_REQUIRES_TOOLS = "hutch.requires-tools"
 HUTCH_META_REQUIRES_CONNECTIONS = "hutch.requires-connections"
+HUTCH_META_REQUIRES_SKILLS = "hutch.requires-skills"
 HUTCH_META_VERSION = "hutch.version"
 
 #: The fixed vocabulary of external account prerequisites a skill may declare. The label is what a
@@ -121,6 +122,11 @@ class ParsedSkill:
     @property
     def requires_connections(self) -> list[str]:
         raw = self.metadata.get(HUTCH_META_REQUIRES_CONNECTIONS, "")
+        return [part for part in re.split(r"[,\s]+", raw) if part]
+
+    @property
+    def requires_skills(self) -> list[str]:
+        raw = self.metadata.get(HUTCH_META_REQUIRES_SKILLS, "")
         return [part for part in re.split(r"[,\s]+", raw) if part]
 
     @property
@@ -1239,31 +1245,22 @@ class SkillRegistry:
             return None, f"skill '{name}' has not been reviewed and was not loaded", "unreviewed"
         if not entry.get("enabled"):
             return None, f"skill '{name}' is disabled and was not loaded", "disabled"
-        from .skill_requirements import available_tools_for
+        from .skill_requirements import available_tools_for, binding_problem, dependency_state
         tools = available_tools if available_tools is not None else available_tools_for(bot, connector_tools)
-        missing_tools = [tool for tool in dict.fromkeys(parsed.requires_tools)
-                         if tool not in tools and not set(self._expand_one(tool)) & tools]
-        if missing_tools:
-            from .skill_requirements import missing_tool_reason
-            reason, code = missing_tool_reason(name, missing_tools)
-            return None, reason, code
-        if parsed.requires_connections:
-            granted = available_connections if available_connections is not None else set()
-            if getattr(getattr(bot, "inference_mode", None), "value", "") == "offline":
-                labels = ", ".join(CONNECTION_SERVICE_LABELS.get(service, service) for service in parsed.requires_connections)
-                return None, (f"skill '{name}' requires the {labels} connection, which Strict Offline mode does not use"), "requires_connections"
-            missing = [service for service in parsed.requires_connections if service not in granted]
-            if missing:
-                labels = ", ".join(CONNECTION_SERVICE_LABELS.get(service, service) for service in missing)
-                return None, (f"skill '{name}' requires the {labels} connection, which is not granted to this Bot"), "requires_connections"
+        assigned = set(getattr(bot, "skills", None) or [])
+        problem = binding_problem(
+            name=name, requires_tools=parsed.requires_tools,
+            requires_connections=parsed.requires_connections,
+            requires_skills=parsed.requires_skills, tools=tools,
+            granted=available_connections if available_connections is not None else set(),
+            offline=getattr(getattr(bot, "inference_mode", None), "value", "") == "offline",
+            expand=self._expand_one,
+            dependency_state=lambda dep: dependency_state(
+                dep in assigned, self._entry(document, dep), self.package_path(dep).is_dir()))
+        if problem:
+            return None, problem[0], problem[1]
         return ResolvedSkill(name=name, description=parsed.description, hash=entry.get("hash", ""),
                              path=str(directory / SKILL_FILENAME), version=entry.get("version", "")), "", "ok"
-
-    def explain_binding(self, bot, name: str, *, runtime: Optional[str] = None,
-                        available_connections: Optional[set[str]] = None) -> tuple[bool, str]:
-        skill, reason, _code = self.resolve_binding(bot, name, runtime=runtime,
-                                                    available_connections=available_connections)
-        return skill is not None, reason
 
     def binding_requirements(self, bot) -> list[dict]:
         """Declared prerequisites for each binding (best effort; unreadable packages are skipped)."""

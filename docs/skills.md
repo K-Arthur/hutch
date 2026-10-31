@@ -123,6 +123,7 @@ entries in the Bot's allowlist, so they are checked against that grant, not agai
 ```yaml
 metadata:
   hutch.requires-tools: "mcp__time__get_current_time"
+  hutch.requires-skills: "workspace-summary"   # another skill whose procedure this one assumes
 ```
 
 A native tool the Bot does not enable and a connector tool the Bot was not granted fail
@@ -131,6 +132,12 @@ separately, because they are fixed in different places. A missing native tool re
 and names both the tool and Connectors, which is where the grant is made. A Strict Offline Bot
 cannot satisfy a connector requirement at all: its worker has no host network, so the tool is
 withheld even when a grant exists.
+
+A skill dependency is satisfied only when the named skill is installed, reviewed, enabled and
+assigned to the same Bot, because an installed but unreviewed or unassigned skill is one the
+model cannot load. It reports `requires_skills` and names the dependency and the missing state.
+The check is one level deep on purpose: a dependency that is itself unsatisfiable is reported
+when that skill is evaluated, and a transitive check would need its own cycle guard.
 
 Declared tools that the Bot does not enable, and declared connections that are not granted, keep
 the skill out of the run with the exact reason in readiness and the run log.
