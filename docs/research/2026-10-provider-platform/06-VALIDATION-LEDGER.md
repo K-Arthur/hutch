@@ -89,3 +89,11 @@ authenticated provider state cannot be shown because no credential exists.
 - Screen-reader, physical-device and native-zoom checks remain manual gaps.
 - The main checkout's concurrent work prevented a same-tree merge check until completion; the final merge
   and main verification are recorded in the delivery report.
+
+## Final integration (2026-10-30)
+
+- Branch provider-platform was rebased twice onto main as other agents committed work, then fast-forwarded into main. Final branch HEAD and main HEAD are both 9167d653 at the time of this record.
+- Provider suites on the merged tree: test_provider_catalog 26, test_provider_accounts 11, test_provider_capabilities 5, test_provider_readiness 7, test_runtime_registry 4, test_provider_discovery 6, test_provider_surfaces 8, test_providers 45, test_connections 43, test_compat 8 - all passed.
+- Branch audits: context hygiene passed, agent map check passed (118 lines), tool contracts passed, constitution passed, provider research audit PASS, emoji audit clean on branch files.
+- Main checkout verification after fast-forward: provider research audit PASS, agent map check passed, context hygiene passed. The main working tree still contains another session's uncommitted files; they were not modified, staged or reverted. Audits that scan those files (for example a working-tree emoji scan over .codewhale state and another session's research file) are not attributable to this slice and are reported in the delivery report.
+- Security review: artifacts/security-review.md (no blocking finding; one documented SSRF-adjacent hardening gap carried over from before this slice).
