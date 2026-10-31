@@ -122,6 +122,8 @@ that Hutch implements the route.
 
 ## Verification boundary
 
-Every provider route in this package is at most implemented-unverified. The validation ledger records
-the absence of credentials and local servers. Dates above are the draft fetch date (2026-10-30);
-re-fetch before relying on a specific endpoint, plan term or model retirement.
+Only two routes have dated live evidence: DeepSeek text through the built-in runtime and the managed
+OpenCode runtime with a DeepSeek model (both 2026-10-30). Every other provider route in this package is
+at most implemented-unverified. The validation ledger records the earlier absence of direct provider
+credentials and local servers. Dates above are the draft fetch date (2026-10-30); re-fetch before
+relying on a specific endpoint, plan term or model retirement.

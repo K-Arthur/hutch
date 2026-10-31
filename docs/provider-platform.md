@@ -64,7 +64,7 @@ never enabled by registration. See docs/runtime-setup.md for prerequisites.
 
 ## Known limits
 
-- No hosted provider was live-verified in this environment; every hosted route is unverified.
+- Live verification is limited to two owner-authorized DeepSeek text routes dated 2026-10-30 (direct built-in runtime and managed OpenCode runtime). Every other hosted provider and every other capability remains unverified.
 - Custom endpoints keep Hutch's existing credential scoping (ambient keys go only to official hosts,
   embedded URL credentials are refused, Strict Offline requires loopback). Outside Strict Offline a
   private-range allowlist and redirect/DNS pinning are not implemented in the provider layer: reviewed

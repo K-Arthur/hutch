@@ -43,8 +43,9 @@
 
 ## Known operational notes
 
-- Hosted live verification is blocked by the absence of credentials; status tables and the website
-  must say `implemented-unverified`, never `live-verified`.
+- Live verification covers only the two dated DeepSeek text routes; every other hosted route must stay
+  implemented-unverified or documented and must never be relabelled live-verified from a listing or a
+  single successful call.
 - Local inference discovery is read-only over loopback and sends no credential. A hostile page cannot
   trigger it; the server calls it locally through the authenticated dashboard.
 ## Known security gap in custom endpoints

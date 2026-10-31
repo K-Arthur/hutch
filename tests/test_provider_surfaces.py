@@ -100,7 +100,7 @@ def test_providers_page_renders_catalogue_accounts_and_local_services(state):
     response = client.get("/providers")
     assert response.status_code == 200
     html = response.text
-    assert "No provider was live-verified in this environment" in html
+    assert "Two owner-authorized routes were live-verified on 2026-10-30" in html
     assert "Your provider accounts" in html
     assert "Execution runtimes" in html
     assert "Local inference on this machine" in html

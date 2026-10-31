@@ -375,8 +375,9 @@ website/index.html gained a "Not tied to one model vendor" section with three ro
 cards, a collapsed status panel containing shipped route families, capability status and a
 research-tracked provider list. Claims are deliberately split: the shipped list names only routes that
 exist in the product; the research list is labelled as a research catalogue, not a support claim, and
-names blocked and retired examples. No vendor marks are used in this section, no partnership is
-implied, and no provider was live-verified for this preview. The page was rebuilt from its CSS sources
+names blocked and retired examples. No vendor marks are used in this section and no partnership is
+implied. The two owner-authorized DeepSeek text routes are called out with their live-verified date;
+nothing else is claimed as live-verified. The page was rebuilt from its CSS sources
 and captured at the five review widths; see the provider research package and
 docs/realignment/visual-validation.md for the evidence.
 

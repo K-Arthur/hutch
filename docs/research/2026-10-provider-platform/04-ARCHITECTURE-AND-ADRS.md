@@ -36,7 +36,8 @@ Date: 2026-10-30. Status: first implementation slices landed on branch provider-
 - D3: Record capability evidence as levels with a source and date, scoped to the narrowest known
   provider/endpoint/auth-route/model/runtime (next slice: providers/capabilities.py). Documented data
   comes from the catalogue and compatibility matrix; observed data comes from the existing immutable
-  tool-call observation table; live-verified data is empty in this environment.
+  tool-call observation table; live-verified data contains only the dated DeepSeek text evidence, and
+  every other route/capability remains unverified.
 - D4: Expose readiness as explicit states (available, needs auth, expired, restricted, unavailable,
   capability unverified, unsupported runtime, needs configuration, blocked) from local facts only
   (next slice: providers/readiness.py). Readiness never performs inference.

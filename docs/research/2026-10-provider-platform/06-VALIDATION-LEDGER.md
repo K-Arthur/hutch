@@ -57,8 +57,10 @@ stored key is expired; no local inference server is running.
 The app was started from the branch worktree against an isolated state directory and captured with
 Playwright Chromium. The only seeded state was real, unauthenticated accounts created through the normal
 connection store (two OpenAI accounts, one Anthropic account, one OpenRouter account) and two saved model
-routes; no key was present, so every account truthfully renders needs-authentication. The website was
-served over HTTP from the worktree, not opened as file://, to avoid font CORS noise.
+routes; no key was present, so every account truthfully renders needs-authentication. Authenticated live
+provider states were exercised in separate runs (see the live section) and were not captured as
+screenshots; the temporary credential was removed afterwards. The website was served over HTTP from
+the worktree, not opened as file://, to avoid font CORS noise.
 
 | Surface | Viewports | Result |
 |---|---|---|
@@ -66,7 +68,7 @@ served over HTTP from the worktree, not opened as file://, to avoid font CORS no
 | website index #providers (collapsed and expanded) | same five | pass; zero console errors; zero horizontal overflow |
 | 200 percent text reflow (/providers and website #providers) | 1280x720 | pass; no horizontal overflow after font-size 200 percent |
 
-The capture run was repeated after rebasing onto current main (final branch tree) with the same result: zero console errors, zero horizontal overflow, all five viewports. Artifacts: artifacts/visual/ (full-page and review PNGs, capture-results.json, server logs). Inspected at
+The capture run was repeated after rebasing onto current main and again after the live-verification data/website changes; each run had the same result: zero console errors, zero horizontal overflow, all five viewports. The captures use unauthenticated accounts, so the page banner correctly states the two live-verified routes while every account still renders needs-authentication. Artifacts: artifacts/visual/ (full-page and review PNGs, capture-results.json, server logs). Inspected at
 each viewport: provider accounts and readiness, provider catalogue and filters, local-inference probe
 results, execution-runtime boundaries, model-route readiness panel, connections page with the catalogue
 link, and the marketing provider section collapsed and expanded.
@@ -123,6 +125,6 @@ authenticated provider state cannot be shown because no credential exists.
   model, and an external OpenCode CLI reference request. All three produced the expected text.
 - The provider catalogue now records DeepSeek as an implemented direct route and OpenCode as implemented;
   capability evidence contains two dated live-verified text entries; the capability matrix marks only those
-  routes live-verified and the page/website still state that everything else is unverified.
+  routes live-verified; the page banner and website state that only those two text routes are live-verified.
 - Failure-path evidence: the stored OpenCode Go API key is expired; Hutch surfaced the provider error in a
   failed run with cost 0.0 and performed no retry or silent account switch.

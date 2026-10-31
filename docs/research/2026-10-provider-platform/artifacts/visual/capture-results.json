@@ -219,5 +219,7 @@
       "text_scale": 2.0,
       "horizontal_overflow": false
     }
-  ]
+  ],
+  "refreshed_after_live_verification": "2026-10-30",
+  "note": "Refreshed after the live-verification claims, provider catalogue statuses and website text changed; accounts remain unauthenticated in captures."
 }
