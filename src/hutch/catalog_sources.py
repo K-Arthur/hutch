@@ -20,7 +20,7 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-from .catalog import CatalogError, content_hash, load_directory, parse_manifest
+from .catalog import MAX_MANIFEST_BYTES, CatalogError, content_hash, load_directory, parse_manifest
 from .models import iso, utcnow
 
 FORMAT = "hutch.catalog.index/1"
@@ -256,22 +256,42 @@ def fetch_source(state_dir: Path | str, source_id: str, *, revision: int,
     return _save(state_dir, document)
 
 
-def entry_manifest(source: CatalogSource, entry_id: str, *, fetcher: Optional[FETCHER] = None) -> dict[str, Any]:
-    if source.kind == "local":
-        path = Path(source.location) / f"{entry_id}.json"
-        if not path.is_file():
-            raise SourceError(f"{entry_id} is no longer in {source.location}")
+def _local_manifest(folder: Path, entry_id: str) -> dict[str, Any]:
+    """The raw manifest whose `id` is entry_id. Entries are listed by the id inside the file, so the file name is free."""
+    for file in sorted(folder.glob("*.json")):
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise SourceError(f"{path.name}: {exc}") from None
+            if file.stat().st_size > MAX_MANIFEST_BYTES:
+                continue
+            data = json.loads(file.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if isinstance(data, dict) and data.get("id") == entry_id:
+            return data
+    raise SourceError(f"{entry_id} is no longer in {folder}")
+
+
+def entry_manifest(source: CatalogSource, entry_id: str, *, fetcher: Optional[FETCHER] = None) -> dict[str, Any]:
+    if not _ID.match(entry_id or ""):
+        raise SourceError("that is not a valid catalog entry id")
+    if source.kind == "local":
+        data = _local_manifest(Path(source.location), entry_id)
     else:
         index = _parse_index((fetcher or default_fetcher)(source.location))
         match = next((entry for entry in index.entries if entry.id == entry_id), None)
         if match is None:
             raise SourceError(f"{entry_id} is no longer in the index")
-        data = json.loads((fetcher or default_fetcher)(match.manifest_url))
-    parse_manifest(data)
+        try:
+            data = json.loads((fetcher or default_fetcher)(match.manifest_url))
+        except json.JSONDecodeError as exc:
+            raise SourceError(f"{entry_id}: the manifest is not valid JSON ({exc.msg})") from None
+        if not isinstance(data, dict) or content_hash(data) != match.entry_hash:
+            raise SourceError(f"{entry_id}: the manifest does not match the hash its index published, so it is refused")
+        if data.get("id") != entry_id:
+            raise SourceError(f"{entry_id}: the manifest inside is named {data.get('id')!r}, so it is refused")
+    try:
+        parse_manifest(data)
+    except CatalogError as exc:
+        raise SourceError(f"{entry_id}: {exc}") from None
     return data
 
 

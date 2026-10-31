@@ -98,3 +98,21 @@ def test_a_local_source_is_fetched_previewed_and_trusted_explicitly(client, tmp_
     removed = client.delete(f"/api/v1/catalog/sources/{source['id']}", params={"expected_revision": revision})
     assert removed.status_code == 200 and removed.json()["sources"] == []
     assert client.get("/api/v1/catalog").json()["sources"]["sources"] == []
+
+
+def test_a_source_file_edited_into_an_invalid_manifest_is_a_readable_refusal_not_a_server_error(client, tmp_path):
+    folder = tmp_path / "my-catalog"
+    folder.mkdir()
+    shutil.copy(DATA / "day-planner.json", folder / "day-planner.json")
+    added = client.post("/api/v1/catalog/sources", json={"kind": "local", "location": str(folder), "expected_revision": 0}).json()
+    source_id = added["sources"][0]["id"]
+    fetched = client.post(f"/api/v1/catalog/sources/{source_id}/fetch", json={"expected_revision": added["revision"]}).json()
+    assert [entry["id"] for entry in fetched["sources"][0]["entries"]] == ["day-planner"]
+    broken = json.loads((folder / "day-planner.json").read_text())
+    broken["assistant"]["tools"] = ["no_such_tool"]
+    (folder / "day-planner.json").write_text(json.dumps(broken))
+    response = client.get(f"/api/v1/catalog/sources/{source_id}/entries/day-planner")
+    assert response.status_code == 422 and "no_such_tool" in response.json()["detail"]
+    trust = client.post(f"/api/v1/catalog/sources/{source_id}/entries/day-planner/trust",
+                        json={"expected_revision": fetched["revision"], "expected_hash": "0" * 64})
+    assert trust.status_code == 422
