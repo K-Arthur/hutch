@@ -1,0 +1,99 @@
+{
+  "test": "provider section after the speech-synthesis claim",
+  "captured_at": "2026-10-31T19:22:27.842673+00:00",
+  "source": "/home/kevina/CodingProjects/hutch/website/index.html",
+  "viewports": [
+    {
+      "name": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "badge_count": 1,
+      "badge_visible": true,
+      "sentence_visible": true,
+      "section": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "page_overflow": 0,
+      "console_errors": []
+    },
+    {
+      "name": "desktop-compact",
+      "viewport": [
+        1280,
+        720
+      ],
+      "badge_count": 1,
+      "badge_visible": true,
+      "sentence_visible": true,
+      "section": {
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "page_overflow": 0,
+      "console_errors": []
+    },
+    {
+      "name": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "badge_count": 1,
+      "badge_visible": true,
+      "sentence_visible": true,
+      "section": {
+        "scrollWidth": 900,
+        "clientWidth": 900
+      },
+      "page_overflow": 0,
+      "console_errors": []
+    },
+    {
+      "name": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "badge_count": 1,
+      "badge_visible": true,
+      "sentence_visible": true,
+      "section": {
+        "scrollWidth": 390,
+        "clientWidth": 390
+      },
+      "page_overflow": 0,
+      "console_errors": []
+    },
+    {
+      "name": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "badge_count": 1,
+      "badge_visible": true,
+      "sentence_visible": true,
+      "section": {
+        "scrollWidth": 320,
+        "clientWidth": 320
+      },
+      "page_overflow": 0,
+      "console_errors": []
+    },
+    {
+      "name": "zoom200",
+      "viewport": [
+        1280,
+        720
+      ],
+      "section": {
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "page_overflow": 316
+    }
+  ]
+}

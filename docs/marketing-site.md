@@ -455,6 +455,22 @@ files or streaming: none were exercised. It must not call the route free (the pl
 and it must not imply that any other provider's speech-to-text is shipped. Image, video, music and
 provider-native search claims are unchanged by this slice.
 
+### Speech-synthesis claim (2026-10-31)
+
+The capability paragraph now says speech synthesis also ships through a connected Xiaomi MiMo account,
+and the badge list carries `xiaomi tts (one clip live-verified 2026-10-31)`. Evidence: one utterance
+through `create_media(kind="audio")` produced a 176,684-byte, 3.68 s wav, stored with a SHA-256
+manifest by the media pipeline, and the stored clip was transcribed back through `transcribe_audio`
+as the same sentence, with the ASR hearing "Hutch" as "Hatch" (166 prompt / 25 completion tokens for
+synthesis; 45 / 15 for the round trip).
+Artifact:
+`docs/research/2026-10-provider-platform/artifacts/live-verification/xiaomi-speech-live-2026-10-31.json`.
+
+The copy must not extend this to mp3/pcm output, streaming synthesis, voice design or cloning, the
+cn/ams hosts, or any other speech vendor: none were exercised. It must not call the route free (the
+plan bills in credits), and the existing OpenAI/Gemini TTS sentence stays labelled protocol-tested,
+not live-verified.
+
 ### Tool calling and streaming claim (2026-10-31)
 
 The capability paragraph now says the Xiaomi route ran two tool calls in a single streamed turn and that

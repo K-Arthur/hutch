@@ -126,6 +126,14 @@
         "max_audio_base64_bytes": 10485760,
         "source": "https://mimo.mi.com/docs/en-US/api/audio/Speech-Recognition"
       },
+      "speech": {
+        "protocol": "chat-speech",
+        "model": "mimo-v2.5-tts",
+        "voices": ["mimo_default", "Chloe", "Mia", "Milo", "Dean", "冰糖", "茉莉", "苏打", "白桦"],
+        "format": "wav",
+        "max_text_chars": 4000,
+        "source": "https://mimo.mi.com/static/docs/api/audio/tts.md"
+      },
       "terms": {
         "url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription",
         "requires_ack": true,
@@ -151,6 +159,14 @@
         "languages": ["auto", "zh", "en"],
         "max_audio_base64_bytes": 10485760,
         "source": "https://mimo.mi.com/docs/en-US/api/audio/Speech-Recognition"
+      },
+      "speech": {
+        "protocol": "chat-speech",
+        "model": "mimo-v2.5-tts",
+        "voices": ["mimo_default", "Chloe", "Mia", "Milo", "Dean", "冰糖", "茉莉", "苏打", "白桦"],
+        "format": "wav",
+        "max_text_chars": 4000,
+        "source": "https://mimo.mi.com/static/docs/api/audio/tts.md"
       },
       "terms": {
         "url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription",
@@ -178,6 +194,14 @@
         "max_audio_base64_bytes": 10485760,
         "source": "https://mimo.mi.com/docs/en-US/api/audio/Speech-Recognition"
       },
+      "speech": {
+        "protocol": "chat-speech",
+        "model": "mimo-v2.5-tts",
+        "voices": ["mimo_default", "Chloe", "Mia", "Milo", "Dean", "冰糖", "茉莉", "苏打", "白桦"],
+        "format": "wav",
+        "max_text_chars": 4000,
+        "source": "https://mimo.mi.com/static/docs/api/audio/tts.md"
+      },
       "terms": {
         "url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription",
         "requires_ack": true,
@@ -201,6 +225,14 @@
         "languages": ["auto", "zh", "en"],
         "max_audio_base64_bytes": 10485760,
         "source": "https://mimo.mi.com/docs/en-US/api/audio/Speech-Recognition"
+      },
+      "speech": {
+        "protocol": "chat-speech",
+        "model": "mimo-v2.5-tts",
+        "voices": ["mimo_default", "Chloe", "Mia", "Milo", "Dean", "冰糖", "茉莉", "苏打", "白桦"],
+        "format": "wav",
+        "max_text_chars": 4000,
+        "source": "https://mimo.mi.com/static/docs/api/audio/tts.md"
       },
       "terms": {
         "url": "https://mimo.mi.com/",

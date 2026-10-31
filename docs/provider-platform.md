@@ -78,10 +78,11 @@ were not exercised anywhere.
   embedded URL credentials are refused, Strict Offline requires loopback). Outside Strict Offline a
   private-range allowlist and redirect/DNS pinning are not implemented in the provider layer: reviewed
   and recorded, not silently assumed safe.
-- Media expansion is partly shipped: speech-to-text is implemented and live-verified against one
-  account. Speech synthesis exists only for the two-host audio-overview pipeline; video, music, image
-  editing and provider-native search adapters remain research-complete and deferred rather than stubbed,
-  and no demo fixtures exist.
+- Media expansion is partly shipped: speech-to-text and connection-scoped speech synthesis are
+  implemented and live-verified against one account, and the synthesized clip was round-trip
+  transcribed. The two-host audio-overview pipeline remains for podcast rendering. Video, music, image
+  editing, streaming synthesis, mp3/pcm output and provider-native search adapters remain
+  research-complete and deferred rather than stubbed, and no demo fixtures exist.
 
 ## Live evidence (2026-10-30 and 2026-10-31)
 
@@ -95,7 +96,10 @@ CLI run then issued two tool calls in a single streamed turn - `list_files` and 
 validated, dispatched and answered from, with every step reporting `streamed=True` and no non-streaming
 retry. That run exposed a second real defect: the streamed path discarded the `reasoning_content` deltas
 the provider sends (a raw wire probe confirmed the provider sends them), so a streamed call reported less
-output than the same call batched. The assembler now keeps them. No other provider, and no vision, video,
-music, cancellation or search capability, was live-verified. The stored OpenCode Go key reported expired
+output than the same call batched. The assembler now keeps them. Speech synthesis then ran through
+`create_media(kind="audio")` on `mimo-v2.5-tts`: the 177 KB, 3.68 s wav was stored with a verified
+SHA-256 and transcribed back through `transcribe_audio` as the same sentence (the ASR heard "Hutch"
+as "Hatch"). No other provider, and no
+vision, video, music, cancellation or search capability, was live-verified. The stored OpenCode Go key reported expired
 and the attempted managed run failed explicitly with zero recorded cost; that failure is kept as evidence
 rather than retried or routed elsewhere.

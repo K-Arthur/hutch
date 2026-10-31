@@ -259,13 +259,14 @@ supervision. These conflict with the product's premise.
 The provider layer now separates identity, named accounts, protocol, runtime, capability evidence and
 readiness. Shipped: validated provider catalogue, provider-grouped accounts, capability evidence levels,
 explicit route readiness, runtime boundary registry, bounded loopback discovery, the Providers page, the
-Gemini API-key chat route, 25 hosted OpenAI-compatible routes, and speech-to-text (`transcribe_audio`)
-for connections that declare a transcription block.
-Next, still research-only or deferred: speech synthesis as a general tool, video/music/image-edit
-adapters with real job contracts, provider-native search attribution, and new runtime executors that
-need an approval/usage/lifecycle contract first. Live verification covers DeepSeek text, the managed
-OpenCode runtime, and Xiaomi text, speech-to-text, tool calling and the streamed transport path
-(2026-10-30/31); every other hosted route remains unverified for want of a usable credential, and the
+Gemini API-key chat route, 25 hosted OpenAI-compatible routes, speech-to-text (`transcribe_audio`)
+for connections that declare a transcription block, and speech synthesis
+(`create_media(kind="audio")`) for connections that declare a speech block.
+Next, still research-only or deferred: video/music/image-edit adapters with real job contracts,
+streaming synthesis, mp3/pcm output, voice cloning, provider-native search attribution, and new
+runtime executors that need an approval/usage/lifecycle contract first. Live verification covers
+DeepSeek text, the managed OpenCode runtime, and Xiaomi text, tool calling, the streamed transport
+path, speech-to-text and speech synthesis (2026-10-30/31); every other hosted route remains unverified for want of a usable credential, and the
 research package records that boundary. Streaming is verified as a transport and assembly path, not as
 progressive token rendering in the dashboard - that is still open.
 

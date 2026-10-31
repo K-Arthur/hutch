@@ -425,6 +425,24 @@ declare `mimo-v2.5-asr` with `auto`, `zh` and `en` language hints; the route is 
 - Only wav input was exercised live on 2026-10-31. mp3, Chinese audio, the cn/ams hosts and the 10 MB boundary
   are documented but not live-verified.
 
+### Speech-synthesis routes (2026-10-31)
+
+A connection can also declare a `speech` block. When it does, `create_media` with `kind="audio"` speaks one
+utterance through that account and stores the returned wav in the governed media pipeline. The four Xiaomi
+MiMo templates declare `mimo-v2.5-tts` with its built-in voices, wav output and a 4000-character bound; the
+text to speak travels in the `assistant` message, and an optional style instruction travels separately in a
+`user` message that is never spoken.
+
+- The approval prompt names the connection, endpoint, model, voice, character count and billing route before
+  the words leave the machine.
+- The account is never chosen silently. One configured speech route is used by default; with several, pass
+  `backend_hint="speech:<connection>"`.
+- Provider token usage is written to the run ledger as `kind=speech`. The plan bills in credits, so the cost
+  stays unpriced rather than zero.
+- Only wav is requested and stored, because that is the one container the media store validates. mp3/pcm
+  output, streaming synthesis, the voice-design and voice-clone models, and the cn/ams hosts are not offered
+  or not live-verified. A stored clip was synthesized and round-trip transcribed on 2026-10-31.
+
 OpenAI, Anthropic, Ollama, LM Studio and llama.cpp keep their built-in provider names and need no connection.
 
 ### Hosted OpenAI-compatible routes (2026-10-31)

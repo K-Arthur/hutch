@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-31",
+  "verification": "create_media(kind=audio) -> media/providers/speech.py -> Xiaomi MiMo Token Plan (Singapore) -> media store; then transcribe_audio on the stored wav",
+  "authorization": "Owner-authorized live testing used the Token Plan key already configured in this environment (the installed OpenCode account's credential), read in memory only. The key was never printed or stored in this artifact; the temporary state tree was deleted.",
+  "route": {
+    "connection": "mimo-live",
+    "template": "xiaomi-token-plan-sgp",
+    "provider": "xiaomi",
+    "endpoint": "https://token-plan-sgp.xiaomimimo.com/v1",
+    "billing": "subscription credits",
+    "model": "mimo-v2.5-tts",
+    "voice": "mimo_default",
+    "format": "wav"
+  },
+  "spoken_text": "Hutch speech synthesis check, October thirty-first.",
+  "style_instruction": "calm and clear",
+  "speech": {
+    "ok": true,
+    "elapsed_seconds": 5.854,
+    "mime": "audio/wav",
+    "kind": "audio",
+    "bytes": 176684,
+    "sha256": "cadc2dee8f1e0a2cd3bb9a404a6d35dfa0e249e975e8d81da08328dfb2c7bd76",
+    "duration_seconds": 3.68,
+    "backend": "speech:mimo-live",
+    "alt_text": "Speech: Hutch speech synthesis check, October thirty-first.",
+    "media_id": "media_bb68b4092b09cf0a",
+    "version": 1,
+    "job_id": "mj_2fefba8b42464024",
+    "approval": {
+      "tool": "audio_synthesis",
+      "outward": true,
+      "detail": {
+        "kind": "audio",
+        "backend": "speech:mimo-live",
+        "prompt_chars": 51,
+        "note": "the text leaves this machine; the provider's plan may charge for it",
+        "connection": "mimo-live",
+        "provider": "xiaomi",
+        "endpoint": "https://token-plan-sgp.xiaomimimo.com/v1",
+        "model": "mimo-v2.5-tts",
+        "voice": "mimo_default",
+        "text_chars": 51,
+        "style_chars": 14,
+        "billing": "subscription"
+      }
+    }
+  },
+  "round_trip_transcription": {
+    "ok": true,
+    "transcript": "Hatch Speech Synthesis Check, October thirty first.",
+    "reported_model": "mimo-v2.5-asr",
+    "prompt_tokens": 45,
+    "completion_tokens": 15,
+    "audio_seconds": 4.0,
+    "match_note": "same sentence; the ASR rendered the proper noun \"Hutch\" as \"Hatch\" and capitalised the words. The audio was not listened to by a human, so the transcript is the evidence that the clip contains speech, not a claim of exact phonetic identity."
+  },
+  "ledger_rows": [
+    {
+      "provider": "xiaomi",
+      "model": "mimo-v2.5-tts",
+      "prompt_tokens": 166,
+      "completion_tokens": 25,
+      "kind": "speech",
+      "account_id": "mimo-live"
+    },
+    {
+      "provider": "xiaomi",
+      "model": "mimo-v2.5-asr",
+      "prompt_tokens": 45,
+      "completion_tokens": 15,
+      "kind": "transcription",
+      "account_id": "mimo-live"
+    }
+  ],
+  "established": [
+    "one real wav synthesized through Hutch's own create_media tool and speech adapter",
+    "the wav was validated by the media store (RIFF/WAVE, SHA-256 manifest) and stored",
+    "the stored wav was transcribed back through transcribe_audio and returned the same sentence, with the proper noun heard as \"Hatch\"",
+    "provider-reported token usage reached the run ledger as kind=speech",
+    "the approval detail named connection, endpoint, model, voice and billing route"
+  ],
+  "not_established": [
+    "mp3 or pcm output (Hutch stores wav only today)",
+    "streaming synthesis",
+    "the cn/ams regional hosts",
+    "voice design and voice cloning models (not offered by this route)",
+    "any currency price (the Token Plan bills in credits and Hutch has no reviewed row)",
+    "the real ApprovalGate store (the live harness used a recording gate, as the ASR run did); tests assert the decision is outward and names the destination"
+  ]
+}

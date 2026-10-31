@@ -571,3 +571,94 @@ Not established:
 Artifacts: `artifacts/live-verification/xiaomi-tool-calling-streaming-live-2026-10-31.json` (CLI run),
 `xiaomi-adapter-tool-calls-2026-10-31.json` (adapter batch/streamed), `xiaomi-stream-shape-2026-10-31.json`
 (raw wire probe).
+
+## Speech synthesis: create_media(kind=audio) (2026-10-31)
+
+Hutch could speak only through the podcast pipeline (`hutch.synthesis.tts`), which is bound to a
+registered manifest and script and discovers keys from the environment. A connected account had no
+way to say one sentence. This slice adds the connection-scoped path: a connection template may
+declare a `speech` route, and `create_media(kind="audio")` speaks one utterance through that
+account and stores the wav in the governed media pipeline.
+
+### What was built
+
+| Piece | File | What it owns |
+|---|---|---|
+| Route declaration | `src/hutch/data/connections.json` (4 xiaomi templates) | `speech.protocol/model/voices/format/max_text_chars/source`; a connection only offers the route when its bundled template declares it |
+| Route and wire rules | `src/hutch/media/providers/speech_wire.py` | template validation, voice/text bounds, request body, base64 decode, RIFF/WAVE check, wav duration, usage and truncation reporting |
+| Transport | `src/hutch/media/providers/speech.py` | `SpeechBackend` implementing `MediaBackend`: billable `submit`, cached bytes, honest loss on process death, redirect refusal, typed provider errors |
+| Tool path | `src/hutch/tools/media_generation.py` | the provider media path split out of the frozen `tools/media.py`; `create_media` kind `audio`, approval detail, idempotency, job ledger, media store, `kind=speech` usage row |
+| Data | `src/hutch/data/providers.json` | Xiaomi `services` gains `speech`, and the live-verification note is current |
+
+The split was forced by the project's own size audit, not by preference: `tools/media.py` is a frozen
+over-cap module (479 lines at baseline; it would have reached 594) and the new adapter first reached
+442 lines. `tools/media.py` is now 344 lines, `media_generation.py` 295, `speech.py` 185 and
+`speech_wire.py` 272. `scripts/audit_context_hygiene.py` passes.
+
+### The wire contract, read rather than assumed
+
+`POST {base_url}/chat/completions` with `model: mimo-v2.5-tts`, the text to speak in an `assistant`
+message, an optional `user` message that carries only style/director instructions, and
+`audio: {format: "wav", voice: "mimo_default"}`. The reply is an ordinary chat completion whose
+`choices[0].message.audio.data` is base64 audio and whose `usage` carries token counts. Sources read
+2026-10-31: <https://mimo.mi.com/static/docs/api/audio/tts.md> and
+<https://mimo.mi.com/static/docs/quick-start/usage-guide/audio/speech-synthesis-v2.5.md>. The vendor
+also offers mp3/pcm and the voice-design/voice-clone models; Hutch requests wav only because that is
+the one container the media store validates and renders, and it does not offer the cloning models.
+
+### Live run (owner-authorized, bounded)
+
+One short utterance through `CreateMediaTool` -> `SpeechBackend` -> the real media job service and
+media store, then one `transcribe_audio` call on the stored wav through the same account. The final
+run used the refactored tree that this slice commits.
+
+| Observation | Value |
+|---|---|
+| Spoken text | `Hutch speech synthesis check, October thirty-first.` |
+| Style instruction | `calm and clear` |
+| Requested / answered model | `mimo-v2.5-tts` / `mimo-v2.5-tts` |
+| Voice | `mimo_default` |
+| Stored wav | 176,684 bytes, 3.68 s, sha256 `cadc2dee8f1e0a2c...` |
+| Media ledger | `media_bb68b4092b09cf0a` v1, backend `speech:mimo-live`, mime `audio/wav` |
+| Speech usage | 166 prompt / 25 completion tokens; credits, unpriced |
+| Round-trip transcript | `Hatch Speech Synthesis Check, October thirty first.` (45 prompt / 15 completion, 4.0 s reported) |
+| Ledger rows | `xiaomi / mimo-v2.5-tts / 166 / 25 / speech / mimo-live`, then `xiaomi / mimo-v2.5-asr / 45 / 15 / transcription / mimo-live` |
+| Wall time | 5.85 s (synthesis tool call, including the media-store commit) |
+
+The round trip matters: it is the difference between "the provider returned a RIFF/WAVE container"
+and "the bytes contain the sentence that was asked for". It returned the same sentence; the ASR heard
+the proper noun "Hutch" as "Hatch" and capitalised the words. That is recorded rather than corrected,
+and the audio was not listened to by a human: the transcript is evidence of speech, not a claim of
+exact phonetic identity.
+
+### What this establishes and what it does not
+
+Established: authenticated speech synthesis through Hutch's own tool, adapter, media-job ledger and
+media store; the approval prompt names connection, endpoint, model, voice, character count and
+billing route before the words leave the machine; provider token usage reaches the run ledger as
+`kind=speech`; the stored wav is hash-verified and round-trip transcribed.
+
+Not established: mp3 or pcm output, streaming synthesis, the cn/ams hosts, the voice-design and
+voice-clone models, any currency price (the plan bills in credits), or any non-Xiaomi speech vendor.
+The live harness used a recording gate, as the ASR run did; `tests/test_media_speech.py` asserts the
+decision is outward, names every destination field, and that a denial stops the request before the
+network.
+
+### Focused checks for this slice
+
+| Check | Command | Result |
+|---|---|---|
+| Route, wire, backend and tool behaviour | `uv run --frozen --no-sync pytest -q tests/test_media_speech.py` | 32 passed |
+| Media regressions | `uv run --frozen --no-sync pytest -q tests/test_media_jobs.py tests/test_media_providers.py` | 35 passed |
+| Provider catalogue and connections | `uv run --frozen --no-sync pytest -q tests/test_provider_catalog.py tests/test_connections.py tests/test_provider_routes.py` | 79 passed |
+| Tool contract audit | `uv run --frozen --no-sync python scripts/audit_tool_contracts.py` | passed (45 tools) |
+| Context hygiene | `uv run --frozen --no-sync python scripts/audit_context_hygiene.py` | passed |
+| Research package honesty | `python3 scripts/audit_provider_research.py` | PASS |
+
+Website copy for this claim was captured at 1440x960, 1280x720, 900x1024, 390x844 and 320x740, plus
+1280x720 at 200 percent text: the new sentence and badge render at every width, the provider section
+reports no horizontal overflow, and there were no console errors. The 200 percent run keeps the
+site-wide 316 px header gap already recorded above, not a regression from this slice. Evidence:
+`artifacts/visual/tts-2026-10-31/`.
+
+Artifact: `artifacts/live-verification/xiaomi-speech-live-2026-10-31.json`.

@@ -9,76 +9,33 @@ Two tools, two trust stories:
   billable; the durable artifact is the block data itself, like a saved artifact).
   An invalid graph NEVER loses the source: the rejection text carries the
   problems and the caller's structure (open-webui #14541).
-* ``create_media``: provider path for image/video is OUTWARD and billable:
+* ``create_media``: provider path for image/video/audio is OUTWARD and billable:
   ``effect()`` is ``"web"``, the approval decision is ask-by-default with
   ``outward=True`` (sticky grants never cover it, SR-4), ``ctx.begin_effect()``
   brackets the billable call, and the output reports that hutch cannot know the
   cost. If no backend is configured/capable the tool says so honestly, it NEVER
   substitutes stock assets or fabricates previews. The ``animation`` kind is
   deterministic (same engine as render_diagram, no approval, no billing).
+
+For ``audio`` the prompt is the text to speak; a connection that declares a
+``speech`` route supplies the backend, and the approval prompt names the
+connection, endpoint, model, voice and billing route before the words leave the
+machine. Speech synthesis is a single utterance here, not the multi-segment
+podcast pipeline in ``hutch.synthesis``.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
-import time
 from typing import Any, Optional
 
-from ..media import (AnimationInvalid, GraphInvalid, MediaJobError, MediaJobService,
-                     MediaStorage, MediaUnavailableError, render_animation,
-                     render_flowchart, service_status, validate_animation,
-                     validate_flowchart)
+from ..media import (AnimationInvalid, GraphInvalid, MediaJobError, render_animation,
+                     render_flowchart, validate_animation, validate_flowchart)
 from ..media.providers.base import MediaBackend
-from ..outputblocks import new_block_id, parse_blocks
-from ..safety import Decision, Verdict
-from .base import Tool, ToolContext, ToolResult, _schema, rehearsed
-
-_MEDIA_BACKENDS: Optional[dict[str, MediaBackend]] = None
-
-_CREATE_MEDIA_DECISION = Decision(
-    verdict=Verdict.ask,
-    reason="generating media calls a paid external service and sends the prompt to it",
-    sticky_key="",            # outward: never sticky (SR-4)
-    rule="media:create",
-    risk="medium",
-    outward=True,
-)
-
-
-def _default_backends() -> dict[str, MediaBackend]:
-    """Discover configured backends from the environment. An adapter without its
-    credentials simply does not exist here, tools then report honest absence."""
-    global _MEDIA_BACKENDS
-    if _MEDIA_BACKENDS is None:
-        from ..media.providers.comfyui import ComfyUIBackend
-        from ..media.providers.openai_images import OpenAIImagesBackend
-        found: dict[str, MediaBackend] = {}
-        openai_backend = OpenAIImagesBackend.from_env()
-        if openai_backend is not None:
-            found[openai_backend.name] = openai_backend
-        comfyui = ComfyUIBackend.from_env()
-        if comfyui is not None:
-            found[comfyui.name] = comfyui
-        _MEDIA_BACKENDS = found
-    return _MEDIA_BACKENDS
-
-
-def _service(ctx: ToolContext, backends: Optional[dict[str, MediaBackend]] = None) -> MediaJobService:
-    return MediaJobService(ctx.store, MediaStorage(ctx.config), backends=backends)
-
-
-def _idempotency_key(ctx: ToolContext, scope: str, canonical: Any) -> str:
-    digest = hashlib.sha256(
-        json.dumps(canonical, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
-    return f"{scope}:{ctx.run.id}:{digest[:32]}"
-
-
-def _check_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Belt and braces: blocks leaving a tool must survive the contract's own
-    parser. Any error entry here means the tool misbuilt a block."""
-    _, errors = parse_blocks(blocks)
-    return errors
+from ..outputblocks import new_block_id
+from .base import Tool, ToolContext, ToolResult, _schema
+from .media_generation import (check_blocks, media_idempotency_key, run_provider_media,
+                               service_for)
 
 
 def _flowchart_alt_text(title: str, payload: dict[str, Any]) -> str:
@@ -163,11 +120,11 @@ class RenderDiagramTool(Tool):
             svg = render_flowchart(clean)
         except GraphInvalid as exc:      # unreachable after validate; kept honest
             return ToolResult(ok=False, output=f"error: {exc}")
-        service = _service(ctx)
+        service = service_for(ctx)
         try:
             row = service.record_local(
                 run_id=ctx.run.id, conversation_id=ctx.run.conversation_id,
-                kind="image", idempotency_key=_idempotency_key(ctx, "render-diagram", clean),
+                kind="image", idempotency_key=media_idempotency_key(ctx, "render-diagram", clean),
                 requested={"kind": "image", "diagram": title,
                            "nodes": len(clean["nodes"]), "edges": len(clean["edges"])},
                 produce=lambda: (svg.encode("utf-8"),
@@ -194,7 +151,7 @@ class RenderDiagramTool(Tool):
             "provenance": {"run_id": ctx.run.id, "tool": self.name, "job_id": row["id"]},
             "payload": clean,
         }
-        errors = _check_blocks([media_block, flowchart_block])
+        errors = check_blocks([media_block, flowchart_block])
         warnings = ""
         if errors:
             # The stored diagram stays downloadable; only the presentation failed.
@@ -241,15 +198,22 @@ class CreateMediaTool(Tool):
     name = "create_media"
     description = (
         "Create media: 'animation' renders deterministically (SVG, no external calls); "
-        "'image'/'video' submit to a configured provider — those are billable, "
+        "'image'/'video' submit to a configured provider; 'audio' speaks the prompt with "
+        "a connection's declared speech route. Provider kinds are billable, "
         "approval-gated, and report uncertain cost. No backend, no fabrication: the "
         "tool refuses honestly rather than substituting stock assets.")
     parameters = _schema(
         ["kind", "prompt"],
         {
-            "kind": {"type": "string", "enum": ["image", "video", "animation"],
-                     "description": "What to create; image/video need a configured provider"},
-            "prompt": {"type": "string", "description": "What to depict (1–4000 chars)"},
+            "kind": {"type": "string", "enum": ["image", "video", "audio", "animation"],
+                     "description": "What to create; image/video/audio need a configured provider"},
+            "prompt": {"type": "string", "description":
+                       "What to depict, or for audio the exact text to speak (1–4000 chars)"},
+            "voice": {"type": "string", "description":
+                      "audio only: a voice id the chosen speech route offers"},
+            "style": {"type": "string", "description":
+                      "audio only: how the speech should sound (up to 2000 chars); it is "
+                      "sent as an instruction and is never spoken"},
             "width": {"type": "integer", "description": "Requested width in px (16–8192)"},
             "height": {"type": "integer", "description": "Requested height in px (16–8192)"},
             "seconds": {"type": "number", "description": "Requested duration for video/animation (0.1–600)"},
@@ -267,22 +231,25 @@ class CreateMediaTool(Tool):
         self._max_polls = max_polls
 
     def effect(self, args: dict[str, Any], ctx: ToolContext) -> str:
-        return "web" if args.get("kind") in ("image", "video") else ""
+        return "web" if args.get("kind") in ("image", "video", "audio") else ""
 
     def recorded_arguments(self, args: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
         prompt = args.get("prompt")
+        style = args.get("style")
         return {"kind": args.get("kind"),
                 "backend_hint": args.get("backend_hint"),
                 "width": args.get("width"), "height": args.get("height"),
                 "seconds": args.get("seconds"),
+                "voice": args.get("voice"),
+                "style_chars": len(style) if isinstance(style, str) else 0,
                 "prompt_chars": len(prompt) if isinstance(prompt, str) else 0}
 
     def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         kind = str(args.get("kind", ""))
         prompt = args.get("prompt")
-        if kind not in ("image", "video", "animation"):
+        if kind not in ("image", "video", "audio", "animation"):
             return ToolResult(ok=False,
-                              output="error: kind must be image, video, or animation")
+                              output="error: kind must be image, video, audio, or animation")
         if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
             return ToolResult(ok=False,
                               output="error: provide a non-empty prompt of at most 4000 characters")
@@ -292,7 +259,8 @@ class CreateMediaTool(Tool):
         if kind == "animation":
             return self._run_animation(ctx, prompt, seconds, width, height,
                                        args.get("frames"))
-        return self._run_provider(ctx, kind, prompt, width, height, seconds, backend_hint)
+        return self._run_provider(ctx, kind, prompt, width, height, seconds, backend_hint,
+                                  voice=args.get("voice"), style=args.get("style"))
 
     # ------------------------------------------------------------- animation
 
@@ -314,12 +282,12 @@ class CreateMediaTool(Tool):
                 f"The frames are preserved — fix and retry. Frames: {source}"))
         total = sum(float(f.get("duration_seconds", 2.0)) for f in clean["frames"])
         svg = render_animation(clean)
-        service = _service(ctx)
+        service = service_for(ctx)
         try:
             row = service.record_local(
                 run_id=ctx.run.id, conversation_id=ctx.run.conversation_id,
                 kind="animation",
-                idempotency_key=_idempotency_key(ctx, "create-animation", clean),
+                idempotency_key=media_idempotency_key(ctx, "create-animation", clean),
                 requested={"kind": "animation", "prompt": prompt[:4000],
                            "frames": len(clean["frames"]), "seconds": round(total, 3)},
                 produce=lambda: (svg.encode("utf-8"),
@@ -344,7 +312,7 @@ class CreateMediaTool(Tool):
             "provenance": {"run_id": ctx.run.id, "tool": self.name, "job_id": row["id"]},
             "payload": result,
         }
-        errors = _check_blocks([media_block])
+        errors = check_blocks([media_block])
         warnings = ""
         if errors:
             warnings = (" (the block failed its own validation: "
@@ -365,115 +333,12 @@ class CreateMediaTool(Tool):
     # ------------------------------------------------------------- provider
 
     def _run_provider(self, ctx: ToolContext, kind: str, prompt: str, width: Any,
-                      height: Any, seconds: Any, backend_hint: Any) -> ToolResult:
-        if ctx.dry_run:
-            return rehearsed(f"create {kind} media from your prompt via a provider",
-                             _CREATE_MEDIA_DECISION)
-        backends = self._backends if self._backends is not None else _default_backends()
-        service = _service(ctx, backends=backends)
-        try:
-            backend = service.backend_for(kind, str(backend_hint) if backend_hint else None)
-        except (MediaUnavailableError, MediaJobError) as exc:
-            return ToolResult(ok=False, output=(
-                f"error: {exc}. hutch does not substitute stock assets or fabricate "
-                "previews — configure a media backend to enable this kind."))
-        clean_kwargs: dict[str, Any] = {}
-        if isinstance(width, int):
-            clean_kwargs["width"] = width
-        if isinstance(height, int):
-            clean_kwargs["height"] = height
-        if isinstance(seconds, (int, float)):
-            clean_kwargs["seconds"] = seconds
-        action = f"create {kind} media via {backend.name}"
-        try:
-            ctx.gate.decide("media", action,
-                            {"kind": kind, "backend": backend.name,
-                             "prompt_chars": len(prompt),
-                             "note": "provider charges apply; hutch cannot know the cost"},
-                            _CREATE_MEDIA_DECISION)
-        except Exception as exc:
-            return ToolResult(ok=False, output=f"error: {exc}")
-        refusal = ctx.begin_effect()
-        if refusal:
-            return ToolResult(ok=False,
-                              output=f"error: the request was not started ({refusal})")
-        idempotency_key = _idempotency_key(ctx, "create-media",
-                                           {"kind": kind, "prompt": prompt, **clean_kwargs})
-        try:
-            row = service.submit(run_id=ctx.run.id, conversation_id=ctx.run.conversation_id,
-                                 kind=kind, prompt=prompt, idempotency_key=idempotency_key,
-                                 backend_hint=backend.name, **clean_kwargs)
-        except MediaJobError as exc:
-            return ToolResult(ok=False, output=(
-                f"error: the media job could not be submitted ({exc}). Nothing new was "
-                "billed by this call; a previous submission with the same content may "
-                "already exist — check the media job ledger."))
-        service_status_value = service_status(row)
-        if service_status_value == "submitting":
-            return ToolResult(ok=False, output=(
-                f"error: the job ({row['id']}) never reached the backend; "
-                f"{row.get('error') or 'the submission failed'} — see the media job ledger"))
-        polls = 0
-        upstream_succeeded = False
-        while polls < self._max_polls:
-            observed = str(backend.poll(row).get("status", "running"))
-            row = service.poll(row["id"], backend)   # records failed/cancelled honestly
-            service_status_value = service_status(row)
-            polls += 1
-            if observed == "succeeded":
-                upstream_succeeded = True
-                break
-            if service_status_value != "running":
-                break
-            time.sleep(self._poll_interval)
-        if not upstream_succeeded and service_status_value == "running":
-            return ToolResult(ok=False, output=(
-                f"the media job {row['id']} is still running upstream after "
-                f"{polls} checks; it is recorded in the ledger and may complete and "
-                "bill — check its status or cancel it explicitly"))
-        if service_status_value == "failed":
-            return ToolResult(ok=False, output=(
-                f"error: the media job {row['id']} failed upstream "
-                f"({row.get('error') or 'unknown reason'}); no media was stored. "
-                "Whether the provider charged for the attempt depends on the backend."))
-        if service_status_value == "cancel_unconfirmed":
-            return ToolResult(ok=False, output=(
-                f"error: the media job {row['id']} was asked to cancel but the backend "
-                "never confirmed; it may still be running and billing — verify with the "
-                "backend. This is recorded honestly in the ledger."))
-        alt_text = f"Generated {kind} from the prompt: {prompt[:400]}"[:600]
-        try:
-            payload, final_row = service.finalize(row["id"], alt_text=alt_text)
-        except MediaJobError as exc:
-            return ToolResult(ok=False, output=(
-                f"error: the finished media could not be stored ({exc}); the provider "
-                "charge may stand"))
-        media_block = {
-            "v": 1, "id": new_block_id(), "kind": "media", "revision": 1,
-            "availability": "ready",
-            "text_fallback": f"Generated {kind}: {alt_text[:400]}",
-            "provenance": {"run_id": ctx.run.id, "tool": self.name,
-                           "job_id": final_row.get("id", row["id"])},
-            "payload": payload,
-        }
-        errors = _check_blocks([media_block])
-        warnings = ""
-        data: dict[str, Any] = {"media": payload, "job_id": final_row.get("id", row["id"]),
-                                "content_url": (f"/api/v1/media/{payload['media_id']}"
-                                                f"/versions/{payload['version']}/content")}
-        if errors:
-            warnings = (" (the block failed its own validation: "
-                        + "; ".join(e.get("error", "?") for e in errors)[:300] + ")")
-        else:
-            data["blocks"] = [media_block]
-        return ToolResult(
-            ok=True,
-            output=(f"created {kind} media via {backend.name} "
-                    f"({payload['mime']}, sha256 {payload['sha256'][:16]}…); media "
-                    f"{payload['media_id']} v{payload['version']} is stored and "
-                    f"verifiable{warnings}; cost: provider charges apply and hutch "
-                    "cannot verify the exact amount"),
-            data=data)
-
+                      height: Any, seconds: Any, backend_hint: Any, *,
+                      voice: Any = None, style: Any = None) -> ToolResult:
+        return run_provider_media(
+            ctx=ctx, tool_name=self.name, kind=kind, prompt=prompt, width=width,
+            height=height, seconds=seconds, backend_hint=backend_hint, voice=voice,
+            style=style, backends=self._backends, poll_interval=self._poll_interval,
+            max_polls=self._max_polls)
 
 TOOLS = [RenderDiagramTool(), CreateMediaTool()]

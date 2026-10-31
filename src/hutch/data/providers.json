@@ -589,6 +589,7 @@
       "summary": "",
       "services": [
         "chat",
+        "speech",
         "transcription"
       ],
       "protocols": [
@@ -618,7 +619,7 @@
         "cn",
         "ams"
       ],
-      "notes": "Token Plan is a subscription-credit route with regional hosts; a key works only on its own region. Live-verified on 2026-10-31 for text generation (mimo-v2.6-flash, mimo-v2.6-pro) through the built-in runtime and for speech-to-text (mimo-v2.5-asr) through the transcribe_audio tool. Vision, tool calling, streaming, mp3 input, non-English audio and the cn/ams hosts are not live-verified."
+      "notes": "Token Plan is a subscription-credit route with regional hosts; a key works only on its own region. Live-verified on 2026-10-31 for text generation (mimo-v2.6-flash, mimo-v2.6-pro) through the built-in runtime, tool calling and the streamed transport path, speech-to-text (mimo-v2.5-asr) through transcribe_audio, and speech synthesis (mimo-v2.5-tts) through create_media(kind=audio); the synthesized wav was round-trip transcribed. Vision, mp3 input/output, streaming synthesis, non-English audio, voice design/cloning and the cn/ams hosts are not live-verified."
     },
     {
       "id": "stepfun",

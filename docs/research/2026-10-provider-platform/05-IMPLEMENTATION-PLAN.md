@@ -58,11 +58,20 @@ reordered if research changes the risk picture.
 | S11 | done for the 2026-10-30 delivery | see the final-integration section of the validation ledger |
 | S6b | done | 25 hosted OpenAI-compatible routes wired from vendor-documented endpoints and verified reachable without a credential: `src/hutch/data/connections.json`, `src/hutch/data/providers.json`, `tests/test_provider_routes.py`, evidence in `artifacts/live-verification/endpoint-reachability-2026-10-31.json` |
 | S6c | done | Speech-to-text: declarative route in four xiaomi templates, `src/hutch/providers/transcription.py`, `src/hutch/tools/transcribe.py`, `tests/test_provider_transcription.py`, `tests/test_transcribe_tool.py`; live-verified on `mimo-v2.5-asr` (artifact `artifacts/live-verification/xiaomi-transcription-live-2026-10-31.json`) |
+| S6d | done | Tool calling and streaming live-verified on `mimo-v2.6-flash` through the CLI run path and the adapter; streamed reasoning deltas were found dropped and are now assembled (`toolcalling/streamassembly.py`, `providers/openai_compat.py`, `tests/test_provider_stream_reasoning.py`); capability registry records the dated entries. Artifacts: `xiaomi-tool-calling-streaming-live-2026-10-31.json`, `xiaomi-adapter-tool-calls-2026-10-31.json`, `xiaomi-stream-shape-2026-10-31.json` |
+| S6e | done | Speech synthesis: declarative `speech` block in the four Xiaomi templates, `src/hutch/media/providers/speech.py` as a `MediaBackend`, `create_media` kind `audio` wired through the existing media job ledger and media store, `tests/test_media_speech.py` (32 tests); live-verified on `mimo-v2.5-tts` and round-trip transcribed (artifact `artifacts/live-verification/xiaomi-speech-live-2026-10-31.json`) |
 
 S6 remains open for every other protocol: Claude CLI/Gemini CLI/Codex executors, provider-native
-search, speech synthesis through a general tool, and video/music adapters are still documented rather
-than implemented. Speech-to-text is no longer in that list: `transcribe_audio` transcribes one
-workspace wav/mp3 through a connection that declares the route, and the live run above is the evidence.
+search, and video/music adapters are still documented rather than implemented. Speech-to-text is no
+longer in that list: `transcribe_audio` transcribes one workspace wav/mp3 through a connection that
+declares the route, and the live run above is the evidence. Speech synthesis left it too:
+`create_media(kind=audio)` speaks one utterance through a connection's `speech` route and stores the
+wav through the media job ledger. Streaming synthesis, mp3/pcm output, voice design and cloning
+models, and every non-Xiaomi speech vendor remain unimplemented or unverified.
+Tool calling and streaming are no longer in it either, for one model on one route: two calls in a
+single streamed turn were executed end to end, and every live model call in that run travelled over
+SSE. What remains for streaming is what a user sees - Hutch assembles the stream server-side and does
+not paint tokens progressively - and cancellation mid-stream, which is tested but not live-exercised.
 The next slice
 that a new protocol unlocks should be chosen from live credential availability, because an adapter that
 cannot be exercised is only contract-tested code.

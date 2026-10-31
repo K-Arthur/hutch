@@ -102,6 +102,21 @@
       "capability": "wire shape: reasoning_content deltas present in the stream",
       "artifact": "xiaomi-stream-shape-2026-10-31.json",
       "notes": "Used to attribute a Hutch defect (streamed reasoning discarded) to Hutch rather than to the provider."
+    },
+    {
+      "provider": "xiaomi",
+      "route": "create_media(kind=audio) -> media/providers/speech.py -> Xiaomi MiMo Token Plan (Singapore)",
+      "checked_on": "2026-10-31",
+      "result": "succeeded",
+      "model": "mimo-v2.5-tts",
+      "capability_exercised": "speech synthesis (wav only), stored through the media job ledger and media store, round-trip transcribed by mimo-v2.5-asr",
+      "usage": {
+        "prompt_tokens": 166,
+        "completion_tokens": 25,
+        "cost_usd": 0.0,
+        "cost_note": "Token Plan bills in credits; unpriced, not a free-service claim"
+      },
+      "artifact": "xiaomi-speech-live-2026-10-31.json"
     }
   ]
 }
