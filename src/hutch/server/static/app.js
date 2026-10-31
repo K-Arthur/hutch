@@ -3247,14 +3247,6 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
             <div class="first-run-field-head"><label class="hutch-label" for="first-run-request">Your first request</label><button class="first-run-clear" type="button" id="first-run-clear" hidden>Clear request</button></div>
             <textarea class="hutch-composer__textarea" id="first-run-request" rows="3" maxlength="20000" aria-describedby="first-run-request-hint" placeholder="For example, help me plan my week and keep track of the follow-ups." required></textarea>
             </div>
-            <div class="first-run-examples" role="group" aria-labelledby="first-run-examples-title">
-              <p class="first-run-examples-title" id="first-run-examples-title">Or start with an idea</p>
-              <div class="first-run-examples-grid">
-                <button class="first-run-example" type="button" data-first-run-example="plan">${icon("clock")}<span>Plan my week</span></button>
-                <button class="first-run-example" type="button" data-first-run-example="email">${icon("mail")}<span>Catch up on email</span></button>
-                <button class="first-run-example" type="button" data-first-run-example="project">${icon("folder")}<span>Organize a project</span></button>
-              </div>
-            </div>
             <div class="hutch-composer__actions">
               <div class="hutch-composer__trailing">
                 <button class="hutch-button hutch-button--primary hutch-composer__send" type="submit" id="first-run-submit" formnovalidate>Set up my assistant ${icon("arrow")}</button>
@@ -3351,19 +3343,6 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     });
     $("#first-run-manage-ai")?.addEventListener("click", () => { firstRunSubmitGeneration++; });
     $("#first-run-ai-retry")?.addEventListener("click", () => { void refreshFirstRunReadiness(); }); void hutchSetupCheck.mount();
-    const starterRequests = {
-      plan: "Help me plan my week and keep track of the follow-ups.",
-      email: "Help me find the emails I need to answer and prepare drafts for me to review.",
-      project: "Help me organize a project and keep track of the next steps.",
-    };
-    $$('[data-first-run-example]').forEach(button => button.addEventListener("click", () => {
-      if (!request) return;
-      request.value = starterRequests[button.dataset.firstRunExample] || "";
-      saveFirstRunDraft(request.value);
-      syncDraftUi();
-      request.focus();
-      request.setSelectionRange(request.value.length, request.value.length);
-    }));
     void refreshFirstRunReadiness();
     return;
   }
@@ -3541,12 +3520,6 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
                 <div class="cmenu-wrap">
                   <button class="hutch-button hutch-button--ghost hutch-composer__util" type="button" id="composer-menu-btn" aria-label="Message options" aria-haspopup="dialog" aria-expanded="false" aria-controls="composer-menu">${icon("plus")}</button>
                   <div class="cmenu" id="composer-menu" role="dialog" aria-modal="false" aria-label="Message options" hidden>
-                  <details class="cmenu-suggestions"><summary>Start from a suggestion</summary>
-                  <div class="quick-prompts" id="quick-prompts">
-                    <button type="button" data-quick="Sort this week's downloads and move invoices into folders">${icon("folder")} Sort downloads</button>
-                    <button type="button" data-quick="Research this week's AI news and write a short summary">${icon("fileText")} Research news</button>
-                    <button type="button" data-quick="Inspect this repository for TODOs and report findings">${icon("search")} Repo sweep</button>
-                  </div></details>
                   <div class="cmenu-sep"></div>
                   <label class="cmenu-role-field" for="chat-task-role">Task role for the next message
                     <select class="hutch-select" id="chat-task-role" aria-describedby="chat-task-role-help">
@@ -4295,14 +4268,6 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
   // Enter/IME behaviour is owned by the shared composer module so every surface
   // matches (never submit mid-composition; Shift+Enter always newlines).
   window.hutchComposer.mountEnterSubmit(txt, { enterSends, submit });
-  $("#quick-prompts").addEventListener("click", ev => {
-    const chip = ev.target.closest("[data-quick]");
-    if (!chip) return;
-    txt.value = chip.dataset.quick;
-    saveDraft(composerDraftId, txt.value);
-    autogrow(); txt.focus();
-    setMenu(false);
-  });
   $("#conversation-files-open").addEventListener("click", () => {
     setMenu(false);
     void openConversationFiles(composerConversationId, menuBtn);
@@ -5202,21 +5167,8 @@ function restoreFeedToggles(stream) {
   }
 }
 
-// Starting points, offered only when this assistant has the tools they need.
-const WELCOME_IDEAS = [
-  { needs: [], icon: "calendar", title: "Plan my week", prompt: "Help me plan my week and keep track of the follow-ups." },
-  { needs: ["files", "documents"], icon: "fileText", title: "Summarize a document", prompt: "Summarize the document I attach in five bullet points and list any open questions." },
-  { needs: ["browser", "web"], icon: "search", title: "Research a topic", prompt: "Research this week’s news on a topic I choose and write a short summary with sources." },
-  { needs: ["shell"], icon: "terminal", title: "Check a project folder", prompt: "Inspect this repository for TODOs and report what you find." },
-  { needs: ["files"], icon: "folder", title: "Tidy a folder", prompt: "Sort this week’s downloads and move invoices into folders. Ask before moving anything." },
-  { needs: [], icon: "pencil", title: "Draft a message", prompt: "Help me draft a short, friendly message. Ask me who it is for first." },
-];
 const WELCOME_TOOL_WORDS = { shell: "commands", files: "files", memory: "notes", documents: "documents", browser: "the browser", web: "the web", computer: "the computer" };
 
-function welcomeIdeas(bot) {
-  const tools = new Set(bot.tools || []);
-  return WELCOME_IDEAS.filter(idea => !idea.needs.length || idea.needs.some(need => tools.has(need))).slice(0, 4);
-}
 
 function welcomeHtml() {
   const b = botsCache.find(x => x.name === currentStudioBot);
@@ -5238,15 +5190,6 @@ function welcomeHtml() {
         <li>${icon("shield")}<span>${esc(botActionSummary(b.approval_mode))}</span></li>
         ${can ? `<li>${icon("wrench")}<span>${esc(can)}</span></li>` : ""}
       </ul>
-      <section class="welcome-ideas" aria-labelledby="welcome-ideas-title">
-        <h3 id="welcome-ideas-title">Try one of these</h3>
-        <div class="welcome-ideas-grid">
-          ${welcomeIdeas(b).map(idea => `<button class="welcome-idea" type="button" data-welcome-prompt="${esc(idea.prompt)}">
-            <span class="welcome-idea-ico" aria-hidden="true">${icon(idea.icon)}</span>
-            <span class="welcome-idea-copy"><span class="welcome-idea-title">${esc(idea.title)}</span><span class="welcome-idea-prompt">${esc(idea.prompt)}</span></span>
-          </button>`).join("")}
-        </div>
-      </section>
       <details class="tpl-gal" id="tpl-gal" hidden>
         <summary class="tpl-gal-summary">
           <span class="tpl-gal-copy">
@@ -5277,15 +5220,6 @@ const TEMPLATE_GALLERY_ORDER = [
 ];
 
 async function wireWelcome() {
-  // An idea fills the composer for editing; it never sends anything by itself.
-  $$("[data-welcome-prompt]").forEach(button => button.addEventListener("click", () => {
-    const field = $("#chat-prompt");
-    if (!field) return;
-    field.value = button.dataset.welcomePrompt;
-    field.dispatchEvent(new Event("input", { bubbles: true }));
-    field.focus();
-    field.setSelectionRange(field.value.length, field.value.length);
-  }));
   /* Explore-agents gallery: real templates from the API, fetched lazily —
      never seeded. Picking one opens the create dialog with it preselected. */
   try {

@@ -12238,7 +12238,7 @@ def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, h
     page.locator("#composer-menu-btn").click()
     menu = page.locator("#composer-menu")
     assert menu.is_visible() and menu.get_attribute("role") == "dialog"
-    assert menu.locator(".cmenu-suggestions > summary").evaluate("e => e === document.activeElement"), "focus starts at the first meaningful option, not the dismiss button"
+    assert menu.locator("summary, select, input, [role^='menuitem'], a[href]").first.evaluate("e => e === document.activeElement"), "focus starts at the first meaningful option, not the dismiss button"
     box = menu.bounding_box()
     assert 0 <= box["x"] and box["x"] + box["width"] <= width + 1
     assert 0 <= box["y"] and box["y"] + box["height"] <= height + 1

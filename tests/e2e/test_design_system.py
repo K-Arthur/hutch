@@ -596,20 +596,9 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
                 "els => els.map(el => el.dataset.serviceCategory)"
             ) == ["calendar", "gmail", "chatgpt"]
             assert welcome_marks.locator("img[src='/static/brands/openai-white-monoblossom.svg']").count() == 1
-            starter_buttons = page.locator("[data-first-run-example]")
-            assert starter_buttons.count() == 3
-            starter_requests = (
-                ("plan", "Help me plan my week and keep track of the follow-ups."),
-                ("email", "Help me find the emails I need to answer and prepare drafts for me to review."),
-                ("project", "Help me organize a project and keep track of the next steps."),
-            )
-            for example, expected in starter_requests:
-                page.locator(f"[data-first-run-example='{example}']").click()
-                assert request.input_value() == expected, example
-                assert page.evaluate("document.activeElement.id === 'first-run-request'")
-                if example == "plan" and label in {"desktop", "phone"}:
-                    page.screenshot(path=str(out / f"welcome-example-{label}.png"), full_page=True, animations="disabled")
-                request.fill("")
+            # First run offers no invented prompts: the request starts empty and is the person's own words.
+            assert page.locator("[data-first-run-example]").count() == 0
+            assert request.input_value() == ""
             page.evaluate("document.activeElement.blur(); window.scrollTo(0, 0)")
             app_scroll.evaluate("el => { el.scrollTop = 0; }")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
@@ -618,10 +607,6 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             if label == "phone":
                 request.focus()
                 request.press("Tab")
-                assert page.evaluate("document.activeElement.dataset.firstRunExample === 'plan'")
-                page.keyboard.press("Tab")
-                page.keyboard.press("Tab")
-                page.keyboard.press("Tab")
                 assert page.evaluate("document.activeElement.type === 'submit'")
             evidence.append({"surface": "first-run", "viewport": [width, height], "overflow": overflow})
 

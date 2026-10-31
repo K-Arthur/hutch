@@ -986,14 +986,6 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 }
 #conversation-files-more { display: flex; justify-content: center; margin-top: var(--s-3); }
 
-.quick-prompts { display: grid; gap: 1px; }
-.quick-prompts button {
-  all: unset; box-sizing: border-box; cursor: pointer;
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; font-size: var(--fs-sm); color: var(--text-2);
-}
-.quick-prompts button:hover { color: var(--text); background: var(--raised); }
-.quick-prompts button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; background: var(--raised); }
 
 @media (max-width: 520px) {
   .conversation-file-main { align-items: flex-start; }
@@ -1999,7 +1991,7 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
   .hutch-msg__identity { flex-wrap: wrap; }
   .hutch-msg__identity .status { flex-shrink: 0; max-width: 100%; white-space: normal; }
   .hutch-msg__open { width: 44px; height: 44px; }
-  .quick-prompts button, .cmenu-row { min-height: 44px; }
+  .cmenu-row { min-height: 44px; }
   .hutch-msg__identity [data-stop-run], #studio-stop-run, #studio-review-run { min-height: 44px; }
   .hutch-composer__notice { align-items: flex-start; flex-wrap: wrap; line-height: 1.5; }
 }
