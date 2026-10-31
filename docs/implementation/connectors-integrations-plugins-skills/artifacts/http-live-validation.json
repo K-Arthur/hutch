@@ -1,0 +1,19 @@
+{
+  "endpoint": "http://127.0.0.1:43791/mcp",
+  "private_address_screen": "refused: MCP endpoint resolves to a private or reserved network address",
+  "configure": {
+    "revision": "ee8c3728f27ae01f43d8ca592cc8555897304747a524f00ba8cc4955bd201feb"
+  },
+  "discovery": {
+    "tool_count": 2,
+    "tools": [
+      "echo_config",
+      "lookup"
+    ]
+  },
+  "call": {
+    "ok": true,
+    "output": "{\"result\":\"{\\\"key\\\": \\\"alpha\\\", \\\"served\\\": \\\"hutch-live-http\\\", \\\"transport\\\": \\\"streamable-http\\\"}\"}\n{\"key\": \"alpha\", \"served\": \"hutch-live-http\", \"transport\": \"streamable-http\"}"
+  },
+  "origin_allowlist": "constructed (the request itself is what enforces it)"
+}
