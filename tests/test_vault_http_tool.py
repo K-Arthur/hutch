@@ -173,3 +173,23 @@ def test_the_schema_the_model_sees_accepts_only_the_opaque_reference(store, conf
     assert "value" not in properties
     assert properties["secret_ref"]["pattern"].startswith("^secret://hutch/local/sec_")
     assert set(properties["method"]["enum"]) == {"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"}
+
+
+def test_the_recorded_call_drops_a_query_string_and_a_body(store, config, tmp_path):
+    """Authorization is by origin; a model-authored query or body must not reach the event log."""
+    ctx, _vault, meta = _ready(store, config, tmp_path)
+    tool = build_tools(ctx.bot.tools, ctx)["vault_http_request"]
+    recorded = tool.recorded_arguments(
+        {"secret_ref": meta.ref, "url": "https://api.example.com/v1/pages?token=model-chosen-caption",
+         "method": "POST", "body": "{\"a\": 1}"}, ctx)
+    assert recorded["url"] == "https://api.example.com/v1/pages?[redacted]"
+    assert "body" not in recorded
+    assert recorded["secret_ref"] == meta.ref
+    assert "model-chosen-caption" not in json.dumps(recorded)
+
+
+def test_a_malformed_recorded_url_is_replaced_not_stored(store, config, tmp_path):
+    ctx, _vault, meta = _ready(store, config, tmp_path)
+    tool = build_tools(ctx.bot.tools, ctx)["vault_http_request"]
+    recorded = tool.recorded_arguments({"secret_ref": meta.ref, "url": "file:///etc/passwd"}, ctx)
+    assert recorded["url"] == "<invalid URL>"

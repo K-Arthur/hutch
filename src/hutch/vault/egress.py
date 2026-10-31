@@ -148,7 +148,10 @@ def mediate_http(vault, *, ref, principal: Principal, method: str, url: str,
             if name.lower() not in _DROP_RESPONSE_HEADERS
         }
         return MediatedResponse(
-            status=fetched.status, reason=fetched.reason, headers=response_headers,
+            # The reason phrase is server-controlled text like the body, so it is scrubbed too: a
+            # hostile service that echoes an Authorization header would otherwise put it in a
+            # status line the model reads.
+            status=fetched.status, reason=_scrub(fetched.reason, secret), headers=response_headers,
             body=_scrub(fetched.text, secret), url=fetched.url, destination=destination,
             truncated=fetched.truncated,
         )

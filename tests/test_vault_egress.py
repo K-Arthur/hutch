@@ -144,6 +144,23 @@ def test_header_injection_is_refused_before_the_vault_is_touched(store, prefix, 
     assert recorder.requests == []
 
 
+def test_the_status_line_is_scrubbed_too(store):
+    """A hostile service can echo the credential in a reason phrase, which is not a header or a body."""
+    vault = unlocked(store)
+    token = "sk-live-4c1d9a7e2b8f6031"
+    meta = vault.put_secret(scope="workspace", category="api_key", name="api", value=token)
+    vault.grant(meta.id, Principal.bot(BOT_A), Permission.USE)
+    vault.bind_destination(meta.id, API)
+    recorder = Recorder(httpx.Response(403, text="no",
+                                       extensions={"reason_phrase": f"denied {token}".encode()}))
+    response = mediate_http(vault, ref=meta.ref, principal=Principal.bot(BOT_A), method="GET",
+                            url=f"{API}/v1/pages", transport=httpx.MockTransport(recorder),
+                            resolver=_resolver({"api.example.com": [API_IP]}))
+    assert response.status == 403
+    assert token not in response.reason
+    assert "[redacted]" in response.reason
+
+
 def test_a_url_with_embedded_credentials_is_refused(store):
     vault, meta = _ready(store)
     recorder = Recorder(httpx.Response(200, text="should not happen"))

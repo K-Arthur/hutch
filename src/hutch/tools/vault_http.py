@@ -12,6 +12,7 @@ authorization and its own binding for the new origin.
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlsplit
 
 from ..safety import Decision, Verdict
 from ..vault import Principal, SecretRef, SecretRefError, VaultError, vault_for
@@ -91,6 +92,27 @@ class VaultHttpTool(Tool):
 
     def effect(self, args: dict[str, Any], ctx: ToolContext) -> str:
         return "web"
+
+    def recorded_arguments(self, args: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
+        """Persist the reference and the destination, never a query string.
+
+        Authorization is by origin, so a query is never what made the call legal; keeping it in an
+        event or an action receipt would only give a model-authored token a durable home. The path
+        stays because it says what was asked for.
+        """
+        recorded = dict(args)
+        raw = args.get("url")
+        if isinstance(raw, str):
+            try:
+                parts = urlsplit(raw.strip())
+                origin = request_origin(raw)
+            except (ValueError, DestinationError):
+                recorded["url"] = "<invalid URL>"
+            else:
+                path = parts.path if parts.path.startswith("/") else f"/{parts.path}"
+                recorded["url"] = origin + path[:2048] + ("?[redacted]" if parts.query else "")
+        recorded.pop("body", None)
+        return recorded
 
     def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         try:
