@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-31",
+  "revision": "4198ac8d",
+  "kind": "raw wire research probe (not a Hutch code path)",
+  "authorization": "Owner-authorized live testing with the Token Plan key already configured in this environment; read in memory, never printed or written to the repository.",
+  "endpoint": "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions",
+  "request": {
+    "model": "mimo-v2.6-flash",
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    },
+    "max_tokens": 120,
+    "temperature": 0
+  },
+  "observed": {
+    "chunks": 8,
+    "delta_field_counts": {
+      "content": 7,
+      "role": 7,
+      "tool_calls": 7,
+      "reasoning_content": 7
+    },
+    "reasoning_chars": 51,
+    "reasoning_first_chars": "The user wants me to say the single word \"lantern.\"",
+    "content": "lantern",
+    "finish_reason": "stop",
+    "usage": {
+      "completion_tokens": 18,
+      "prompt_tokens": 14,
+      "total_tokens": 32,
+      "completion_tokens_details": {
+        "reasoning_tokens": 14
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    }
+  },
+  "why_it_matters": "Hutch's stream assembler read only delta.content. This probe proves the provider does send reasoning_content on the stream, so dropping it was Hutch's defect and not a provider difference between batch and streamed calls."
+}

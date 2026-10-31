@@ -84,6 +84,24 @@
       "capability": "speech-to-text on mimo-v2.5-asr",
       "artifact": "xiaomi-transcription-live-2026-10-31.json",
       "notes": "One TTS-generated wav was transcribed through Hutch's tool; 48 prompt / 11 completion tokens, 23 audio input tokens, 4s reported. The transcript matched the sentence with an extra ordinal marker; mp3, Chinese, other regions and streaming were not exercised."
+    },
+    {
+      "provider": "xiaomi",
+      "route": "CLI hutch run -> built-in runtime -> openai-chat adapter -> xiaomi-token-plan-sgp",
+      "checked_on": "2026-10-31",
+      "result": "succeeded",
+      "capability": "tool calling and streaming on mimo-v2.6-flash",
+      "artifact": "xiaomi-tool-calling-streaming-live-2026-10-31.json",
+      "notes": "Two tool calls in one streamed turn were validated, executed and answered from; every step reported streamed=True with no non-streaming retry. Adapter probes in xiaomi-adapter-tool-calls-2026-10-31.json cover both parsers. Vision, cancellation and progressive token rendering were not exercised."
+    },
+    {
+      "provider": "xiaomi",
+      "route": "raw wire probe of streamed SSE delta fields (research, not a Hutch code path)",
+      "checked_on": "2026-10-31",
+      "result": "succeeded",
+      "capability": "wire shape: reasoning_content deltas present in the stream",
+      "artifact": "xiaomi-stream-shape-2026-10-31.json",
+      "notes": "Used to attribute a Hutch defect (streamed reasoning discarded) to Hutch rather than to the provider."
     }
   ]
 }

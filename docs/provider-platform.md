@@ -39,7 +39,10 @@ because its adapter exists.
   authentication route, model or runtime. A model listing proves discovery only. A text success does
   not prove tools; a tool call does not prove images.
 - Observed evidence comes only from the existing immutable tool-call observation table (an owned run),
-  never from a synthetic probe.
+  never from a synthetic probe. Live-verified entries are a separate, hand-recorded dataset: each one
+  names the exact model, the date, the route and the boundary of what was exercised, and each is backed
+  by a dated artifact in the research package. A live entry for one model does not upgrade another model
+  or another capability.
 - Readiness is computed from local configuration and bounded loopback discovery. It never executes
   inference, refreshes a token, or substitutes a model/provider/account/runtime.
 - States include available, needs authentication, authentication expired, subscription restricted,
@@ -66,9 +69,11 @@ never enabled by registration. See docs/runtime-setup.md for prerequisites.
 ## Known limits
 
 - Live verification as of 2026-10-31 covers text generation on two owner-authorized DeepSeek routes,
-the managed OpenCode runtime, and Xiaomi MiMo (`mimo-v2.6-flash`, `mimo-v2.6-pro`), plus speech-to-text
-on `mimo-v2.5-asr` through `transcribe_audio`. Every other hosted provider and every other capability
-remains unverified.
+the managed OpenCode runtime, and Xiaomi MiMo (`mimo-v2.6-flash`, `mimo-v2.6-pro`); on MiMo it also
+covers tool calling (two calls in one turn, dispatched and answered from), the streamed transport path
+with no non-streaming retry, and speech-to-text on `mimo-v2.5-asr` through `transcribe_audio`. Every other
+hosted provider remains unverified, and vision, cancellation mid-stream and progressive token rendering
+were not exercised anywhere.
 - Custom endpoints keep Hutch's existing credential scoping (ambient keys go only to official hosts,
   embedded URL credentials are refused, Strict Offline requires loopback). Outside Strict Offline a
   private-range allowlist and redirect/DNS pinning are not implemented in the provider layer: reviewed
@@ -83,9 +88,14 @@ remains unverified.
 Owner-authorized live testing exercised the direct DeepSeek route (built-in runtime) and the managed
 OpenCode runtime with a DeepSeek model. Both completed a real text request and returned the expected token;
 the capability registry carries two dated live-verified text entries for exactly those model routes.
-On 2026-10-31 a second account (Xiaomi MiMo Token Plan) was exercised for text generation and then for
-speech-to-text: one wav file produced by the same account's TTS was transcribed through the
-`transcribe_audio` tool with matching text and provider-reported usage. No other provider, and no tool
-calling, streaming, vision, video, music or search capability, was live-verified. The stored OpenCode Go
-key reported expired and the attempted managed run failed explicitly with zero recorded cost; that
-failure is kept as evidence rather than retried or routed elsewhere.
+On 2026-10-31 a second account (Xiaomi MiMo Token Plan) was exercised for text generation, then for
+speech-to-text, then for tool calling and streaming. One wav file produced by the same account's TTS was
+transcribed through the `transcribe_audio` tool with matching text and provider-reported usage. A governed
+CLI run then issued two tool calls in a single streamed turn - `list_files` and `read_file` - which Hutch
+validated, dispatched and answered from, with every step reporting `streamed=True` and no non-streaming
+retry. That run exposed a second real defect: the streamed path discarded the `reasoning_content` deltas
+the provider sends (a raw wire probe confirmed the provider sends them), so a streamed call reported less
+output than the same call batched. The assembler now keeps them. No other provider, and no vision, video,
+music, cancellation or search capability, was live-verified. The stored OpenCode Go key reported expired
+and the attempted managed run failed explicitly with zero recorded cost; that failure is kept as evidence
+rather than retried or routed elsewhere.

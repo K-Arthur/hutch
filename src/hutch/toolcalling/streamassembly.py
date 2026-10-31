@@ -23,6 +23,11 @@ MAX_CALLS = 32
 MAX_ARGUMENT_BYTES = 1_000_000
 MAX_NAME_CHARS = 200
 
+#: Delta fields that carry a model's thinking next to its answer. This mirrors
+#: ``providers.openai_result.REASONING_FIELDS``; ``tests/test_provider_stream_reasoning.py`` pins
+#: the two together so a new field name cannot be added on one path only.
+REASONING_DELTA_FIELDS = ("reasoning_content", "reasoning")
+
 
 class StreamAssemblyError(ValueError):
     """The stream cannot be assembled into unambiguous calls."""
@@ -62,6 +67,7 @@ class OpenAIChatStreamAssembler:
 
     def __init__(self, *, max_calls: int = MAX_CALLS, max_argument_bytes: int = MAX_ARGUMENT_BYTES):
         self._content: list[str] = []
+        self._reasoning: list[str] = []
         self._slots: dict[int, _Slot] = {}
         self._usage: dict[str, Any] = {}
         self._finish: str = ""
@@ -76,6 +82,17 @@ class OpenAIChatStreamAssembler:
     @property
     def content(self) -> str:
         return "".join(self._content)
+
+    @property
+    def reasoning(self) -> str:
+        """The model's thinking deltas, in arrival order.
+
+        Chat-completions servers that support reasoning stream it in the same choice as the answer
+        (``delta.reasoning_content``). It is billed completion output, so a streamed call must keep it
+        exactly as the batch parser does; dropping it here would make the same request report different
+        output depending on whether it was streamed.
+        """
+        return "".join(self._reasoning)
 
     @property
     def usage(self) -> dict[str, Any]:
@@ -134,6 +151,11 @@ class OpenAIChatStreamAssembler:
         content = delta.get("content")
         if isinstance(content, str) and content:
             self._content.append(content)
+        for field_name in REASONING_DELTA_FIELDS:
+            reasoning = delta.get(field_name)
+            if isinstance(reasoning, str) and reasoning:
+                self._reasoning.append(reasoning)
+                break
         tool_calls = delta.get("tool_calls")
         if tool_calls is None:
             return

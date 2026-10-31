@@ -235,9 +235,9 @@ class OpenAICompatProvider(Provider):
             raise self._wrap_exc(exc)
 
     def _stream_result(self, content: str, tcs: list[ToolCall], usage: dict[str, Any], finish: str,
-                      model: str, req: ChatRequest) -> ChatResult:
+                      model: str, req: ChatRequest, *, thinking: str = "") -> ChatResult:
         return build_result(content, tcs, usage, finish, model, provider_name=self.name,
-                            num_ctx=int(req.num_ctx or 0), streamed=True)
+                            num_ctx=int(req.num_ctx or 0), streamed=True, thinking=thinking)
 
     def _catalog_ids(self, payload: Any) -> list[str]:
         return parse_catalog_ids(payload, self.name)
@@ -394,7 +394,7 @@ class OpenAICompatProvider(Provider):
             tcs.append(ToolCall(id=slot["id"], name=slot["name"], arguments=args, raw=slot["arguments"],
                                 parse_error=err, arguments_state=state, double_decoded=double))
         result = self._stream_result(assembler.content, tcs, assembler.usage, assembler.finish,
-                                     assembler.model or req.model, req)
+                                     assembler.model or req.model, req, thinking=assembler.reasoning)
         result.notes.extend(assembler.notes)
         return result
 

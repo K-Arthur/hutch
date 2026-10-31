@@ -2166,3 +2166,21 @@ desktop and phone widths: the capability card remains the tallest of its row (pr
 badge wraps to two lines at 390 px without clipping, and the copy no longer adds a third line of height.
 Evidence: `docs/research/2026-10-provider-platform/artifacts/visual/asr-2026-10-31/` (element captures,
 viewport captures and `capture-results.json`).
+
+## Tool-calling and streaming claim on the provider section (2026-10-31)
+
+The capability paragraph changed from "only text was exercised; streaming, tools and vision remain
+unverified" to state that the Xiaomi route ran two tool calls in a single streamed turn and that Hutch
+assembles streams server-side rather than painting tokens progressively. The badge became
+`xiaomi token plan (text, tools, streaming live-verified 2026-10-31)`. That sentence was measured, not
+assumed: it is the same claim the validation ledger records, with its qualifiers kept in the copy.
+
+Captured the expanded `#providers` section at 1440x960, 1280x720, 900x1024, 390x844 and 320x740, plus
+1280x720 at 200 percent text. Every viewport reported 0 px horizontal overflow and zero console errors;
+the new sentence and the reworded badge were present and visible at all five sizes. The 200 percent run
+still shows the site-wide 316 px header overflow recorded above, unchanged by this slice.
+
+Inspected visually at desktop and phone widths: the capability card grows by roughly two lines and stays
+the tallest in its row (it already was), the badge now wraps to two lines at 390 px without clipping, and
+no neighbouring card is left with dead space because the row height was already set by this card.
+Evidence: `docs/research/2026-10-provider-platform/artifacts/visual/toolcalling-2026-10-31/`.

@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-31",
+  "verification": "adapter-level: provider_for_connection -> OpenAICompatProvider.chat, batch and streamed tool calls",
+  "authorization": "Owner-authorized live testing with the Token Plan key already configured in this environment; read in memory, temporary state directory deleted afterwards.",
+  "tool_schema_sent": "list_files",
+  "records": [
+    {
+      "requested_stream": false,
+      "result_streamed": false,
+      "finish_reason": "tool_calls",
+      "model_reported": "mimo-v2.6-flash",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_987943e99ca9483cb75aaa83",
+          "name": "list_files",
+          "arguments": {},
+          "raw": "{}",
+          "arguments_state": "json_object",
+          "parse_error": "",
+          "double_decoded": false
+        }
+      ],
+      "prompt_tokens": 128,
+      "completion_tokens": 24,
+      "cached_tokens": 0,
+      "thinking_chars": 53,
+      "notes": [
+        "the provider billed 13 of 24 completion tokens as reasoning"
+      ],
+      "elapsed_ms": 1687.6,
+      "model_ms": 1687.6
+    },
+    {
+      "requested_stream": true,
+      "result_streamed": true,
+      "finish_reason": "tool_calls",
+      "model_reported": "mimo-v2.6-flash",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_fddda2e3f197495680f67fe7",
+          "name": "list_files",
+          "arguments": {},
+          "raw": "{}",
+          "arguments_state": "json_object",
+          "parse_error": "",
+          "double_decoded": false
+        }
+      ],
+      "prompt_tokens": 128,
+      "completion_tokens": 35,
+      "cached_tokens": 64,
+      "thinking_chars": 100,
+      "notes": [
+        "the provider billed 24 of 35 completion tokens as reasoning"
+      ],
+      "elapsed_ms": 2309.0,
+      "model_ms": 2309.0
+    }
+  ],
+  "revision": "4198ac8d",
+  "revision_note": "HEAD at capture time; the reasoning-delta fix in providers/openai_compat.py and toolcalling/streamassembly.py was the working-tree change under test.",
+  "fix_evidence": {
+    "defect": "The streamed path discarded delta.reasoning_content; the batch path kept message.reasoning_content, so one request reported different output depending on transport.",
+    "observed_before_fix": {
+      "streamed_thinking_chars": 0,
+      "batch_thinking_chars": 54
+    },
+    "observed_after_fix": {
+      "streamed_thinking_chars": 100,
+      "batch_thinking_chars": 53
+    },
+    "caveat": "Before and after are four separate requests; the model reasons differently each time, so character counts are not expected to match. The claim is only that the streamed path now reports the text it used to drop.",
+    "wire_probe": "xiaomi-stream-shape-2026-10-31.json shows 7 reasoning_content deltas / 51 characters for a one-word answer."
+  }
+}

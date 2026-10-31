@@ -12,8 +12,8 @@ module combines them into explicit evidence records scoped to the narrowest subj
 Rules enforced by tests:
 - a catalogue listing never upgrades a capability beyond documented;
 - a route contract never becomes live-verified;
-- this build ships NO live-verified provider evidence (no provider account was exercised), so the
-  live dataset is explicitly empty rather than inferred from tests;
+- live entries exist only for routes a dated, owner-authorized run actually exercised, and each one
+  names the model and the boundary of what was exercised;
 - unknown capability is not unsupported: absence of evidence is reported as unverified.
 """
 
@@ -148,6 +148,49 @@ LIVE_VERIFIED_EVIDENCE: tuple[CapabilityEvidence, ...] = (
                 "cost of $0.0006726; the reply matched the requested token. Tool permissions, streaming and "
                 "other OpenCode providers were not exercised."),
     ),
+    CapabilityEvidence(
+        capability="text", level="live-verified", scope_kind="model", scope="xiaomi/mimo-v2.6-flash",
+        source="Hutch live verification 2026-10-31: built-in runtime, Xiaomi Token Plan (sgp), openai-chat adapter",
+        observed_on="2026-10-31",
+        detail=("Bounded one-step requests returned the requested token (15 prompt / 23 completion tokens). "
+                "A cap of 12 spent every token on reasoning and returned no visible answer, which Hutch "
+                "reports explicitly. Vision, non-English prompts and the cn/ams hosts were not exercised."),
+    ),
+    CapabilityEvidence(
+        capability="text", level="live-verified", scope_kind="model", scope="xiaomi/mimo-v2.6-pro",
+        source="Hutch live verification 2026-10-31: built-in runtime, Xiaomi Token Plan (sgp), openai-chat adapter",
+        observed_on="2026-10-31",
+        detail="Same bounded request shape as mimo-v2.6-flash; the reply matched the requested token.",
+    ),
+    CapabilityEvidence(
+        capability="transcription", level="live-verified", scope_kind="model", scope="xiaomi/mimo-v2.5-asr",
+        source=("Hutch live verification 2026-10-31: transcribe_audio tool -> providers/transcription.py, "
+                "Xiaomi Token Plan (sgp)"),
+        observed_on="2026-10-31",
+        detail=("One 169 KB wav produced by the same account's TTS was transcribed with a matching sentence "
+                "and provider-reported usage (48 prompt / 11 completion tokens, 23 audio tokens, 4 s). "
+                "mp3 input, Chinese audio, the cn/ams hosts, the size ceiling and streaming were not exercised."),
+    ),
+    CapabilityEvidence(
+        capability="tool_calls", level="live-verified", scope_kind="model", scope="xiaomi/mimo-v2.6-flash",
+        source=("Hutch live verification 2026-10-31: CLI run through the built-in runtime, two tools dispatched "
+                "and executed"),
+        observed_on="2026-10-31",
+        detail=("One turn emitted two calls in a single streamed response (list_files and read_file); Hutch "
+                "validated and executed both, returned their real file output, and the next step answered from "
+                "it. Parallel calls, argument parsing and result round-tripping were exercised; other tool "
+                "families and other models were not."),
+    ),
+    CapabilityEvidence(
+        capability="streaming", level="live-verified", scope_kind="model", scope="xiaomi/mimo-v2.6-flash",
+        source=("Hutch live verification 2026-10-31: every model call in two CLI runs and two adapter probes "
+                "returned through the SSE path"),
+        observed_on="2026-10-31",
+        detail=("Each step reported streamed=True with no non-streaming retry, and usage arrived in the final "
+                "stream chunk. Content, tool-call arguments and reasoning deltas were assembled from multiple "
+                "chunks. Hutch consumes the stream server-side; it does not render progressive tokens in the "
+                "dashboard, and cancellation mid-stream was not exercised."),
+    ),
 )
 
 
@@ -204,7 +247,7 @@ def _observed_evidence(provider_id: str, model: str, store: Any) -> list[Capabil
 
 
 def live_verified_evidence() -> tuple[CapabilityEvidence, ...]:
-    """The live dataset for this build. Empty: no provider account was exercised."""
+    """The live dataset for this build: only routes a dated owner-authorized run exercised."""
     return LIVE_VERIFIED_EVIDENCE
 
 

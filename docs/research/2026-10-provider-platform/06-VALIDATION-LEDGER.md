@@ -479,3 +479,95 @@ gap already recorded above. Measured against the copy and badge added here: 0 px
 sentence and badge render at every width. Evidence: `artifacts/visual/asr-2026-10-31/`.
 
 Artifact: `artifacts/live-verification/xiaomi-transcription-live-2026-10-31.json`.
+
+## Tool calling and streaming (2026-10-31)
+
+The two capabilities every provider row had been deferring were exercised on the one route with a
+working credential. Both went through Hutch's own code: the CLI `hutch run` path for the end-to-end
+case, and `provider_for_connection` for the adapter cases. Nothing was mocked and no response was
+replayed.
+
+### End-to-end: two tool calls from one streamed turn
+
+An isolated state directory, one named connection (`mimo-live`, Token Plan sgp), and a bot with only
+`list_files` and `read_file`, working in a temporary folder containing one `notes.txt`.
+
+| Observation | Value |
+|---|---|
+| Prompt | list the workspace, read `notes.txt`, quote its first line |
+| Run status | succeeded, 2 steps, exit code 0 |
+| Step 1 | `streamed=True`, finish `tool_calls`, 768 prompt / 40 completion tokens |
+| Calls emitted | `list_files {}` and `read_file {"path": "notes.txt"}` in the same assistant turn |
+| Tool results | `notes.txt`; the file's full text |
+| Step 2 | `streamed=True`, finish `stop`, 840 prompt / 39 completion tokens |
+| Answer | quoted `Project codename: lantern.` |
+| Stream retries | none: no step fell back to non-streaming |
+| Ledger | one usage row per step, same account |
+
+A second identical run reproduced it (2 steps, both streamed, the same two calls, the same quoted
+answer), so the result is not a one-off. Parallel calls inside a single streamed response are the
+interesting case for the assembler, and it handled them.
+
+### Adapter level: both parsers agree
+
+One `list_files` schema sent twice through `OpenAICompatProvider.chat`, once batched and once streamed:
+
+| Request | `result_streamed` | finish | Parsed call | argument state |
+|---|---|---|---|---|
+| `stream=False` | False | `tool_calls` | `list_files {}` | `json_object`, no parse error |
+| `stream=True` | True | `tool_calls` | `list_files {}` | `json_object`, no parse error |
+
+### A real defect the live run exposed: streamed reasoning was discarded
+
+The batch path keeps a model's thinking (`providers/openai_result.py`, fixed 2026-10-31). The streamed
+path did not, and streaming is the default, so the same request reported different output depending on
+transport.
+
+A raw wire probe settled where the fault lay - not in the provider:
+
+| Probe | Observation |
+|---|---|
+| `POST /chat/completions`, `stream: true`, one-word answer | 8 SSE chunks; `delta` fields seen: `role` (7), `content` (7), `tool_calls` (7, empty arrays), `reasoning_content` (7) |
+| Reasoning text | 51 characters, starting "The user wants me" |
+| Usage chunk | `prompt_tokens` 14, `completion_tokens` 19, `reasoning_tokens` 15 |
+
+So MiMo does stream its thinking; Hutch dropped it. `toolcalling/streamassembly.py` now collects
+`reasoning_content` (and `reasoning`) deltas and the adapter passes them into the result, matching the
+batch parser. A drift test pins the two field-name lists together.
+
+Measured effect, with the caveat that these are separate requests and the model thinks differently
+each time: the streamed adapter probe reported 0 thinking characters before the change and 100 after;
+the batch probe reported 53 and 53. Character counts are not expected to match across requests - the
+point is that the streamed path no longer reports none.
+
+After the fix the end-to-end run still passed with both steps streamed and no retry, so the change did
+not disturb tool-call assembly.
+
+### What this establishes and what it does not
+
+Established: native tool calling on `mimo-v2.6-flash` through the built-in runtime (two calls in one
+turn, validated, dispatched, results fed back, answer derived from them); batch and streamed tool-call
+parsing agreeing on the same schema; the SSE transport path used for every live model call with usage
+reported from the stream; reasoning deltas assembled on the streamed path.
+
+Not established:
+
+- **Progressive rendering.** Hutch consumes the stream server-side (watchdog, partial recovery, tool-call
+  assembly). The dashboard does not paint tokens as they arrive. Calling this "streaming" without that
+  qualifier would overclaim what a user sees.
+- **Cancellation mid-stream.** The stop path exists and is covered by tests; it was not exercised live.
+- **Vision, audio input, structured output and other tool families** on this route.
+- **Other models and regions.** Only `mimo-v2.6-flash` was exercised for tools and streaming;
+  `mimo-v2.6-pro` was exercised for text only, and the cn/ams hosts were not contacted.
+
+### Focused checks for this slice
+
+| Check | Command | Result |
+|---|---|---|
+| Stream reasoning and assembler | `uv run --frozen --no-sync pytest -q tests/test_provider_stream_reasoning.py` | 5 passed |
+| Streaming and provider regression | `uv run --frozen --no-sync pytest -q tests/test_toolcalling_streaming.py tests/test_toolcalling_properties.py tests/test_provider_reasoning.py tests/test_providers.py` | 84 passed |
+| Capability evidence and surfaces | `uv run --frozen --no-sync pytest -q tests/test_provider_capabilities.py tests/test_provider_surfaces.py` | 18 passed |
+
+Artifacts: `artifacts/live-verification/xiaomi-tool-calling-streaming-live-2026-10-31.json` (CLI run),
+`xiaomi-adapter-tool-calls-2026-10-31.json` (adapter batch/streamed), `xiaomi-stream-shape-2026-10-31.json`
+(raw wire probe).

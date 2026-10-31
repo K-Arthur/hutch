@@ -264,6 +264,8 @@ for connections that declare a transcription block.
 Next, still research-only or deferred: speech synthesis as a general tool, video/music/image-edit
 adapters with real job contracts, provider-native search attribution, and new runtime executors that
 need an approval/usage/lifecycle contract first. Live verification covers DeepSeek text, the managed
-OpenCode runtime and Xiaomi text plus speech-to-text (2026-10-30/31); every other hosted route remains
-unverified for want of a usable credential, and the research package records that boundary.
+OpenCode runtime, and Xiaomi text, speech-to-text, tool calling and the streamed transport path
+(2026-10-30/31); every other hosted route remains unverified for want of a usable credential, and the
+research package records that boundary. Streaming is verified as a transport and assembly path, not as
+progressive token rendering in the dashboard - that is still open.
 

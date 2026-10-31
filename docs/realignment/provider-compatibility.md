@@ -33,9 +33,10 @@ Provider identity, authentication profiles and capability evidence are separate 
 route matrix (added 2026-10-30). The validated catalogue in src/hutch/data/providers.json lists every
 requested provider with its category, documented auth methods, implementation status and sources;
 src/hutch/providers/accounts.py groups configured connections by that identity without merging their
-credentials; capability evidence is recorded with a level, scope and date. No provider was
-live-verified in this environment, so every hosted route above remains fixture-tested at best.
-Research and dated sources: docs/research/2026-10-provider-platform/. See ADR-0025.
+credentials; capability evidence is recorded with a level, scope and date. Live verification covers the
+DeepSeek direct route, the managed OpenCode runtime, and Xiaomi MiMo (text, speech-to-text, tool calling
+and the streamed transport path); every other hosted route above remains fixture-tested at best.
+Research and dated sources: docs/research/2026-10-provider-platform/. See ADR-0026.
 
 ### Hosted OpenAI-compatible routes (2026-10-31)
 
@@ -118,3 +119,20 @@ The local price row was absent, so the recorded cost of 0.0 is unpriced and not 
 Tool calling, streaming, image input and every other capability remain unverified for this route. The
 managed OpenCode runtime was separately live-verified with a DeepSeek model (see the research package
 live-verification artifacts). Blocked, retired and deferred provider routes are unchanged.
+
+### Xiaomi MiMo Token Plan (live-verified 2026-10-31)
+
+Text, speech-to-text, tool calling and the streamed transport path were exercised on the owner's Token
+Plan (Singapore) account. The tool-calling run is the strongest evidence: a governed CLI run with only
+`list_files` and `read_file` produced two calls in a single streamed turn, Hutch validated and executed
+both, returned their real output, and the next step answered from it. Every step reported
+`streamed=True` with no fallback to non-streaming, and one usage row per step landed in the ledger.
+
+The run also exposed a defect: the streamed path dropped the `reasoning_content` deltas the provider
+sends, so a streamed call reported less output than the same call batched. A raw wire probe confirmed
+the provider sends them; the assembler now keeps them, and the end-to-end run still passes.
+
+Boundaries of the claim: `mimo-v2.6-flash` only for tools and streaming (`mimo-v2.6-pro` was text only);
+no vision, structured output, cancellation mid-stream or other tool families; the cn/ams hosts were not
+contacted; and "streaming" here means Hutch consumes SSE and assembles the result server-side - the
+dashboard does not render progressive tokens.

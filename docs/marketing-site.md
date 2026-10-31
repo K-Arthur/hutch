@@ -454,3 +454,26 @@ The copy must not extend this to mp3, Chinese, automatic language detection, the
 files or streaming: none were exercised. It must not call the route free (the plan bills in credits),
 and it must not imply that any other provider's speech-to-text is shipped. Image, video, music and
 provider-native search claims are unchanged by this slice.
+
+### Tool calling and streaming claim (2026-10-31)
+
+The capability paragraph now says the Xiaomi route ran two tool calls in a single streamed turn and that
+every step arrived over SSE, and the badge reads `xiaomi token plan (text, tools, streaming live-verified
+2026-10-31)`. The prior sentence - "only text was exercised; streaming, tools and vision remain
+unverified" - was true before this slice and is now false, so it had to change rather than soften.
+
+Evidence: a governed `hutch run` with only `list_files` and `read_file` produced two calls in one
+streamed assistant turn, Hutch validated and executed both against a temporary workspace, the next step
+answered from the returned file text, every step reported `streamed=True` with no non-streaming retry,
+and one usage row per step landed in the ledger. A second identical run reproduced it. Adapter probes
+covered both the batched and streamed tool-call parsers. Artifacts:
+`docs/research/2026-10-provider-platform/artifacts/live-verification/xiaomi-tool-calling-streaming-live-2026-10-31.json`
+and `xiaomi-adapter-tool-calls-2026-10-31.json`.
+
+The copy must not say "streaming" without the qualifier that Hutch assembles the stream server-side and
+does not paint tokens progressively; it must not claim cancellation mid-stream, vision, structured output
+or other tool families; it must not extend the claim to `mimo-v2.6-pro`, other models, the cn/ams hosts or
+any other provider. "Tools" here means tool calls emitted by the model and dispatched by Hutch, not a
+claim about every tool family.
+
+The section was re-captured after this edit; see the visual-validation note below.

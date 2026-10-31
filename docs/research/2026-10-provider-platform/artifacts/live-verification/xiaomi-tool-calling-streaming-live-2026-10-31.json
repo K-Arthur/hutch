@@ -1,0 +1,137 @@
+{
+  "date": "2026-10-31",
+  "revision": "4198ac8d",
+  "revision_note": "HEAD at capture time; the reasoning-delta fix in providers/openai_compat.py and toolcalling/streamassembly.py was the working-tree change under test.",
+  "verification": "CLI `hutch run` -> built-in runtime -> openai-chat adapter -> mimo-v2.6-flash",
+  "authorization": "Owner-authorized live testing with the Token Plan key already configured in this environment, read in memory and written only to a temporary 0600 key file inside a throw-away state directory that was deleted afterwards.",
+  "configuration": {
+    "tools": [
+      "list_files",
+      "read_file"
+    ],
+    "approval_mode": "ask",
+    "workspace_mode": "folder (temporary workdir with one notes.txt)",
+    "max_steps": 6,
+    "streaming": "provider default (on) for every model call"
+  },
+  "observed": {
+    "cli_exit_code": 0,
+    "elapsed_seconds": 12.0,
+    "run_status": "succeeded",
+    "steps": 2,
+    "prompt_tokens": 1608,
+    "completion_tokens": 79,
+    "model_used": "mimo-live/mimo-v2.6-flash",
+    "events": [
+      {
+        "type": "status",
+        "status": "running"
+      },
+      {
+        "type": "log",
+        "message": "{'browser_handoff': 'headless', 'execution_purpose': 'task', 'inference_mode': 'hybrid', 'limits': {'daily_cost_cap_usd': 0.0, 'daily_token_cap': 200000, 'max_cost_usd': 0.0, 'max_steps': 6, 'max_turn_tokens': 0, 'timeout_seconds': 180}, 'model': 'mimo-live/mimo-v2.6-flash', 'runtime': 'builtin', 's"
+      },
+      {
+        "type": "log",
+        "message": "{'hosted_window': 'unknown', 'kind': 'context', 'note': 'mimo-live/mimo-v2.6-flash: effective context unknown \u2014 overflow would surface only as a mid-run provider error (no advertised window is recorded for this hosted route; hosted windows are not enforced yet)', 'severity': 'warn'}"
+      },
+      {
+        "type": "log",
+        "message": "{'kind': 'plan', 'model': 'mimo-live/mimo-v2.6-flash', 'note': 'mimo-live/mimo-v2.6-flash: ~984 prompt tokens, up to 6 steps, price unknown', 'prompt_tokens': 984, 'window': None, 'worst_case_usd': 0.0}"
+      },
+      {
+        "type": "log",
+        "message": "{'aliases': {}, 'cache_hit': False, 'catalog_hash': '1156ae1a687f24dd', 'compiled_ms': 0.164, 'compiler_version': 'toolcalling-1', 'diagnostics': [{'classification': 'locally_enforced', 'code': 'strategy.native.unverified', 'detail': 'native tool support is not verified for this exact route/model; H"
+      },
+      {
+        "type": "log",
+        "message": "{'field': '', 'kind': 'tool_protocol', 'note': 'strategy.native.unverified: native tool support is not verified for this exact route/model; Hutch will still validate every call locally and reject malformed, unknown, or schema-invalid calls', 'severity': 'warning', 'tool': ''}"
+      },
+      {
+        "type": "log",
+        "message": "{'kind': 'note', 'note': 'the provider billed 12 of 40 completion tokens as reasoning'}"
+      },
+      {
+        "type": "step",
+        "n": 1,
+        "model": "mimo-live/mimo-v2.6-flash",
+        "streamed": true,
+        "finish": "tool_calls",
+        "prompt_tokens": 768,
+        "completion_tokens": 40,
+        "model_ms": 4702.02
+      },
+      {
+        "type": "tool_call",
+        "tool": "list_files",
+        "args": {}
+      },
+      {
+        "type": "tool_result",
+        "tool": "list_files",
+        "ok": true,
+        "output": "notes.txt"
+      },
+      {
+        "type": "tool_call",
+        "tool": "read_file",
+        "args": {
+          "path": "notes.txt"
+        }
+      },
+      {
+        "type": "tool_result",
+        "tool": "read_file",
+        "ok": true,
+        "output": "Project codename: lantern.\nReviewer: Priya.\nDeadline: the last Friday of November.\n"
+      },
+      {
+        "type": "log",
+        "message": "{'kind': 'note', 'note': 'the provider billed 11 of 39 completion tokens as reasoning'}"
+      },
+      {
+        "type": "step",
+        "n": 2,
+        "model": "mimo-live/mimo-v2.6-flash",
+        "streamed": true,
+        "finish": "stop",
+        "prompt_tokens": 840,
+        "completion_tokens": 39,
+        "model_ms": 5456.35
+      },
+      {
+        "type": "message",
+        "role": "assistant",
+        "content": "I found the file `notes.txt` in the workspace root, whose first line reads exactly: \"Project codename: lantern.\""
+      },
+      {
+        "type": "log",
+        "message": "{'final_chars': 112, 'steps': 2, 'tokens': 1687}"
+      },
+      {
+        "type": "status",
+        "reason": "completed",
+        "status": "succeeded"
+      }
+    ],
+    "usage_rows": [
+      [
+        "mimo-live",
+        "mimo-v2.6-flash",
+        768,
+        40,
+        "step"
+      ],
+      [
+        "mimo-live",
+        "mimo-v2.6-flash",
+        840,
+        39,
+        "step"
+      ]
+    ],
+    "stream_retries": [],
+    "stdout_tail": "  \u2192 list_files {}\n  \u2713 notes.txt\n  \u2192 read_file {\"path\": \"notes.txt\"}\n  \u2713 Project codename: lantern.\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 assistant \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502 I found the file `notes.txt` in the workspace root, whose first line reads   \u2502\n\u2502 exactly: \"Project codename: lantern.\"                                        \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\nrun run_c853b4fc70fa \u2192 succeeded (completed, steps=2, tokens\u22481687)\n",
+    "stderr_tail": ""
+  }
+}
