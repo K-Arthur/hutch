@@ -4874,3 +4874,61 @@ passing run; models-table text and a chip radius were off the documented scales.
   preserved as a tag and needs a product decision.
 - From about 12:38 a second session was active. Its commit `2fedfc4f` (product spine) and its uncommitted
   page-title work are not part of this entry's verification.
+
+## Release-readiness run: coherence, start states, packaging and gates (2026-10-30, second session)
+
+Authority: the owner's long-horizon prompt (`long-horizon-prompt.md`), then three mid-run owner messages: the front
+end still looked like a demo (model picker, "Working" labels), presets and a single orchestrator should replace a
+gallery of built-in assistants, and mock/demo items should be removed and replaced with real behaviour. Plan,
+slice log and every acceptance: `release-readiness-progress.md`. Product definition and contradiction list:
+`product-spine.md`. What is still missing for a real platform: `platform-gap-analysis-2026-10-30.md`. Release
+state: `docs/release-checklist.md`. Nothing was pushed, tagged, published, signed or deployed.
+
+**Commits (main, 26 since `3bcbe454`; two by the first session).** `2fedfc4f` product spine; `0eacc863` one title
+format; `f0cd64ca` Activity merge; `074e56e4` server shell parity; `f4b4e530` global stop in the app header;
+`d60b40a3` retired `/legacy`, unused templates and dead redirect work; `6c888d11` one vocabulary and its audit;
+`fe533ad7` `52b6f26d` evidence written to the isolated artifact root; `64a14393` fresh-state routes at three widths;
+`bdb28708` detected AI service on Models and the form-POST fix; `b701e74b` first-run setup check and service offer;
+`ac29462a` orphaned-run recovery pinned; `0cf39d80` endpoint-existence test and the unused `POST /bots` removed;
+`5c8f56a7` sdist 267 MB to 8.3 MB; `c3375be3` doctor prints brackets literally; `3e677b88` first-run layout (S7);
+`5195b9c2` docs truth and a docs-link guard; `20e6a9f4` refreshed first-run captures; `1683156e` live runs that nothing
+owns are recovered; `2b8cad03` an assistant on a dead demo route says so; `9e08646e` gap analysis and release checklist.
+
+**Gate evidence.**
+
+| Run | Tree | Result |
+|---|---|---|
+| Full non-browser, fresh clone (`git clone --no-hardlinks`, clone and `TMPDIR` on the home volume), `pytest -q --no-header --tb=line -p no:cacheprovider --ignore=tests/e2e` | `52b6f26d` | 2 failed, 4247 passed, 63 skipped, 3 xfailed, 23m22s. The two failures were timing tests (`test_batched_writer_sustains_over_1000_events_per_second`, `test_single_line_spin_deadline_is_bounded_by_an_outer_process`) run while browser tests and builds shared the machine; both passed twice alone afterwards |
+| `npm run check:agent` from a fresh clone | `52b6f26d` | all four gates pass (the clone had no environment, so `UV_PROJECT_ENVIRONMENT` pointed at the existing one and the clone's `src` led `PYTHONPATH`) |
+| Focused browser gate (10 modules: fresh-state routes at 1440/900/360, Activity, titles, stop-all, Models detection, first-run setup check, first-run layout, unusable-route assistant, palette, website) | `9e08646e` | 149 passed, 1 skipped, 261s. Chromium 153.0.8010.12, Playwright 1.63.0, Linux, no Docker parity claimed |
+| Recovery, lease, engine, doctor, scheduler, cancel, worker, lifecycle, delegation unit tests | after `1683156e` | 279 passed |
+| Payload, vocabulary, endpoint, pairing, orphan, doctor, conversation unit tests | after `2b8cad03` | 257 passed |
+| Emoji audit, vocabulary audit, docs-link test, packaging guard | `9e08646e` | clean, clean, 2 passed, 2 passed |
+| Build and install smoke | `5c8f56a7` | `uv build`; wheel installed into a fresh venv; `hutch version`, `init`, `doctor`, `serve` from the installed wheel; 7 routes at 1440 and 360 with 0 console errors and 0 overflow |
+
+The full suite was not repeated after `52b6f26d`; the three later code commits are covered by the focused runs above.
+
+**Defects found and fixed.** Every plain form POST on a server page was refused in Chromium (`Origin: null`); an
+sdist of 267 MB (evidence PNGs); a first-run layout where the hint floated in the wrong column and vanished on
+phones; `hutch doctor` dropped `[browser]` from its fix text (Rich markup); a live run that nothing owned showed
+"Working" forever; an assistant on a dead demo route looked healthy; `POST /bots` and `/legacy` were unused
+duplicates; a fourth and fifth e2e test rewrote reviewed evidence; the paired-route inventory test still listed the
+removed `/legacy`; the site caption claimed "no provider call", which was never verified.
+
+**Process incidents, recorded.** A bulk phrase-sync over the tests corrupted 139 files and was reverted exactly by
+reconstructing each file as `HEAD` plus the deliberate edits and confirming it reproduced the damaged file. The
+`/tmp` tmpfs filled during the run (a 2.3 GB scratch clone plus other sessions' trees); only this session's scratch
+was deleted, and `scripts/prune_validation_tmp.py --apply` was **not** run because it would remove
+`~/.hutch-tmp/hp26` (14.8 GiB, three registered worktrees that were not examined).
+
+**Limits, recorded rather than hidden.**
+
+- 19 `tests/e2e/test_browser.py` tests fail at the pre-change baseline `3bcbe454` and still fail (listed in
+  `docs/release-checklist.md`); two `test_route_state_boundaries.py` cases and one `test_wcag_measured_audit.py`
+  case fail at baseline too.
+- Not run: a live-model first request; a live service install (browser tests use labelled fixtures); a screen
+  reader or axe pass; native builds; macOS and Windows.
+- Server-page header chrome (C5), per-page empty/loading/error states, a seeded-state pass, the orchestrator-first
+  onboarding, the catalog, and the migration for leftover demo assistants are not done.
+- The published `origin/main` is 148 commits behind and its latest CI run concluded `failure`; the current tree has
+  never run in CI.

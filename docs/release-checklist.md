@@ -24,7 +24,7 @@ final gate run is recorded in [`docs/realignment/ledger.md`](realignment/ledger.
 | Public docs link only to tracked files | `tests/test_docs_links.py` | passing |
 | Emoji audit | `python scripts/audit_emoji.py` | clean |
 | `check:agent` from a fresh clone | `npm run check:agent` in a `git clone` | all four gates pass |
-| Full non-browser suite from a fresh clone | see the ledger entry for the exact command and counts | recorded in the ledger |
+| Full non-browser suite from a fresh clone | `pytest -q --ignore=tests/e2e` at `52b6f26d` | 4,247 passed, 63 skipped, 3 xfailed, 2 timing failures that pass alone twice; details in the ledger |
 
 Browser environment for every browser result: Chromium 153.0.8010.12 (Playwright 1.63.0), Linux. No
 Docker parity is claimed.
