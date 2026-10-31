@@ -1,8 +1,10 @@
 # Changelog
 
 All notable changes to hutch. Format follows Keep a Changelog; versioning is semantic.
-Publication status: nothing has been shipped — there is no tag, GitHub release, or package
-for 0.1.0 or for anything recorded after it, so all post-0.1.0 work sits under Unreleased.
+Publication status: `v0.1.0` is tagged at commit `577e1154` (2026-10-28) and published as a public
+GitHub pre-release, "Hutch v0.1.0 (development preview)", with no packaged installer and no PyPI package.
+The `[0.1.0]` heading below is dated 2026-10-07 but the tag was cut later, so the tag also contains work
+listed under Unreleased; entries are not split by it.
 
 ## [Unreleased]
 - Add the first-run handoff and in-context AI-service chooser: the empty chat's one primary action now saves the tab-scoped request draft and lands on the server-owned `/onboarding` request step instead of detouring to the Apps & AI catalog, and the saved request's one primary action opens `/onboarding/ai-service`. The request step reads the tab draft only when the server has no saved request, prefills it with the honest note that it is not saved yet, and the plain form POST remains the only write. The chooser offers exactly three routes - hosted provider key, local model service, existing OpenCode login - with one statically recommended route and its honest qualifier, keeps the written request visible, and states in words that apps and devices come later. It records the choice in the existing setup kv record with one revision bump; a same-route resubmit replays with no second write, a different route is a deliberate change, and a different route from a stale revision is an explicit conflict that never overwrites. No-request, invalid, version/requirements-drift stale, removed-route stale, conflict, CSRF-rejected and damaged states are named individually; no provider, localhost or browser network call is made, and the recommendation is not presented as detected or verified. The step is owner-only and CSRF-checked, works as a plain form without JavaScript, and adds the chooser stylesheet plus a shared pagekit module. See `docs/onboarding/setup-record.md` section 9.
