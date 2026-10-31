@@ -56,6 +56,23 @@ def test_a_coordinator_the_person_already_chose_is_kept(client):
     assert _coordinator(client)["name"] == "chosen"
 
 
+def test_the_main_assistant_is_always_a_local_owned_assistant(client):
+    """A9: the role can only name an assistant that exists in this workspace's store.
+
+    Hutch has no remote or shared assistants, and a catalog entry is reviewed and created as the
+    person's own local copy (see catalog.py and the setup review), so a catalog copy is eligible
+    exactly like a hand-made assistant — never by reference to someone else's bot.
+    """
+    missing = client.put("/api/v1/workspace/coordinator", json={"bot_id": "not-a-bot"})
+    assert missing.status_code == 404
+    from hutch.templates import instantiate
+    store = client.app.state.store
+    copy = instantiate("day-planner", "planner-copy")
+    store.create_bot(copy)
+    assert client.put("/api/v1/workspace/coordinator", json={"bot_id": copy.id}).status_code == 200
+    assert _coordinator(client)["name"] == "planner-copy"
+
+
 def test_after_every_assistant_is_gone_the_next_first_one_is_the_main_assistant(client):
     _create(client, "juno", "Juno")
     client.app.state.store.delete_bot("juno")

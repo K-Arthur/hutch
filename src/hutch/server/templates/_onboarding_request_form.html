@@ -5,8 +5,9 @@
     <label class="onboarding-label" for="request">Your request <span class="onboarding-req" aria-hidden="true">*</span></label>
     <textarea class="onboarding-textarea" id="request" name="request" rows="6" required maxlength="20000"
               {%- if state == "setup.empty_no_route" %} data-draft-target{% endif %}
-              {%- if field_error %} aria-invalid="true" aria-describedby="request-help request-error"{% else %} aria-describedby="request-help"{% endif %}>{{ request_text }}</textarea>
+              {%- if field_error %} aria-invalid="true" aria-describedby="request-help request-guidance request-error"{% else %} aria-describedby="request-help request-guidance"{% endif %}>{{ request_text }}</textarea>
     <p class="onboarding-help" id="request-help">Stored only in this machine's Hutch data directory. Nothing is sent until you continue to an AI service.</p>
+    <p class="onboarding-help" id="request-guidance">A useful request names the outcome you want, where to look, what to avoid, what to hand back, and when the assistant should stop and ask you.</p>
     {% if state == "setup.empty_no_route" %}
     <p class="onboarding-help onboarding-draft-note" data-draft-note hidden>Restored from this browser tab - not saved on this machine yet.</p>
     {% endif %}
