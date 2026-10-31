@@ -95,3 +95,24 @@ Failure attribution:
   green (697 passed).
 
 No other failures remain. The other session's uncommitted changes were never staged, reverted or reformatted.
+
+## Concurrent integration (2026-10-31, after the first regression pass)
+
+Another active session committed a provider-platform series to local main in the shared checkout while this
+slice was being validated (for example 8e891ad1, 934e1b69, 185059fe, ffc686a9). The slice commits are all
+present on main. Ordering after integration: this slice's commits up to 02cf968b are ancestors of that
+session's tip ffc686a9, and the final slice commit 4f23c591 sits on top of it. The provider series edited
+website/index.html and store.py (adding mcp_schema.migrate after personal_schema.migrate), so:
+
+- the current store schema is 85: v84 is the personal-operations migration, v85 is the MCP integration
+  migration added by the other session; docs/architecture.md and ADR-0025 correctly describe v84 as the
+  migration that added commitments and spaces;
+- all slice features and documentation are still present at HEAD (nav Today row, Today/Shared modules, the
+  homepage section, the marketing claims paragraph, the personal_schema registration) and the focused tests,
+  tool-contract audit, constitution audit and agent-map check were re-run green by the independent verifier;
+- npm run check:agent as a whole currently reports one new-source-file cap violation in
+  tests/test_mcp_plane.py (402 lines), which was added by the other session's commit 934e1b69 and is not part
+  of this slice; it was not modified here to avoid editing another active session's committed work.
+
+A third session's uncommitted model-picker/removal work remains in the working tree (20 modified, 13
+untracked paths at the final check); it was never staged, reverted or reformatted.
