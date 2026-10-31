@@ -47,3 +47,9 @@
   must say `implemented-unverified`, never `live-verified`.
 - Local inference discovery is read-only over loopback and sends no credential. A hostile page cannot
   trigger it; the server calls it locally through the authenticated dashboard.
+## Known security gap in custom endpoints
+
+Outside Strict Offline a custom endpoint is operator-configured and keeps the existing credential scoping,
+but there is no private-range allowlist or redirect/DNS pinning in the provider layer. Recorded as a
+carried-over hardening gap (00-SCOPE, 04-ARCHITECTURE-AND-ADRS, docs/provider-platform.md); do not present
+custom endpoints as validated against SSRF for untrusted input until that gap is closed.

@@ -23,7 +23,7 @@ independent verifier separately re-runs the definition-of-done checks.
 1. Medium, documented: outside Strict Offline, the provider layer does not implement a private-range
    allowlist or redirect/DNS pinning for operator-configured custom endpoints. Embedded URL credentials
    are refused and ambient keys are official-host-only, so this is not a credential leak; it is a
-   documented SSRF-adjacent hardening gap recorded in 00-SCOPE, 04-ARCHITECTURE and 07-ROLLOUT. Not
+   documented SSRF-adjacent hardening gap recorded in 00-SCOPE (Known security gap), 04-ARCHITECTURE-AND-ADRS, docs/provider-platform.md and 07-ROLLOUT-AND-MIGRATION. Not
    introduced by this slice; it should be addressed before recommending untrusted operator input for
    endpoints.
 2. Low, documented: CLI version detection shells out to installed binaries for informational display.

@@ -1,6 +1,6 @@
 # 06 - Validation ledger
 
-Exact commands and observed results. Status: in progress. Every hosted route in this package is not live-verified. Hosted live verification is `BLOCKED` for
+Exact commands and observed results. Status: complete for this delivery; the live-verification boundary below still applies. Every hosted route in this package is not live-verified. Hosted live verification is `BLOCKED` for
 this delivery because no provider credentials exist in the execution environment; nothing below should
 be read as proof that a hosted provider works live.
 

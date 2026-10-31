@@ -106,3 +106,13 @@ distinct from external search integrations).
 - Provider credential variables present: none. Local inference endpoints reachable: none.
   Installed CLIs: `claude` 2.1.314, `codex`, `opencode` (version probe blocked by a read-only log path);
   `gemini`, `qwen`, `pi` absent. Details: `artifacts/env-probe.txt`.
+
+## Known security gap carried by this slice
+
+Outside Strict Offline, operator-configured custom model endpoints keep Hutch's existing protections
+(ambient provider keys are sent only to the provider's exact official host, embedded URL credentials are
+rejected, and Strict Offline requires loopback plain HTTP), but the provider layer does not implement a
+private-range allowlist or redirect/DNS pinning for those custom endpoints. This predates the provider
+platform slice and is not a credential leak by itself; it is recorded here, in
+04-ARCHITECTURE-AND-ADRS.md, docs/provider-platform.md and 07-ROLLOUT-AND-MIGRATION.md so it is not
+silently assumed safe. It must be addressed before endorsing untrusted operator-supplied endpoints.
