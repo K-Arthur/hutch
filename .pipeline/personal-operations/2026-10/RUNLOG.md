@@ -64,3 +64,34 @@ engine claimed it (GET /api/v1/bots/household-helper/schedules/<id>/occurrences)
 failed, run_origin schedule, exit_reason model_unavailable, missed_windows 0. That is the honest
 outcome: the durable schedule fired correctly and the run failed because the acceptance assistant
 has no configured model route. After the fire the next occurrence moved to the following day.
+
+## Full non-e2e regression (2026-10-31)
+
+Command pattern (all 286 non-e2e test files split into six disjoint batches, UV_CACHE_DIR=/tmp/uv-cache,
+uv run --frozen --no-sync pytest -q --no-header --tb=line):
+
+| Batch | Result |
+|---|---|
+| 1 | 702 passed, 64 skipped, 1 failed |
+| 2 | 808 passed, 2 skipped |
+| 3 | 840 passed, 10 skipped, 3 xfailed, 3 failed |
+| 4 | 680 passed, 11 skipped |
+| 5 | 702 passed, 3 skipped |
+| 6 (re-run after fix) | 697 passed, 9 skipped |
+
+Totals: 4,429 passed, 99 skipped, 3 xfailed, 4 failed.
+
+Failure attribution:
+
+- tests/test_procguard.py::test_group_inspection_checks_the_saved_session_identity fails in this sandbox
+  because a process inside the execution namespace reports pgrp/session 0; it reproduces on a clean HEAD
+  worktree with only the test file checked out, so it is an environment limitation, not this slice.
+- tests/test_remote_pairing.py (two tests) reproduce on clean HEAD; they try to bind a fixed port already
+  occupied on this host.
+- tests/test_routes.py::test_a_default_that_cannot_run_is_refused passes on clean HEAD and fails only with
+  another session's uncommitted route/model-selection changes in the worktree; it is not caused by this slice.
+- tests/test_bot_deletion_schema.py pinned SCHEMA_VERSION to 83, so the additive v84 migration broke it. Fixed
+  to assert the bot-deletion floor (>= 83) rather than the store's latest version; the affected batch re-ran
+  green (697 passed).
+
+No other failures remain. The other session's uncommitted changes were never staged, reverted or reformatted.

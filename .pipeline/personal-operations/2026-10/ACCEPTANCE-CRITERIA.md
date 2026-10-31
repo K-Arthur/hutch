@@ -24,8 +24,8 @@ Status legend: PASS (observed on the real app or real store); PARTIAL (implement
 | 18 | Coding orchestration lifecycle changes | DEFERRED | Existing code_handoff, coordinator tasks and worktree isolation were inspected (CURRENT-STATE.md) but no runtime/provider is configured to execute a live coding task in this environment; no claims are made |
 | 19 | Multimodal deliverable production changes | DEFERRED | Existing documents/workflow pipeline inspected; not modified in this slice; Today only lists real document rows when they exist |
 | 20 | Duplicate external action / reconciliation acceptance | PARTIAL | Existing channels/action-receipt machinery was inspected (CURRENT-STATE.md); no connected external destination in this environment to run the ambiguous-delivery scenario. This slice adds no new external effects. |
-| 21 | Full non-e2e regression suite | see RUNLOG/PR | command and result recorded after the run completes |
-| 22 | Independent review | see review section | verifier subagent run recorded in EVIDENCE/HANDOFF |
+| 21 | Full non-e2e regression suite | PASS with attributed environment/dirty-tree failures | 4,429 passed, 99 skipped, 3 xfailed, 4 failed across 6 sequential batches of all 286 non-e2e files (results and attribution in RUNLOG). Failures: 3 reproduce on clean HEAD in this sandbox (procguard process-group inspection under the sandbox pid namespace; two remote-pairing tests that try to bind an occupied port), and 1 (test_routes) is caused by another session's uncommitted model-route changes and passes on clean HEAD. One real regression from this slice (a stale schema-version pin in test_bot_deletion_schema.py) was found and fixed, then its batch re-ran green. |
+| 22 | Independent review | in progress | verifier report is recorded in the final report and HANDOFF; any finding is fixed and re-run before completion |
 
 ## Explicit non-claims
 

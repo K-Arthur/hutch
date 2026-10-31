@@ -69,8 +69,10 @@ def make_v82(db_path):
         db.close()
 
 
-def test_fresh_store_is_v83_with_evidence_tables_and_guards(store):
-    assert SCHEMA_VERSION == 83
+def test_fresh_store_carries_v83_evidence_tables_and_guards(store):
+    # This pins the bot-deletion feature floor, not the whole store's latest version:
+    # later additive migrations (for example v84 personal operations) may advance it.
+    assert SCHEMA_VERSION >= 83
     assert store.schema_version == SCHEMA_VERSION
     db = store._db
     assert EVIDENCE_TABLES <= schema_names(db, 'table')
