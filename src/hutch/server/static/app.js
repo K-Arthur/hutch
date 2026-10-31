@@ -3124,14 +3124,11 @@ async function readFirstRunReadiness() {
     openCodeResult.status === "rejected" ? "OpenCode" : "",
     routesResult.status === "rejected" ? "other AI routes" : "",
   ].filter(Boolean);
-  const readyRoutes = routes.filter(route =>
-    route?.state === "ready" && typeof route.spec === "string");
   const savedModel = typeof defaults?.model === "string" ? defaults.model.trim() : "";
   const workspaceModel = defaults?.route_problem ? "" : savedModel;
-  const openCodeModels = Array.isArray(openCode?.models) ? openCode.models : [];
 
   if (workspaceModel) {
-    const matchedRoute = readyRoutes.find(route => route.spec === workspaceModel);
+    const matchedRoute = routes.find(route => route?.state === "ready" && route.spec === workspaceModel);
     return {
       state: "saved",
       choice: {
@@ -3142,28 +3139,15 @@ async function readFirstRunReadiness() {
       retry: false,
     };
   }
-  if (openCode?.ready && openCodeModels.length) {
-    const model = openCodeModels[0];
-    const spec = typeof model?.spec === "string" ? model.spec : "";
-    if (spec) {
-      const count = openCodeModels.length;
-      return {
-        state: "ready",
-        choice: { kind: "opencode", runtime: "opencode", model: spec, label: model.name || firstRunModelName(spec) },
-        copy: `OpenCode is ready with ${count} model option${count === 1 ? "" : "s"}. ${openCode.authenticated
-          ? "A provider account is connected."
-          : "Its available models can be used without a separate account."}`,
-        retry: false,
-      };
-    }
-  }
-  if (readyRoutes.length) {
-    const route = readyRoutes[0];
+  const starter = hutchStarterRoute.choose(openCode, routes);   // local first, then your own provider, then a free hosted model
+  if (starter) {
     return {
-      state: "ready",
-      choice: { kind: "route", runtime: "builtin", model: route.spec, label: route.label || firstRunModelName(route.spec) },
-      copy: `${route.group || "A configured provider"} has a ready model route for setup.`,
-      retry: false,
+      state: "ready", choice: starter, retry: false,
+      copy: starter.kind === "opencode"
+        ? `OpenCode is ready with ${starter.count} model option${starter.count === 1 ? "" : "s"}. ${starter.connected
+          ? "A provider account is connected."
+          : "Its available models can be used without a separate account."}`
+        : `${starter.group || "A configured provider"} has a ready model route for setup.`,
     };
   }
   if (failures.length === 3) {
@@ -3202,6 +3186,8 @@ function paintFirstRunReadiness(snapshot) {
   if (copy) copy.textContent = snapshot.copy || labels.checking;
   const meta = $("#first-run-ai-meta");
   if (meta) meta.textContent = snapshot.choice?.model || "";
+  const routeNotice = $("#first-run-route-notice");
+  if (routeNotice) routeNotice.innerHTML = hutchStarterRoute.noticeHtml(snapshot.choice);
   const connect = $("#first-run-connect-opencode");
   if (connect) connect.textContent = snapshot.choice?.kind === "opencode" ? "OpenCode settings" : "Connect OpenCode";
   const retry = $("#first-run-ai-retry");
@@ -3279,6 +3265,7 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
               </div>
               <p class="first-run-readiness-copy" id="first-run-ai-state" role="status" aria-live="polite" aria-atomic="true">Looking for a saved model or a ready connection…</p>
               <p class="first-run-readiness-meta" id="first-run-ai-meta"></p>
+              <div id="first-run-route-notice"></div>
               <div class="first-run-readiness-actions">
                 <button class="btn ghost small" type="button" id="first-run-connect-opencode">Connect OpenCode</button>
                 <a href="#/connections" id="first-run-manage-ai">Use another provider</a>
@@ -11575,7 +11562,15 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     try { openCodeStatus = await api("/v1/opencode/status"); firstRunOpenCodeStatus = openCodeStatus; }
     catch { openCodeStatus = null; }
   }
-  const openCodeDefault = openCodeStatus?.ready ? openCodeStatus.models?.[0]?.spec || "" : "";
+  // A new assistant starts where the main one already works; failing that, the shared starter route (never silent: it is shown and confirmed).
+  const mainBot = botsCache.find(item => item.is_workspace_coordinator && item.model && !item.route_problem) || null;
+  let starter = null;
+  if (!duplicateBot && !conversationSource?.model_suggestion && !workspaceDefaults.model && !firstRunChoice?.model && !mainBot) {
+    try {
+      openCodeStatus ??= await api("/v1/opencode/status");
+      starter = hutchStarterRoute.choose(openCodeStatus, await api("/v1/model-routes?inference_mode=hybrid&runtime=builtin"));
+    } catch { /* setup stays available; the route can be chosen by hand */ }
+  }
   let browserHandoffCapability = { status: "unavailable", reason: "The host has not confirmed local browser support." };
   try {
     const capabilities = await api("/v1/capabilities");
@@ -11587,23 +11582,25 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     : `Unavailable on this host: ${browserHandoffCapability.reason} This does not enable phone browser control.`;
   const chosenTemplate = templates.find(item => item.name === preselect) || null;
   const firstRunModel = firstRunChoice?.model || "";
-  let modelSuggestion = duplicateBot?.model || conversationSource?.model_suggestion || workspaceDefaults.model || firstRunModel || "";
-  let modelSuggestionSource = duplicateBot ? "duplicate" : conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : firstRunModel ? "first_run" : "";
+  let modelSuggestion = duplicateBot?.model || conversationSource?.model_suggestion || workspaceDefaults.model || firstRunModel || mainBot?.model || starter?.model || "";
+  let modelSuggestionSource = duplicateBot ? "duplicate" : conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : firstRunModel ? "first_run" : mainBot ? "main" : starter ? "starter" : "";
+  const startChoice = modelSuggestionSource === "first_run" ? firstRunChoice : modelSuggestionSource === "starter" ? starter : null;
+  const routeNotice = () => startChoice && draft.model === startChoice.model ? hutchStarterRoute.noticeHtml(startChoice) : "";
   const draft = {
     step: 0, forceAdvanced: !!chosenTemplate || !!duplicateBot,
-    runtime: duplicateBot?.runtime || firstRunChoice?.runtime || (!modelSuggestion && openCodeDefault ? "opencode" : "builtin"),
+    runtime: duplicateBot?.runtime || firstRunChoice?.runtime || (modelSuggestionSource === "main" ? mainBot.runtime : starter?.runtime) || "builtin",
     purpose: duplicateBot?.instructions || conversationSource?.original_request || prefillPurpose || "",
     useConversationSource: !duplicateBot && !!conversationSource,
     selectedContextMessageIds: new Set(),
     template: chosenTemplate?.name || "", preset: duplicateBot?.preset || chosenTemplate?.preset || "", name: "",
     display_name: duplicateBot ? `${botHeading(duplicateBot)} copy`.slice(0, 80) : "",
     description: duplicateBot?.description || "",
-    model: modelSuggestion || (!duplicateBot ? openCodeDefault : ""),
+    model: modelSuggestion,
     purposeRefinement: null, purposeRefinementStatus: "",
     purposeClarificationHistory: [], purposeClarificationQuestion: null,
     purposeClarificationChoice: "", purposeClarificationAnswer: "", purposeDraftPending: null,
     inference_mode: duplicateBot?.inference_mode || conversationSource?.inference_mode_suggestion ||
-      (openCodeDefault && !modelSuggestion ? "hybrid" : workspaceDefaults.inference_mode || "hybrid"),
+      (modelSuggestionSource === "main" ? mainBot.inference_mode : "") || workspaceDefaults.inference_mode || "hybrid",
     workspace_mode: duplicateBot?.workspace_mode === "fresh" ? "fresh" : "managed",
     // A duplicate is a safe configuration starting point, not a copy of authority.
     tools: duplicateBot ? new Set() : chosenTemplate ? templateTools(chosenTemplate) : new Set(),
@@ -12261,8 +12258,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
           <div class="hutch-field"><label class="hutch-label" for="setup-description">Short note</label><input class="hutch-input" id="setup-description" maxlength="240" placeholder="What people can ask this assistant to do" value="${esc(draft.description)}"></div>
         </div>
       </details>
-      ${!draft.forceAdvanced ? `<section class="setup-quick-summary" aria-label="Starting settings">
-        <p>${draft.model ? "Uses the selected AI service" : "Choose an AI option to finish setup"} · no apps connected or recurring work · checks with you before important actions.</p>
+      ${!draft.forceAdvanced ? `${routeNotice()}<section class="setup-quick-summary" aria-label="Starting settings">
+        <p>${draft.model ? `Uses the selected AI service: ${esc(firstRunModelName(draft.model))}` : "Choose an AI option to finish setup"} · no apps connected or recurring work · checks with you before important actions.</p>
         <p class="hint">Saves your assistant only; nothing starts until you ask it to work.</p>
       </section>
       <button type="button" class="btn ghost small setup-customize" id="setup-customize">Fine-tune the details</button>` : ""}
@@ -12282,7 +12279,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
           <button class="btn ghost small" type="button" id="setup-connect-opencode">Connect OpenCode provider</button>
           <p class="hint">Hutch uses a private OpenCode profile. It never reads your personal OpenCode session. Tools and approvals remain governed by Hutch.</p>
         </div>` : ""}
-        <div class="hutch-field"><label class="hutch-label" for="setup-model"><span id="setup-model-label">Model route</span></label><input class="hutch-input" id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="${opencode ? "opencode/provider/model" : "Choose or enter provider/model"}" value="${esc(draft.model)}" required aria-labelledby="setup-model-label" aria-describedby="setup-model-hint"><datalist id="setup-model-routes">${options}</datalist><span class="hutch-help"><span id="setup-model-hint">${opencode ? (readyRoutes.length ? `${readyRoutes.length} OpenCode model route${readyRoutes.length === 1 ? "" : "s"} found in the private profile.` : "No OpenCode models are available yet. Connect a provider account, then reopen this step.") : `${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "duplicate" ? `Copied from ${esc(duplicateBot?.display_name || duplicateBot?.name)}; confirm it is configured in Connections.` : modelSuggestionSource === "workspace" ? `Workspace default for new assistants: ${esc(workspaceDefaults.model)}.` : modelSuggestionSource === "first_run" ? `Chosen from the AI service checked on the welcome screen: ${esc(modelSuggestion)}.` : modelSuggestionSource === "import" ? `Imported route: ${esc(modelSuggestion)}. Confirm it is configured in Connections.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine.`}</span> ${opencode ? "" : `<a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.`}</span></div>
+        ${routeNotice()}
+        <div class="hutch-field"><label class="hutch-label" for="setup-model"><span id="setup-model-label">Model route</span></label><input class="hutch-input" id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="${opencode ? "opencode/provider/model" : "Choose or enter provider/model"}" value="${esc(draft.model)}" required aria-labelledby="setup-model-label" aria-describedby="setup-model-hint"><datalist id="setup-model-routes">${options}</datalist><span class="hutch-help"><span id="setup-model-hint">${opencode ? (readyRoutes.length ? `${readyRoutes.length} OpenCode model route${readyRoutes.length === 1 ? "" : "s"} found in the private profile.` : "No OpenCode models are available yet. Connect a provider account, then reopen this step.") : `${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "duplicate" ? `Copied from ${esc(duplicateBot?.display_name || duplicateBot?.name)}; confirm it is configured in Connections.` : modelSuggestionSource === "workspace" ? `Workspace default for new assistants: ${esc(workspaceDefaults.model)}.` : modelSuggestionSource === "first_run" ? `Chosen from the AI service checked on the welcome screen: ${esc(modelSuggestion)}.` : modelSuggestionSource === "main" ? `Same as your main assistant: ${esc(modelSuggestion)}.` : modelSuggestionSource === "starter" ? `Starting model chosen for you: ${esc(modelSuggestion)}.` : modelSuggestionSource === "import" ? `Imported route: ${esc(modelSuggestion)}. Confirm it is configured in Connections.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine.`}</span> ${opencode ? "" : `<a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.`}</span></div>
         <div class="hutch-field"><label class="hutch-label" for="setup-inference_mode"><span id="setup-inference-mode-label">Inference mode</span></label><select class="hutch-select" id="setup-inference_mode" aria-labelledby="setup-inference-mode-label" aria-describedby="setup-inference-mode-hint"><option value="hybrid" ${draft.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option><option value="local" ${draft.inference_mode === "local" ? "selected" : ""}>Local — this machine</option><option value="offline" ${draft.inference_mode === "offline" ? "selected" : ""}>Strict offline</option></select><span class="hutch-help" id="setup-inference-mode-hint">Strict offline requires a verified local route.</span></div>
         <div class="hutch-field"><label class="hutch-label" for="setup-workspace_mode"><span id="setup-workspace-mode-label">Workspace</span></label><select class="hutch-select" id="setup-workspace_mode" aria-labelledby="setup-workspace-mode-label" aria-describedby="setup-workspace-mode-hint"><option value="fresh" ${draft.workspace_mode === "fresh" ? "selected" : ""}>Fresh — new folder each run</option><option value="managed" ${draft.workspace_mode === "managed" ? "selected" : ""}>Managed — reuse one folder</option></select><span class="hutch-help" id="setup-workspace-mode-hint">Fresh starts clean each run. Managed keeps one private folder for this assistant’s runs and chats.</span></div>
       </div>`;

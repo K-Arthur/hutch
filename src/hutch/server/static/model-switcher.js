@@ -334,8 +334,8 @@
           <label class="ms-other">Another model <span class="muted">(provider/model, on one of your connections)</span>
             <input type="text" class="ms-custom mono" aria-describedby="ms-custom-egress-note" placeholder="provider/model" autocomplete="off" spellcheck="false">
             <span id="ms-custom-egress-note" class="muted">An openai-compatible route uses its configured endpoint and may send this chat off this machine. Confirm the provider endpoint for this assistant or Hutch installation before selecting it.</span></label></details>
-          <p class="ms-foot"><a href="/models">Hardware fit, task presets and prices</a> &middot;
-            <a href="/connections">Connections</a></p>
+          <p class="ms-foot"><a href="/models">Manage AI services and routes</a> &middot;
+            <a href="/connections">Apps &amp; AI (accounts and keys)</a></p>
         </div>`;
       openModal({
         title: "Choose a model", bodyHtml: body, confirmText: "Use for next message", returnFocus: btn, wide: true,

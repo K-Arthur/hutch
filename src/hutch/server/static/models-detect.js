@@ -29,26 +29,28 @@
     try { sessionStorage.setItem("hutch:settings-prefill-model", trigger.dataset.settingsModel || ""); } catch { /* private mode */ }
   });
 
-  function useForm(model) {
-    const link = el("a", { className: "btn primary", href: "/#/settings",
-      textContent: `Review ${model.name || model.model_id || model.spec} in Settings` });
-    link.dataset.settingsModel = model.spec;
+  function useForm(choice) {
+    const link = el("a", { className: "btn primary", href: "/#/settings", textContent: `Review ${choice.label} in Settings` });
+    link.dataset.settingsModel = choice.model;
     return link;
   }
 
   function render(status) {
-    const models = Array.isArray(status?.models) ? status.models.filter(m => typeof m?.spec === "string" && m.spec) : [];
-    if (!status?.ready || !models.length) {
+    const choice = window.hutchStarterRoute.choose(status, []);   // the same decision first run makes
+    if (!choice) {
       show(el("p", { className: "muted", textContent: "No ready AI service was found. Connect OpenCode or choose another provider." }));
       return;
     }
-    const count = models.length;
+    const count = choice.count;
+    const notice = el("div");
+    notice.innerHTML = window.hutchStarterRoute.noticeHtml(choice);   // the shared notice: static markup, values escaped there
     show(
       el("p", { textContent: `OpenCode is ready with ${count} model option${count === 1 ? "" : "s"}. ${status.authenticated
         ? "A provider account is connected."
         : "Its available models can be used without a separate account."}` }),
       el("p", { className: "hint", textContent: "Review it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs." }),
-      useForm(models[0]),
+      notice,
+      useForm(choice),
     );
   }
 

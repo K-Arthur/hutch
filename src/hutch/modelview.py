@@ -17,6 +17,7 @@ from .health import ProviderHealth, runtime_health
 from .presets import Resolution, catalog_meta, load_presets, resolve_preset, _data
 from .providers.base import ModelMeta
 from .providers.pricing import PriceBook, Price, LOCAL_PROVIDERS
+from .route_problem import model_route_problem, route_problem
 from .slots import recorded_swaps
 
 REFERENCE_WINDOWS = (16384, 32768)
@@ -33,6 +34,7 @@ class ConfiguredModelRoute:
     bots: list[str]
     has_key: bool
     is_local: bool
+    problem: Optional[str] = None
 
 
 @dataclass
@@ -143,6 +145,7 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
     saved_default = saved_default or store.kv_get("default_model") or ""
 
     available_bots = [(b.name, b.display_name or b.name) for b in bots]
+    usable_bots = {b.name: route_problem(b) is None for b in bots}
     configured_routes = []
     seen_specs = set()
 
@@ -187,9 +190,13 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
             has_k = True
             if prov in conn_book.names():
                 has_k = bool(conn_book.key(prov))
+            problem = model_route_problem(bot_spec)
+            usable = any(usable_bots.get(name, False) for name in b_names)
+            status = "unusable" if problem and not usable else ("ready" if has_k else "needs_key")
             configured_routes.append(ConfiguredModelRoute(
                 spec=bot_spec, provider=prov, model_id=mid, label=store.kv_get(f"model_label:{bot_spec}") or bot_spec,
-                status="ready" if has_k else "needs_key", is_default=is_def, bots=b_names, has_key=has_k, is_local=prov in LOCAL_PROVIDERS
+                status=status, is_default=is_def, bots=b_names, has_key=has_k, is_local=prov in LOCAL_PROVIDERS,
+                problem=problem,
             ))
 
     default_spec = saved_default

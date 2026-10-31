@@ -5,61 +5,18 @@
 {% block title %}Models{% endblock %}
 {% block header_context %}<div class="ctx-id"><h1>Models</h1></div>{% endblock %}
 {% block flash %}{% endblock %}
-{% block head %}{% if not v.configured_routes %}<script src="/static/models-detect.js" defer></script>{% endif %}{% endblock %}
+{% block head %}{% if not v.configured_routes %}<script src="/static/starter-route.js" defer></script><script src="/static/models-detect.js" defer></script>{% endif %}{% endblock %}
 {% macro fitchip(f) -%}
   <span class="chip fit-{{ f.status }}">{{ f.label }}</span>
 {%- endmacro %}
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="sub">Configure AI model routes for assistants, inspect local machine capacity, and review token pricing.</p>
+    <p class="sub">See which AI services are ready and which route each assistant uses. Accounts live in Apps &amp; AI; the default for new assistants is set in Settings.</p>
   </div>
   <div class="card-actions">
-    <a href="#add-model" class="btn small primary">{{ icon("plus", 14) }}<span>Add model route</span></a>
-    <a href="/#/connections" class="btn small ghost">{{ icon("layers", 14) }}<span>Manage connections</span></a>
-  </div>
-</div>
-
-<div class="models-hw-bar" role="region" aria-label="Hardware capability summary">
-  <div class="models-hw-cell">
-    <span class="models-hw-label">{{ icon("cpu", 13) }} Compute</span>
-    <span class="models-hw-val">{{ v.hw.accelerator | upper }}</span>
-    <span class="models-hw-sub">
-      {% if v.hw.gpus and v.hw.gpus[0].name %}
-        {{ v.hw.gpus[0].name | replace("NVIDIA GeForce ", "") | replace("NVIDIA ", "") }}
-        {% if v.hw.gpus[0].vram_gb %}({{ v.hw.gpus[0].vram_gb | round(1) }}G VRAM){% endif %}
-      {% elif v.hw.apple_silicon %}
-        Apple Silicon (unified memory)
-      {% else %}
-        {{ v.hw.cores }} CPU cores ({{ v.hw.tier }} tier)
-      {% endif %}
-    </span>
-  </div>
-
-  <div class="models-hw-cell">
-    <span class="models-hw-label">{{ icon("brain", 13) }} Usable Budget</span>
-    <span class="models-hw-val">{{ v.hw.budget_gb | round(1) }} <small class="models-hw-sub">GiB</small></span>
-    <span class="models-hw-sub">{{ v.hw.tier | capitalize }} tier local model limit</span>
-  </div>
-
-  <div class="models-hw-cell">
-    <span class="models-hw-label">{{ icon("layers", 13) }} System RAM</span>
-    <span class="models-hw-val">{{ v.hw.ram_available_gb | round(1) }} <small class="models-hw-sub">/ {{ v.hw.ram_total_gb | round(1) }} GiB</small></span>
-    <span class="models-hw-sub">Free memory right now</span>
-  </div>
-
-  <div class="models-hw-cell">
-    <span class="models-hw-label">{{ icon("zap", 13) }} Local Engine</span>
-    <span class="models-hw-val">
-      {% if v.ollama_up %}
-        <span class="chip st-succeeded">Online</span>
-      {% else %}
-        <span class="chip st-stopped">Offline</span>
-      {% endif %}
-    </span>
-    <span class="models-hw-sub">
-      {% if v.ollama_up %}Ollama ({{ v.rows | length }} installed){% else %}Ollama not running{% endif %}
-    </span>
+    <a href="/#/connections" class="btn small primary">{{ icon("layers", 14) }}<span>Add or repair a service</span></a>
+    <a href="/#/settings" class="btn small ghost">{{ icon("settings", 14) }}<span>Set the default</span></a>
   </div>
 </div>
 
@@ -72,19 +29,7 @@
 {% if error and not request.query_params.get('price') %}<div class="flash error" role="alert">{{ icon("alert", 16) }}<span>{{ error }}</span></div>{% endif %}
 {% if notice and not request.query_params.get('price') %}<div class="flash notice" role="status">{{ icon("check", 16) }}<span>{{ notice }}</span></div>{% endif %}
 
-{% if v.notes %}
-<div class="models-notice" role="status" aria-live="polite">
-  {{ icon("alert", 16) }}
-  <div class="models-notice-body">
-    <strong>System and hardware notes</strong>
-    <ul>
-      {% for n in v.notes %}
-      <li>{{ n }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-</div>
-{% endif %}
+
 
 {% if not v.configured_routes %}
 <section class="panel" id="detected-service" aria-labelledby="detected-h" data-no-routes="1" data-csrf="{{ csrf }}" hidden>
@@ -132,7 +77,7 @@
   <header class="conn-head">
     <div>
       <h2 id="cfg-models-h" class="card-title">{{ icon("cpu", 18) }} Configured model routes</h2>
-      <p class="hint">Active models available to assistants on this machine. Set defaults, verify provider connectivity, and inspect assistant routing.</p>
+      <p class="hint">Routes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.</p>
     </div>
   </header>
 
@@ -166,6 +111,8 @@
           <td data-label="Status">
             {% if r.status == "ready" %}
             <span class="chip st-succeeded">ready</span>
+            {% elif r.status == "unusable" %}
+            <span class="chip st-failed" title="{{ r.problem }}">cannot run</span>
             {% elif r.status == "needs_key" %}
             <span class="chip st-waiting_approval">needs key</span>
             {% else %}
@@ -239,6 +186,64 @@
 <details class="panel models-advanced" id="models-advanced">
   <summary><h2 class="card-title">{{ icon("chart", 18) }} Hardware, installed models, task presets and prices</h2></summary>
   <p class="hint">Secondary diagnostics. They do not choose a route or change an assistant.</p>
+<div class="models-hw-bar" role="region" aria-label="Hardware capability summary">
+  <div class="models-hw-cell">
+    <span class="models-hw-label">{{ icon("cpu", 13) }} Compute</span>
+    <span class="models-hw-val">{{ v.hw.accelerator | upper }}</span>
+    <span class="models-hw-sub">
+      {% if v.hw.gpus and v.hw.gpus[0].name %}
+        {{ v.hw.gpus[0].name | replace("NVIDIA GeForce ", "") | replace("NVIDIA ", "") }}
+        {% if v.hw.gpus[0].vram_gb %}({{ v.hw.gpus[0].vram_gb | round(1) }}G VRAM){% endif %}
+      {% elif v.hw.apple_silicon %}
+        Apple Silicon (unified memory)
+      {% else %}
+        {{ v.hw.cores }} CPU cores ({{ v.hw.tier }} tier)
+      {% endif %}
+    </span>
+  </div>
+
+  <div class="models-hw-cell">
+    <span class="models-hw-label">{{ icon("brain", 13) }} Usable Budget</span>
+    <span class="models-hw-val">{{ v.hw.budget_gb | round(1) }} <small class="models-hw-sub">GiB</small></span>
+    <span class="models-hw-sub">{{ v.hw.tier | capitalize }} tier local model limit</span>
+  </div>
+
+  <div class="models-hw-cell">
+    <span class="models-hw-label">{{ icon("layers", 13) }} System RAM</span>
+    <span class="models-hw-val">{{ v.hw.ram_available_gb | round(1) }} <small class="models-hw-sub">/ {{ v.hw.ram_total_gb | round(1) }} GiB</small></span>
+    <span class="models-hw-sub">Free memory right now</span>
+  </div>
+
+  <div class="models-hw-cell">
+    <span class="models-hw-label">{{ icon("zap", 13) }} Local Engine</span>
+    <span class="models-hw-val">
+      {% if v.ollama_up %}
+        <span class="chip st-succeeded">Online</span>
+      {% else %}
+        <span class="chip st-stopped">Offline</span>
+      {% endif %}
+    </span>
+    <span class="models-hw-sub">
+      {% if v.ollama_up %}Ollama ({{ v.rows | length }} installed){% else %}Ollama not running{% endif %}
+    </span>
+  </div>
+</div>
+
+
+{% if v.notes %}
+<div class="models-notice" role="status" aria-live="polite">
+  {{ icon("alert", 16) }}
+  <div class="models-notice-body">
+    <strong>System and hardware notes</strong>
+    <ul>
+      {% for n in v.notes %}
+      <li>{{ n }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
 <section class="panel" id="runtimes" aria-labelledby="rt-h">
   <div class="conn-head">
     <div>

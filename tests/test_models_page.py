@@ -52,6 +52,7 @@ def test_models_page_is_honest_about_defaults_and_assistant_routing(client):
     assert 'href="/#/bot/design-partner"' in html
     assert "The route new built-in assistants start from is set in Settings" in html
     assert "Add or repair a service" in html
+    assert "cannot run" in html, "a saved route that cannot run is not presented as ready"
     assert "<option value=\"chatgpt\">" not in html
     assert "Hosted fallback:" not in html
     assert "Open Apps &amp; AI" in html
