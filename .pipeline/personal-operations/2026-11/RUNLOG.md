@@ -122,7 +122,7 @@ the run shows the concurrent session's work only: `cli.py`, `engine.py`, `provid
 
 | Failure | Attribution |
 |---|---|
-| `test_context_hygiene::test_real_repository_has_no_context_violations` | `cli.py` (+93), `engine.py` (+33), `providers/ollama.py` (+88), `store.py` (+15) are grown by the other session's uncommitted work. The same audit passes at a clean detached worktree of HEAD (924 source files, 117 frozen files). |
+| `test_context_hygiene::test_real_repository_has_no_context_violations` | `cli.py`, `engine.py`, `providers/ollama.py`, `store.py` and `tests/fakes.py` are grown by the other session's uncommitted work at the time of the run. The same audit passes at a clean detached worktree of the committed tip; exact figures under "Gate status". |
 | `test_emoji_audit::test_repository_is_emoji_clean` | The only violations are in `.codewhale/state/subagents.v1.json`, the agent runtime's own untracked state. That file is excluded by `.codewhale/state/.gitignore` and nothing under `.codewhale/` is tracked (`git ls-files .codewhale` -> 0). `scripts/audit_emoji.py` walks the tree with `rglob` and its `SKIP_DIRS` does not include that directory. Recorded as an audit-scope edge, not a content violation. |
 | `test_models_layer::test_vision_needs_a_vision_model_and_is_hosted_only_on_small_machines` | The other session is editing `data/presets.json` (vision description), `providers/base.py`, `modelview.py` and `tests/test_models_layer.py` while the run was in flight. The file passes on its own (23 passed). |
 | `test_remote_pairing` (two tests) | Port 8787 is held by a running `hutch serve` (PID 2171206), the same environment limit the 2026-10 RUNLOG records. |
@@ -161,6 +161,6 @@ it goes green when that session's changes are staged or reverted.
 
 - No live Google or Microsoft account, and no live Telegram bot. The agenda's provider path and
   the alert send path are exercised with fakes and a fake transport.
-- The full non-e2e suite post-fix is recorded in the run above only when it completes; anything
-  short of a complete green run is reported as such, not extrapolated.
+- The working tree is not green and will not be until the other session's uncommitted growth is
+  staged or reverted; the committed tip is green on every audit that can run there.
 - No exactly-once claim for any external effect, and no claim that a delivered alert was read.
