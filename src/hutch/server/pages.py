@@ -60,7 +60,9 @@ def safe_next(value: str, default: str) -> str:
 
 
 def register_pages(app: FastAPI) -> None:
+    from .personal_api import install_personal_routes
     store, engine, scheduler, config = app.state.store, app.state.engine, app.state.scheduler, app.state.config
+    install_personal_routes(app, store, config)
     templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
     env = templates.env
     env.filters.update({
