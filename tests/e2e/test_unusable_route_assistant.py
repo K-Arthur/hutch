@@ -31,6 +31,7 @@ def base(tmp_path, monkeypatch):
     monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:9")
     app = create_app()
     app.state.store.create_bot(Bot(name="old-demo", display_name="Old Demo", model="mock/demo", tools=[]))
+    app.state.store.create_bot(Bot(name="bare-demo", display_name="Bare Demo", model="demo", tools=[]))
     app.state.store.create_bot(Bot(name="real-one", display_name="Real One", model="ollama/llama3.2:3b", tools=[]))
     with serve(app) as url:
         yield url
@@ -54,6 +55,25 @@ def test_roster_and_chip_tell_the_truth(browser, base, size):
         page.locator(".ms-btn").wait_for(timeout=20_000)
         wait_for_page(page, "!!document.querySelector('.ms-label') && document.querySelector('.ms-label').textContent.includes('llama3.2')", timeout=20_000)
         assert horizontal_overflow(page) == 0
+        assert not watch.errors, watch.errors
+    finally:
+        page.context.close()
+
+
+def test_a_bare_demo_model_is_never_shown_as_idle_or_its_raw_label(browser, base):
+    """A demo-era value like "demo" is not a route at all: no Idle, no raw chip label, a real explanation."""
+    page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
+    watch = PageWatch(page)
+    try:
+        page.goto(f"{base}/#/chat/bare-demo", wait_until="domcontentloaded")
+        page.locator(".ms-btn").wait_for(timeout=20_000)
+        assert page.locator(".ms-label").inner_text().strip() == "Choose a model"
+        row = page.locator(".roster-list a, .roster-list button, .roster-list [data-bot]").filter(has_text="Bare Demo").first
+        row.wait_for()
+        assert "Needs a model route" in row.inner_text() and "Idle" not in row.inner_text()
+        problem = page.locator(".welcome-problem")
+        problem.wait_for(timeout=20_000)
+        assert "provider/model" in problem.inner_text()
         assert not watch.errors, watch.errors
     finally:
         page.context.close()
