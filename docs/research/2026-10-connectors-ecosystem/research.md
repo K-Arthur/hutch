@@ -389,6 +389,35 @@ Each item names its evidence; anything beyond the evidence is marked *judgement*
 14. **Do not let a bot-authored skill grant itself authority.** *Evidence*: §2.1(g); NanoClaw's PR states
     invocation metadata "is not an authorization boundary" (§2.4).
 
+## 7a. Addendum, 2026-10-31: an observed instance of the SDK-generation failure
+
+Section 6.9 predicted protocol and SDK drift as the largest interoperability risk. It has now been
+observed on this host rather than only cited.
+
+Installing the official `mcp-server-time==2025.9.25` from PyPI and launching it under an
+environment whose `mcp` resolved to 2.x failed at import:
+
+```
+ImportError: cannot import name 'McpError' from 'mcp.shared.exceptions'
+  (mcp/shared/exceptions.py). Did you mean: 'MCPError'?
+```
+
+The server imports `McpError`; SDK 2.x renamed the class. The failure is at import, before any
+protocol negotiation, so no amount of dual-era handshaking on the client side can help: a server
+built for SDK 1.x needs SDK 1.x in its own environment. Pinning `mcp>=1.9,<2` in the server's
+virtual environment made it start and serve two tools.
+
+Two implications for the design, both now reflected in the implementation:
+
+1. Hutch cannot choose an SDK version on a server's behalf. A connector definition must be able
+   to point at an isolated environment, and the reviewed definition must record exactly what is
+   mounted so a dependency change is visible as a change.
+2. A dependency failure must be reported as a start failure, not as an empty catalog. An owner who
+   sees "no tools" will look for the wrong problem.
+
+This is a single observation, not a survey: one server, one SDK generation boundary. It does not
+establish how many published servers target each generation.
+
 ## 8. Sources not verified / open questions
 
 - **No listed source was unreachable** — all 14 returned 200. Two *supplementary* URLs 404'd

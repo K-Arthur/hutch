@@ -131,6 +131,46 @@ def test_testing_reads_the_catalog_and_grants_are_per_assistant(api, package):
     assert client.get("/api/v1/integrations/acme").json()["grants"] == []
 
 
+def test_testing_a_url_that_is_not_an_mcp_server_is_a_refusal_not_a_server_error(api):
+    """A wrong URL is an ordinary operator mistake and must read as one.
+
+    The SDK raises a protocol exception; before this was translated, it escaped the route as a
+    500. The connector is configured with a loopback URL that answers 404 everywhere.
+    """
+    import http.server
+    import threading
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):                                  # noqa: N802 - stdlib naming
+            self.send_response(404)
+            self.end_headers()
+
+        do_GET = do_POST
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        client, _store = api
+        port = server.server_address[1]
+        created = client.post("/api/v1/integrations", json={
+            "integration_id": "wrongurl", "title": "Wrong URL",
+            "definition": {"transport": "mcp_http", "url": f"http://127.0.0.1:{port}/mcp",
+                           "auth": {"type": "none"}}})
+        assert created.status_code == 200, created.text
+        tested = client.post("/api/v1/integrations/wrongurl/test")
+        assert tested.status_code == 409, tested.text
+        assert "MCP server" in tested.json()["detail"]
+        # Nothing was recorded as a catalog, and the connector stays merely installed.
+        detail = client.get("/api/v1/integrations/wrongurl").json()
+        assert detail["catalog"] == [] and detail["state"] == "installed"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 @needs_sandbox
 def test_a_grant_for_a_tool_outside_the_catalog_is_refused(api, package):
     client, store = api
