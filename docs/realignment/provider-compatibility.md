@@ -1,16 +1,16 @@
 # Provider compatibility matrix
 
-Reviewed 2026-10-10. The versioned, typed source of truth is
+Reviewed 2026-10-30. The versioned, typed source of truth is
 [`src/hutch/data/compat.json`](../../src/hutch/data/compat.json), also returned by
 `GET /api/v1/compatibility`. Each record includes the route state, Hutch request mapping,
 verification boundary, and dated policy/API evidence.
 
 “Supported” means Hutch's common wire contract has recorded fixtures. It does not mean that
 every version of a compatible server or every model supports the same tools, context controls,
-usage response, retention, or billing. Hutch chat currently accepts text only: no route in this
-matrix exposes an image attachment or image content mapping, even when the provider protocol or
-model itself supports vision. The optional local `vision` task focus changes context sizing only.
- The matrix separates published protocol fields from what
+usage response, retention, or billing. Image input is implemented: the composer accepts verified image attachments, and the built-in
+runtime sends them only when the selected route and model accept image input; an unsupported model
+refuses the attachment instead of silently dropping it. A route or catalogue listing still does not
+establish image understanding for every model. The matrix separates published protocol fields from what
 Hutch currently sends. Live providers, models, and paid connections were not used for this review.
 
 | Route | State | Hutch behavior and limit |
@@ -26,6 +26,16 @@ Hutch currently sends. Live providers, models, and paid connections were not use
 | Consumer-plan OAuth/session reuse | Blocked | Hutch does not read or forward consumer-app cookies or session tokens. Use a supported API-key connection. |
 
 The separate **OpenCode CLI coding handoff** is an experimental Linux feature, not a runtime-adapter exception to the row above. The owner reviews a completed chat request, then launches the interactive OpenCode CLI in a new worktree pinned to the configured project's saved Git commit. OpenCode uses its own sign-in, model choice and usage pool. Hutch does not import CLI credentials, meter its provider requests, broker OpenCode's permission prompts, or sandbox shell commands the owner approves. There is no automatic-approval flag; the task agent has a 20-step ceiling. Project-local OpenCode plugin files are refused while the installed V2 plugin-loading behavior is unverified. The launch and process cleanup are not live-tested. See the [coding handoff research](../research/opencode-coding-handoff-2026-10-09.md).
+
+## Provider identity, account profiles and capability evidence
+
+Provider identity, authentication profiles and capability evidence are separate records from this
+route matrix (added 2026-10-30). The validated catalogue in src/hutch/data/providers.json lists every
+requested provider with its category, documented auth methods, implementation status and sources;
+src/hutch/providers/accounts.py groups configured connections by that identity without merging their
+credentials; capability evidence is recorded with a level, scope and date. No provider was
+live-verified in this environment, so every hosted route above remains fixture-tested at best.
+Research and dated sources: docs/research/2026-10-provider-platform/. See ADR-0025.
 
 ## Calendar and mail connections
 

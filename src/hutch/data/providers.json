@@ -509,7 +509,7 @@
       "regions": [
         "global"
       ],
-      "notes": "No supported third-party API or CLI authentication contract for Hutch's intended use was established; no unofficial client impersonation is implemented."
+      "notes": "No supported third-party API or CLI authentication contract for Hutch's intended use was established; no unofficial client impersonation is implemented. GitHub documents a Copilot SDK; OpenCode's subscription reuse is not authorized by any GitHub page read and is not implemented."
     },
     {
       "id": "alibaba-model-studio",
@@ -541,7 +541,8 @@
       "regions": [
         "global",
         "cn"
-      ]
+      ],
+      "notes": "Workspace-scoped endpoint https://{WorkspaceId}.{region}.maas.aliyuncs.com/compatible-mode/v1; legacy dashscope hosts are migration sources. Keys are region-bound."
     },
     {
       "id": "xiaomi",
@@ -827,10 +828,9 @@
     {
       "id": "vydra",
       "title": "Vydra",
-      "category": "serving_platform",
+      "category": "media_platform",
       "summary": "",
       "services": [
-        "chat",
         "images",
         "video"
       ],
@@ -852,7 +852,8 @@
       "connection_templates": [],
       "regions": [
         "global"
-      ]
+      ],
+      "notes": "Media-only provider (no chat route); no adapter is implemented in this package."
     },
     {
       "id": "gmi-cloud",
@@ -943,7 +944,8 @@
         "us-east-1",
         "eu-west-1",
         "ap-northeast-1"
-      ]
+      ],
+      "notes": "Authentication is the AWS credential chain (SigV4) or short- and long-term Bedrock API keys, not a generic provider API key."
     },
     {
       "id": "bedrock-mantle",
@@ -1009,7 +1011,8 @@
         "global",
         "us-central1",
         "europe-west4"
-      ]
+      ],
+      "notes": "Authentication is gcloud/ADC with an explicit project and region; it is not an Anthropic-style API key."
     },
     {
       "id": "anthropic-vertex",
@@ -1070,7 +1073,7 @@
       "regions": [
         "global"
       ],
-      "notes": "A gateway in front of an upstream provider; actual model and upstream route must be recorded from the response."
+      "notes": "A gateway in front of an upstream provider; actual model and upstream route must be recorded from the response. The vendor deprecated the unified /compat API on 2026-10-02; only provider-native routes are documented for single-model calls."
     },
     {
       "id": "vercel-ai-gateway",
@@ -1102,7 +1105,7 @@
       "regions": [
         "global"
       ],
-      "notes": "A unified gateway; a single price or capability claim cannot apply to every model behind it."
+      "notes": "A unified gateway; a single price or capability claim cannot apply to every model behind it. BYOK requests can fall back to gateway system credentials and bill Vercel credits; routing metadata records the final provider, model and credential type, so it must be captured."
     },
     {
       "id": "openrouter",
@@ -1134,7 +1137,7 @@
       "regions": [
         "global"
       ],
-      "notes": "Provider-side routing and fallbacks can answer with a different upstream model than the requested catalogue entry; the returned identity is recorded."
+      "notes": "Provider-side routing and fallbacks can answer with a different upstream model than the requested catalogue entry; the returned identity is recorded. The gateway can serve a different final model and bills the served model. Its usage.include parameter is reportedly deprecated while Hutch still sends it: an open compatibility issue, not silently changed."
     },
     {
       "id": "clawrouter",
@@ -1200,7 +1203,8 @@
       "connection_templates": [],
       "regions": [
         "self-hosted"
-      ]
+      ],
+      "notes": "model_name is a gateway alias and /v1/models lists aliases; the served upstream model may differ from the requested id."
     },
     {
       "id": "microsoft-foundry",
@@ -1240,7 +1244,8 @@
       "connection_templates": [],
       "regions": [
         "global"
-      ]
+      ],
+      "notes": "The model field is a deployment name and auth is an API key or Entra ID; the deployment may not match a public model id."
     },
     {
       "id": "groq",

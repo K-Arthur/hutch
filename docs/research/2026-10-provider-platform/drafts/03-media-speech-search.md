@@ -31,7 +31,7 @@ Hutch implements. Hutch state refers to this checkout as of 2026-10-30.
 | 3 | OpenAI Speech (TTS) | speech out | Sync request; raw audio or SSE stream | Bearer API key | D (deprecation) | Adapter exists (OpenAITTSEngine); no live call |
 | 4 | OpenAI File transcription | speech in | Sync multipart upload | Bearer API key | D | None |
 | 5 | OpenAI web search tool | search | Tool call inside Responses API | Bearer API key | D | None; Hutch has no provider-native search |
-| 6 | Google Gemini image (Nano Banana) | image gen/edit | Gemini API call (sync envelope U) | API key header | D capability, U envelope | None |
+| 6 | Google Gemini image (Nano Banana) | image gen/edit | Interactions API call; image envelope U | API key header | D capability, U envelope | None |
 | 7 | Google Veo 3.1 | video | Long-running operation: start, poll operation | API key header | D (shut down) | None |
 | 8 | Google Gemini TTS | speech out | Interactions request; WAV audio block | API key header | D | Adapter exists (GeminiTTSEngine); no live call |
 | 9 | Google voice design / replication | speech out | Voices API; replication needs consent clip | API key header | D | None |
@@ -40,7 +40,7 @@ Hutch implements. Hutch state refers to this checkout as of 2026-10-30.
 | 12 | Google Files API | uploads | Resumable upload; 48-hour retention | API key header | D | None |
 | 13 | xAI Grok Imagine images | image gen/edit | Sync; temporary URL or base64 | Bearer API key | D | None |
 | 14 | xAI Grok Imagine video | video | Async: request_id then poll | Bearer API key | D | None |
-| 15 | xAI TTS + custom voices | speech out | Sync bytes or WebSocket stream; clone API | Bearer API key | D | None |
+| 15 | xAI TTS + custom voices | speech out | Sync bytes or WebSocket stream; clone API | Bearer API key | D (custom voices US-only) | None |
 | 16 | xAI web search / X search tools | search | Tools inside Responses API | Bearer API key | D | None |
 | 17 | MiniMax image-01 | image | Sync single request; URL or base64 | Bearer API key | D | None |
 | 18 | MiniMax H3 video v2 | video | Async: task_id then query; 7-day query window | Bearer API key | D | None |
@@ -251,6 +251,9 @@ display citations in both cases; neither provider guarantees that every claim is
 - Generated images are returned through the Gemini API. The exact Interactions envelope
   (response_format, inline base64 vs output block) was not captured in this pass, so treat the
   request/response schema as U; the capability list is D.
+- Media calls run on the Interactions API: the docs describe it as GA since June 2026, recommended
+  for new projects, with one Interaction resource holding ordered execution steps; the legacy
+  generateContent API remains fully supported; long-running work can use background=true [D].
 - Media path: for requests over 100 MB total, use the Files API; PDF limit 50 MB; Files API
   stores 20 GB per project, 2 GB per file, auto-deletes after 48 hours [D].
 - Watermark/provenance for generated images was not captured in the fetched text; U (do not claim
@@ -355,6 +358,9 @@ display citations in both cases; neither provider guarantees that every claim is
 - Voices: GET /v1/tts/voices for built-ins; GET /v1/custom-voices for custom [D].
 - Custom voices: POST /v1/custom-voices multipart, gated to Enterprise teams; console allows up
   to 30 free custom voices; reference clip max 120 s; voices are team-scoped [D].
+  Availability is documented as United States only, excluding Illinois [D]. List and update
+  endpoints are documented (GET /v1/custom-voices, PATCH /v1/custom-voices/{id}); a delete
+  endpoint was not shown on the fetched page [D/U].
 - Consent specifics for cloning were not found in the fetched pages; U. Do not claim xAI requires
   an attestation until checked.
 - Speech-to-speech and a realtime API are listed in the docs index (wss://api.x.ai/v1/realtime)
@@ -543,8 +549,11 @@ display citations in both cases; neither provider guarantees that every claim is
   supported; failed verification can be retried after 24 hours [D].
 - IVC sample rules: each file at least 5 seconds, all samples at least 10 seconds, 1-2 minutes
   recommended [D].
-- API endpoints for creating IVC/PVC were not read in this pass; U. Hutch must not implement
-  cloning against guessed paths.
+- IVC create path is documented: POST https://api.elevenlabs.io/v1/voices/add, multipart with
+  name and files (plus optional remove_background_noise, description, labels); the response
+  returns voice_id and a requires_verification boolean. The reference shows no consent
+  attestation field, so consent is a UI/account control [D]. The PVC create endpoint was not
+  read; U.
 
 ### ElevenLabs Music
 
@@ -620,8 +629,8 @@ display citations in both cases; neither provider guarantees that every claim is
 2. Gemini Omni Flash replacement for Veo: model page returned 404; needs another URL from the
    deprecation notice or the model index.
 3. OpenAI Realtime audio encodings and session limits (the migration target for TTS).
-4. ElevenLabs API reference for voice cloning endpoints, xi-api-key header confirmation, text
-   limits, concurrency.
+4. ElevenLabs PVC create endpoint, xi-api-key header confirmation, TTS text limits and
+   concurrency (the IVC create path is now documented).
 5. ElevenLabs Music API endpoint and request schema.
 6. Runway output URL lifetime and TTS contract.
 7. PixVerse output URL lifetime and whether any cancel endpoint exists.
@@ -656,3 +665,59 @@ reproduction. Index files (llms.txt) were used for discovery and are marked I.
 | https://ai.google.dev/gemini-api/docs/speech-generation.md.txt | Gemini TTS models, Interactions flow, WAV output | D |
 | https://ai.google.dev/gemini-api/docs/voice-replication.md.txt | Consent audio, voice ids, TTLs, delete API | D |
 | https://ai.google.dev/gemini-api/docs/music-generation.md.txt | Lyria models, durations, MP3 44.1 kHz stereo | D |
+| https://ai.google.dev/gemini-api/docs/google-search.md.txt | Grounding tool, annotations, search_suggestions, ToS pointer | D |
+| https://ai.google.dev/gemini-api/docs/files.md.txt | 48-hour retention, 20 GB/project, 2 GB/file, 100 MB threshold | D |
+| https://ai.google.dev/gemini-api/docs/interactions-overview.md.txt | Interactions API GA, execution steps, background=true, legacy generateContent support | D |
+| https://ai.google.dev/gemini-api/docs/deprecations.md.txt | TTS preview shutdown date, model lifecycle convention | D |
+| https://docs.x.ai/developers/model-capabilities/imagine.md | Imagine overview, reference images, pricing shape | D |
+| https://docs.x.ai/developers/model-capabilities/images/generation.md | Image endpoint, n 1-10, aspect ratios, temporary URLs | D |
+| https://docs.x.ai/developers/model-capabilities/video/generation.md | Video endpoint, request_id polling, statuses, temporary URL | D |
+| https://docs.x.ai/developers/model-capabilities/audio/text-to-speech.md | TTS endpoint, 60k chars, formats, timestamps | D |
+| https://docs.x.ai/developers/model-capabilities/audio/custom-voices.md | Custom voice API gate, console limit, wss consumers | D |
+| https://docs.x.ai/developers/model-capabilities/imagine/files/outputs.md | storage_options, expiry bounds, ephemeral vs persistent | D |
+| https://docs.x.ai/developers/model-capabilities/imagine/files.md | Ephemeral URL hosts and Files integration | D |
+| https://docs.x.ai/developers/tools/web-search.md | web_search parameters and citations | D |
+| https://docs.x.ai/developers/tools/x-search.md | X search parameters and per-1k pricing | D |
+| https://docs.x.ai/developers/rest-api-reference/inference/videos.md | Video request fields, reference audio limits, storage options | D |
+| https://docs.x.ai/llms.txt | Discovery of Imagine, voice and search pages | I |
+| https://platform.minimax.io/docs/api-reference/image-generation-t2i.md | image-01 contract, 24-hour URL, n 1-9 | D |
+| https://platform.minimax.io/docs/api-reference/video-generation-v2-create.md | H3 create contract, models, input array | D |
+| https://platform.minimax.io/docs/api-reference/video-generation-v2-query.md | Status values, 7-day query window, time-limited output | D |
+| https://platform.minimax.io/docs/api-reference/video-generation-v2-delete.md | Cancel/delete state machine | D |
+| https://platform.minimax.io/docs/api-reference/music-generation.md | Music models, 24-hour URL, new-user closure | D |
+| https://platform.minimax.io/docs/api-reference/speech-t2a-http.md | Sync TTS hex audio, streaming chunks, audio settings | D |
+| https://platform.minimax.io/docs/api-reference/speech-t2a-async-query.md | Async statuses, 9-hour URL, 10 queries/s | D |
+| https://platform.minimax.io/docs/guides/speech-t2a-async.md | 1M chars, workflow, 9-hour retention | D |
+| https://platform.minimax.io/docs/api-reference/voice-cloning-clone.md | Clone request, audio limits, ASR validation, 7-day deletion | D |
+| https://platform.minimax.io/docs/guides/speech-voice-clone.md | Clone workflow and upload limits | D |
+| https://platform.minimax.io/docs/api-reference/file-management-retrieve-content.md | File download endpoint | D |
+| https://platform.minimax.io/docs/llms.txt | Discovery of media/speech/music pages | I |
+| https://fal.ai/docs/documentation/model-apis/inference/queue.md | Queue submit/status/cancel URLs, statuses, retries | D |
+| https://fal.ai/docs/documentation/model-apis/inference/webhooks.md | Webhook delivery, retries, result-store expiry | D |
+| https://fal.ai/docs/documentation/model-apis/inference/reliability.md | Retry policy, 5xx non-billing, no-retry header, backup domains | D |
+| https://fal.ai/llms.txt | Discovery of models and queue/webhook docs | I |
+| https://docs.comfy.org/development/comfyui-server/comms_routes.md | ComfyUI route table, /ws event types | D |
+| https://docs.dev.runwayml.com/ai-context.md | Auth header, task lifecycle, statuses, cancel/delete, moderation | D |
+| https://docs.dev.runwayml.com/_llms-txt/core-api.txt | Generation endpoints, versions, credits, output format surcharge | D |
+| https://docs.dev.runwayml.com/llms.txt | Discovery of core API, pricing and models docs | I |
+| https://docs.platform.pixverse.ai/query-task-status-43051212e0.md | Status codes, poll cadence, result URL readiness | D |
+| https://docs.platform.pixverse.ai/webhook-callbacks-2394994m0.md | Webhook headers, HMAC scheme, retry rule | D |
+| https://docs.platform.pixverse.ai/text-to-video-13016634e0.md | API-KEY and Ai-trace-id headers, request fields | D |
+| https://docs.platform.pixverse.ai/llms.txt | Discovery of media and TTS pages | I |
+| https://elevenlabs.io/docs/api-reference/text-to-speech/convert.md | TTS endpoint, output_format enum, tier gating, stitching | D |
+| https://elevenlabs.io/docs/api-reference/voices/add.md | IVC create endpoint, multipart fields, requires_verification response | D |
+| https://elevenlabs.io/docs/eleven-creative/voices/voice-cloning.md | IVC/PVC differences, sample guidance | D |
+| https://elevenlabs.io/docs/eleven-creative/voices/voice-cloning/instant-voice-cloning.md | Consent confirmation, minimum samples, prohibited-use policy | D |
+| https://elevenlabs.io/docs/eleven-creative/voices/voice-cloning/professional-voice-cloning.md | PVC verification and training time | D |
+| https://elevenlabs.io/docs/overview/capabilities/music.md | Eleven Music, licensing, Audio Reference, finetunes | D |
+| https://elevenlabs.io/docs/llms.txt | Discovery of TTS, cloning, music capability pages | I |
+| https://developers.deepgram.com/reference/speech-to-text/listen-pre-recorded.md | Listen endpoint, auth, encodings, diarization | D |
+| https://developers.deepgram.com/reference/text-to-speech/speak-request.md | Speak endpoint, auth, callback, encoding/container params | D |
+| https://developers.deepgram.com/docs/tts-encoding.md | TTS encoding availability and streaming restrictions | D |
+| https://developers.deepgram.com/llms.txt | Discovery of STT/TTS/callback docs and Voice Agent pages | I |
+| docs/research/synthesis-workspace-failures-2026-10-11.md (repo) | R3/R4: Gemini TTS PCM/WAV details, Live constraints | R |
+| docs/research/outputs-failures-2026-10-10.md and src/hutch/media/providers/base.py (repo) | Media job billing discipline, expiring-URL fetch rule | R |
+| src/hutch/grounding/acquire.py and docs/research/... (repo) | Existing external grounding adapters and outcome taxonomy | R |
+| src/hutch/synthesis/tts.py and src/hutch/media/providers/*.py (repo) | Current Hutch adapters and verification tags | R |
+
+End of fragment.
