@@ -26,7 +26,9 @@ def install_notification_routes(app: FastAPI, store) -> None:
             rows = [dict(row) for row in store._db.execute(
                 "SELECT n.*, d.channel_id, d.state AS delivery_state, d.attempts, d.error AS delivery_error "
                 "FROM notifications n LEFT JOIN channel_deliveries d ON d.notification_id = n.id "
-                "WHERE (? IS NULL OR n.kind = ?) ORDER BY n.created_at DESC, n.rowid DESC LIMIT ?",
+                "WHERE (? IS NULL OR n.kind = ?) "
+                "AND EXISTS (SELECT 1 FROM bots b WHERE b.id = n.bot_id) "
+                "ORDER BY n.created_at DESC, n.rowid DESC LIMIT ?",
                 (kind, kind, max(1, min(limit, 200))))]
         counts = {key: 0 for key in NOTIFICATION_KINDS}
         for row in rows:

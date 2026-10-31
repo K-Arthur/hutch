@@ -8396,27 +8396,15 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
         conversation_id = page.locator("#conversation-switcher").input_value()
         coordinator_chat = app.state.store.get_conversation(conversation_id)
         assert coordinator_chat["bot_id"] == coordinator.id
-        page.locator("#bot-search").fill("Release Notes")
-        specialist_options = page.locator("[data-bot-options='release-notes-reviewer']")
-        specialist_options.wait_for(state="visible")
-        specialist_options.click()
-        page.get_by_role("menuitem", name="Assistant settings").click()
-        open_assistant_customization(page, "profile")
-        page.get_by_role("button", name="Make this the main assistant").click()
-        page.get_by_role("heading", name="Make this your main assistant?").wait_for()
-        page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="About this assistant", exact=True).wait_for()
+        # There is no control for choosing the main assistant (it is named at onboarding); a workspace whose role moved still renders right.
+        app.state.store.set_workspace_coordinator(specialist.id)
         assert app.state.store.workspace_coordinator_id() == specialist.id
         assert app.state.store.workspace_specialists()["specialist_bot_ids"] == []
-        chat_link = page.locator(f"#app-top-context .ctx-actions a[href='#/chat/{specialist.name}']")
-        assert chat_link.count() == 1, page.locator("#app-top-context").inner_html()
-        page.locator(".assistant-settings-menu > summary").click()
-        chat_link.wait_for(state="visible")
-        chat_link.click()
+        page.goto(f"{base}/#/chat/{specialist.name}")
+        page.reload()
         page.locator("#chat-stream").get_by_role("heading", name="Release Notes Reviewer").wait_for()
         assert page.locator("#workspace-coordinator-pill").get_attribute("aria-label") == "Main assistant"
         assert page.locator("#roster-list [data-switch-bot]").first.get_attribute("data-switch-bot") == specialist.name
-        page.get_by_role("button", name="Dismiss notification").click()
 
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})

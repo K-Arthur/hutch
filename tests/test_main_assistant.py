@@ -79,3 +79,19 @@ def test_after_every_assistant_is_gone_the_next_first_one_is_the_main_assistant(
     assert _coordinator(client) is None
     _create(client, "river", "River")
     assert _coordinator(client)["name"] == "river"
+
+
+def test_a_workspace_that_has_assistants_but_no_main_gets_one_from_the_next_assistant_created(client):
+    """Owner report: a workspace that predates the main assistant had no way to get one, and there is no setting for it."""
+    from hutch.models import Bot
+    store = client.app.state.store
+    store.create_bot(Bot(name="older", display_name="Older", model="ollama/llama3.2:3b", tools=[]))
+    assert _coordinator(client) is None
+    created = _create(client, "fresh", "Fresh")
+    assert _coordinator(client)["name"] == "fresh" and created["is_workspace_coordinator"] is True
+
+
+def test_a_leftover_on_the_retired_demo_route_is_never_made_the_main_assistant(client):
+    created = client.post("/api/bots", json={"name": "old-demo", "display_name": "Old Demo", "model": "mock/demo", "tools": []})
+    if created.status_code == 201:
+        assert _coordinator(client) is None, "a dead route is not a main assistant"

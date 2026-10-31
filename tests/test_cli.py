@@ -61,7 +61,7 @@ def state_env(tmp_path, monkeypatch):
 def test_init_does_not_seed_fake_bots(state_env):
     result = runner.invoke(app, ["init"])
     assert result.exit_code == 0, result.output
-    assert "No bots were created" in result.output
+    assert "No assistants exist yet" in result.output     # init invents none, and says so only when none exist
 
     listing = runner.invoke(app, ["bot", "list"])
     assert listing.exit_code == 0

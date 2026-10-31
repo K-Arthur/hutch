@@ -25,7 +25,7 @@
     `stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SVG[n] || ""}</svg>`;
   const escHtml = s => String(s ?? "").replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const shortName = spec => String(spec).split("/").slice(1).join("/") || String(spec);
+  const shortName = spec => String(spec).split("/").slice(/^opencode\/[^/]+\//.test(spec) ? 2 : 1).join("/") || String(spec);   // opencode/<integration>/<model> reads as the model
 
   // Vendor marks. Brand artwork is bundled locally (static/brands, provenance in docs/brand-assets.md); nothing is fetched.
   // Anything without artwork gets a monogram of its model family on a tile whose hue comes from that family, so
@@ -123,7 +123,8 @@
     }
 
     function choose(spec) {
-      applySelection(spec);
+      const repair = window.hutchModelRepair?.needed(bot, find(spec));   // a model that has to be saved, not a one-message override
+      if (repair) void window.hutchModelRepair.apply(bot, find(spec)); else applySelection(spec);
       closeMenu(true);
     }
 
@@ -269,12 +270,8 @@
       }
     }
 
-    function openMenu() {
-      popup.open();
-    }
-    function closeMenu(returnFocus) {
-      popup.close(returnFocus);
-    }
+    const openMenu = () => popup.open();
+    const closeMenu = returnFocus => popup.close(returnFocus);
 
     btn.addEventListener("click", () => (menu.hidden ? openMenu() : closeMenu(true)));
     // Capture phase, so a number or "/" is ours before the popup's own type-ahead sees it.
@@ -317,7 +314,7 @@
       };
       const body = `
         <div class="ms-all">
-          <p class="ms-scope">For your next message only. ${escHtml(bot.display_name || bot.name)} keeps its saved model for future messages and scheduled work.</p>
+          <p class="ms-scope">${bot.route_problem ? `${escHtml(bot.display_name || bot.name)} has no working model yet. Choose one and it is saved for it.` : `For your next message only. ${escHtml(bot.display_name || bot.name)} keeps its saved model for future messages and scheduled work.`} <a class="ms-add-provider" href="#/connections">Add a provider</a></p>
           <input type="text" role="searchbox" class="ms-search" placeholder="Search available models" aria-label="Search available models" aria-describedby="ms-search-hint" autocomplete="off" spellcheck="false" enterkeyhint="search">
           <p class="ms-hint" id="ms-search-hint">Type to filter. Use the up and down arrow keys to choose and Enter to use it.</p>
           <div class="ms-filters" role="group" aria-label="Show">
@@ -335,10 +332,10 @@
             <input type="text" class="ms-custom mono" aria-describedby="ms-custom-egress-note" placeholder="provider/model" autocomplete="off" spellcheck="false">
             <span id="ms-custom-egress-note" class="muted">An openai-compatible route uses its configured endpoint and may send this chat off this machine. Confirm the provider endpoint for this assistant or Hutch installation before selecting it.</span></label></details>
           <p class="ms-foot"><a href="/models">Manage AI services and routes</a> &middot;
-            <a href="/connections">Apps &amp; AI (accounts and keys)</a></p>
+            <a href="/#/connections">Apps &amp; AI (accounts and keys)</a></p>
         </div>`;
       openModal({
-        title: "Choose a model", bodyHtml: body, confirmText: "Use for next message", returnFocus: btn, wide: true,
+        title: "Choose a model", bodyHtml: body, confirmText: bot.route_problem ? "Use this model" : "Use for next message", returnFocus: btn, wide: true,
         onConfirm: () => {
           const root = document.getElementById("modal-root");
           const custom = root.querySelector(".ms-custom").value.trim();
@@ -353,11 +350,13 @@
             toast("Write it as provider/model, naming a provider you have connected", true);
             return false;
           }
+          if (!custom && window.hutchModelRepair?.needed(bot, find(spec))) { window.setTimeout(() => void window.hutchModelRepair.apply(bot, find(spec)), 0); return true; }
           applySelection(spec);
           return true;
         },
       });
       const root = document.getElementById("modal-root");
+      root.querySelector(".ms-add-provider")?.addEventListener("click", () => activeLegacyModal?.close("navigate"));
       const search = root.querySelector(".ms-search");
       const groupList = root.querySelector(".ms-groups");
       const searchStatus = root.querySelector(".ms-search-status");
@@ -379,7 +378,8 @@
         }
       });
       custom.addEventListener("input", paintSelection);
-      let filter = "all";
+      let filter = data.models.some(usable) ? "ready" : "all";        // lead with what can run now; "All" shows what needs setup
+      root.querySelectorAll(".ms-chip").forEach(chip => chip.setAttribute("aria-pressed", String(chip.dataset.filter === filter)));
       const renderGroups = (models, query = "") => {
         const q = query.trim().toLowerCase();
         const groups = [];
@@ -393,7 +393,7 @@
           group.list.push(model);
         }
         const rank = { "Recent": -1, "This assistant": 0, "On this machine": 1, "Hosted": 2 };
-        groups.sort((a, b) => (rank[a.name] ?? 3) - (rank[b.name] ?? 3));
+        groups.sort((a, b) => (Number(!a.list.some(usable)) - Number(!b.list.some(usable))) || (rank[a.name] ?? 3) - (rank[b.name] ?? 3));
         groupList.innerHTML = groups.map(group =>
           `<section class="ms-group"><h3>${escHtml(group.name)}</h3>${group.list.map(row).join("")}</section>`).join("") +
           '<p class="ms-empty" hidden>No model matches. Try a different name or enter its ID below.</p>';

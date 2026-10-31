@@ -5001,3 +5001,37 @@ edited from this session.
 record people; the server remains single-owner); no live model-driven commitment capture because no model route
 was configured; calendar/mail are not read for Today; no live coding-orchestration or multimodal deliverable run
 in this environment; no exactly-once claim for external effects, and this slice adds none.
+
+## 2026-10-31: demo leftovers out, model setup and removal made real
+
+Owner reports, in order: the picker still showed demo models; precreated assistants that cannot run were still in the workspace (and
+kept first-run onboarding from starting); model setup did not work; there should be no way to choose a main assistant; removing and
+adding assistants was too complicated; the main assistant did not exist on the frontend; and the standing goal for the session was
+"removing demo fixtures and replacing them with real functionality".
+
+**Root causes found by running the real thing** (the previous passes had verified against labelled fixtures): the workspace held
+assistants, runs and a schedule from an older release's demo seed (`openbot demo seed`; the names are `repo-sweeper`,
+`research-briefing`, `tidy-downloads`, plus the `design-system-review` fixture); the picker always listed an assistant's own saved
+route even when it could not run; OpenCode models were offered only to assistants already on the OpenCode runtime; saving an OpenCode
+model as the default was refused; the dashboard creates assistants through `/api/v1/bots`, where the main-assistant rule had never
+been applied; Ctrl+C waited ten seconds and printed a traceback because open event streams held uvicorn's shutdown (now ends them
+at once, exit 0 in 0.5 s, tested with a real `hutch serve`); and the server sent no Cache-Control, so a browser could serve a stale
+script or page shell for hours after an update (now `no-cache`, a cheap 304).
+
+**Shipped:** see the checklist rows dated 2026-10-31. **Reviewed references** (fetched again this session): Grok Bot's bots,
+get-started and shared-bots pages and the OpenAlternative list; what changed as a result is the removal of every main-assistant
+chooser, the automatic main assistant, "ask before creating several", and Hide kept separate from Delete.
+
+**Final run.** The full non-browser suite on a clean copy of `9ecbd4f5`: 4,720 passed, 63 skipped, 3 xfailed, 4 failed. Three were
+mine and are fixed (a test that pinned the refusal of an OpenCode model as the workspace default, which was the bug, and two
+remote-pairing tests that intercepted `uvicorn.run`, which `hutch serve` no longer calls); the fourth is the known load-timing
+test `test_single_line_spin_deadline_is_bounded_by_an_outer_process[signal]`, which passes alone.
+
+**Limits, recorded rather than hidden.** The three fixes above were re-run alone and passed (45 tests with the shutdown and serve
+lifecycle suites); the whole suite was not run a second time. Browser modules were run as listed in the checklist. Not verified on the user's own workspace: their database was never
+opened, by design; the removal flow was exercised on workspaces built to match what the old seed leaves, including an old live run.
+Browser tests that failed before this work still fail (listed in the checklist). **Process incidents:** two other actors committed in
+this checkout during the stretch (one swept in-progress edits twice; another, a different agent tool, was adding in-app model
+installation and left uncommitted changes in shared files, which this work did not stage). The user's belief that no other agent was
+active was not accurate for this checkout.
+

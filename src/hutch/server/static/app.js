@@ -1830,12 +1830,14 @@ function openRosterActionMenu(trigger) {
     <button type="button" role="menuitem" tabindex="-1" data-menu-duplicate>${icon("bot")} Duplicate assistant</button>
     ${bot.is_workspace_coordinator ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-archive>${icon(bot.archived ? "refresh" : "folder")} ${bot.archived ? "Restore assistant" : "Archive assistant"}</button>`}
     ${bot.is_workspace_coordinator || bot.archived ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-hide>${icon(bot.sidebar_hidden ? "eye" : "eyeOff")} ${bot.sidebar_hidden ? "Show in sidebar" : "Hide from sidebar"}</button>`}
-    <a role="menuitem" tabindex="-1" data-menu-settings href="#/bot/${encodeURIComponent(bot.name)}">${icon("sliders")} Assistant settings</a>`;
+    <a role="menuitem" tabindex="-1" data-menu-settings href="#/bot/${encodeURIComponent(bot.name)}">${icon("sliders")} Assistant settings</a>
+    <button type="button" role="menuitem" tabindex="-1" data-menu-remove>${icon("trash")} Remove…</button>`;
   document.body.append(menu);
   const popup = window.hutchControls.popup({ trigger, panel: menu, kind: "menu",
     onClose: () => closeRosterActionMenu(false) });
   rosterMenuCleanup = () => popup.destroy();
   menu.querySelector('[data-menu-settings]')?.addEventListener("click", () => closeRosterActionMenu(false));
+  menu.querySelector("[data-menu-remove]")?.addEventListener("click", () => { closeRosterActionMenu(false); void window.hutchRemoval?.open({ names: [name] }); });
   menu.querySelector("[data-menu-section]")?.addEventListener("click", () => editBotRosterSection(bot, trigger));
   menu.querySelector("[data-menu-template]")?.addEventListener("click", () => prepareBotTemplateDownload(bot, trigger));
   menu.querySelector("[data-menu-duplicate]")?.addEventListener("click", () => {
@@ -5289,7 +5291,7 @@ function welcomeHtml() {
       <p class="welcome-intro">What would you like to work on?</p>
       <p class="welcome-guide hint">Say what you want to end up with, where to look, what to avoid, what to hand back, and when to stop and ask.</p>
       ${b.route_problem ? `<div class="welcome-problem" role="alert"><p><strong>This assistant can't run yet:</strong> ${esc(b.route_problem)}.</p>
-        <p><a class="btn small" href="#/bot/${encodeURIComponent(b.name)}">Choose a model route</a> <a class="btn ghost small" href="/bots/${encodeURIComponent(b.name)}/delete">Remove assistant</a></p></div>` : ""}
+        <p><span data-repair-bot="${esc(b.name)}"></span><a class="btn small" href="#/bot/${encodeURIComponent(b.name)}">Choose a model route</a> <button type="button" class="btn ghost small" data-remove-assistants data-remove-name="${esc(b.name)}">Remove assistant</button>${window.hutchRemoval?.isLeftover(b) ? ' <button type="button" class="btn ghost small" data-remove-assistants>Remove all demo assistants…</button>' : ""}</p></div>` : ""}
       <ul class="welcome-trust" aria-label="How this assistant works">
         <li>${icon("shield")}<span>${esc(botActionSummary(b.approval_mode))}</span></li>
         ${can ? `<li>${icon("wrench")}<span>${esc(can)}</span></li>` : ""}
@@ -8482,13 +8484,9 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             ${identityPickerHtml()}
             <p class="hint idp-note">Chosen immediately — the roster updates everywhere.</p>
           </div>
-          ${b.is_workspace_coordinator || botsCache.length > 1 ? `<section class="panel" aria-labelledby="workspace-coordinator-title">
+          ${b.is_workspace_coordinator ? `<section class="panel" aria-labelledby="workspace-coordinator-title">
             <div class="panel-title" id="workspace-coordinator-title">Main assistant</div>
-            <p class="hint">Choose which assistant opens as your main conversation. You can still chat with all of them directly. This role does not add app access or permissions.</p>
-            ${b.is_workspace_coordinator
-              ? `<div class="coordinator-role-state" role="status"><span class="tag" id="workspace-coordinator-settings-state">Main assistant</span>
-                  <button class="btn ghost small" type="button" id="btn-clear-workspace-coordinator">Clear selection</button></div>`
-              : `<button class="btn ghost small" type="button" id="btn-set-workspace-coordinator">Make this the main assistant</button>`}
+            <p class="hint">This is your main assistant: the one you talk to first, and the one that can hand work to specialists you approve. It was named when you set Hutch up. This role does not add app access or permissions.</p>
           </section>` : ""}
 <p><a href="#/activity/history?q=${encodeURIComponent(b.name)}">See this assistant’s history</a></p>
         </section>
@@ -8753,24 +8751,6 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     const fd = new FormData(ev.target);
     patch({ instructions: fd.get("instructions") }, "Directions saved.");
   });
-  $("#btn-set-workspace-coordinator")?.addEventListener("click", () => {
-    const current = botsCache.find(bot => bot.is_workspace_coordinator);
-    const replacement = current && current.id !== b.id
-      ? `<p>This replaces <b>${esc(current.display_name || current.name)}</b> as the workspace coordinator. It does not change either assistant’s permissions or settings.</p>`
-      : `<p>This makes <b>${esc(b.display_name || b.name)}</b> the main workspace conversation. It does not change the assistant’s permissions or settings.</p>`;
-    openModal({ title: "Make this your main assistant?", bodyHtml: `${replacement}<p>If this assistant is currently approved to receive assigned work, it will be removed from that list. The previous main assistant will not be added automatically. You can still open a conversation with every assistant from the roster.</p>`,
-      confirmText: "Make main assistant", returnFocus: $("#btn-set-workspace-coordinator"),
-      onConfirm: async () => {
-        try {
-          await api("/v1/workspace/coordinator", { method: "PUT", body: { bot_id: b.id } });
-          toast(`${b.display_name || b.name} is now your main assistant.`);
-          await refreshRoster();
-          await renderBotDetail(b.name);
-          return true;
-        } catch (err) { toast(`Coordinator not changed: ${err.message}`, true); return false; }
-      },
-    });
-  });
   $("#btn-save-workspace-specialists")?.addEventListener("click", async () => {
     const button = $("#btn-save-workspace-specialists");
     const ids = $$('[data-workspace-specialist]:checked').map(input => input.dataset.workspaceSpecialist);
@@ -8799,20 +8779,6 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     }
     const status = $("#workspace-specialist-filter-status");
     if (status) status.textContent = `${shown} of ${choices.length} assistants shown.`;
-  });
-  $("#btn-clear-workspace-coordinator")?.addEventListener("click", () => {
-    openModal({ title: "Remove the main assistant?", bodyHtml: `<p>${esc(b.display_name || b.name)} will remain an assistant and its conversations will stay available. You can choose another main assistant later.</p>`,
-      confirmText: "Clear role", confirmClass: "danger", returnFocus: $("#btn-clear-workspace-coordinator"),
-      onConfirm: async () => {
-        try {
-          await api("/v1/workspace/coordinator", { method: "PUT", body: { bot_id: null } });
-          toast("Main assistant cleared.");
-          await refreshRoster();
-          await renderBotDetail(b.name);
-          return true;
-        } catch (err) { toast(`Coordinator not changed: ${err.message}`, true); return false; }
-      },
-    });
   });
   const toolCompat = { data: null };
   const toolCompatDetails = $("#tool-compat");
@@ -11729,7 +11695,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   };
   let presetEdited = false;
   draft.memory_enabled = draft.tools.has("remember") || draft.tools.has("recall");
-  let displayNameEdited = !!duplicateBot;
+  let displayNameEdited = !!duplicateBot || !!window.hutchProposalDraft;
+  if (window.hutchProposalDraft) { draft.display_name = window.hutchProposalDraft.name; window.hutchProposalDraft = null; }   // a suggestion from the main assistant: the name arrives filled in
   let descriptionEdited = !!duplicateBot?.description;
   let addressEdited = false;
   let draftClosed = false;
@@ -12006,8 +11973,9 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     return `${purpose}\n\nOwner-selected background context from this chat (not a permission or access grant):\n${context}`;
   };
   const setupConfiguration = () => ({
-    name: draft.name.trim(), display_name: draft.display_name.trim(), template: draft.template || null,
-    runtime: draft.runtime || "builtin",
+    name: !addressEdited && displayNameEdited && draft.display_name.trim() ? uniqueAddress(draft.display_name) : draft.name.trim(),   // the address follows the name the person chose
+    display_name: draft.display_name.trim(), template: draft.template || null,
+    runtime: draft.model.trim() ? (/^opencode\//i.test(draft.model.trim()) ? "opencode" : "builtin") : draft.runtime || "builtin",
     preset: draft.preset,
     description: draft.description.trim() || draft.purpose.trim().split("\n")[0].slice(0, 240),
     instructions: instructionsForDraft(), model: draft.model.trim(), inference_mode: draft.inference_mode,
@@ -12082,6 +12050,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     for (const key of ["inference_mode", "workspace_mode", "catch_up", "preset", "runtime", "memory_learning"]) {
       const field = $(`#setup-${key}`); if (field) draft[key] = field.value;
     }
+    if (draft.model.trim()) draft.runtime = /^opencode\//i.test(draft.model.trim()) ? "opencode" : "builtin";   // the model decides the runtime, not the other way round
     const handoff = $("#setup-local-browser-handoff");
     if (handoff) draft.local_browser_handoff = handoff.checked;
     for (const key of Object.keys(draft.limits)) {

@@ -127,7 +127,7 @@ def _alert_item(row: dict[str, Any], *, labels: dict[str, str]) -> dict[str, Any
         "subject_id": row.get("subject_id"),
         "detail": row.get("detail") or "",
         "created_at": row.get("created_at"),
-        "delivery": row.get("delivery_state") or "not queued",
+        "delivery": row.get("delivery_state") or "not_queued",
         "attempts": int(row.get("attempts") or 0),
         "href": "#/approvals" if row.get("subject_kind") == "approval" else "#/today",
     }

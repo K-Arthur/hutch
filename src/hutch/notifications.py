@@ -64,12 +64,18 @@ def render_notification(row: dict[str, Any], bot_label: str) -> str:
 
 
 def recent(store, *, limit: int = 20, since: str = "") -> list[dict[str, Any]]:
-    """Recent notifications with their outbox state; a read, never a write."""
+    """Recent notifications with their outbox state; a read, never a write.
+
+    A row whose assistant no longer exists is not listed: it would show a raw id for a
+    fact the owner can no longer open. Whole-bot deletion erases the rows themselves.
+    """
     with store._lock:
         return [dict(row) for row in store._db.execute(
-            "SELECT n.*, d.state AS delivery_state, d.attempts, d.error AS delivery_error "
+            "SELECT n.*, d.channel_id, d.state AS delivery_state, d.attempts, d.error AS delivery_error "
             "FROM notifications n LEFT JOIN channel_deliveries d ON d.notification_id = n.id "
-            "WHERE (? = '' OR n.created_at >= ?) ORDER BY n.created_at DESC, n.rowid DESC LIMIT ?",
+            "WHERE (? = '' OR n.created_at >= ?) "
+            "AND EXISTS (SELECT 1 FROM bots b WHERE b.id = n.bot_id) "
+            "ORDER BY n.created_at DESC, n.rowid DESC LIMIT ?",
             (since, since, max(1, min(limit, 100))))]
 
 
@@ -87,7 +93,7 @@ def public(row: dict[str, Any], bot_label: str = "") -> dict[str, Any]:
         "created_at": row.get("created_at"),
         "delivery": {
             "channel_id": row.get("channel_id") or "",
-            "state": row.get("delivery_state") or "pending",
+            "state": row.get("delivery_state") or "not_queued",
             "attempts": int(row.get("attempts") or 0),
             "error": row.get("delivery_error") or "",
         },

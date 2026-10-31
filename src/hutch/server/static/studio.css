@@ -1005,3 +1005,17 @@ label.field { align-content: start; }
 .ctx-id:has(> .main-badge) { position: relative; }
 .ctx-id > .main-badge { left: 22px; top: -4px; }
 @media (forced-colors: active) { .main-badge { forced-color-adjust: none; background: Highlight; color: HighlightText; } }
+
+/* Removing assistants: a plain checklist (assistant-removal.js). */
+.removal-list { display: grid; gap: var(--s-2); margin: var(--s-3) 0; padding: 0; list-style: none; }
+.removal-list label { align-items: center; }
+.removal-list .tag { margin-left: var(--s-1); }
+
+/* Suggestions from the main assistant (assistant-proposals.js): a quiet block above the roster. */
+.proposals { margin: 0 var(--s-2) var(--s-3); padding: var(--s-3); border: 1px solid var(--line); border-left: 3px solid var(--brand); border-radius: var(--r-ctl); background: var(--sunken); }
+.proposals[hidden] { display: none; }
+.proposals-title { margin: 0 0 var(--s-2); font-size: var(--fs-sm); color: var(--text-2); font-weight: 650; }
+.proposals ul { display: grid; gap: var(--s-3); margin: 0; padding: 0; list-style: none; }
+.proposal p { margin: var(--s-1) 0 0; }
+.proposal-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-2); }
+

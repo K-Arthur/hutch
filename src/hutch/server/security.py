@@ -376,6 +376,7 @@ class SecurityMiddleware:
                     b"referrer-policy": b"no-referrer",
                     b"x-frame-options": b"DENY",
                     b"permissions-policy": b"camera=(), microphone=(), geolocation=()",
+                    b"cache-control": b"no-cache",   # always revalidate (cheap 304): heuristic caching made updates look "not applied"
                 }
                 paired_request = bool(principal and principal.get("kind") == "paired")
                 # The CSP is defense in depth on the local surface too: a stored
@@ -393,9 +394,7 @@ class SecurityMiddleware:
                         b"img-src 'self' data: blob:; connect-src 'self'")
                     security_headers[b"cache-control"] = b"private, no-store"
                     security_headers[b"pragma"] = b"no-cache"
-                for key, value in security_headers.items():
-                    if key not in existing:
-                        headers.append((key, value))
+                headers += [(key, value) for key, value in security_headers.items() if key not in existing]
                 if fresh:
                     secure = "; Secure" if scope.get("scheme") == "https" else ""
                     headers.append((b"set-cookie", (

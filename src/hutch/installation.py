@@ -61,8 +61,8 @@ def installation_issues(store) -> list[dict[str, Any]]:
     if bots and store.workspace_coordinator_id() is None:
         issues.append({"kind": "no_main_assistant", "key": "no-main-assistant",
                        "reason": "No main assistant is set, so the app has no default conversation.",
-                       "fix": "Choose which assistant opens first (Assistants, then Make this the main assistant).",
-                       "href": "#/bots"})
+                       "fix": "Open an assistant's menu in the sidebar (the three dots) and choose Make main assistant.",
+                       "href": "#/chat"})
     return issues
 
 

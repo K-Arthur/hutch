@@ -52,15 +52,23 @@ def mail_source(*, messages=None, error=None, **overrides) -> AgendaSource:
 
 
 class FakeBook:
-    def __init__(self, accounts=None, events=None, messages=None, error=None):
+    def __init__(self, accounts=None, events=None, messages=None, error=None, token_error=None):
         self._accounts = accounts or []
         self._events = events or []
         self._messages = messages or []
         self._error = error
+        self._token_error = token_error
         self.calls: list[tuple] = []
 
     def accounts(self):
         return self._accounts
+
+    def access_token(self, account_id):
+        """A real credential exchange; ``token_error`` models a provider-side revocation."""
+        self.calls.append(("token", account_id))
+        if self._token_error:
+            raise self._token_error
+        return "synthetic-access-token"
 
     def list_events(self, account_id, calendar_id, time_min, time_max, *, query="", limit=25):
         self.calls.append(("events", account_id, calendar_id, time_min, time_max, limit))
@@ -142,6 +150,69 @@ def test_an_expired_grant_is_unavailable_and_never_read():
     assert source["items"] == [] and body["counts"]["unavailable"] == 1
 
 
+def test_revoking_a_grant_discards_the_snapshot_immediately():
+    """The owner's decision to stop sharing must not wait for a snapshot to age out."""
+    cache: dict = {}
+    good = calendar_source(events=[{"summary": "Private salary review", "start": "2026-10-31T09:00:00-07:00"}])
+    build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=good, cache=cache)
+    assert cache, "a successful read is remembered so a transient failure can be labelled stale"
+    for reason in ("grant_expired", "grant_missing", "mail_requires_local"):
+        later = NOW + timedelta(minutes=5)
+        revoked = AgendaSource(**{**good.__dict__, "fetch": None, "unavailable": reason})
+        body = build_agenda(now=later, timezone_name="America/Vancouver", calendar=revoked, cache=cache)
+        source = body["sources"]["calendar"]
+        assert source["status"] == "unavailable", reason
+        assert source["items"] == [], reason
+        assert source["reason_kind"] == reason
+        assert not cache, "a revoked grant must not leave provider text in memory"
+        build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=good, cache=cache)
+
+
+def test_removing_a_grant_evicts_even_though_the_missing_source_has_no_calendar_id():
+    """The real removal path: a grant that is gone carries no calendar id to match on."""
+    cache: dict = {}
+    full = calendar_source(events=[{"summary": "Private salary review"}])
+    build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=full, cache=cache)
+    assert list(cache) == [full.key]
+    removed = AgendaSource.missing(kind="calendar", source="google_calendar",
+                                   source_label="Google Calendar · Household",
+                                   reason="grant_missing", bot_id=full.bot_id, bot_label=full.bot_label)
+    assert removed.key != full.key, "this is why an exact-key delete was not enough"
+    body = build_agenda(now=NOW + timedelta(minutes=1), timezone_name="America/Vancouver",
+                        calendar=removed, cache=cache)
+    assert body["sources"]["calendar"]["status"] == "unavailable"
+    assert not cache, "provider text must not survive the grant it came from"
+    # Re-granting and then failing must not resurrect the pre-revocation reading.
+    again = build_agenda(now=NOW + timedelta(minutes=2), timezone_name="America/Vancouver",
+                         calendar=calendar_source(error=AgendaUnavailable("provider_error", "offline")),
+                         cache=cache)
+    assert again["sources"]["calendar"]["status"] == "unavailable"
+    assert again["sources"]["calendar"]["items"] == []
+
+
+def test_a_grant_that_fails_mid_read_is_unavailable_not_stale():
+    cache: dict = {}
+    good = calendar_source(events=[{"summary": "Private salary review"}])
+    build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=good, cache=cache)
+    broken = calendar_source(error=AgendaUnavailable("grant_expired", "Reconnect this account."))
+    body = build_agenda(now=NOW + timedelta(minutes=1), timezone_name="America/Vancouver",
+                        calendar=broken, cache=cache)
+    assert body["sources"]["calendar"]["status"] == "unavailable"
+    assert body["sources"]["calendar"]["items"] == []
+    assert body["sources"]["calendar"]["reason_kind"] == "grant_expired"
+
+
+def test_a_snapshot_is_not_kept_past_the_hour_it_can_be_shown():
+    cache: dict = {}
+    good = calendar_source(events=[{"summary": "Design review"}])
+    build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=good, cache=cache)
+    broken = calendar_source(error=AgendaUnavailable("provider_error", "unreachable"))
+    body = build_agenda(now=NOW + timedelta(hours=2), timezone_name="America/Vancouver",
+                        calendar=broken, cache=cache)
+    assert body["sources"]["calendar"]["status"] == "unavailable"
+    assert not cache, "an unshowable snapshot is dropped, not retained"
+
+
 def test_an_unselected_source_is_named_not_configured():
     body = build_agenda(now=NOW, timezone_name="America/Vancouver")
     for name in ("calendar", "mail"):
@@ -174,6 +245,15 @@ def test_agenda_modules_cannot_import_a_model_path():
         text = (root / name).read_text(encoding="utf-8")
         assert "hutch.engine" not in text and "hutch.runtime" not in text
         assert "from ..engine" not in text and "from ..runtime" not in text
+
+
+def test_the_source_list_bounds_the_provider_calendar_name(client):
+    bot = client.store.create_bot(Bot(name="agenda-assistant"))
+    client.store.set_google_calendar_grant(bot.id, ACCOUNT, "work", "Work\x00\x1b[2JPrimary")
+    listing = client.get("/api/v1/personal/agenda/sources").json()
+    name = listing["calendar"][0]["calendar_name"]
+    assert "\x00" not in name and "\x1b" not in name
+    assert name == "Work [2JPrimary"
 
 
 def test_agenda_reads_do_not_write_to_the_store(store):
@@ -225,7 +305,7 @@ def test_agenda_route_reads_the_selected_calendar_for_the_local_day(client, monk
     assert body["sources"]["calendar"]["status"] == "ok"
     assert body["sources"]["calendar"]["fetched_at"] == "2026-10-31T17:00:00+00:00"
     assert body["sources"]["calendar"]["items"][0]["title"] == "Design review"
-    assert book.calls == [("events", ACCOUNT, "work", DAY_START, DAY_END, 25)]
+    assert book.calls == [("token", ACCOUNT), ("events", ACCOUNT, "work", DAY_START, DAY_END, 25)]
     assert body["sources"]["mail"]["status"] == "not_configured"
 
 
@@ -243,15 +323,57 @@ def test_mail_for_a_hosted_assistant_is_refused_not_read(store, config, monkeypa
     assert called == []
 
 
-def test_a_provider_auth_failure_is_reported_as_an_expired_grant(store, config, monkeypatch):
+def test_a_revoked_refresh_token_is_a_grant_failure_whatever_status_google_chooses(store, config, monkeypatch):
+    """Google answers a revoked refresh token with HTTP 400 invalid_grant, not 401.
+
+    Classifying by error text would miss exactly that, so the credential is checked where it
+    is used: a failed renewal ends access even when the read never started, and the reading
+    already in memory does not survive it.
+    """
+    bot = store.create_bot(Bot(name="local-assistant"))
+    store.set_google_calendar_grant(bot.id, ACCOUNT, "work", "Work")
+    revoked = FakeBook(accounts=[{"id": ACCOUNT, "status": "connected"}],
+                       token_error=GoogleCalendarError("Google access-token refresh failed (HTTP 400)"))
+    monkeypatch.setattr(agenda_sources, "calendar_book", lambda config, store: revoked)
+    cache: dict = {}
+    healthy = calendar_source(bot_id=bot.id, events=[{"summary": "Private salary review"}])
+    assert build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=healthy,
+                        cache=cache)["sources"]["calendar"]["status"] == "ok"
+    source = agenda_sources.calendar_source(store, config, bot.id)
+    body = build_agenda(now=NOW + timedelta(minutes=1), timezone_name="America/Vancouver",
+                        calendar=source, cache=cache)
+    assert body["sources"]["calendar"]["status"] == "unavailable"
+    assert body["sources"]["calendar"]["reason_kind"] == "grant_expired"
+    assert body["sources"]["calendar"]["items"] == []
+    assert not cache, "a revoked credential must not leave provider text in memory"
+    assert "Private salary review" not in str(body)
+
+
+def test_a_credential_that_fails_mid_read_ends_access_instead_of_showing_stale(store, config, monkeypatch):
+    """A read that fails while the credential is unusable is a grant failure, not a flaky provider.
+
+    The probe after the failure is what distinguishes the two, so this does not depend on the
+    wording of Hutch's or the provider's error.
+    """
     bot = store.create_bot(Bot(name="local-assistant"))
     store.set_google_calendar_grant(bot.id, ACCOUNT, "work", "Work")
     book = FakeBook(accounts=[{"id": ACCOUNT, "status": "connected"}],
-                    error=GoogleCalendarError("The Google Calendar refresh credential is missing; "
-                                              "disconnect and reconnect this account"))
+                    error=GoogleCalendarError("Google Calendar events failed (HTTP 500)"),
+                    token_error=GoogleCalendarError("The Google Calendar refresh credential is missing"))
     monkeypatch.setattr(agenda_sources, "calendar_book", lambda config, store: book)
     source = agenda_sources.calendar_source(store, config, bot.id)
     body = build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=source)
     assert body["sources"]["calendar"]["status"] == "unavailable"
     assert body["sources"]["calendar"]["reason_kind"] == "grant_expired"
-    assert "reconnect" in body["sources"]["calendar"]["reason"].lower()
+
+
+def test_a_read_failure_with_a_working_credential_is_a_provider_error(store, config, monkeypatch):
+    bot = store.create_bot(Bot(name="local-assistant"))
+    store.set_google_calendar_grant(bot.id, ACCOUNT, "work", "Work")
+    book = FakeBook(accounts=[{"id": ACCOUNT, "status": "connected"}],
+                    error=GoogleCalendarError("Google Calendar events failed (HTTP 500)"))
+    monkeypatch.setattr(agenda_sources, "calendar_book", lambda config, store: book)
+    source = agenda_sources.calendar_source(store, config, bot.id)
+    body = build_agenda(now=NOW, timezone_name="America/Vancouver", calendar=source)
+    assert body["sources"]["calendar"]["status"] == "unavailable"
+    assert body["sources"]["calendar"]["reason_kind"] == "provider_error"

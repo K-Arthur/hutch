@@ -104,7 +104,8 @@ def test_the_empty_chat_of_an_unusable_assistant_explains_and_offers_the_two_rea
         notice.wait_for(timeout=20_000)
         assert "can't run yet" in notice.inner_text() and "retired demo route" in notice.inner_text()
         assert notice.get_by_role("link", name="Choose a model route").get_attribute("href") == "#/bot/old-demo"
-        assert notice.get_by_role("link", name="Remove assistant").get_attribute("href") == "/bots/old-demo/delete"
+        remove = notice.get_by_role("button", name="Remove assistant")     # one removal dialog (assistant-removal.js), not a separate page
+        assert remove.get_attribute("data-remove-name") == "old-demo"
         page.goto(f"{base}/#/chat/real-one", wait_until="domcontentloaded")
         page.locator(".welcome h2", has_text="Real One").wait_for(timeout=20_000)
         assert page.locator(".welcome-problem").count() == 0

@@ -38,6 +38,7 @@ def browser():
 @pytest.fixture()
 def base(tmp_path, monkeypatch):
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:9")      # a local Ollama on the host would put a configured route on the page
     with serve(create_app()) as url:
         yield url
 

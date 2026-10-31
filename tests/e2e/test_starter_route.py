@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 import pytest
 
 pw = pytest.importorskip("playwright.sync_api")
+expect = pw.expect
 
 from hutch.models import Bot  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
@@ -174,7 +175,7 @@ def test_an_assistant_on_a_free_hosted_model_keeps_the_reminder_on_its_model_tab
             assert "Free starter model" in note.inner_text() and "Settings" in note.inner_text()
             page.goto(f"{url}/#/bot/private", wait_until="domcontentloaded")
             page.get_by_role("tab", name="AI model").click()
-            page.locator("#assistant-model").wait_for(timeout=20_000)
+            expect(page.locator("#assistant-model")).to_have_value("ollama/llama3.2:3b", timeout=20_000)   # the new assistant's own tab, not the old one
             assert page.locator("#settings-pane-model .route-notice").count() == 0, "a model on this computer needs no notice"
         finally:
             page.context.close()

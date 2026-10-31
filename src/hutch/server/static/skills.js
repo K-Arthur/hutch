@@ -94,7 +94,7 @@
             <div class="hutch-actions"><button class="btn small" type="submit">Install from folder</button></div>
           </form>
           <div class="skill-import-bundled">
-            <p class="hint">Or install one of Hutch's reviewed samples:</p>
+            <p class="hint">Or install one of the skills Hutch ships, each reviewed:</p>
             <div class="hutch-actions" id="skills-bundled"></div>
           </div>
         </div>
@@ -150,7 +150,7 @@
       bundledSlot.innerHTML = bundled.length
         ? bundled.map(item => `<button class="btn ghost small" type="button" data-install-builtin="${esc(item.name)}"
             title="${esc(item.description)}">${glyph("plus", 13)} ${esc(item.name)}</button>`).join("")
-        : `<span class="hint">All bundled samples are installed.</span>`;
+        : `<span class="hint">All of the skills Hutch ships are installed.</span>`;
 
       const installed = report.skills;
       const candidates = report.available.filter(item => !item.installed);
@@ -159,7 +159,7 @@
         <h2 class="skill-section-title" id="skills-installed-title">Installed (${installed.length})</h2>
         ${installed.length ? `<div class="skill-grid">${installed.map(card).join("")}</div>`
           : `<div class="empty-state skill-empty"><p>No skills installed yet.</p>
-             <p class="hint">Install a bundled sample above, or import a folder that contains SKILL.md.</p></div>`}
+             <p class="hint">Install one of the skills Hutch ships above, or import a folder that contains SKILL.md.</p></div>`}
       </section>`);
       if (candidates.length) {
         sections.push(`<section aria-labelledby="skills-available-title">
@@ -171,8 +171,8 @@
       if (report.collisions.length) {
         sections.push(`<section aria-labelledby="skills-shadowed-title">
           <h2 class="skill-section-title" id="skills-shadowed-title">Shadowed duplicates</h2>
-          <div class="panel skill-diagnostics"><p class="hint">Project skills override user skills, which override bundled
-            samples. Shadowed copies are shown here instead of being silently dropped.</p>
+          <div class="panel skill-diagnostics"><p class="hint">Project skills override user skills, which override Hutch's own
+            skills. Shadowed copies are shown here instead of being silently dropped.</p>
             ${report.collisions.map(c => `<div class="skill-diagnostic">${esc(c.name)}: using ${esc(c.winner)},
               shadowed ${esc(c.shadowed.join(", "))}</div>`).join("")}</div>
         </section>`);

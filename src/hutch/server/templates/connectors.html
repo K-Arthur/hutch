@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
+{% from "_form.html" import text_input, textarea, select_input, field_label, help_text %}
 {% block title %}Connectors{% endblock %}
 {% block header_context %}<div class="ctx-id"><h1>Connectors</h1></div>{% endblock %}
 {% block content %}
@@ -29,10 +30,13 @@
   <details class="plain-list" {% if item.open %}open{% endif %}>
     <summary>
       <strong>{{ item.title }}</strong>
-      <span class="mono small">{{ item.integration_id }}</span>
-      <span class="tag">{{ item.transport | replace("mcp_", "") }}</span>
-      <span class="chip {% if item.state == 'operation_authorized' %}st-succeeded{% elif item.state == 'capabilities_discovered' %}st-waiting_approval{% else %}st-stopped{% endif %}">{{ item.state | replace("_", " ") }}</span>
-      <span class="hint">{{ item.tool_count }} tool{{ "" if item.tool_count == 1 else "s" }}{% if item.grant_count %}, {{ item.grant_count }} granted{% endif %}</span>
+      <span class="tags">
+        <span class="mono small">{{ item.integration_id }}</span>
+        <span class="tag">{{ item.transport | replace("mcp_", "") }}</span>
+        <span class="chip {% if item.state == 'operation_authorized' %}st-succeeded{% elif item.state == 'capabilities_discovered' %}st-waiting_approval{% else %}st-stopped{% endif %}">{{ item.state | replace("_", " ") }}</span>
+        <span class="tag">{{ item.tool_count }} tool{{ "" if item.tool_count == 1 else "s" }}</span>
+        {% if item.grant_count %}<span class="tag">{{ item.grant_count }} granted</span>{% endif %}
+      </span>
     </summary>
 
     <div class="card-actions">
@@ -55,6 +59,7 @@
 
     {% if item.catalog %}
     <h3 class="card-title">Tools this connector offers</h3>
+    <p class="hint">For each tool, choose whether to allow it and what effect it has: <span class="mono">read</span> runs without asking, every other class asks you first, and <span class="mono">unknown</span> is the safe default.</p>
     <form method="post" action="/connectors/{{ item.integration_id }}/grant" class="hutch-form">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <input type="hidden" name="revision" value="{{ item.revision }}">
@@ -63,29 +68,33 @@
         <div class="list-row">
           <div>
             <strong>{{ tool.title or tool.server_tool_name }}</strong>
+            {% if tool.title and tool.title != tool.server_tool_name %}
             <span class="mono small">{{ tool.server_tool_name }}</span>
+            {% endif %}
             {% if not tool.supported %}<span class="chip st-failed">cannot run as described</span>{% endif %}
             <p class="hint">{{ tool.description or "The server did not describe this tool." }}</p>
             {% if tool.diagnostics %}<p class="hint">Refused because: {{ tool.diagnostics | join("; ") }}</p>{% endif %}
           </div>
-          <div>
+          <div class="connector-tool-controls">
             {% if tool.supported %}
-            <label class="hint"><input type="checkbox" name="tools" value="{{ tool.server_tool_name }}" {% if tool.granted %}checked{% endif %}> Allow</label>
-            <label class="hint">Effect
-              <select name="class_{{ tool.server_tool_name }}">
-                {% for option in ["read", "write", "destructive", "unknown"] %}
-                <option value="{{ option }}" {% if option == tool.operation_class %}selected{% endif %}>{{ option }}</option>
-                {% endfor %}
-              </select>
+            <label class="hutch-check" for="tool-{{ item.integration_id }}-{{ loop.index }}">
+              <input type="checkbox" id="tool-{{ item.integration_id }}-{{ loop.index }}"
+                     name="tools" value="{{ tool.server_tool_name }}" {% if tool.granted %}checked{% endif %}>
+              <span class="hutch-option-text"><span>Allow</span></span>
             </label>
+            <select class="hutch-select" name="class_{{ tool.server_tool_name }}"
+                    aria-label="Effect class for {{ tool.title or tool.server_tool_name }}">
+              {% for option in ["read", "write", "destructive", "unknown"] %}
+              <option value="{{ option }}" {% if option == tool.operation_class %}selected{% endif %}>{{ option }}</option>
+              {% endfor %}
+            </select>
             {% else %}
             <span class="hint">Not selectable</span>
             {% endif %}
-          </div>
         </div>
         {% endfor %}
       </div>
-      <p class="hint">"Read" runs without asking. Every other effect asks for your approval on each call, and "unknown" is the safe default. A connector is not read-only because its server says so; this is your classification.</p>
+      <p class="hint">A connector is not read-only because its server says so; this classification is yours.</p>
       <label>Assistant
         <select name="bot" required>
           <option value="">Choose an assistant</option>
@@ -129,34 +138,38 @@
     <h2 id="add-h" class="card-title">{{ icon("plus", 18) }} Add a connector</h2>
     <p class="hint">A local server must be an executable under <span class="mono">/usr</span> or inside a read-only path you name. Inside the sandbox the run workspace appears as <span class="mono">/workspace</span>, so any argument that names a workspace file must use that path.</p>
   </div></header>
-  <form method="post" action="/connectors/add" class="hutch-form">
+  <form method="post" action="/connectors/add" class="hutch-form hutch-cols-2">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label>Connector id <span class="hint">lowercase slug, for example acme</span>
-      <input name="integration_id" required pattern="[a-z][a-z0-9_\-]{0,63}" autocomplete="off"></label>
-    <label>Name <input name="title" required maxlength="120" autocomplete="off"></label>
-    <label>Kind
-      <select name="transport">
-        <option value="mcp_stdio">Local program (stdio)</option>
-        <option value="mcp_http">Remote endpoint (Streamable HTTP)</option>
-      </select>
-    </label>
-    <fieldset>
-      <legend>Local program</legend>
-      <label>Executable <input name="command" placeholder="/usr/bin/uvx" autocomplete="off"></label>
-      <label>Arguments <span class="hint">one per line</span>
-        <textarea name="args" rows="3" spellcheck="false" placeholder="mcp-server-fetch"></textarea></label>
-      <label>Read-only paths <span class="hint">one absolute path per line; choose the narrowest folder that contains the server</span>
-        <textarea name="read_only_paths" rows="2" spellcheck="false"></textarea></label>
-      <label>Environment <span class="hint">one NAME=value per line. A value written as @NAME reads that environment variable when the server starts; credential-looking names must use that form.</span>
-        <textarea name="env" rows="2" spellcheck="false" placeholder="LOG_LEVEL=info"></textarea></label>
-    </fieldset>
-    <fieldset>
-      <legend>Remote endpoint</legend>
-      <label>URL <input name="url" placeholder="https://mcp.example.com/mcp" autocomplete="off"></label>
-      <label>Credential variable <span class="hint">optional; the name of an environment variable holding a bearer token</span>
-        <input name="bearer_env" placeholder="MCP_TOKEN" autocomplete="off"></label>
-    </fieldset>
-    <div class="card-actions"><button class="btn primary">Save connector</button></div>
+    {{ text_input("integration_id", "Connector id", required=True, autocomplete="off",
+                  help="Lowercase slug, for example acme.",
+                  attrs={"pattern": "[a-z][a-z0-9_\\-]{0,63}"}) }}
+    {{ text_input("title", "Name", required=True, autocomplete="off", help="Shown in this list and in a grant.",
+                  attrs={"maxlength": "120"}) }}
+    {{ select_input("transport", "Kind",
+                    [("mcp_stdio", "Local program (stdio)"), ("mcp_http", "Remote endpoint (Streamable HTTP)")],
+                    help="A local program runs in Hutch's sandbox. A remote endpoint is reached over HTTPS.") }}
+    <div class="hutch-field">
+      <label class="hutch-label" for="command">Executable</label>
+      <input class="hutch-input" id="command" name="command" placeholder="/usr/bin/uvx" autocomplete="off"
+             aria-describedby="command-help">
+      <p class="hutch-help" id="command-help">Must be under <span class="mono">/usr</span>, or inside a read-only path you name below.</p>
+    </div>
+    {{ textarea("args", "Arguments", rows=3,
+                help="One per line. Inside the sandbox the run workspace is /workspace, so a workspace file must be named that way.",
+                placeholder="mcp-server-fetch", attrs={"spellcheck": "false"}) }}
+    {{ textarea("read_only_paths", "Read-only paths", rows=2,
+                help="One absolute path per line: the narrowest folder containing the program and its files.",
+                attrs={"spellcheck": "false"}) }}
+    {{ textarea("env", "Environment", rows=2,
+                help="One NAME=value per line. NAME=@SOURCE reads SOURCE from Hutch's environment when the server starts. A credential-looking name must use that form.",
+                placeholder="LOG_LEVEL=info", attrs={"spellcheck": "false"}) }}
+    {{ text_input("url", "Remote URL", placeholder="https://mcp.example.com/mcp", autocomplete="off",
+                  help="Only used for a remote endpoint. Plain HTTP is accepted only for loopback.") }}
+    {{ text_input("bearer_env", "Credential variable", placeholder="MCP_TOKEN", autocomplete="off",
+                  help="Optional. The name of an environment variable holding a bearer token; leave blank for no authentication.") }}
+    <div class="hutch-field wide">
+      <button class="btn primary" type="submit">Save connector</button>
+    </div>
   </form>
   <p class="hint">Saving does not start the connector and does not authorize anything.</p>
 </section>

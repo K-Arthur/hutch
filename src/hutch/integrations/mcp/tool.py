@@ -204,12 +204,17 @@ def construct_mcp_tools(store: Any, bot: Any, run: Any = None) -> dict[str, Tool
     """Build the MCP tools this Bot's reviewed grants allow, for ``build_tools``.
 
     Returns an empty mapping when the Bot's route cannot govern an external call: Strict Offline
-    Bots have no host network, and both gates are re-checked at dispatch anyway.
+    Bots have no host network, and both gates are re-checked at dispatch anyway. A Bot object
+    without a usable id (a stripped-down caller or a partial model in a test) yields no tools
+    rather than an error, because ``build_tools`` must keep working for every caller.
     """
     if getattr(getattr(bot, "inference_mode", None), "value", "") == "offline":
         return {}
+    bot_id = getattr(bot, "id", "")
+    if not isinstance(bot_id, str) or not bot_id:
+        return {}
     from . import service
-    rows = service.tools_for(store, bot.id)
+    rows = service.tools_for(store, bot_id)
     if not rows or len(rows) > MAX_DISCOVERED_TOOLS:
         return {}
     tools: dict[str, Tool] = {}

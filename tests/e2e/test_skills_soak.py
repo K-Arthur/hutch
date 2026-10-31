@@ -168,7 +168,6 @@ def test_skills_soak_under_churn(browser, live, tmp_path):
             try:
                 page.goto(base + "/#/skills")
                 page.locator("#skills-import-path").wait_for()
-        assert page.get_by_role("link", name="Skills", exact=True).get_attribute("aria-current") == "page"
                 navigations += 1
                 page.goto(base + "/#/bot/soak-bot")
                 open_assistant_customization(page, "tools")

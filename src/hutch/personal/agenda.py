@@ -33,6 +33,9 @@ REASONS = {
     "provider_error": "The provider could not be read. Nothing was invented to fill the gap.",
 }
 
+#: reasons that end access; no cached reading may survive them
+HARD_UNAVAILABLE = frozenset({"grant_missing", "grant_expired", "mail_requires_local"})
+
 
 class AgendaUnavailable(RuntimeError):
     """A selected source cannot be read; the reason is shown, never an empty list."""
@@ -140,16 +143,45 @@ def _empty(kind: str, status: str, reason_kind: str, reason: str,
 
 def _remember(cache: dict[str, dict[str, Any]], selected: AgendaSource, now: datetime,
               items: list[dict[str, Any]]) -> None:
-    """Keep a small bounded snapshot per selection; oldest entries are dropped first."""
+    """Keep a small bounded snapshot per selection; expired entries go first."""
     cache.pop(selected.key, None)
     cache[selected.key] = {"fetched_at": now, "items": [dict(item) for item in items]}
+    _prune(cache, now)
     while len(cache) > MAX_CACHE_ENTRIES:
         cache.pop(next(iter(cache)), None)
 
 
+def _prune(cache: dict[str, dict[str, Any]], now: datetime) -> None:
+    """A snapshot that can no longer be shown is not kept: the cache is not an archive."""
+    for key, cached in list(cache.items()):
+        if (now - cached["fetched_at"]).total_seconds() > MAX_STALE_SECONDS:
+            cache.pop(key, None)
+
+
+def _evict(cache: dict[str, dict[str, Any]], selected: AgendaSource) -> None:
+    """Remove every snapshot for this assistant and kind.
+
+    The cache key includes the calendar id, and a source whose grant was removed no longer
+    carries one, so deleting by exact key would miss precisely the entry the owner just
+    revoked. Matching the assistant and kind instead keeps that guarantee true.
+    """
+    prefix = f"{selected.kind}|{selected.bot_id}|"
+    for key in [key for key in cache if key.startswith(prefix)]:
+        cache.pop(key, None)
+
+
 def _fallback(selected: AgendaSource, *, kind: str, now: datetime, cache: dict[str, dict[str, Any]],
               reason: str, detail: str) -> dict[str, Any]:
-    """A failed refresh shows a recent snapshot as stale, or says the source is unavailable."""
+    """A failed refresh shows a recent snapshot as stale, or says the source is unavailable.
+
+    Only a provider failure may reuse a snapshot. A grant that is gone, expired or no
+    longer permitted is a hard stop: the last reading is discarded, because the owner's
+    decision to stop sharing must take effect immediately, not in an hour.
+    """
+    if reason in HARD_UNAVAILABLE:
+        _evict(cache, selected)
+        return _empty(kind, "unavailable", reason, detail or REASONS.get(reason, ""), selected)
+    _prune(cache, now)
     cached = cache.get(selected.key)
     if cached is not None:
         age = int((now - cached["fetched_at"]).total_seconds())
@@ -178,6 +210,8 @@ def _source_result(selected: Optional[AgendaSource], *, kind: str, now: datetime
     if selected is None:
         return _empty(kind, "not_configured", "not_configured", REASONS["not_configured"])
     if selected.unavailable:
+        # A grant that cannot be used discards any snapshot: revoking access is immediate.
+        _evict(cache, selected)
         return _empty(kind, "unavailable", selected.unavailable,
                       selected.unavailable_detail or REASONS.get(selected.unavailable, ""), selected)
     if selected.fetch is None:

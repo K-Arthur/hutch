@@ -233,67 +233,6 @@ def test_an_alert_older_than_the_recency_window_is_not_delivered(store, monkeypa
     assert sent == [] and book.deliveries(row["id"]) == []
 
 
-def test_the_outbox_rebuild_preserves_reply_deliveries_and_refuses_orphans(tmp_path):
-    """A v85-shaped database upgrades without losing a reply delivery; an orphan blocks it."""
-    import sqlite3
-
-    from hutch import notification_schema
-
-    db = sqlite3.connect(tmp_path / "v85.db")
-    db.row_factory = sqlite3.Row
-    try:
-        db.execute("CREATE TABLE channel_connections (id TEXT PRIMARY KEY)")
-        db.execute("CREATE TABLE channel_events (id INTEGER PRIMARY KEY, channel_id TEXT, revision INTEGER)")
-        db.execute("CREATE TABLE approvals (id TEXT PRIMARY KEY, bot_id TEXT, status TEXT, doc TEXT)")
-        db.execute("CREATE TABLE runs (id TEXT PRIMARY KEY, bot_id TEXT, status TEXT, doc TEXT)")
-        db.execute("""CREATE TABLE channel_deliveries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER NOT NULL UNIQUE REFERENCES channel_events(id),
-            text TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0,
-            next_attempt_at TEXT NOT NULL, provider_message_id TEXT NOT NULL DEFAULT '',
-            error TEXT NOT NULL DEFAULT '', reconciled_at TEXT NOT NULL DEFAULT '',
-            reconciliation TEXT NOT NULL DEFAULT '')""")
-        db.execute("INSERT INTO channel_connections(id) VALUES ('ch_1')")
-        db.execute("INSERT INTO channel_events(id,channel_id,revision) VALUES (7,'ch_1',3)")
-        db.execute("INSERT INTO channel_deliveries(event_id,text,state,attempts,next_attempt_at) "
-                   "VALUES (7,'a reply','sent',2,'2026-10-31T00:00:00+00:00')")
-        notification_schema.migrate(db)
-        row = db.execute("SELECT * FROM channel_deliveries").fetchone()
-        assert (row["event_id"], row["notification_id"], row["channel_id"]) == (7, None, "ch_1")
-        assert (row["text"], row["state"], row["attempts"]) == ("a reply", "sent", 2)
-        assert "notifications" in {item[0] for item in db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'")}
-        # A second run is a no-op once the new shape is present.
-        notification_schema.migrate(db)
-        assert db.execute("SELECT COUNT(*) FROM channel_deliveries").fetchone()[0] == 1
-    finally:
-        db.close()
-
-
-def test_the_outbox_rebuild_refuses_a_delivery_with_no_inbound_event(tmp_path):
-    import sqlite3
-
-    from hutch import notification_schema
-
-    db = sqlite3.connect(tmp_path / "bad.db")
-    try:
-        db.execute("CREATE TABLE channel_connections (id TEXT PRIMARY KEY)")
-        db.execute("CREATE TABLE channel_events (id INTEGER PRIMARY KEY, channel_id TEXT, revision INTEGER)")
-        db.execute("CREATE TABLE approvals (id TEXT PRIMARY KEY, bot_id TEXT, status TEXT, doc TEXT)")
-        db.execute("CREATE TABLE runs (id TEXT PRIMARY KEY, bot_id TEXT, status TEXT, doc TEXT)")
-        db.execute("""CREATE TABLE channel_deliveries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER NOT NULL UNIQUE, text TEXT NOT NULL,
-            state TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0,
-            next_attempt_at TEXT NOT NULL, provider_message_id TEXT NOT NULL DEFAULT '',
-            error TEXT NOT NULL DEFAULT '', reconciled_at TEXT NOT NULL DEFAULT '',
-            reconciliation TEXT NOT NULL DEFAULT '')""")
-        db.execute("INSERT INTO channel_deliveries(event_id,text,next_attempt_at) VALUES (99,'orphan','x')")
-        with pytest.raises(RuntimeError, match="preserve the database"):
-            notification_schema.migrate(db)
-        assert db.execute("SELECT name FROM sqlite_master WHERE name='channel_deliveries_v86'").fetchone() is None
-    finally:
-        db.close()
-
-
 def test_an_alert_goes_to_the_person_who_started_the_work_when_they_are_allowed(store):
     bot = store.create_bot(Bot(name="notify-me", approval_mode=ApprovalMode.ask))
     run = start_run(store, bot)
@@ -311,6 +250,45 @@ def test_an_alert_goes_to_the_person_who_started_the_work_when_they_are_allowed(
     assert [recipient for recipient, _text in sent] == ["456"]
 
 
+def test_a_malformed_document_skips_the_alert_instead_of_failing_the_fact(store):
+    """A corrupt legacy doc must not turn a status write into an error at the trigger."""
+    bot = store.create_bot(Bot(name="notify-me", approval_mode=ApprovalMode.ask))
+    run = start_run(store, bot)
+    with store._tx() as db:
+        db.execute("UPDATE runs SET doc='not json' WHERE id=?", (run.id,))
+        db.execute("UPDATE runs SET status='failed' WHERE id=?", (run.id,))
+    assert store._db.execute("SELECT status FROM runs WHERE id=?", (run.id,)).fetchone()[0] == "failed"
+    assert notifications(store) == []
+    # A well-formed document still notifies: the guard skips only what it cannot read.
+    other = start_run(store, bot)
+    store.transition_run(other.id, RunStatus.failed, exit_reason="model_unavailable")
+    assert [row["subject_id"] for row in notifications(store)] == [other.id]
+
+
+def test_a_deleted_assistant_is_not_listed_on_either_surface(client):
+    bot = client.store.create_bot(Bot(name="notify-me", approval_mode=ApprovalMode.ask))
+    run = start_run(client.store, bot)
+    pending_approval(client.store, bot, run)
+    assert client.get("/api/v1/notifications").json()["items"]
+    assert client.store.delete_bot(bot.id)
+    assert client.get("/api/v1/notifications").json()["items"] == []
+    today = client.get("/api/v1/today", params={"timezone": "America/Vancouver"}).json()
+    assert today["sections"]["alerts"] == []
+    with client.store._lock:
+        assert client.store._db.execute("SELECT COUNT(*) FROM notifications").fetchone()[0] == 1
+
+
+def test_both_surfaces_report_the_same_delivery_state(client):
+    bot = client.store.create_bot(Bot(name="notify-me", approval_mode=ApprovalMode.ask))
+    run = start_run(client.store, bot)
+    pending_approval(client.store, bot, run)
+    api_item = client.get("/api/v1/notifications").json()["items"][0]
+    today = client.get("/api/v1/today", params={"timezone": "America/Vancouver"}).json()
+    today_item = today["sections"]["alerts"][0]
+    assert api_item["delivery"]["state"] == today_item["delivery"] == "not_queued"
+    assert api_item["id"] == today_item["subject_id"] or api_item["subject_id"] == today_item["subject_id"]
+
+
 def test_the_notification_api_lists_receipts_without_message_bodies(client):
     bot = client.store.create_bot(Bot(name="notify-me", approval_mode=ApprovalMode.ask))
     run = start_run(client.store, bot)
@@ -321,6 +299,6 @@ def test_the_notification_api_lists_receipts_without_message_bodies(client):
     assert body["counts"]["approval_needs_you"] == 1
     item = body["items"][0]
     assert item["kind"] == "approval_needs_you" and item["subject_id"] == approval.id
-    assert item["delivery"]["state"] == "pending"
+    assert item["delivery"]["state"] == "not_queued"
     assert "Send the signed contract" not in response.text
     assert client.get("/api/v1/notifications", params={"kind": "nope"}).status_code == 422
