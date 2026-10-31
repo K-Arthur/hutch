@@ -85,6 +85,16 @@ def check_can_archive(db: sqlite3.Connection, bot: Bot, archived: bool) -> None:
         raise ArchiveRefused(active["id"], active["status"])
 
 
+def check_can_coordinate(bot: Bot) -> None:
+    """Refuse promoting a retired assistant to workspace coordinator.
+
+    The main assistant is the product's first-run entry point, and it cannot itself be archived. A
+    retired record in that role could accept no work and could not be set aside either.
+    """
+    if bot.archived:
+        raise ValueError("restore this assistant before making it the main assistant")
+
+
 def is_archived(bot: Bot) -> bool:
     """Read-side helper for views that must not offer a retired assistant for new work."""
     return bool(bot.archived)

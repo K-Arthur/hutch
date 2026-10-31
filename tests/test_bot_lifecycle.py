@@ -188,6 +188,23 @@ def test_repeated_archive_after_restore_applies_again(client):
     assert store.get_bot(bot.id).archived is True
 
 
+def test_archived_assistant_cannot_become_the_main_assistant(client):
+    """The main assistant cannot be archived, so a retired one must not take that role."""
+    store = client.app.state.store
+    keep = make_bot(store, "stays-main")
+    retired = make_bot(store, "wants-promotion")
+    store.set_workspace_coordinator(keep.id)
+    archive_bot(store, retired.name, True, idem_key="archive-promo", request_hash="h1")
+
+    with pytest.raises(ValueError):
+        store.set_workspace_coordinator(retired.id)
+    assert store.workspace_coordinator_id() == keep.id
+
+    archive_bot(store, retired.name, False, idem_key="restore-promo", request_hash="h2")
+    store.set_workspace_coordinator(retired.id)
+    assert store.workspace_coordinator_id() == retired.id
+
+
 def test_archived_assistant_cannot_start_a_workflow(client):
     """The workflow path inserts its own run rows, so it needs the same admission guard."""
     from hutch.workflow import persistence as workflow_store
@@ -241,3 +258,32 @@ def test_archive_requires_an_idempotency_key(client):
     bot = make_bot(store, "no-key")
     response = client.post(f"/api/v1/bots/{bot.name}/archive", json={"archived": True})
     assert response.status_code == 428
+
+
+def test_retired_assistant_admits_nothing_from_an_event_source(store, config, tmp_path):
+    """An event source keeps recording; a retired assistant consumes nothing and loses nothing."""
+    from hutch.engine import Engine
+    from hutch.monitoring import SourcePump
+    from hutch.sources import SourceRuntime
+    from hutch import sources
+    from hutch.models import utcnow
+
+    bot = store.create_bot(Bot(name="watcher", model="mock/demo", tools=[]))
+    root = tmp_path / "watched"
+    root.mkdir()
+    source = store.create_event_source(
+        bot_id=bot.id, kind="folder", name="inbox",
+        config={"path": str(root), "settle_seconds": 0})
+    for i in range(2):
+        (root / f"f{i}.txt").write_bytes(str(i).encode())
+    row = store.get_event_source(source["id"])
+    outcome = sources.check_source("folder", row["config"], row["cursor"], runtime=SourceRuntime(), now=utcnow())
+    store.record_source_check(row["id"], row["revision"], cursor=outcome.cursor, events=outcome.events,
+                              summary=outcome.summary, interval=30)
+    archive_bot(store, bot.name, True, idem_key="archive-watch", request_hash="h1")
+
+    SourcePump(Engine(config, store, light=True))._try_admit(store.get_event_source(source["id"]))
+
+    assert store.list_runs(bot_id=bot.id) == []
+    assert len(store.source_events(source["id"], status="recorded")) == 2   # kept for a restore
+    assert store.job_counts() == {}

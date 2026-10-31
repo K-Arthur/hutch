@@ -2720,7 +2720,7 @@ class Store:
 
     @classmethod
     def _assert_execution_ready(cls, db: sqlite3.Connection, bot_id: str = "") -> None:
-        """Restore hold, then retired assistant: the one admission check every run insert passes."""
+        """The one admission check every run insert passes: restore hold, then retired assistant."""
         from .state_snapshot import ExecutionHeld
         if restore_id := cls._execution_hold(db):
             raise ExecutionHeld(restore_id)
@@ -3542,12 +3542,12 @@ class Store:
         with self._tx() as db:
             bot_id = None
             if bot_ref is not None:
-                row = db.execute("SELECT id FROM bots WHERE id = ? OR name = ? LIMIT 1", (bot_ref, bot_ref)).fetchone()
+                row = db.execute("SELECT id, doc FROM bots WHERE id = ? OR name = ? LIMIT 1", (bot_ref, bot_ref)).fetchone()
                 if row is None:
                     raise KeyError(bot_ref)
                 bot_id = row["id"]
-                # A Bot cannot hold both roles. Do not silently add the previous
-                # coordinator to the specialist roster when roles change.
+                bot_lifecycle.check_can_coordinate(Bot.from_store_json(row["doc"]))
+                # One role each: never silently add the previous coordinator to the specialist roster.
                 db.execute("DELETE FROM workspace_specialists WHERE bot_id = ?", (bot_id,))
             db.execute("UPDATE workspace_settings SET coordinator_bot_id = ?, updated_at = ? WHERE id = 1",
                        (bot_id, iso(utcnow())))

@@ -155,6 +155,11 @@ class SourcePump:
     def _try_admit(self, source: dict | None) -> None:
         if not source or not source.get("enabled"):
             return
+        # A retired assistant's inbox keeps recording; nothing is admitted, so events stay available
+        # for a restore instead of being consumed by a job that cannot run.
+        bot = self.store.get_bot(str(source.get("bot_id") or ""))
+        if bot is None or bot.archived:
+            return
         events = self.store.source_events(source["id"], status="recorded", limit=50)
         if not events:
             return
