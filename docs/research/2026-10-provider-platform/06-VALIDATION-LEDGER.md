@@ -566,7 +566,7 @@ Not established:
 |---|---|---|
 | Stream reasoning and assembler | `uv run --frozen --no-sync pytest -q tests/test_provider_stream_reasoning.py` | 5 passed |
 | Streaming and provider regression | `uv run --frozen --no-sync pytest -q tests/test_toolcalling_streaming.py tests/test_toolcalling_properties.py tests/test_provider_reasoning.py tests/test_providers.py` | 84 passed |
-| Capability evidence and surfaces | `uv run --frozen --no-sync pytest -q tests/test_provider_capabilities.py tests/test_provider_surfaces.py` | 18 passed |
+| Capability evidence and surfaces | `uv run --frozen --no-sync pytest -q tests/test_provider_capabilities.py tests/test_provider_surfaces.py` | 13 passed |
 
 Artifacts: `artifacts/live-verification/xiaomi-tool-calling-streaming-live-2026-10-31.json` (CLI run),
 `xiaomi-adapter-tool-calls-2026-10-31.json` (adapter batch/streamed), `xiaomi-stream-shape-2026-10-31.json`
