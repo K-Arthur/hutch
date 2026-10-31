@@ -1526,6 +1526,7 @@ function mainBadge(id = "") {
 }
 
 function botStatusLabel(b) {
+  if (b.archived) return "Archived";
   if (b.active_run_id) return b.active_run_status_label || statusInfo[b.active_run_status]?.label || "Status unavailable";
   return b.paused ? "Paused" : b.route_problem ? "Needs a model route" : "Idle";
 }
@@ -1577,6 +1578,7 @@ function mountIdentityPicker(scope, name) {
 }
 
 function botState(b) {
+  if (b.archived) return "archived";
   if (b.active_run_id) return b.active_run_status || "pending";
   if (b.paused) return "paused";
   return "idle";
@@ -1774,6 +1776,43 @@ async function prepareBotTemplateDownload(bot, trigger) {
   }
 }
 
+/* Retire or restore one assistant. The server owns the rules (no live run, coordinator moves
+   first); this only asks for confirmation and reports the refusal verbatim. */
+async function setBotArchived(bot, archived) {
+  const name = bot.display_name || bot.name;
+  if (archived) {
+    const confirmed = await confirmDialog({
+      title: `Archive ${name}?`,
+      body: `<p>${esc(name)} will accept no new work: no messages, runs or scheduled tasks.</p>`
+        + `<p>Its conversations, runs and saved notes stay available to read, and you can restore it at any time.</p>`
+        + `<p>This is not deletion. Stop any active run first.</p>`,
+      confirmText: "Archive assistant",
+    });
+    if (!confirmed) return;
+  }
+  try {
+    const saved = await api(`/v1/bots/${encodeURIComponent(bot.name)}/archive`, {
+      method: "POST", headers: { "Idempotency-Key": newIdempotencyKey() }, body: { archived },
+    });
+    botsCache = botsCache.map(item => item.id === saved.id ? { ...item, ...saved } : item);
+    renderRoster();
+    if (document.querySelector(`#roster-archived-details`) && archived) $("#roster-archived-details").open = true;
+    if (saved.archived) {
+      announce(`${name} archived. It accepts no new work; its history is kept.`);
+      toast(`${name} archived. Conversations and runs are still here.`);
+    } else {
+      announce(`${name} restored.`);
+      toast(`${name} restored.`);
+    }
+    if (location.hash === `#/bot/${encodeURIComponent(saved.name)}`) await renderBotDetail(saved.name);
+    // The chat surface caches its read-only composer and welcome copy, so a lifecycle change
+    // has to re-render the view it just invalidated rather than wait for the next navigation.
+    else if (isConversationView() && currentStudioBot === saved.name) await route(false);
+  } catch (error) {
+    toast(error.message || `Could not ${archived ? "archive" : "restore"} ${name}`, true);
+  }
+}
+
 function openRosterActionMenu(trigger) {
   const name = trigger.dataset.botOptions;
   const bot = botsCache.find(item => item.name === name);
@@ -1785,11 +1824,12 @@ function openRosterActionMenu(trigger) {
   menu.dataset.botName = name;
   menu.setAttribute("role", "menu");
   menu.setAttribute("aria-label", `Options for ${bot.display_name || bot.name}`);
-  menu.innerHTML = `${bot.is_workspace_coordinator ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-pin>${icon("pin")} ${bot.pinned ? "Remove from pinned" : "Pin to sidebar"}</button>
+  menu.innerHTML = `${bot.is_workspace_coordinator || bot.archived ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-pin>${icon("pin")} ${bot.pinned ? "Remove from pinned" : "Pin to sidebar"}</button>
     <button type="button" role="menuitem" tabindex="-1" data-menu-section>${icon("folder")} ${bot.roster_section ? "Move to a section" : "New section"}</button>
     `}<button type="button" role="menuitem" tabindex="-1" data-menu-template>${icon("fileText")} Share as template</button>
     <button type="button" role="menuitem" tabindex="-1" data-menu-duplicate>${icon("bot")} Duplicate assistant</button>
-    ${bot.is_workspace_coordinator ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-hide>${icon(bot.sidebar_hidden ? "eye" : "eyeOff")} ${bot.sidebar_hidden ? "Show in sidebar" : "Hide from sidebar"}</button>`}
+    ${bot.is_workspace_coordinator ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-archive>${icon(bot.archived ? "refresh" : "folder")} ${bot.archived ? "Restore assistant" : "Archive assistant"}</button>`}
+    ${bot.is_workspace_coordinator || bot.archived ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-hide>${icon(bot.sidebar_hidden ? "eye" : "eyeOff")} ${bot.sidebar_hidden ? "Show in sidebar" : "Hide from sidebar"}</button>`}
     <a role="menuitem" tabindex="-1" data-menu-settings href="#/bot/${encodeURIComponent(bot.name)}">${icon("sliders")} Assistant settings</a>`;
   document.body.append(menu);
   const popup = window.hutchControls.popup({ trigger, panel: menu, kind: "menu",
@@ -1801,6 +1841,10 @@ function openRosterActionMenu(trigger) {
   menu.querySelector("[data-menu-duplicate]")?.addEventListener("click", () => {
     closeRosterActionMenu(false);
     void promptNewBot("", "", bot);
+  });
+  menu.querySelector("[data-menu-archive]")?.addEventListener("click", () => {
+    closeRosterActionMenu(false);
+    void setBotArchived(bot, !bot.archived);
   });
   menu.querySelector("[data-menu-hide]")?.addEventListener("click", async event => {
     const action = event.currentTarget;
@@ -2309,27 +2353,33 @@ function renderRoster() {
     if (!botsCache.length) rosterSearch.value = "";
   }
   const q = ($("#bot-search")?.value || "").trim().toLowerCase();
-  const coordinator = botsCache.find(b => b.is_workspace_coordinator);
+  // Retired assistants keep their conversations but are not offered for new work, so they live in
+  // their own collapsed section instead of competing with active ones for attention.
+  const archivedBots = botsCache.filter(b => b.archived);
+  const activeBots = botsCache.filter(b => !b.archived);
+  const coordinator = activeBots.find(b => b.is_workspace_coordinator);
   const matches = b => !q || `${b.display_name || b.name} ${b.name} ${b.description || ""}`.toLowerCase().includes(q);
   const byDisplayName = (a, b) => (a.display_name || a.name).localeCompare(b.display_name || b.name, undefined, { sensitivity: "base" })
     || a.name.localeCompare(b.name);
   const coordinatorMatch = coordinator && matches(coordinator) ? coordinator : null;
-  const allMatching = botsCache.filter(matches);
+  const allMatching = activeBots.filter(matches);
+  const archivedMatching = archivedBots.filter(matches);
   if (q) {
     const rows = allMatching.filter(b => b.id !== coordinator?.id).sort(byDisplayName);
     const rowHtml = b => rosterRowHtml(b, currentStudioBot);
     const markup = `${coordinatorMatch ? `<div class="roster-section roster-coordinator">${rosterRowHtml(coordinatorMatch, currentStudioBot)}</div>` : ""}
       ${rows.length ? `<section class="roster-section" aria-label="Assistant search results"><h3 class="roster-section-title">Search results</h3>${rows.map(rowHtml).join("")}</section>`
-      : `<div class="roster-empty">No assistant matches.</div>`}`;
+      : `<div class="roster-empty">No active assistant matches.</div>`}
+      ${archivedMatching.length ? `<section class="roster-section" aria-label="Archived assistant search results"><h3 class="roster-section-title">Archived</h3>${archivedMatching.sort(byDisplayName).map(rowHtml).join("")}</section>` : ""}`;
     if (!replaceRosterMarkup(list, markup)) { updateRosterCurrentItem(); return; }
     wireRosterRows(list);
     wireRosterMenuButtons(list, menuBot, focusedMenuAction);
     return;
   }
-  const hidden = botsCache.filter(b => b.id !== coordinator?.id && b.sidebar_hidden);
+  const hidden = activeBots.filter(b => b.id !== coordinator?.id && b.sidebar_hidden);
   const hiddenSpotlight = hidden.filter(b => botNeedsYou(b) || botState(b) !== "idle");
   const hiddenIdle = hidden.filter(b => !hiddenSpotlight.includes(b));
-  const inRoster = botsCache.filter(b => b.id !== coordinator?.id && !b.sidebar_hidden);
+  const inRoster = activeBots.filter(b => b.id !== coordinator?.id && !b.sidebar_hidden);
   const visible = [...inRoster, ...hiddenSpotlight];
   const pinned = visible.filter(b => b.pinned).sort(byDisplayName);
   const remaining = visible.filter(b => !b.pinned).sort(byDisplayName);
@@ -2339,7 +2389,7 @@ function renderRoster() {
   const current = remaining.filter(b => b.name === currentChatBot && !needsYou.includes(b) && !inProgress.includes(b));
   const spotlight = new Set([...needsYou, ...inProgress, ...current]);
   const bots = [...(coordinatorMatch ? [coordinatorMatch] : []), ...pinned, ...remaining, ...hiddenIdle];
-  if (!bots.length) {
+  if (!bots.length && !archivedBots.length) {
     list.innerHTML = `<div class="roster-empty">${botsCache.length ? "No assistant matches." : "No assistants yet — create one."}</div>`;
     return;
   }
@@ -2364,7 +2414,7 @@ function renderRoster() {
   }
   if (remaining.length) {
     const ungrouped = remaining.filter(item => !item.roster_section);
-    const largeFleet = botsCache.length >= 10;
+    const largeFleet = activeBots.length >= 10;
     if (!ungrouped.length) {
       // Every idle Bot is already reachable through a named section.
     } else if (largeFleet) {
@@ -2390,6 +2440,14 @@ function renderRoster() {
       <div class="roster-section roster-idle-list" id="roster-hidden-bots">${hiddenIdle.map(rowHtml).join("")}</div>
     </details>`);
   }
+  if (archivedBots.length) {
+    const open = !!store$.get("hutch:roster-archived-open", false);
+    sections.push(`<details class="roster-section roster-idle-details roster-archived-details" id="roster-archived-details" ${open ? "open" : ""}>
+      <summary aria-controls="roster-archived-bots">Archived <span class="roster-count">${archivedBots.length}</span></summary>
+      <p class="roster-hidden-note">Archived assistants accept no new work. Their conversations and runs are still here, and you can restore one at any time.</p>
+      <div class="roster-section roster-idle-list" id="roster-archived-bots">${archivedBots.sort(byDisplayName).map(rowHtml).join("")}</div>
+    </details>`);
+  }
   if (!replaceRosterMarkup(list, sections.join(""))) { updateRosterCurrentItem(); return; }
   const idleDetails = $("#roster-idle-details");
   if (idleDetails) {
@@ -2400,6 +2458,7 @@ function renderRoster() {
     store$.set(`hutch:roster-section:${details.dataset.rosterSection.toLocaleLowerCase()}`, details.open);
   }));
   $("#roster-hidden-details")?.addEventListener("toggle", event => store$.set("hutch:roster-hidden-open", event.currentTarget.open));
+  $("#roster-archived-details")?.addEventListener("toggle", event => store$.set("hutch:roster-archived-open", event.currentTarget.open));
   wireRosterRows(list);
   wireRosterMenuButtons(list, menuBot, focusedMenuAction);
   if (focus && !focus.isConnected && !document.getElementById("roster-action-menu")) {
@@ -2425,18 +2484,18 @@ function updateRosterCurrentItem() {
 
 function rosterRowHtml(bot, currentStudioBot) {
   const state = botState(bot);
-  const pip = botNeedsYou(bot) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
-  const status = botNeedsYou(bot) ? "Needs you" : botStatusLabel(bot);
+  const pip = bot.archived ? "paused" : botNeedsYou(bot) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
+  const status = botNeedsYou(bot) && !bot.archived ? "Needs you" : botStatusLabel(bot);
   const role = botRole(bot);
   const visibleStatus = status === "Idle" && role ? "" : status;
   const subtitle = [visibleStatus, role, bot.sidebar_hidden ? "Hidden" : ""]
     .filter(Boolean).join(" · ");
-  const stateClass = botNeedsYou(bot) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
+  const stateClass = bot.archived ? "archived" : botNeedsYou(bot) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
   const subtitleHtml = [visibleStatus ? (stateClass ? `<span class="roster-state ${stateClass}">${esc(visibleStatus)}</span>` : esc(visibleStatus)) : "",
     esc(role), bot.sidebar_hidden ? "Hidden" : ""].filter(Boolean).join(" · ");
   const name = botHeading(bot);
   return `
-    <div class="roster-entry${bot.name === currentStudioBot && isConversationView() ? " is-current" : ""}"><button class="roster-row" type="button" data-switch-bot="${esc(bot.name)}"
+    <div class="roster-entry${bot.name === currentStudioBot && isConversationView() ? " is-current" : ""}${bot.archived ? " is-archived" : ""}"><button class="roster-row" type="button" data-switch-bot="${esc(bot.name)}"
       ${bot.name === currentStudioBot && isConversationView() ? 'aria-current="true"' : ""}
       title="${esc(name)} — ${esc([subtitle, status !== visibleStatus ? status : ""].filter(Boolean).join(" · "))}">
       ${botAvatar(bot.name, bot.is_workspace_coordinator ? 44 : 40, pip)}${bot.is_workspace_coordinator ? mainBadge() : ""}
@@ -3574,6 +3633,10 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
             </div>
             <div class="hutch-composer__notice hutch-composer__notice--task-role" id="task-role-flag" hidden></div>
             <div class="hutch-composer__notice" id="rehearse-flag" hidden>${icon("shield")} <b>Rehearsal</b> — writes and commands are simulated; model calls and reads still happen, and remote reads can have service-side effects.</div>
+            <div class="hutch-composer__notice hutch-composer__notice--archived" id="archived-flag" hidden role="status">
+              ${icon("folder")} <b>${esc(bot.display_name || bot.name)} is archived.</b> It accepts no new work; its conversations and runs are still here.
+              <button type="button" class="btn ghost small" id="archived-restore">Restore assistant</button>
+            </div>
           </div>
           <p class="visually-hidden" id="chat-help">Enter sends, Shift+Enter adds a newline. Your draft is kept for this assistant if you navigate away.</p>
           <div class="hutch-composer__foot">
@@ -3808,6 +3871,14 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
     txt.disabled = true;
     txt.placeholder = "This conversation is archived. Start a new one to continue.";
     sendBtn.disabled = true;
+  } else if (bot.archived) {
+    // Say why before the send seat looks broken, and offer the one action that fixes it.
+    txt.disabled = true;
+    txt.placeholder = "This assistant is archived. Restore it to continue.";
+    sendBtn.disabled = true;
+    const archivedFlag = $("#archived-flag");
+    if (archivedFlag) archivedFlag.hidden = false;
+    $("#archived-restore")?.addEventListener("click", () => void setBotArchived(bot, false));
   }
 
   const composerConversationId = selectedConversation.id;
@@ -4705,6 +4776,10 @@ async function renderChatFeed() {
     const factUi = captureFactUi(stream);
     stream.innerHTML = nextHtml;
     chatRenderSnapshots.set(stream, nextHtml);
+    $("#welcome-restore", stream)?.addEventListener("click", () => {
+      const bot = botsCache.find(x => x.name === currentStudioBot);
+      if (bot) void setBotArchived(bot, false);
+    });
       wireFactControls(factPage.facts || [], currentStudioBot, factShares);
     $('[data-retry-facts]', stream)?.addEventListener('click', () => scheduleFeedRender());
     restoreFactUi(stream, factUi);
@@ -5184,6 +5259,22 @@ function welcomeHtml() {
   const b = botsCache.find(x => x.name === currentStudioBot);
   if (!b) return "";
   const description = String(b.description || "").trim();
+  if (b.archived) {
+    // Do not invite work this assistant cannot accept. Offer the one action that helps.
+    return `
+    <div class="welcome">
+      <div class="welcome-hero">
+        <div class="hero-agent" id="hero-agent" aria-hidden="true">
+          ${avatarFromPair(sigilPair(b.name), 160)}
+        </div>
+        <h2>${esc(botDisplayName(b))}</h2>
+        ${description ? `<p class="hint">${esc(description)}</p>` : ""}
+      </div>
+      <p class="welcome-intro">This assistant is archived.</p>
+      <p class="welcome-guide hint">It accepts no new messages, runs or scheduled tasks. Its conversations, runs and saved notes are still here to read.</p>
+      <p class="welcome-catalog"><button type="button" class="btn primary small" id="welcome-restore">Restore assistant</button></p>
+    </div>`;
+  }
   const words = [...new Set((b.tools || []).map(tool => WELCOME_TOOL_WORDS[tool]).filter(Boolean))];
   const can = words.length ? `Can use ${words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : words[0]}` : "";
   return `
