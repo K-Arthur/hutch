@@ -28,6 +28,29 @@ single stage term is "development preview" everywhere (footer badge, availabilit
 "private preview" and "private alpha" are retired. The site says "assistant" for the user-facing entity and notes that
 the command-line tools call it a bot; internal docs and the CLI keep "bot".
 
+## Connector claims
+
+The homepage has a connectors section between the provider section and the approvals band. It
+may say that Hutch is a client for connectors that speak MCP, that installing, reading the tool
+list and granting a tool to a named assistant are three separate acts, that a local connector
+runs contained with no host network and no inherited environment, that credential values are
+never stored, and that the effect class of a tool is an owner decision.
+
+It must not claim:
+
+- that any third-party connector has been verified on a real machine, because none has; the
+  section says so explicitly;
+- that the remote HTTP connector path has been exercised against a live endpoint, because it has
+  not;
+- that connectors expose prompts or resources, or that OAuth is available for a connector
+  endpoint, because only tools and the `none`/bearer cases ship;
+- that a connector marketplace exists, or that anything installs automatically from a registry;
+- that read-only classification is provided by the server, because the owner sets it and
+  `unknown` requires approval.
+
+The accompanying page in the application is `/connectors`. Screenshots of it are not used on the
+site, because no captured viewport has been reviewed for it yet.
+
 ## Capability language
 
 | State shown publicly | Evidence and limit |

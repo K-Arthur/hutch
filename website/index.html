@@ -747,6 +747,54 @@
     </div>
   </section>
 
+  <!-- ====================================================== CONNECTORS -->
+  <section class="section" id="connectors">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="section-heading">Connect a tool without handing over the account.</h2>
+        <p class="section-desc">Hutch is a client for connectors that speak MCP. You install one, read the tools it offers, and then grant specific tools to specific assistants. Each of those is a separate act, and installing something authorizes nothing.</p>
+      </div>
+
+      <div class="choice-grid">
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-apps" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="9" height="9" rx="2"/><rect x="18" y="5" width="9" height="9" rx="2"/><rect x="5" y="18" width="9" height="9" rx="2"/><path d="M18 22.5h9M22.5 18v9"/></svg></span><h3>Read first, grant second</h3></div>
+          <p>Reading a connector's tool list starts it once and calls no tool. You see every tool it offers, what the server says each one does, and any tool Hutch refuses to run because its description cannot be checked safely.</p>
+          <p>A tool is only visible to an assistant you named, and the grant records which version of that tool's definition you approved. If the server later changes it, the grant is withdrawn rather than silently carried over.</p>
+        </article>
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-home" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4 26 9v7c0 6-4.2 10.2-10 13-5.8-2.8-10-7-10-13V9l10-5Z"/><path d="m11.5 16 3 3 6-6"/></svg></span><h3>Local servers run contained</h3></div>
+          <p>A local connector is third-party code, so Hutch runs it the way it runs a shell command: no host network, no inherited environment, one writable folder, and read-only access to the paths you reviewed. The program and those paths are fingerprinted at review time; if either changes, Hutch refuses to start it until you look again.</p>
+          <p>Credential values are never stored. A definition may name an environment variable, and Hutch reads it when the server starts.</p>
+        </article>
+        <article class="choice-card">
+          <div class="choice-heading"><span class="choice-icon choice-icon-ai" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16h6l3-8 3 16 3-8h5"/></svg></span><h3>The effect class is yours to set</h3></div>
+          <p>A connector is not read-only because its server says so. You classify each tool as read, write, destructive or unknown, and only read runs without asking. Every other class brings you the exact tool, account and arguments before anything is sent.</p>
+          <p>Revoking a tool takes effect on that assistant's next tool call, not its next task. Removing a connector removes its grants with it.</p>
+        </article>
+      </div>
+
+      <details class="page-details technical-details">
+        <summary>What is shipped, and what has not been verified</summary>
+        <div class="details-copy">
+          <div class="choice-grid">
+            <article class="choice-card">
+              <div class="choice-heading"><h3>Shipped</h3></div>
+              <p>Local stdio connectors and remote Streamable HTTP endpoints, tool discovery with a stored schema revision per tool, per-assistant grants with an operation class, approval on non-read calls, and a connectors page alongside a machine-readable API. The connector tool runs through the same registry, the same argument validation and the same receipt path as a built-in tool.</p>
+            </article>
+            <article class="choice-card">
+              <div class="choice-heading"><h3>Deliberately narrow</h3></div>
+              <p>Only tools are exposed, not prompts or resources. Remote endpoints support no authentication or a bearer token read from an environment variable; OAuth for a connector endpoint is not shipped. There is no connector marketplace and no automatic installation from a registry listing.</p>
+            </article>
+            <article class="choice-card">
+              <div class="choice-heading"><h3>Not yet verified</h3></div>
+              <p>The connector path has been exercised against Hutch's own test server through the real sandbox, including its containment boundary. It has not been run against a third-party connector on this machine, and the remote HTTP path has not been run against a live endpoint. Treat third-party connectors as experimental in this preview.</p>
+            </article>
+          </div>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <!-- =============================================================== CONTROL -->
   <section class="band" id="control">
     <div class="wrap">
