@@ -6,7 +6,8 @@
 {% block header_context %}<div class="ctx-id"><h1>Connections</h1></div>{% endblock %}
 {% block content %}
 <div class="page-head"><div>
-  <p class="sub">Hosted endpoints and subscription plans, each with its own key. Use one in an assistant as <span class="mono">&lt;name&gt;/&lt;model&gt;</span>, for example <span class="mono">opencode-go/glm-5.3</span>.</p></div></div>
+  <p class="sub">Hosted endpoints and subscription plans, each with its own key. Use one in an assistant as <span class="mono">&lt;name&gt;/&lt;model&gt;</span>, for example <span class="mono">opencode-go/glm-5.3</span>.</p>
+  <p class="hint"><a href="/providers">Provider catalogue, account states, capability evidence and runtime boundaries</a></p></div></div>
 
 <div class="banner wait">{{ icon("lock", 18) }}<div class="banner-body">
   <p><strong>Keys stay on this machine.</strong> A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.</p>
