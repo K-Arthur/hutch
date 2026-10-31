@@ -12,7 +12,9 @@ import pytest
 
 pw = pytest.importorskip("playwright.sync_api")
 
-from hutch.models import Bot, Run, RunStatus  # noqa: E402
+from datetime import timedelta  # noqa: E402
+
+from hutch.models import Bot, Run, RunStatus, iso, utcnow  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 from tests.support.browser import launch_browser  # noqa: E402
 from tests.support.live_app import PageWatch, horizontal_overflow, serve  # noqa: E402
@@ -64,7 +66,11 @@ def test_every_server_page_titles_itself_in_the_shell_header(browser, base):
 def test_running_work_shows_the_status_and_the_global_stop(browser, base):
     url, app = base
     bot = app.state.store.list_bots()[0]
-    app.state.store.create_run(Run(bot_id=bot.id, prompt="long task", status=RunStatus.running, owner=""))
+    run = app.state.store.create_run(Run(bot_id=bot.id, prompt="long task", status=RunStatus.running, owner=""))
+    with app.state.store._lock:           # a real claim has a live lease; the header counts evidence
+        app.state.store._db.execute("UPDATE runs SET lease_owner = 'supervisor', lease_expires_at = ? WHERE id = ?",
+                                    (iso(utcnow() + timedelta(minutes=5)), run.id))
+        app.state.store._db.commit()
     page = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
     watch = PageWatch(page)
     try:

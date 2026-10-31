@@ -8,6 +8,8 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
+from datetime import timedelta
+
 from hutch.models import ApprovalMode, ApprovalRequest, Bot, Event, EventType, Run, RunStatus, iso, utcnow
 from hutch.server.app import create_app
 
@@ -197,6 +199,10 @@ def test_stop_all_is_in_the_app_header_and_stops_a_run(client):
     assert "/stop-all" not in client.get("/login").text
     store, engine = client.app_.state.store, client.app_.state.engine
     run = store.create_run(Run(bot_id=bot.id, prompt="write a report", status=RunStatus.running, owner=""))
+    with store._lock:                     # a live lease is the evidence the header counts
+        store._db.execute("UPDATE runs SET lease_owner = 'supervisor', lease_expires_at = ? WHERE id = ?",
+                          (iso(utcnow() + timedelta(minutes=5)), run.id))
+        store._db.commit()
     page = client.get("/legacy/connections")
     assert "/stop-all" in page.text and "1 working" in page.text          # one running run: shown
     assert "/stop-all" not in client.get("/login").text

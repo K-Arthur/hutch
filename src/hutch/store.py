@@ -7069,13 +7069,21 @@ class Store:
         period keeps a run that is being claimed this moment out of reach."""
         return not run.owner and not run.lease_owner and run.created_at < iso(utcnow() - timedelta(seconds=grace_seconds))
 
-    def legacy_live_runs(self) -> list[Run]:
-        """Live runs from before leases existed (no lease at all): only the old process-liveness check can judge them."""
+    def legacy_live_runs(self, grace_seconds: int = 300,
+                         now: Optional[datetime] = None) -> list[Run]:
+        """Live runs with no lease that can prove an owner (from before leases, or a claim that never wrote one).
+
+        Such a row is unverifiable: there is no heartbeat to show somebody is still working, whatever pid or
+        lease-owner string it carries. After the grace period it is reported as an orphan so the supervisor
+        can reconcile it instead of showing "Working" forever. The grace keeps a run that is being claimed
+        this moment out of reach.
+        """
         marks = ",".join("?" for _ in _LIVE_VALUES)
+        cutoff = iso((now or utcnow()) - timedelta(seconds=grace_seconds))
         with self._lock:
             rows = self._db.execute(
-                f"SELECT {_RUN_COLS} FROM runs WHERE status IN ({marks}) AND lease_expires_at IS NULL AND fence = 0",
-                _LIVE_VALUES).fetchall()
+                f"SELECT {_RUN_COLS} FROM runs WHERE status IN ({marks}) AND lease_expires_at IS NULL AND created_at < ?",
+                (*_LIVE_VALUES, cutoff)).fetchall()
         return [self._run(r) for r in rows]
 
     def set_pgid(self, run_id: str, fence: int, pgid: int) -> None:
@@ -8213,11 +8221,11 @@ class Store:
                 return None
             if row["lease_owner"] != run.lease_owner or row["lease_expires_at"] != run.lease_expires_at:
                 return None
-            is_legacy = row["lease_expires_at"] is None and row["fence"] == 0
+            no_lease = row["lease_expires_at"] is None          # pre-lease row, or a claim that never wrote one
             expired = row["lease_expires_at"] is not None and row["lease_expires_at"] < stamp
             exited_owner = owner_exited and (row["lease_owner"] == owner
                                               or row["lease_owner"] == f"cleanup-pending:{run.id}")
-            if not (expired or exited_owner or (is_legacy and owner_exited)):
+            if not (expired or exited_owner or (no_lease and owner_exited)):
                 return None
             cur = RunStatus(row["status"])
             target = RunStatus.cancelling if cur is RunStatus.cancelling else RunStatus.recovering

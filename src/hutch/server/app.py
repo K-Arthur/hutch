@@ -2161,7 +2161,7 @@ def create_app() -> FastAPI:
             "active_run_status": active.status.value if active else None,
             "active_run_status_label": LABELS[active.status] if active else None,
             "last_success": (last.finished_at or last.created_at) if last else None,
-            "run_counts": stats,
+            "run_counts": stats, "route_problem": store.route_problem(bot),
         }
 
     def phone_run_view(run) -> dict:
@@ -2716,8 +2716,8 @@ def create_app() -> FastAPI:
         phone = is_paired_phone(request)
         bots = ([phone_bot_view(bot, can_start=phone_start_capability(request))
                  for bot in snap["items"]["bots"]] if phone else
-                [bot.model_dump(mode="json", exclude={"background_provider_consents"})
-                 for bot in snap["items"]["bots"]])
+                [{**bot.model_dump(mode="json", exclude={"background_provider_consents"}),
+                  "route_problem": store.route_problem(bot)} for bot in snap["items"]["bots"]])
         bot_names = {bot["id"]: bot["name"] for bot in bots}
         bot_display_names = {bot["id"]: bot["display_name"] for bot in bots}
         def bot_name(bot_id: str) -> str:
@@ -5992,6 +5992,10 @@ def create_app() -> FastAPI:
             RunStatus.waiting_approval, RunStatus.waiting_human, RunStatus.waiting_resources,
             RunStatus.waiting_workflow, RunStatus.waiting_child,
         }
+        now_stamp = iso(utcnow())
+        # "Working" needs evidence, not just a live status: a crashed owner or a pre-lease row can sit in a
+        # live status forever. Only a lease that has not lapsed proves current ownership.
+        evidenced = [run for run in active if run.lease_expires_at and run.lease_expires_at > now_stamp]
         pending = store.pending_approvals()
         budgets = store.bot_budgets_today()
         budget_rows = [budgets.get(b.id, (0, 0, 0.0, 0.0)) for b in bots]
@@ -6002,7 +6006,7 @@ def create_app() -> FastAPI:
             # Keep active_runs as the legacy all-live count. The header gets
             # these mutually exclusive buckets so parked and queued work are
             # not presented as consuming execution capacity.
-            "working_runs": sum(1 for run in active if run.status in working_statuses),
+            "working_runs": sum(1 for run in evidenced if run.status in working_statuses),
             "waiting_runs": sum(1 for run in active if run.status in waiting_statuses),
             "unresolved_actions": store.count_unresolved_actions(),
             "execution_held": bool((report := store.restoration_status()) and report['execution_held']),

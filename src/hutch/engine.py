@@ -33,7 +33,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
-from . import durable_changes, procguard, sandbox
+from . import durable_changes, procguard, recovery, sandbox
 from .approvals import ApprovalGate, expire_stale_approvals
 from .config import hutchConfig
 from .grounding.clock import SYSTEM_CLOCK
@@ -1354,17 +1354,17 @@ class Engine:
     def recover_orphans(self) -> list[Run]:
         """Runs whose owner is gone (crash, kill -9, power loss, a long suspend) must not stay 'running' forever.
 
-        An orphan would show in "Running now" indefinitely and, via the per-bot single-instance rule, block that bot from ever
-        running again. A run is an orphan when its **lease has lapsed** (the owner stopped heartbeating), or - for rows from before
-        leases existed - when the pid it records is dead. Recovery first acquires the expired ownership and bumps its fence in
-        one transaction, then verifies process cleanup, and only then decides the outcome. A run is never resumed in the middle
-        (ADR-0003): if an action began and never recorded its receipt the outcome is `outcome_unknown`.
+        An orphan is a run whose lease lapsed, or a pre-lease row with no lease at all (fence 0 or higher): a
+        missing lease is missing evidence after the grace period, whatever pid string the row still carries. A
+        dead pid is recovered immediately. Recovery fences the run, ends its processes and only then decides the
+        outcome; a run is never resumed in the middle (ADR-0003): an in-flight action becomes `outcome_unknown`.
         """
         recovered: list[Run] = []
         self.store.release_expired_claims()
-        candidates = [r for r in self.store.expired_runs() if r.id not in self._threads]
-        candidates += [r for r in self.store.legacy_live_runs() if r.id not in self._threads
-                       and (not self._pid_alive(r.owner) if r.owner else self.store.is_unowned(r))]
+        no_lease = self.store.legacy_live_runs(grace_seconds=0)
+        dead = [r for r in no_lease if r.id not in self._threads and r.owner and not self._pid_alive(r.owner)]
+        candidates = [r for r in self.store.expired_runs() + dead + self.store.legacy_live_runs()
+                      if r.id not in self._threads]
         if candidates:
             self._ensure_heartbeat()
         for run in candidates:
@@ -1379,14 +1379,11 @@ class Engine:
         if owned is None:
             return None                    # lease renewed, another supervisor won, or the run changed
         left = self._end_recorded_processes(owned)
-        if left:
-            detail = f"cleanup incomplete: still running or unverified: {procguard.describe(left)}"
-            self.store.defer_recovery(owned, detail)
-            self.store.append_event(Event(run_id=run.id, type=EventType.error,
-                                          data={"error": detail, "kind": "cleanup_incomplete",
-                                                "pids": [p.pid for p in left]}))
-            self.store.flush_events()
-            return None                    # stopping/recovering remains visible; another supervisor retries after the lease
+        settled = recovery.settle_unverifiable_cleanup(self.store, run, owned, left)
+        if settled is recovery.DEFERRED:
+            return None                    # cleanup is visible and another supervisor beat retries it
+        if settled is not None:
+            return settled
         doubt = self.store.actions_in_doubt(run.id)
         if doubt:
             to, reason = RunStatus.outcome_unknown, "interrupted"

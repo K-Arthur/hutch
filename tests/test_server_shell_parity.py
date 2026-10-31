@@ -14,7 +14,9 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from hutch.models import Bot, Run, RunStatus
+from datetime import timedelta
+
+from hutch.models import Bot, Run, RunStatus, iso, utcnow
 from hutch.server.app import create_app
 from tests.fakes import FakeOllama
 
@@ -103,10 +105,23 @@ def test_global_stop_and_work_status_track_running_work(client):
     idle = client.get("/usage", headers=BROWSER).text
     assert "/stop-all" not in idle and '<a class="app-top-work"' not in idle
     bot = store.create_bot(Bot(name="work-bot"))
-    store.create_run(Run(bot_id=bot.id, prompt="long task", status=RunStatus.running, owner=""))
+    run = store.create_run(Run(bot_id=bot.id, prompt="long task", status=RunStatus.running, owner=""))
+    with store._lock:                     # a real claim carries a live lease; that is what "working" needs
+        store._db.execute("UPDATE runs SET lease_owner = 'supervisor', lease_expires_at = ? WHERE id = ?",
+                          (iso(utcnow() + timedelta(minutes=5)), run.id))
+        store._db.commit()
     working = client.get("/usage", headers=BROWSER).text
     assert "/stop-all" in working and "1 working</a>" in working
     assert "Stop all runs now" in working
+
+
+def test_the_server_header_ignores_a_live_row_without_lease_evidence(client):
+    """A live status alone is not working: a pre-lease row with no evidence must not offer Stop all."""
+    store = client.app.state.store
+    bot = store.create_bot(Bot(name="ghost-bot"))
+    store.create_run(Run(bot_id=bot.id, prompt="ghost", status=RunStatus.cancelling, owner=""))
+    text = client.get("/usage", headers=BROWSER).text
+    assert "/stop-all" not in text and '<a class="app-top-work"' not in text
 
 
 def test_parked_work_does_not_show_the_global_stop(client):

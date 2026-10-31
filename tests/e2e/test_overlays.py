@@ -11,7 +11,9 @@ import pytest
 
 pw = pytest.importorskip("playwright.sync_api")
 
-from hutch.models import Bot, Run, RunStatus  # noqa: E402
+from datetime import timedelta  # noqa: E402
+
+from hutch.models import Bot, Run, RunStatus, iso, utcnow  # noqa: E402
 from tests.e2e.test_design_system import app_server, browser  # noqa: E402,F401
 
 
@@ -96,7 +98,11 @@ def test_server_page_confirm_form_and_tooltip(browser, app_server):
     # The global stop appears with running work, the same rule as the SPA header.
     store = app.state.store
     bot = store.create_bot(Bot(name="overlay-work", display_name="Overlay Work", tools=[]))
-    store.create_run(Run(bot_id=bot.id, prompt="long task", status=RunStatus.running, owner=""))
+    run = store.create_run(Run(bot_id=bot.id, prompt="long task", status=RunStatus.running, owner=""))
+    with store._lock:                     # a real claim has a live lease; server headers count evidence
+        store._db.execute("UPDATE runs SET lease_owner = 'supervisor', lease_expires_at = ? WHERE id = ?",
+                          (iso(utcnow() + timedelta(minutes=5)), run.id))
+        store._db.commit()
     context = browser.new_context(viewport={"width": 1280, "height": 900})
     page = context.new_page()
     try:

@@ -54,7 +54,7 @@ def _seed(owner: str) -> str:
 def _wait_for(client, run_id, timeout=20.0):
     deadline = time.monotonic() + timeout
     run = client.get(f"/api/runs/{run_id}").json()
-    while run["status"] in ("running", "recovering") and time.monotonic() < deadline:   # recovering is the step between
+    while run["status"] in ("running", "recovering", "cancelling") and time.monotonic() < deadline:   # live states recover
         time.sleep(0.2)
         run = client.get(f"/api/runs/{run_id}").json()
     return run
@@ -158,3 +158,101 @@ def test_the_overview_payload_carries_the_interruption_reason():
         failures = client.get("/api/overview").json()["failures"]
         row = next(item for item in failures if item["id"] == run_id)
         assert row["status"] == "failed" and row["exit_reason"] == "interrupted"
+
+# ------------------------------------------------ ghosts with no lease evidence
+#
+# A row from a pre-lease version, or one whose claim never wrote an expiry, cannot prove an owner. The old
+# recovery only looked at fence=0 rows; a fenced row with no lease was invisible to both queries and stayed
+# "Working"/"Stopping" forever (the owner saw a 23-day-old "Stopping" counted as 1 working).
+
+
+def _set_run_columns(run_id: str, *, fence: int, lease_owner: str, lease_expires_at) -> None:
+    """create_run writes the document, status and created_at; ownership columns are set here like a real claim."""
+    config = get_config()
+    store = Store(config)
+    try:
+        with store._lock:
+            store._db.execute("UPDATE runs SET fence = ?, lease_owner = ?, lease_expires_at = ? WHERE id = ?",
+                              (fence, lease_owner, lease_expires_at, run_id))
+            store._db.commit()
+    finally:
+        store.close()
+
+
+def _seed_ghost(status: RunStatus, *, fence: int, owner: str, lease_owner: str = "",
+                age_days: float = 23) -> str:
+    config = get_config()
+    store = Store(config)
+    try:
+        bot = store.create_bot(Bot(name=f"ghost-{status.value}", display_name="Ghost Check",
+                                   model="ollama/llama3.2:3b", tools=[]))
+        run = Run(bot_id=bot.id, prompt="sort this week's downloads into folders", status=status,
+                  owner=owner, created_at=iso(utcnow() - timedelta(days=age_days)))
+        run_id = store.create_run(run).id
+    finally:
+        store.close()
+    _set_run_columns(run_id, fence=fence, lease_owner=lease_owner, lease_expires_at=None)
+    return run_id
+
+
+@pytest.mark.parametrize("status,expected", [
+    (RunStatus.cancelling, RunStatus.stopped),
+    (RunStatus.running, RunStatus.failed),
+    (RunStatus.recovering, RunStatus.failed),
+])
+def test_a_live_row_with_no_lease_beyond_the_grace_is_recovered(status, expected):
+    """Fenced rows with no lease used to be invisible to both recovery queries and stayed live forever."""
+    run_id = _seed_ghost(status, fence=3, owner="", lease_owner="dead-supervisor")
+    with TestClient(create_app()) as client:
+        run = _wait_for(client, run_id)
+        assert run["status"] == expected.value, run
+        assert client.get("/api/stats").json()["working_runs"] == 0
+
+
+def test_a_ghost_with_a_stale_pid_string_is_still_recovered():
+    """A pid that happens to resolve cannot prove a heartbeat; after the grace the row is an orphan."""
+    run_id = _seed_ghost(RunStatus.cancelling, fence=2, owner="999999", lease_owner="dead-supervisor")
+    with TestClient(create_app()) as client:
+        run = _wait_for(client, run_id)
+        assert run["status"] in ("stopped", "cancelled"), run
+        assert client.get("/api/stats").json()["working_runs"] == 0
+
+
+def test_a_fresh_claim_without_a_lease_is_not_touched_inside_the_grace():
+    run_id = _seed_ghost(RunStatus.running, fence=1, owner="", age_days=0)
+    with TestClient(create_app()) as client:
+        time.sleep(2.5)
+        assert client.get(f"/api/runs/{run_id}").json()["status"] == "running"
+
+
+def test_doctor_reports_ghosts_before_recovery():
+    _seed_ghost(RunStatus.cancelling, fence=2, owner="", lease_owner="dead-supervisor")
+    config = get_config()
+    store = Store(config)
+    try:
+        checks = {c.id: c for c in run_doctor(config, store)}
+    finally:
+        store.close()
+    assert checks["orphans"].status == "warn"
+    assert "belong to a process that exited" in checks["orphans"].detail
+
+
+def test_working_runs_requires_lease_evidence():
+    """A live status alone is not "working": a pre-lease row with no evidence does not drive the header."""
+    config = get_config()
+    store = Store(config)
+    try:
+        bot = store.create_bot(Bot(name="evidence-check", display_name="Evidence Check",
+                                   model="ollama/llama3.2:3b", tools=[]))
+        no_evidence = store.create_run(Run(bot_id=bot.id, prompt="no evidence",
+                                           status=RunStatus.cancelling, owner="")).id
+        has_evidence = store.create_run(Run(bot_id=bot.id, prompt="has evidence",
+                                            status=RunStatus.running, owner="supervisor")).id
+    finally:
+        store.close()
+    _set_run_columns(no_evidence, fence=2, lease_owner="dead-supervisor", lease_expires_at=None)
+    _set_run_columns(has_evidence, fence=2, lease_owner="supervisor",
+                     lease_expires_at=iso(utcnow() + timedelta(minutes=5)))
+    with TestClient(create_app()) as client:
+        assert client.get("/api/stats").json()["working_runs"] == 1
+

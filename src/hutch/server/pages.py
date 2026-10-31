@@ -21,7 +21,7 @@ from starlette.templating import Jinja2Templates
 from .. import __version__
 from ..approvals import resolve_approval
 from ..engine import bot_prompt_for_schedule
-from ..models import ApprovalStatus, Bot, CatchUpPolicy, EventType, RunStatus, Schedule
+from ..models import ApprovalStatus, Bot, CatchUpPolicy, EventType, RunStatus, Schedule, iso, utcnow
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
 from .. import views
@@ -79,7 +79,10 @@ def register_pages(app: FastAPI) -> None:
         # The same bucket the SPA header counts: parked and queued work is not execution capacity,
         # so the global stop and the work status only appear while something is actually running.
         working_statuses = {RunStatus.loading_model, RunStatus.running, RunStatus.recovering, RunStatus.cancelling}
-        working_runs = sum(1 for run in store.active_runs() if run.status in working_statuses)
+        now_stamp = iso(utcnow())
+        working_runs = sum(1 for run in store.active_runs()
+                           if run.status in working_statuses and run.lease_expires_at
+                           and run.lease_expires_at > now_stamp)
         base = {
             "request": request, "nav": nav, "nav_active": active, "working_runs": working_runs,
             "nav_primary": PRIMARY, "nav_foot": FOOT,

@@ -84,7 +84,13 @@ def run_doctor(config: Any, store: Any, hw: Any = None, deep: bool = False, onli
         f"chmod 700 {config.state_dir}; chmod 600 {keys}/*.key" if loose else "")
 
     # ---- scheduler / service
-    orphans = store.expired_runs() + [r for r in store.legacy_live_runs() if (not _pid_alive(r.owner) if r.owner else store.is_unowned(r))]
+    # A live row with no lease evidence is an orphan after the grace period too (pre-lease rows, crashed
+    # claims); a dead pid is reported immediately. Doctor reports them before the supervisor recovers.
+    no_lease = store.legacy_live_runs(grace_seconds=0)
+    orphans = {r.id: r for r in store.expired_runs()}
+    orphans.update({r.id: r for r in store.legacy_live_runs()})
+    orphans.update({r.id: r for r in no_lease if r.owner and not _pid_alive(r.owner)})
+    orphans = list(orphans.values())
     add("orphans", "Interrupted runs", WARN if orphans else OK,
         f"{len(orphans)} run(s) belong to a process that exited, or to none" if orphans else "no orphaned runs",
         "they are marked failed automatically the next time `hutch serve` or `hutch daemon` ticks" if orphans else "")
