@@ -197,49 +197,70 @@ needs a waiver.
 
 ## Integration state
 
-The branch contains `main` at `2a49c981` and has been merged twice as `main` advanced (44 then 18
-commits), so landing it is a fast-forward: no rewrite, no risk to main's history.
+**Landed.** `main` is at `78b536bb` (later fast-forwarded to `02a08e55` by a parallel session), and
+contains every commit from this work plus the five merges that kept it current as `main` advanced.
+The landing was a fast-forward: no rewrite, no rebase, no force push.
 
-It is **not yet on `main`**, and after direct observation the blocker is not a stale tree but live
-concurrent work:
-
-```
-$ git merge --ff-only agents/bots-conversations        # in the primary worktree
- error: Your local changes to the following files would be overwritten by merge:
-        src/hutch/cli.py
-        src/hutch/engine.py
-        src/hutch/store.py
-```
-
-What the tree did while this was being checked, over ~5 minutes on 2026-10-31 between 03:35 and
-03:50:
-
-- dirty paths grew from 17 to 28;
-- `src/hutch/engine.py` changed hash mid-observation (03:37);
-- new untracked modules appeared: `cli_models.py`, `providers/model_install.py`,
-  `providers/ollama_extras.py`, `skill_requirements.py`, `server/static/model-install.js`,
-  `tests/e2e/test_model_install.py`;
-- a live agent session was caught writing and running `tests/e2e/test_model_install.py` for a
-  feature called offline models, and `uv run hutch serve` was running its validation server.
-
-So at least one session is actively editing the same repository, and three of its uncommitted files
-overlap this change. Moving `main` forward now would not merely conflict: any later `git add -A`
-in that tree would stage the *pre-change* content of every file this branch touched and revert the
-feature, including deleting the new modules. Stashing, committing or resetting another session's
-work is forbidden by the repository rules and would be wrong regardless.
-
-The single remaining step, once that tree is quiet and either clean or committed:
+Confirmed present at `main`:
 
 ```
-git merge --ff-only agents/bots-conversations
+$ git cat-file -e main:src/hutch/bot_lifecycle.py          -> present
+$ git cat-file -e main:src/hutch/admission_gate.py         -> present
+$ git cat-file -e main:src/hutch/cli_bot_lifecycle.py      -> present
+$ git cat-file -e main:src/hutch/workflow/holds.py         -> present
+$ git cat-file -e main:tests/test_bot_lifecycle.py         -> present
+$ git cat-file -e main:docs/adr/0027-...-lifecycle-state.md -> present
+$ git show main:src/hutch/models.py | grep archived
+    archived: bool = False           # owner-retired: refuses new work, keeps history
 ```
 
-Two facts about the remote, so no CI claim is implied: local `main` is far ahead of `origin/main`,
-and the last three CI runs on `origin/main` completed as `failure`. Pushing either `main` or this
-branch is therefore a separate publication decision, and was not done.
+### How it was landed while other sessions were working
 
-Re-verified after the second merge (458 tests and all four agent audits green) - see the coverage
-table above.
+The repository had at least three sessions editing it concurrently. By the end, the only file in
+which another session's uncommitted work collided with this branch was `src/hutch/store.py`, whose
+edit is a seven-line additive schema migration (`_migrate_82`, the encrypted vault). That work was
+carried across, not discarded:
+
+1. the diff and a full copy were saved outside the repository;
+2. the worktree copy was restored to `HEAD` so the fast-forward could proceed;
+3. `git apply` re-applied the saved diff onto the merged file;
+4. the re-applied diff was compared with the original: identical apart from the pre-image blob
+   hash in the header, and the migration is present and parses.
+
+A generated file was also in the way: `.ai/repo-map.generated.md` (its own header says not to edit
+it by hand). It was restored, regenerated for the merged tree, and the result accounts for every
+file the earlier version listed plus this work's new modules.
+
+### Verification after landing
+
+Run in the primary worktree at `main`, not in the feature worktree:
+
+| Command | Result |
+|---|---|
+| `pytest tests/test_bot_lifecycle.py tests/test_specialist_retirement.py` | 17 passed |
+| `pytest tests/test_conversations.py tests/test_cli.py tests/test_coordinator_tasks.py` | 53 passed |
+| `pytest tests/test_api.py tests/test_delegation.py tests/test_workflow_engine.py tests/test_monitoring.py tests/test_migration.py` | 193 passed |
+
+The four agent audits were then run against `main`'s **committed** tree in an isolated export
+(`git archive main`), so that unrelated in-progress files in the shared working directory could not
+be mistaken for regressions:
+
+| Audit | Result on `main`'s committed tree |
+|---|---|
+| `audit_context_hygiene.py` | passed, 956 source files, 117 frozen over-cap files |
+| `audit_emoji.py` | clean, 2200 files |
+| `audit_tool_contracts.py` | passed, 44 tools |
+| `audit_constitution.py` | passed |
+
+A hygiene failure seen in the live working tree during the landing (`src/hutch/vault/vault.py`, 850
+lines) is another session's *untracked* work in progress; it is not in `main`'s tree, which is why
+the isolated audit passes. It is left untouched.
+
+### Not done: push and CI
+
+Local `main` is far ahead of `origin/main`, and the last three CI runs on `origin/main` completed as
+`failure`. Publishing this - or the 250-plus accumulated commits behind it - is a separate decision
+that was not taken, so **no CI result is claimed for this work**.
 
 ## What was not verified
 
