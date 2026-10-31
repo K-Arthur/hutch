@@ -316,6 +316,24 @@ model would mis-click. What it does establish is that the semantic path needs no
 fewer step, and can confirm the result instead of inferring it from a changed screenshot. The tree is not free: three reads
 cost more characters than the frames cost bytes, and roughly half the token estimate of five screenshots.
 
+## Scheduled and unattended work
+
+Computer use is **not** available to a run nobody is watching, and this is deliberate rather than an oversight: starting a
+session asks every time (`ask_in_auto`) and carries no standing allow, so an unattended run that reaches for the computer
+tool waits for a person and then expires to denied. Browser work behaves the same way whenever it needs an approval.
+
+What that means in practice:
+
+* Recurring work that only reads, writes files, calls connectors or uses shell inside the sandbox runs unattended on the
+existing scheduler (cron/interval/once with IANA zones, catch-up after suspend, overlap policy) without a person.
+* Recurring work that must drive a browser or a desktop needs somebody to approve the session each time. Hutch reports the
+  run as `waiting_approval` with the session request in the inbox, and the run fails closed if the request expires.
+* There is no way today to grant "this assistant may open a desktop twice a day". Making one would change an execution
+  boundary, so it would be an explicit product decision with its own review - not a side effect of enabling a tool.
+
+Watching, interrupting and taking over are covered above; a run that is waiting for a person says so in the run panel and
+is not treated as progress.
+
 ## Privacy and retention
 
 Frames are private run artifacts (see above) and are removed with the run directory. Screens may show anything the allowed
