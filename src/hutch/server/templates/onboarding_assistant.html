@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Create your assistant{% endblock %}
+
+{% block head %}
+<meta name="referrer" content="same-origin">
+<link rel="stylesheet" href="/static/onboarding-form.css">
+<link rel="stylesheet" href="/static/onboarding.css">
+<link rel="stylesheet" href="/static/onboarding-assistant.css">
+<script src="/static/onboarding.js" defer></script>
+{% endblock %}
+
+{% block content %}
+<section class="onboarding onboarding-assistant" aria-labelledby="onboarding-title">
+  <p class="onboarding-kicker">First run <span aria-hidden="true">&middot;</span> Step {{ step_index }} of {{ step_total }}: {{ step_label }}</p>
+
+  <h1 id="onboarding-title" class="onboarding-title" tabindex="-1" data-focus-heading>
+    Set up your first assistant
+  </h1>
+
+  <p class="onboarding-lede">
+    Give your assistant a name and review its execution permissions before running your first request.
+  </p>
+
+  {% include "_onboarding_request_text.html" %}
+
+  {% if error_summary %}
+    <div class="onboarding-banner onboarding-banner-error" role="alert" tabindex="-1">
+      <p class="onboarding-banner-title">{{ error_summary }}</p>
+      {% if field_error %}
+        <p>{{ field_error }}</p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <form class="onboarding-form" method="post" action="/onboarding/assistant" data-onboarding-form novalidate>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+
+    <div class="onboarding-fields-row">
+      <div class="onboarding-field">
+        <label for="display_name" class="onboarding-label">
+          Display Name <span class="onboarding-req">*</span>
+        </label>
+        <p class="onboarding-help" id="display-name-help">How this assistant appears across the dashboard.</p>
+        <input id="display_name" name="display_name" type="text" required maxlength="80"
+               class="onboarding-input" value="{{ display_name }}" aria-describedby="display-name-help">
+      </div>
+
+      <div class="onboarding-field">
+        <label for="name" class="onboarding-label">
+          Identifier (slug) <span class="onboarding-req">*</span>
+        </label>
+        <p class="onboarding-help" id="slug-help">Short system ID using letters, numbers, and hyphens.</p>
+        <input id="name" name="name" type="text" required maxlength="32"
+               class="onboarding-input" value="{{ name }}" aria-describedby="slug-help">
+      </div>
+    </div>
+
+    <div class="onboarding-field">
+      <label for="model" class="onboarding-label">Model Route</label>
+      <p class="onboarding-help" id="model-help">AI model used for this assistant. Routes through your verified connection.</p>
+      <select id="model" name="model" class="onboarding-select" aria-describedby="model-help">
+        {% for m in models %}
+          <option value="{{ m.id }}" {% if m.id == default_model %}selected{% endif %}>
+            {{ m.label }}{% if m.recommended == 'true' %} (Recommended){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="assistant-security-card">
+      <h2 class="assistant-card-title">Permissions &amp; Execution Boundaries</h2>
+      <ul class="assistant-permissions-list">
+        <li>
+          <strong>Human-in-the-loop approvals:</strong> Hutch will ask for your explicit approval before executing shell commands, modifying files outside the workspace, or accessing network resources.
+        </li>
+        <li>
+          <strong>Isolated workspace:</strong> The assistant operates in a fresh folder on your machine and cannot silently overwrite files in other projects.
+        </li>
+        <li>
+          <strong>Memory &amp; Privacy:</strong> Stored locally on this machine. No training or cloud telemetry.
+        </li>
+      </ul>
+    </div>
+
+    <div class="onboarding-field">
+      <label for="instructions" class="onboarding-label">Custom instructions (optional)</label>
+      <p class="onboarding-help" id="instructions-help">System guidance that shapes how this assistant behaves.</p>
+      <textarea id="instructions" name="instructions" rows="3" class="onboarding-textarea" aria-describedby="instructions-help">{{ instructions }}</textarea>
+    </div>
+
+    <p class="onboarding-saving" role="status" aria-live="polite" data-saving-status hidden>Creating assistant...</p>
+
+    <div class="onboarding-form-actions">
+      <button class="btn primary" type="submit" data-submit>Create assistant and continue</button>
+      <a class="onboarding-quiet-link" href="/onboarding/ai-service">Change connection</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

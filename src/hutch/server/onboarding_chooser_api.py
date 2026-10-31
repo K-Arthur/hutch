@@ -43,8 +43,11 @@ from .onboarding_pagekit import (
 from .security import check_csrf
 
 CHOOSER_TEMPLATE = "onboarding_ai_service.html"
-# TEMPORARY: slices 04-06 replace this interim bridge with the real connection step.
-CONTINUE_TARGET = "/#/connections"
+ROUTE_TARGETS = {
+    "hosted_key": "/onboarding/hosted-key",
+    "local_service": "/onboarding/local-service",
+    "opencode": "/onboarding/opencode",
+}
 STEP_LABEL = "AI service"
 STATE_FORBIDDEN = "auth.csrf_rejected"
 
@@ -84,7 +87,7 @@ def _chooser_fields(view: ChooserView, state: str, **overrides) -> dict:
         "changing": False,
         "conflict_saved_label": "",
         "conflict_submitted_label": "",
-        "continue_target": CONTINUE_TARGET,
+        "continue_target": overrides.get("continue_target") or ROUTE_TARGETS.get(view.selected_route, "/onboarding/connection"),
         "error_summary": "",
         "field_error": "",
     }

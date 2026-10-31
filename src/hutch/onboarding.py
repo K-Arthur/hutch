@@ -53,6 +53,10 @@ class OnboardingSetup(BaseModel):
     # route was chosen yet. Route validation lives in onboarding_choices.py.
     route_kind: str = ""
     route_chosen_at: str = ""
+    connection_name: str = ""
+    assistant_id: str = ""
+    first_request_completed_at: str = ""
+    checklist_dismissed: bool = False
 
     @field_validator("resume_expires_at", "created_at", "updated_at")
     @classmethod
