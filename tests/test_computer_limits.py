@@ -72,6 +72,39 @@ def test_a_different_frame_restarts_the_count():
     assert budget.state()["stalled"] is False
 
 
+def test_a_changed_observation_clears_a_stall_so_the_run_can_recover():
+    """Observation stays allowed while stalled; it must also be the way out, or the run is wedged for good."""
+    budget = ActionBudget(stall_limit=3)
+    for _ in range(3):
+        budget.note(stateful=True, changed=False, fingerprint="same")
+    assert budget.state()["stalled"] is True
+    # Looking again shows the same screen: still stalled.
+    budget.note(stateful=False, changed=False, fingerprint="same")
+    assert budget.state()["stalled"] is True
+    # Something finally moved: the stall is over and an action is allowed.
+    budget.note(stateful=False, changed=True, fingerprint="different")
+    assert budget.state()["stalled"] is False
+    assert budget.spend("click", stateful=True) is None
+
+
+def test_a_fresh_session_starts_without_a_stall():
+    budget = ActionBudget(stall_limit=2)
+    for _ in range(2):
+        budget.note(stateful=True, changed=False, fingerprint="same")
+    assert budget.state()["stalled"] is True
+    budget.reset_progress()
+    assert budget.state()["stalled"] is False and budget.state()["unchanged_actions"] == 0
+    # The spend cap is about the run, not the surface, so it survives.
+    assert budget.actions == 0
+
+
+def test_the_stall_message_names_a_recovery_that_exists():
+    budget = ActionBudget(stall_limit=1)
+    budget.note(stateful=True, changed=False, fingerprint="same")
+    message = budget.spend("click", stateful=True).message()
+    assert "observe the application again" in message
+
+
 def test_only_stateful_actions_count_toward_a_stall():
     budget = ActionBudget(stall_limit=1)
     for _ in range(5):
@@ -94,6 +127,95 @@ def test_accounting_reads_the_frame_a_session_reported():
     assert budget.actions == 0          # spending happens before dispatch, not in accounting
     assert budget.state()["stalled"] is False
     assert Result.data["limits"]["unchanged_actions"] == 0
+
+
+def test_an_action_the_application_refused_is_not_reported_as_dispatched(tmp_path):
+    """A disabled control reports dispatched=false; a success receipt there would be a lie."""
+    from hutch.computer.accessibility import AccessibilitySession
+    from hutch.computer.control import ControlLease
+    from hutch.computer.desktop import DesktopSession
+    from hutch.computer.frames import FrameStore
+
+    class RefusingWorker:
+        def request(self, payload, deadline=None):
+            if payload["op"] == "snapshot":
+                return {"ok": True, "app": "kwrite", "window": "w",
+                        "nodes": [{"id": "n1", "role": "button", "name": "Save", "depth": 0,
+                                   "actions": ["Press"]}]}
+            return {"ok": True, "action": "Press", "dispatched": False}
+
+        def close(self):
+            pass
+
+    session = DesktopSession(session_id="s", capture=lambda: b"", input_backend=None,
+                             frames=FrameStore(tmp_path), lease=ControlLease("s"),
+                             a11y=AccessibilitySession(RefusingWorker()))
+    snapshot = session.elements()
+    result = session.activate(snapshot.data["snapshot_id"], "n1")
+    assert not result.ok
+    assert result.data["outcome"] == "not_dispatched" and result.data["dispatched"] is False
+    assert "did not run" in result.output
+
+
+def test_a_bounded_read_back_is_not_reported_as_a_mismatch(tmp_path):
+    """A write longer than the read-back window matches on its prefix: that is not evidence the app changed it."""
+    from hutch.computer.accessibility import AccessibilitySession
+    from hutch.computer.control import ControlLease
+    from hutch.computer.desktop import DesktopSession
+    from hutch.computer.frames import FrameStore
+
+    body = "x" * 900
+
+    class PrefixWorker:
+        def request(self, payload, deadline=None):
+            if payload["op"] == "snapshot":
+                return {"ok": True, "app": "kwrite", "window": "w",
+                        "nodes": [{"id": "n1", "role": "text", "name": "a.txt", "depth": 0}]}
+            if payload["op"] == "set_text":
+                return {"ok": True, "chars": len(payload["text"]), "redacted": False, "verified": True,
+                        "readback": payload["text"][:400], "readback_truncated": True}
+            return {"ok": True, "app": "kwrite", "window": "w", "nodes": [{"id": "n1", "role": "text",
+                                                                            "name": "a.txt", "depth": 0}]}
+
+        def close(self):
+            pass
+
+    session = DesktopSession(session_id="s", capture=lambda: b"", input_backend=None,
+                             frames=FrameStore(tmp_path), lease=ControlLease("s"),
+                             a11y=AccessibilitySession(PrefixWorker()))
+    snapshot = session.elements()
+    result = session.set_element_text(snapshot.data["snapshot_id"], "n1", body)
+    assert result.ok
+    assert result.data["outcome"] == "dispatched", result.data
+    assert "first characters match" in result.data["verification"]
+
+
+def test_a_short_read_back_that_differs_is_still_a_mismatch(tmp_path):
+    from hutch.computer.accessibility import AccessibilitySession
+    from hutch.computer.control import ControlLease
+    from hutch.computer.desktop import DesktopSession
+    from hutch.computer.frames import FrameStore
+
+    class WrongWorker:
+        def request(self, payload, deadline=None):
+            if payload["op"] == "snapshot":
+                return {"ok": True, "app": "kwrite", "window": "w",
+                        "nodes": [{"id": "n1", "role": "text", "name": "a.txt", "depth": 0}]}
+            if payload["op"] == "set_text":
+                return {"ok": True, "chars": len(payload["text"]), "redacted": False, "verified": True,
+                        "readback": "something else entirely", "readback_truncated": True}
+            return {"ok": True, "app": "kwrite", "window": "w", "nodes": []}
+
+        def close(self):
+            pass
+
+    session = DesktopSession(session_id="s", capture=lambda: b"", input_backend=None,
+                             frames=FrameStore(tmp_path), lease=ControlLease("s"),
+                             a11y=AccessibilitySession(WrongWorker()))
+    snapshot = session.elements()
+    result = session.set_element_text(snapshot.data["snapshot_id"], "n1", "x" * 900)
+    assert result.data["outcome"] == "dispatched"
+    assert "does not read back" in result.data["verification"]
 
 
 def test_fingerprint_ignores_absent_or_malformed_observations():
@@ -160,7 +282,7 @@ def test_the_tool_refuses_a_fourth_action_that_changes_nothing(bare_ctx, monkeyp
     refused = tool.run({"action": "click", "frame_id": frame, "x": 10, "y": 10}, bare_ctx)
     assert not refused.ok
     assert refused.data["outcome"] == "not_dispatched" and refused.data["stalled"] is True
-    assert "report what you can see and stop" in refused.output
+    assert "observe the application again" in refused.output
     # Looking is still allowed, and the run event data carries what happened.
     looked = tool.run({"action": "observe"}, bare_ctx)
     assert looked.ok and looked.data["limits"]["stalled"] is True

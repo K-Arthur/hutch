@@ -327,6 +327,13 @@ class DesktopSession:
         # The surface may have changed under the action; coordinates always need a new frame afterwards.
         self.lease.invalidate_observation("a semantic action was dispatched")
         self._sleep(self._settle)
+        if reply.get("dispatched") is False:
+            # The toolkit itself said the action did not run (a disabled control, a no-op). Reporting a dispatch here
+            # would hand the model a success receipt for something that never happened.
+            return DesktopResult(False, f"error: {summary}: the application reported that the action did not run; "
+                                        "check the element's state before retrying",
+                                 {"outcome": "not_dispatched", "dispatched": False,
+                                  "action": str(reply.get("action") or "")[:40]})
         data: dict[str, Any] = {"outcome": "dispatched", "dispatched": True,
                                 "action": str(reply.get("action") or "")[:40]}
         if reply.get("redacted"):
@@ -336,6 +343,12 @@ class DesktopSession:
             if _same_text(readback, verify_text):
                 data["outcome"] = "effect_verified"
                 data["verification"] = "the element reads back the text that was set"
+            elif reply.get("readback_truncated"):
+                # A bounded read-back that matches the prefix is not a mismatch; say what was and was not checked.
+                data["outcome"] = "dispatched"
+                data["verification"] = ("the element's first characters match what was set; the rest was not read back"
+                                       if readback and verify_text.startswith(readback)
+                                       else "the element does not read back the text that was set")
             else:
                 data["outcome"] = "mismatch"
                 data["verification"] = "the element does not read back the text that was set"

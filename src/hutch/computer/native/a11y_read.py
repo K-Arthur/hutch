@@ -23,6 +23,8 @@ MAX_NODE_DEPTH = 14
 #: Text is never read from these roles. ``password text`` is the AT-SPI role for a secret entry field.
 SECRET_ROLES = {"password text"}
 SECRET_HINTS = ("password", "passwd", "secret", "pin")
+#: Roles whose text may hold either content or a credential, so the label decides.
+CONTENT_ROLES = {"text", "entry", "password text", "terminal", "document text", "paragraph", "document frame"}
 
 #: Action names worth trying first, most specific first, when an element exposes several.
 PREFERRED_ACTIONS = ("press", "click", "activate", "invoke", "open", "select")
@@ -52,8 +54,31 @@ def attributes(node: Any) -> dict[str, str]:
     return {str(key): str(value) for key, value in dict(attrs).items()}
 
 
+def is_editable(node: Any) -> bool:
+    """Whether the node accepts text, so its contents can be a credential even outside a known text role."""
+    try:
+        interfaces = Atspi.Accessible.get_interfaces(node) or []
+    except Exception:
+        try:
+            interfaces = node.get_interfaces() or []
+        except Exception:
+            return False
+    for item in interfaces:
+        try:
+            if item.get_name() == "EditableText":
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def is_secret(node: Any, role: str, name: str) -> bool:
-    """Whether this element's contents must not be returned. Best-effort, and biased towards withholding."""
+    """Whether this element's contents must not be returned.
+
+    Best-effort and biased towards withholding, but not a guarantee: an application that publishes a credential in an
+    unnamed, non-editable node with neutral attributes looks like ordinary content. ``docs/computer-use.md`` says so,
+    because a person deciding whether to point a session at an account needs the real limit, not a promise.
+    """
     if role.lower() in SECRET_ROLES:
         return True
     attrs = attributes(node)
@@ -61,8 +86,10 @@ def is_secret(node: Any, role: str, name: str) -> bool:
         return True
     if attrs.get("text-model", "").lower() == "password":
         return True
-    # A label is not a secret, but a text field whose name says password is.
-    if role.lower() in ("text", "entry", "password text", "terminal"):
+    # A label is not a secret, but text the application presents as credential-like is withheld even when it is
+    # editable but uses a role this list does not know.
+    lowered = role.lower()
+    if lowered in CONTENT_ROLES or is_editable(node):
         joined = f"{name} {attrs.get('label', '')}".lower()
         return any(hint in joined for hint in SECRET_HINTS)
     return False

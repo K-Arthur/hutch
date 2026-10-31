@@ -124,6 +124,8 @@ class ComputerTool(Tool):
     def _ensure(self, ctx: ToolContext) -> DesktopSession:
         if self._session is not None:
             return self._session
+        # A new desktop is a new screen: a stall recorded against the old one must not carry over.
+        self._actions.reset_progress()
         apps = list(getattr(ctx.bot, "computer_apps", []) or [])
         if not apps:
             raise DeniedError("this Bot has no applications allowed for the computer tool; add one in its settings")

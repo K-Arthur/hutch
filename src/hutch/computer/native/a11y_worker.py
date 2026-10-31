@@ -313,12 +313,20 @@ class Service:
             # Writing a credential is allowed; echoing it back is not.
             return {"ok": True, "chars": len(body), "redacted": True, "verified": replaced}
         time.sleep(0.12)
+        # Read back enough to compare with what was set. The read-back is only compared, never shown to a model, so it
+        # is bounded by the same limit as the input rather than by the per-node text bound.
+        want = min(len(body) + 20, MAX_TEXT_INPUT)
         try:
-            readback = Atspi.Text.get_text(node, 0, min(len(body) + 20, a11y_read.MAX_NODE_TEXT))
+            readback = Atspi.Text.get_text(node, 0, want)
         except Exception:
             readback = ""
+        try:
+            available = int(Atspi.Text.get_character_count(node))
+        except Exception:
+            available = len(readback or "")
         return {"ok": True, "chars": len(body), "redacted": False, "verified": replaced,
-                "readback": a11y_read.text(readback, a11y_read.MAX_NODE_TEXT)}
+                "readback": a11y_read.text(readback, MAX_TEXT_INPUT),
+                "readback_truncated": available > want}
 
 
 def _reply(payload: dict[str, Any]) -> None:

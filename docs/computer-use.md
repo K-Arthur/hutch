@@ -46,8 +46,12 @@ What this does and does not give you:
 * **Bounded and pruned.** At most 240 elements, depth 14, 400 characters of text per element. Closed menus are pruned (KWrite
   reports 382 menu items for menus nobody opened) and unnamed layout containers are dropped from the model-facing text while
   remaining in the record. The output says how much was omitted.
-* **Secrets stay out.** Password and protected text is never returned by the worker; only `redacted: true`. Typed text is
-  redacted in events and receipts, as for `type`.
+* **Secrets are withheld on a best-effort basis.** The worker never returns text from a node whose role is `password text`,
+  whose `protected` attribute is set, or whose text model is a password; and text the application labels with a credential
+  word (password, passcode, secret, pin, token) is withheld from any text or editable node. That is a heuristic, not a
+  boundary: an application that publishes a credential in an unnamed, non-editable node with neutral attributes looks like
+  ordinary content, and this is the same class of limit as the browser's sensitive-field detection. Do not point a desktop
+  session at an account or a secret store. Typed and written text is redacted in events and receipts, as for `type`.
 * **It fails closed.** A session without the at-spi binaries or a PyGObject interpreter keeps pixel control and reports
   `semantics: unavailable` with the reason in the observation record. `hutch computer doctor` states which case you are in.
 * **It is not a universal adapter.** It works where an application publishes an accessibility tree (KDE/Qt and GTK do; games,

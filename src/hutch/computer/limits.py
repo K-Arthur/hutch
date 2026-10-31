@@ -35,8 +35,8 @@ class Refusal:
 
     def message(self) -> str:
         if self.kind == "stalled":
-            return (f"{self.reason}. Nothing further will be dispatched: report what you can see and stop, or try a "
-                    f"different element or action")
+            return (f"{self.reason}. Nothing further will be dispatched: observe the application again, which clears "
+                    f"this once the screen has actually changed, then try a different element or action")
         return (f"{self.reason}. Nothing was dispatched. Stop this task and report what you completed: {self.action} of "
                 f"{self.limit} computer actions were used")
 
@@ -71,8 +71,17 @@ class ActionBudget:
     # ------------------------------------------------------------ progress
 
     def note(self, *, stateful: bool, changed: bool, fingerprint: str, verified: bool = False) -> None:
-        """Record what a dispatched action did, so the next one can be judged against it."""
+        """Record what a dispatched call did, so the next one can be judged against it.
+
+        An *observation* can also clear a stall: if the screen an observation returns differs from the one the last
+        stateful action left behind, something moved, and refusing further actions would lock the run out for good. That
+        is the recovery path a stalled agent is told to use, so it has to work.
+        """
         if not stateful:
+            if self._stalled and fingerprint and fingerprint != self._fingerprint:
+                self._unchanged = 0
+                self._stalled = False
+                self._fingerprint = fingerprint
             return
         if verified or changed:
             self._unchanged = 0
@@ -85,6 +94,12 @@ class ActionBudget:
             self._unchanged = 1 if fingerprint else self._unchanged
             self._fingerprint = fingerprint or self._fingerprint
         self._stalled = self._unchanged >= self.stall_limit
+
+    def reset_progress(self) -> None:
+        """A fresh session starts with a clean screen: the stall is about one surface, not the whole run."""
+        self._fingerprint = ""
+        self._unchanged = 0
+        self._stalled = False
 
     def state(self) -> dict:
         """What the run panel and the refusal record can show."""
