@@ -687,7 +687,6 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .ctx-id h1:focus, .ctx-id h1:focus-visible { outline: none; }
 .ctx-subtitle { color: var(--text-3); font-size: var(--fs-xs); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ctx-meta { display: flex; align-items: center; gap: var(--s-2); min-width: 0; flex-wrap: wrap; }
-.coordinator-label-compact { display: none; }
 .ctx-actions { margin-left: auto; display: flex; align-items: center; gap: var(--s-2); flex: none; }
 .ctx-actions-compact .btn { min-height: 44px; }
 .conversation-select { min-width: 115px; max-width: 190px; height: 34px; }
@@ -1735,9 +1734,6 @@ body.has-composer .toast-root .toast.error .toast-close { pointer-events: auto; 
    hover styles are identical so the zeroed size is invisible. */
 @media (max-width: 640px) {
   .ctx-meta { display: none; }
-  .workspace-coordinator-meta { display: flex; }
-  .coordinator-label-wide { display: none; }
-  .coordinator-label-compact { display: inline; }
   .app-top-status .workflow .w { display: none; }  /* the emergency stop stays reachable on a phone */
   .app-top-context .ctx-actions > .btn { font-size: 0; gap: 0; padding: 0 8px; }
   .app-top-context .ctx-actions > .btn .icon { width: 16px; height: 16px; }

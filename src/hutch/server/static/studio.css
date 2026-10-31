@@ -548,11 +548,6 @@ details.approval-review[open] > summary { margin: 0 -12px; padding: 4px 12px; }
 
 /* the coordinator chip sits under the name on a phone instead of squeezing it to an ellipsis */
 @media (max-width: 640px) {
-  .ctx-id:has(.workspace-coordinator-meta) { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 12px; row-gap: 2px; }
-  .ctx-id:has(.workspace-coordinator-meta) > .avatar { grid-row: 1 / span 2; }
-  .ctx-id:has(.workspace-coordinator-meta) .ctx-heading { grid-column: 2; grid-row: 1; }
-  .ctx-id:has(.workspace-coordinator-meta) .ctx-subtitle { display: none; }
-  .ctx-id:has(.workspace-coordinator-meta) .ctx-meta { grid-column: 2; grid-row: 2; justify-self: start; }
 }
 
 @media (max-width: 640px) {
@@ -996,3 +991,13 @@ label.field { align-content: start; }
 .welcome-problem p:last-child { margin: 0; display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .welcome-problem strong { color: var(--text); }
 .setup-main-note { margin: 0 0 var(--s-3); }
+
+/* The main assistant (the workspace coordinator) is marked by a small star badge on its avatar, in the roster and in
+   the chat header. Its accessible name is "Main assistant"; the shape (a star on brand fill) does not rely on colour alone. */
+.main-badge { position: absolute; z-index: 1; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--brand); color: var(--brand-ink); box-shadow: 0 0 0 2px var(--sidebar); pointer-events: auto; }
+.main-badge-ico { width: 10px; height: 10px; fill: currentColor; stroke-width: 1.4; }
+.roster-row:has(> .main-badge) { position: relative; }
+.roster-row > .main-badge { left: 46px; top: 8px; }
+.ctx-id:has(> .main-badge) { position: relative; }
+.ctx-id > .main-badge { left: 22px; top: -4px; }
+@media (forced-colors: active) { .main-badge { forced-color-adjust: none; background: Highlight; color: HighlightText; } }

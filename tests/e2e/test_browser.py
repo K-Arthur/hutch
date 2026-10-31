@@ -8386,10 +8386,11 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
         page.set_viewport_size({"width": 1440, "height": 960})
         page.goto(f"{base}/#/chat")
         page.locator(".ctx-id h1").wait_for()
-        assert page.locator("#workspace-coordinator-pill").inner_text() == "Workspace coordinator"
+        assert page.locator("#workspace-coordinator-pill").get_attribute("aria-label") == "Main assistant"
         rows = page.locator("#roster-list [data-switch-bot]")
         assert rows.first.get_attribute("data-switch-bot") == coordinator.name
-        assert rows.first.locator(".roster-sub").inner_text() == "Needs a model route · Coordinator"   # the fixture runs on the retired mock route
+        assert rows.first.locator(".roster-sub").inner_text() == "Needs a model route"   # the fixture runs on the retired mock route
+        assert rows.first.locator(".main-badge").get_attribute("aria-label") == "Main assistant" and page.locator("#roster-list .main-badge").count() == 1
 
         # A coordinator is an ordinary, directly addressable Bot conversation too.
         conversation_id = page.locator("#conversation-switcher").input_value()
@@ -8413,7 +8414,7 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
         chat_link.wait_for(state="visible")
         chat_link.click()
         page.locator("#chat-stream").get_by_role("heading", name="Release Notes Reviewer").wait_for()
-        assert page.locator("#workspace-coordinator-pill").inner_text() == "Workspace coordinator"
+        assert page.locator("#workspace-coordinator-pill").get_attribute("aria-label") == "Main assistant"
         assert page.locator("#roster-list [data-switch-bot]").first.get_attribute("data-switch-bot") == specialist.name
         page.get_by_role("button", name="Dismiss notification").click()
 
@@ -8424,7 +8425,7 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
               documentWidth:document.documentElement.scrollWidth,
               bodyWidth:document.body.scrollWidth})""")
             assert metrics["documentWidth"] - width <= 1 and metrics["bodyWidth"] - width <= 1, (label, metrics)
-            assert page.locator("#workspace-coordinator-pill").inner_text() == ("Coordinator" if width <= 640 else "Workspace coordinator")
+            assert page.locator("#workspace-coordinator-pill").get_attribute("aria-label") == "Main assistant"
         assert not errors, errors
         outside_requests = [url for url in requests if urlsplit(url).netloc not in {urlsplit(base).netloc, ""}]
         assert not outside_requests, outside_requests

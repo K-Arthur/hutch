@@ -1364,6 +1364,7 @@ const ICON_PATHS = {
   image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
   cornerDownLeft: '<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>',
   command: '<path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/>',
+  star: '<path d="m12 3 2.7 5.6 6.2.9-4.5 4.3 1.1 6.1L12 17l-5.5 2.9 1.1-6.1L3 9.5l6.2-.9z"/>',
   pencil: '<path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>',
 };
 
@@ -1517,6 +1518,10 @@ function botAvatar(name, size = 32, state = "") {
   return avatarFromPair(sigilPair(name), size, state);
 }
 const hexAvatar = botAvatar;   // shared renderers still call this name
+/* The main assistant's mark: a small star badge beside its avatar. A sibling of the (aria-hidden) avatar so it keeps a name. */
+function mainBadge(id = "") {
+  return `<span class="main-badge"${id ? ` id="${id}"` : ""} role="img" aria-label="Main assistant" title="Main assistant: you talk to it first, and it hands work to the specialists you approve">${icon("star", "main-badge-ico")}</span>`;
+}
 
 function botStatusLabel(b) {
   if (b.active_run_id) return b.active_run_status_label || statusInfo[b.active_run_status]?.label || "Status unavailable";
@@ -2411,18 +2416,17 @@ function rosterRowHtml(bot, currentStudioBot) {
   const status = botNeedsYou(bot) ? "Needs you" : botStatusLabel(bot);
   const role = botRole(bot);
   const visibleStatus = status === "Idle" && role ? "" : status;
-  const coordinatorLabel = bot.is_workspace_coordinator && role.toLowerCase() !== "workspace coordinator" ? "Coordinator" : "";
-  const subtitle = [visibleStatus, role, coordinatorLabel, bot.sidebar_hidden ? "Hidden" : ""]
+  const subtitle = [visibleStatus, role, bot.sidebar_hidden ? "Hidden" : ""]
     .filter(Boolean).join(" · ");
   const stateClass = botNeedsYou(bot) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
   const subtitleHtml = [visibleStatus ? (stateClass ? `<span class="roster-state ${stateClass}">${esc(visibleStatus)}</span>` : esc(visibleStatus)) : "",
-    esc(role), esc(coordinatorLabel), bot.sidebar_hidden ? "Hidden" : ""].filter(Boolean).join(" · ");
+    esc(role), bot.sidebar_hidden ? "Hidden" : ""].filter(Boolean).join(" · ");
   const name = botHeading(bot);
   return `
     <div class="roster-entry${bot.name === currentStudioBot && isConversationView() ? " is-current" : ""}"><button class="roster-row" type="button" data-switch-bot="${esc(bot.name)}"
       ${bot.name === currentStudioBot && isConversationView() ? 'aria-current="true"' : ""}
       title="${esc(name)} — ${esc([subtitle, status !== visibleStatus ? status : ""].filter(Boolean).join(" · "))}">
-      ${botAvatar(bot.name, bot.is_workspace_coordinator ? 44 : 40, pip)}
+      ${botAvatar(bot.name, bot.is_workspace_coordinator ? 44 : 40, pip)}${bot.is_workspace_coordinator ? mainBadge() : ""}
       <span class="roster-id">
         <span class="roster-name">${esc(name)}</span>
         <span class="roster-sub">${subtitleHtml}</span>
@@ -3416,13 +3420,12 @@ async function renderChatStudio(preferredBot = null, requestedConversationId = n
   const assistantRole = botRole(bot);
   setTopContext(`
     <div class="ctx-id">
-      ${botAvatar(bot.name, 32, bot.paused ? "paused" : avatarStateFor(activeRun?.status || ""))}
+      ${botAvatar(bot.name, 32, bot.paused ? "paused" : avatarStateFor(activeRun?.status || ""))}${bot.is_workspace_coordinator ? mainBadge("workspace-coordinator-pill") : ""}
         <div class="ctx-heading">
           <h1 title="${esc(assistantName)}">${esc(assistantName)}</h1>
         <span class="ctx-subtitle" title="${esc(assistantRole)}">AI assistant${assistantRole ? ` · ${esc(assistantRole)}` : ""}</span>
         </div>
-        <div class="ctx-meta${bot.is_workspace_coordinator ? " workspace-coordinator-meta" : ""}">
-          ${bot.is_workspace_coordinator ? '<span class="tag" id="workspace-coordinator-pill"><span class="coordinator-label-wide">Workspace coordinator</span><span class="coordinator-label-compact">Coordinator</span></span>' : ""}
+        <div class="ctx-meta">
           ${bot.paused ? '<span class="tag">paused</span>' : ""}
       </div>
     </div>
