@@ -203,7 +203,25 @@ Both are covered offline, against a mocked transport, with the real `netguard` s
 No real public registry was contacted. The index format is Hutch's own, and publishing one is a
 documented JSON shape rather than an established ecosystem standard.
 
-## 12. What this record does not claim
+## 12. The registry panel in the real application
+
+Checked in a disposable dashboard with a real browser at 1440x960, on an empty state:
+
+- the panel renders inside the skills view, the add-registry form is present, and there were **no
+  console errors**;
+- adding `https://example.com/skills.json` through the form created the registry and the panel then
+  reported `example-com: the registry returned HTTP 404`: an index that is not one is shown as a
+  failed read, not as an empty catalogue;
+- the toast said "Nothing was installed", which is the property the panel is supposed to have.
+
+The check found a real defect: the add-registry form had no submit handler, so the button did
+nothing. It is wired now, and the run above is the evidence. Screenshot:
+`artifacts/skills-registry/skills-registry-desktop.png`.
+
+Not checked: the populated panel (that needs an https index serving a real listing), and any
+viewport other than desktop.
+
+## 13. What this record does not claim
 
 No third-party service was contacted. No connector was installed from a registry or marketplace,
 because none exists here. Nothing in this delivery is a live-provider acceptance result.

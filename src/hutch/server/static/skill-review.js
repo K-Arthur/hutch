@@ -104,6 +104,22 @@
          </form>`
       : `<div class="plain-list">${rows}</div>${failures ? `<ul class="hint">${failures}</ul>` : ""}
          <p class="hint">${esc(data.note || "")}</p>`;
+    const addForm = body.querySelector("#skills-registry-add");
+    if (addForm) {
+      addForm.onsubmit = async event => {
+        event.preventDefault();
+        const url = addForm.querySelector("input[name=url]").value.trim();
+        if (!url) return;
+        let id;
+        try { id = new URL(url).hostname.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32); }
+        catch { notify("Enter a full https URL for the registry index.", true); return; }
+        try {
+          await callApi("/v1/skills/registries", { method: "POST", body: { id, url } });
+          notify(`Registry ${id} added. Nothing was installed.`);
+          await reload();
+        } catch (error) { notify(`Not added: ${error.message}`, true); }
+      };
+    }
     body.querySelectorAll("[data-registry-install]").forEach(button => {
       button.onclick = async () => {
         button.disabled = true;
