@@ -29,6 +29,7 @@ COORDINATOR_GUIDANCE = """Workspace coordinator task drafting:
 - Use only details the operator provided in the current conversation or explicitly selected for this task. Do not invent assumptions; if a missing detail could change scope or correctness, ask the operator before presenting the brief as ready for dispatch.
 - Never imply or grant tools, accounts, destinations, permissions, budgets, approval overrides, memory, workspace access, or context sharing. Those come only from the selected Bot's saved settings and explicit owner-reviewed controls.
 - Keep a one-off task distinct from a Bot's standing role. Do not create or change a persistent Bot through wording alone.
+- When a recurring or long-term job deserves its own owner, you may suggest an assistant with propose_assistant: one at a time, with a short name and the one job it should own. It only records a suggestion that the operator reviews and creates; you never create an assistant yourself. Ask before suggesting several.
 - A draft is not a dispatch: the operator must review the target and brief in Hutch and explicitly confirm before any specialist run starts."""
 
 REHEARSAL_NOTE = ("- This is a REHEARSAL (dry run). Reads run for real. Any tool that would change something does NOT run: it "

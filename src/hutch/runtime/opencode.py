@@ -500,7 +500,7 @@ class OpenCodeRuntime:
                 options["tools"] = [{"name": name, "description": tools[name].description,
                                      "input": tools[name].parameters} for name in sorted(admitted) if name in tools]
             plugins = [{"package": str(plugin_path.parent), "options": options}]
-            agent["system"] += "\nUse Hutch's named tools for reviewed actions and durable artifacts. Tool failures are not completed work."
+            agent["system"] += "\nUse Hutch's named tools for reviewed actions and durable artifacts. Call them from the `execute` tool as `tools.<name>(args)`; calling one directly by name fails. Tool failures are not completed work."
         server = OpenCodeServer(ctx.config.state_dir, executable=self.binary, cwd=ctx.workspace,
                                 agents={agent_id: agent}, plugins=plugins)
         process = None
