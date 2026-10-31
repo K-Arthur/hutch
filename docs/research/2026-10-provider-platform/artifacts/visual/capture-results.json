@@ -1,0 +1,223 @@
+{
+  "app": [
+    {
+      "page": "/providers",
+      "viewport": [
+        1440,
+        960
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Providers \u2014 Hutch"
+    },
+    {
+      "page": "/models",
+      "viewport": [
+        1440,
+        960
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Models \u2014 Hutch"
+    },
+    {
+      "page": "/legacy/connections",
+      "viewport": [
+        1440,
+        960
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Apps & AI \u2014 Hutch"
+    },
+    {
+      "page": "/providers",
+      "viewport": [
+        1280,
+        720
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Providers \u2014 Hutch"
+    },
+    {
+      "page": "/models",
+      "viewport": [
+        1280,
+        720
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Models \u2014 Hutch"
+    },
+    {
+      "page": "/legacy/connections",
+      "viewport": [
+        1280,
+        720
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Apps & AI \u2014 Hutch"
+    },
+    {
+      "page": "/providers",
+      "viewport": [
+        900,
+        1024
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Providers \u2014 Hutch"
+    },
+    {
+      "page": "/models",
+      "viewport": [
+        900,
+        1024
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Models \u2014 Hutch"
+    },
+    {
+      "page": "/legacy/connections",
+      "viewport": [
+        900,
+        1024
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Apps & AI \u2014 Hutch"
+    },
+    {
+      "page": "/providers",
+      "viewport": [
+        390,
+        844
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Providers \u2014 Hutch"
+    },
+    {
+      "page": "/models",
+      "viewport": [
+        390,
+        844
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Models \u2014 Hutch"
+    },
+    {
+      "page": "/legacy/connections",
+      "viewport": [
+        390,
+        844
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Apps & AI \u2014 Hutch"
+    },
+    {
+      "page": "/providers",
+      "viewport": [
+        320,
+        740
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Providers \u2014 Hutch"
+    },
+    {
+      "page": "/models",
+      "viewport": [
+        320,
+        740
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Models \u2014 Hutch"
+    },
+    {
+      "page": "/legacy/connections",
+      "viewport": [
+        320,
+        740
+      ],
+      "status": 200,
+      "horizontal_overflow": false,
+      "title": "Apps & AI \u2014 Hutch"
+    }
+  ],
+  "website": [
+    {
+      "page": "#providers",
+      "viewport": [
+        1440,
+        960
+      ],
+      "horizontal_overflow": false,
+      "title": "Hutch \u2014 local-first AI assistants that run on your machine"
+    },
+    {
+      "page": "#providers",
+      "viewport": [
+        1280,
+        720
+      ],
+      "horizontal_overflow": false,
+      "title": "Hutch \u2014 local-first AI assistants that run on your machine"
+    },
+    {
+      "page": "#providers",
+      "viewport": [
+        900,
+        1024
+      ],
+      "horizontal_overflow": false,
+      "title": "Hutch \u2014 local-first AI assistants that run on your machine"
+    },
+    {
+      "page": "#providers",
+      "viewport": [
+        390,
+        844
+      ],
+      "horizontal_overflow": false,
+      "title": "Hutch \u2014 local-first AI assistants that run on your machine"
+    },
+    {
+      "page": "#providers",
+      "viewport": [
+        320,
+        740
+      ],
+      "horizontal_overflow": false,
+      "title": "Hutch \u2014 local-first AI assistants that run on your machine"
+    }
+  ],
+  "console": [],
+  "overflow": [],
+  "text_resize": [
+    {
+      "page": "app-providers-zoom200",
+      "viewport": [
+        1280,
+        720
+      ],
+      "text_scale": 2.0,
+      "horizontal_overflow": false
+    },
+    {
+      "page": "site-providers-zoom200",
+      "viewport": [
+        1280,
+        720
+      ],
+      "text_scale": 2.0,
+      "horizontal_overflow": false
+    }
+  ]
+}

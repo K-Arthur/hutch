@@ -17,10 +17,18 @@ be read as proof that a hosted provider works live.
 
 | Suite selection | Command | Result |
 |---|---|---|
-| providers, connections, authority, model switcher, models layer, opencode API/login, chat vision, media jobs/providers | `.venv/bin/python -m pytest -q` with `PYTHONPATH=<worktree>/src` | pending at time of writing; recorded on completion |
+| per-file named suites in clean worktree | pytest -q per file with PYTHONPATH=<worktree>/src, 120 s timeout | 230 passed, 1 skipped; slowest test_model_switcher 75.9 s |
+| provider catalogue | pytest -q tests/test_provider_catalog.py | 26 passed |
+| accounts + catalogue + connections | pytest -q tests/test_provider_accounts.py tests/test_provider_catalog.py tests/test_connections.py | 80 passed in 32.77 s |
+| capability evidence | pytest -q tests/test_provider_capabilities.py | 6 passed |
+| readiness | pytest -q tests/test_provider_readiness.py | 6 passed |
+| runtime registry | pytest -q tests/test_runtime_registry.py | 4 passed |
+| local discovery | pytest -q tests/test_provider_discovery.py | 6 passed |
+| server surfaces | pytest -q tests/test_provider_surfaces.py | 8 passed |
 
 An earlier run on the shared main checkout (which included another session's in-progress edits) passed
-230 tests with 1 skipped in 165 s; it is not a clean baseline and is recorded only as context.
+230 tests with 1 skipped in 165 s; it is not a clean baseline and is recorded only as context. The full
+focused batch command and its final count are in the delivery report and the completion-round evidence.
 
 ## Live provider validation
 
@@ -28,16 +36,56 @@ An earlier run on the shared main checkout (which included another session's in-
 |---|---|---|---|---|---|---|---|
 | all hosted providers | not available | not available | not available | not available | not available | not available | BLOCKED |
 
-## Visual validation
+## Visual validation (real app, real browser, 2026-10-30)
 
-| Surface | Viewports | Status |
+The app was started from the branch worktree against an isolated state directory and captured with
+Playwright Chromium. The only seeded state was real, unauthenticated accounts created through the normal
+connection store (two OpenAI accounts, one Anthropic account, one OpenRouter account) and two saved model
+routes; no key was present, so every account truthfully renders needs-authentication. The website was
+served over HTTP from the worktree, not opened as file://, to avoid font CORS noise.
+
+| Surface | Viewports | Result |
 |---|---|---|
-| /providers, /legacy/connections, /models | 1440x960, 1280x720, 900x1024, 390x844, 320x740 | pending |
-| website index | same five | pending |
+| /providers, /models, /legacy/connections | 1440x960, 1280x720, 900x1024, 390x844, 320x740 | pass; HTTP 200; zero console errors/warnings; zero horizontal overflow; full-page and review captures saved |
+| website index #providers (collapsed and expanded) | same five | pass; zero console errors; zero horizontal overflow |
+| 200 percent text reflow (/providers and website #providers) | 1280x720 | pass; no horizontal overflow after font-size 200 percent |
 
-## Gaps to close before completion
+Artifacts: artifacts/visual/ (full-page and review PNGs, capture-results.json, server logs). Inspected at
+each viewport: provider accounts and readiness, provider catalogue and filters, local-inference probe
+results, execution-runtime boundaries, model-route readiness panel, connections page with the catalogue
+link, and the marketing provider section collapsed and expanded.
 
-- Record the clean-worktree baseline pytest result.
-- Run focused tests for every new module and the existing named suites after each slice.
-- Capture real app states (no seeded accounts): empty/needs-authentication/error/readiness views.
-- Independent review of security-sensitive paths (auth status, credential refs, discovery URLs).
+Issues found by inspection and fixed before the accepted run:
+1. Website status cards initially used grid/card classes that did not behave at 390 px when expanded;
+   replaced with the site's own choice-grid/choice-card pattern.
+2. The execution-runtime table clipped its boundary column at phone widths; replaced with a wrapping
+   plain list carrying the same information.
+3. An installed-CLI version probe printed an error path as the version and caused horizontal overflow;
+   CLI version output is now sanitized to a short token or blank.
+4. The Providers page now highlights Apps & AI in the sidebar instead of Models.
+
+Remaining gaps: no physical device, screen-reader session or native browser zoom gesture; contrast was
+checked by eye on rendered surfaces plus the existing token audit, not a full automated audit; a real
+authenticated provider state cannot be shown because no credential exists.
+
+## Verified during delivery
+
+- Clean-worktree baseline recorded above; focused tests for every new module and the named existing
+  suites recorded in the completion round.
+- Real app states captured at five viewports and inspected: empty catalogue/account states,
+  needs-authentication accounts, capability-unverified route readiness, local-service absence, runtime
+  boundaries, and the marketing provider section collapsed and expanded.
+- Security-relevant behaviour exercised by tests: ambient-key scoping, no credential value on provider
+  APIs or pages, CSRF on account actions, loopback-only discovery with redirects refused, and
+  documentation claims reviewed.
+
+## Gaps that remain
+
+- No hosted provider was live-verified; every hosted route remains implemented-unverified.
+- No local inference server was available, so discovery is exercised with injected transports and real
+  failed probes, not a running model.
+- Deferred: Gemini/Responses protocol generalisation, media/speech adapters with a verified job contract,
+  provider-native search attribution, and CLI runtime executors. These are documented, not stubbed.
+- Screen-reader, physical-device and native-zoom checks remain manual gaps.
+- The main checkout's concurrent work prevented a same-tree merge check until completion; the final merge
+  and main verification are recorded in the delivery report.
