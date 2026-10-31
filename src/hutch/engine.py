@@ -1362,6 +1362,7 @@ class Engine:
         """
         recovered: list[Run] = []
         self.store.release_expired_claims()
+        recovery.release_settled_process_rows(self.store, self._threads, self._pid_alive)
         no_lease = self.store.legacy_live_runs(grace_seconds=0)
         dead = [r for r in no_lease if r.id not in self._threads and r.owner and not self._pid_alive(r.owner)]
         candidates = [r for r in self.store.expired_runs() + dead + self.store.legacy_live_runs()
