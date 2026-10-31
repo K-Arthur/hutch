@@ -1415,7 +1415,7 @@ class Engine:
         return done_run
 
     def _end_recorded_processes(self, run: Run) -> list:
-        """End only processes whose boot and start identity were persisted; unverifiable survivors block terminal status."""
+        """End only processes whose boot and start identity were persisted; survivors block terminal status (recovery.py)."""
         procs = self.store.live_procs(run.id)
         left = procguard.end_recorded(procs, term_grace=1.0, kill_grace=2.0)
         recorded = {int(p["pgid"]) for p in procs}

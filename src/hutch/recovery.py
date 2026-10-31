@@ -1,10 +1,14 @@
 """Bounded reconciliation for runs whose owner process cannot be verified.
 
 A recovery attempt fences the run, ends its recorded processes and only then decides an outcome. Some process
-identities cannot be verified at all (a pid reused by an unrelated program, a pgid that now matches any live
-group, or a row from before boot ids). Those must not keep a run "Stopping" forever: the first attempt defers
-with a short lease so another supervisor beat can retry, and when the retry still cannot verify the processes
-Hutch closes the process records and settles the run as outcome_unknown instead of claiming it is working.
+identities can never be verified (the recorded leader pid was reused by an unrelated program, or the record
+carries no identity). Those must not keep a run "Stopping" forever: the first attempt defers with a short lease
+so another supervisor beat can retry, and when the retry still finds only unverifiable survivors Hutch closes
+the process records and settles the run as outcome_unknown instead of claiming it is working.
+
+Two cases always keep deferring, because settling would abandon something real. A survivor known to be alive
+(it outlived the signals) keeps its run stopping, and so does a host where process inspection is not available
+at all: there nothing can be verified, so nothing may be declared gone.
 """
 
 from __future__ import annotations
@@ -19,8 +23,13 @@ CLEANUP_MARK = "cleanup-pending:"
 DEFERRED = object()
 
 
+def _only_unverifiable(left: list) -> bool:
+    """True when nothing left is known to be alive and the host can inspect processes at all."""
+    return procguard.available() and all(p.state == "?" for p in left)
+
+
 def settle_unverifiable_cleanup(store, run: Run, owned: Run, left: list) -> Optional[Run]:
-    """Defer the first unverifiable cleanup; settle the retry so a ghost cannot stay live forever.
+    """Defer the first unverifiable cleanup; settle a retry that still finds only unverifiable survivors.
 
     Returns the settled run, `DEFERRED` when this attempt kept the run stopping/recovering for a retry, or
     None when there is nothing left to clean up and the caller should keep the normal recovery path.
@@ -28,7 +37,7 @@ def settle_unverifiable_cleanup(store, run: Run, owned: Run, left: list) -> Opti
     if not left:
         return None
     detail = f"cleanup incomplete: still running or unverified: {procguard.describe(left)}"
-    if not (run.lease_owner or "").startswith(CLEANUP_MARK):
+    if not (run.lease_owner or "").startswith(CLEANUP_MARK) or not _only_unverifiable(left):
         store.defer_recovery(owned, detail)
         store.append_event(Event(run_id=run.id, type=EventType.error,
                                  data={"error": detail, "kind": "cleanup_incomplete",
