@@ -236,6 +236,7 @@ def registered_tools() -> list[tuple[str, Tool]]:
     from hutch.integrations.catalog import CONNECTION_TOOL_SPECS, construct_connection_tools
     from hutch.tools import _CATALOG
     from hutch.tools.browser import BrowserTool
+    from hutch.tools.assistant_proposal import ProposeAssistantTool
     from hutch.tools.choice import AskUserChoiceTool
     from hutch.tools.computer import ComputerTool
     from hutch.tools.skill import UseSkillTool
@@ -247,6 +248,7 @@ def registered_tools() -> list[tuple[str, Tool]]:
         ("browser", BrowserTool()),
         ("computer", ComputerTool()),
         ("ask_user_choice", AskUserChoiceTool()),
+        ("propose_assistant", ProposeAssistantTool()),
         ("use_skill", UseSkillTool(_ResolvedSkillsStub())),
         (WorkflowRouteTool.name, WorkflowRouteTool()),
     ])

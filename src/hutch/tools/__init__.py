@@ -168,6 +168,9 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
             and not getattr(getattr(ctx, "run", None), "parent_run_id", None)):
         from .choice import AskUserChoiceTool
         tools["ask_user_choice"] = AskUserChoiceTool()
+        if ctx.store.workspace_coordinator_id() == ctx.bot.id:        # only the main assistant suggests; the person creates
+            from .assistant_proposal import ProposeAssistantTool
+            tools["propose_assistant"] = ProposeAssistantTool()
     if ctx is not None and getattr(getattr(ctx.bot, "inference_mode", None), "value", "") != "offline":
         local_gmail_ok = False
         if getattr(getattr(ctx.bot, "inference_mode", None), "value", "") == "local":

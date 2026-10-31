@@ -32,6 +32,7 @@
         + (preselected.has(bot.name) ? " checked" : "") + "><span><b>" + text(labelOf(bot)) + "</b> "
         + (bot.is_workspace_coordinator ? '<span class="tag">main assistant</span> ' : "")
         + (isLeftover(bot) ? '<span class="tag warn">earlier demo</span> ' : "")
+        + (bot.active_run_id ? '<span class="tag">working now</span> ' : "")
         + '<span class="tag">' + text(bot.model || "no route") + "</span></span></label></li>").join("") + "</ul>";
   }
 
@@ -44,19 +45,47 @@
   function confirmBody(previews) {
     return "<p><b>This permanently erases</b> each assistant below and its conversations, runs, memory, schedules and managed files. It cannot be undone.</p>"
       + '<ul class="installation-issues">' + previews.map(preview => "<li><p><b>" + text(preview.display) + "</b> "
-        + '<span class="tag">' + text(preview.bot_name) + "</span></p><p>Erases: " + text(counted(preview.counts)) + ".</p>"
+        + '<span class="tag">' + text(preview.bot_name) + "</span></p><p>"
+        + (preview.live ? "It has work in progress, which is stopped first; the exact counts are recorded when it is removed." : "Erases: " + text(counted(preview.counts)) + ".") + "</p>"
         + ((preview.remaining || []).length ? '<p class="hint">Kept: ' + text(preview.remaining.join("; ")) + "</p>" : "") + "</li>").join("") + "</ul>"
       + '<div class="hutch-field"><label class="hutch-label" for="removal-phrase">Type <code>' + text(phraseFor(previews.length))
       + '</code> to confirm</label><input class="hutch-input" id="removal-phrase" autocomplete="off" autocapitalize="none" spellcheck="false"></div>';
   }
 
+  /* A whole-assistant deletion refuses while the assistant has live runs, so stop them first and wait for it to go idle. */
+  async function settle(name) {
+    const runs = await api("/runs?bot=" + encodeURIComponent(name) + "&limit=100");
+    for (const run of runs.filter(item => !item.terminal)) {
+      try { await api("/runs/" + encodeURIComponent(run.id) + "/stop", { method: "POST", body: {} }); } catch { /* it may have just finished */ }
+    }
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const bot = await api("/bots/" + encodeURIComponent(name));
+      if (!bot.active_run_id) return;
+      await new Promise(resolve => window.setTimeout(resolve, 500));
+    }
+    throw new Error("its work did not stop in time; stop it from Activity and try again");
+  }
+
+  const previewOf = name => api("/v1/bots/" + encodeURIComponent(name) + "/deletion-requests", { method: "POST", body: {} });
+  const confirmOf = preview => api("/v1/bots/" + encodeURIComponent(preview.bot_name) + "/deletion-requests/" + encodeURIComponent(preview.request_id) + "/confirm",
+    { method: "POST", headers: { "Idempotency-Key": (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + preview.request_id },
+      body: { token: preview.token, confirmation: preview.bot_name } });
+
   async function finish(previews) {
     const failed = [];
-    for (const preview of previews) {
+    for (let preview of previews) {
       try {
-        await api("/v1/bots/" + encodeURIComponent(preview.bot_name) + "/deletion-requests/" + encodeURIComponent(preview.request_id) + "/confirm",
-          { method: "POST", headers: { "Idempotency-Key": (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + preview.request_id },
-            body: { token: preview.token, confirmation: preview.bot_name } });
+        if (preview.live) {
+          await settle(preview.bot_name);
+          preview = { ...(await previewOf(preview.bot_name)), display: preview.display };
+        }
+        try { await confirmOf(preview); }
+        catch (error) {
+          // Stopping its work, or the supervisor recovering an old run, changes the assistant between preview and confirm. The person
+          // already said to remove it: take a fresh preview and confirm once more rather than making them start over.
+          if (!/changed since the preview|preview the deletion again/i.test(error.message)) throw error;
+          await confirmOf({ ...(await previewOf(preview.bot_name)), display: preview.display });
+        }
       } catch (error) { failed.push(preview.display + ": " + error.message); }
     }
     const done = previews.length - failed.length;
@@ -68,10 +97,15 @@
   async function confirmStep(names, bots) {
     const previews = [];
     for (const name of names) {
+      const known = bots.find(bot => bot.name === name) || { name };
+      if (known.active_run_id) { previews.push({ bot_name: name, display: labelOf(known), live: true }); continue; }   // no preview while it is working
       try {
-        const preview = await api("/v1/bots/" + encodeURIComponent(name) + "/deletion-requests", { method: "POST", body: {} });
-        previews.push({ ...preview, display: labelOf(bots.find(bot => bot.name === name) || { name }) });
-      } catch (error) { note("Could not preview removing " + name + ": " + error.message, true); return; }
+        const preview = await previewOf(name);
+        previews.push({ ...preview, display: labelOf(known) });
+      } catch (error) {
+        if (/live runs/i.test(error.message)) { previews.push({ bot_name: name, display: labelOf(known), live: true }); continue; }   // it started or was still recovering: stop it first
+        note("Could not preview removing " + name + ": " + error.message, true); return;
+      }
     }
     openModal({ title: "Remove " + previews.length + " assistant" + (previews.length === 1 ? "" : "s") + "?", bodyHtml: confirmBody(previews), wide: true,
       confirmText: "Remove permanently", confirmClass: "danger",

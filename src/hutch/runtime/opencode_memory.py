@@ -110,7 +110,7 @@ class RunToolBridge:
     def supported_tools(names, is_known) -> frozenset[str]:
         # Delegation and native computer use need their own runtime capability
         # qualification; never infer them from the presence of a registry name.
-        return frozenset(name for name in names if is_known(name) and name not in {"delegate_task", "computer"})
+        return frozenset(name for name in names if (is_known(name) or name == "propose_assistant") and name not in {"delegate_task", "computer"})
 
     # ---------------------------------------------------------------- lifecycle
     def start(self) -> None:

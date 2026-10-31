@@ -11590,7 +11590,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   };
   let presetEdited = false;
   draft.memory_enabled = draft.tools.has("remember") || draft.tools.has("recall");
-  let displayNameEdited = !!duplicateBot;
+  let displayNameEdited = !!duplicateBot || !!window.hutchProposalDraft;
+  if (window.hutchProposalDraft) { draft.display_name = window.hutchProposalDraft.name; window.hutchProposalDraft = null; }   // a suggestion from the main assistant: the name arrives filled in
   let descriptionEdited = !!duplicateBot?.description;
   let addressEdited = false;
   let draftClosed = false;

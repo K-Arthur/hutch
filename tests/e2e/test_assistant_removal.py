@@ -125,8 +125,9 @@ def test_the_sidebar_menu_removes_one_assistant_and_has_no_way_to_choose_the_mai
         menu.wait_for()
         assert "main assistant" not in menu.inner_text().lower(), "the main assistant is named at onboarding, not chosen from a menu"
         page.keyboard.press("Escape")
+        page.locator("#roster-action-menu").wait_for(state="detached")          # the first menu is gone before the second opens
         page.locator('[data-bot-options="real-one"]').click()
-        page.locator("[data-menu-remove]").click()
+        page.get_by_role("menuitem", name="Remove…").click()
         _choose_dialog(page).wait_for(timeout=15_000)
         checked = _choose_dialog(page).locator('input[name="remove"]:checked').evaluate_all("els => els.map(e => e.value)")
         assert checked == ["real-one"], "the menu preselects only that assistant"
@@ -199,3 +200,39 @@ def test_the_dialogs_fit_a_phone(browser, live):
         assert box["x"] >= 0 and box["x"] + box["width"] <= 360.5
     finally:
         page.context.close()
+
+
+def test_a_leftover_whose_old_run_is_still_marked_live_is_removed_not_stuck(browser, tmp_path, monkeypatch):
+    """The old demo seed left a run parked on an approval. Whole-assistant deletion refuses a live assistant, and a ghost row like
+    that is recovered by the supervisor; removal must work whichever side of that recovery the person is on."""
+    from datetime import timedelta
+
+    from hutch.models import Run, RunStatus, iso, utcnow
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:9")
+    app = create_app()
+    store = app.state.store
+    bot = store.create_bot(Bot(name="tidy-downloads", display_name="Tidy Downloads", model="mock/demo", tools=[]))
+    store.create_run(Run(bot_id=bot.id, prompt="sort this week's downloads", status=RunStatus.running, owner="",
+                         created_at=iso(utcnow() - timedelta(minutes=30))))
+    with serve(app) as base:
+        page = browser.new_context(viewport={"width": 1280, "height": 900}).new_page()
+        calls: list = []
+        page.on("response", lambda r: calls.append((r.request.method, r.url.split("/api")[-1][:60], r.status)) if "/api/" in r.url and r.request.method != "GET" else None)
+        try:
+            page.goto(f"{base}/#/chat/tidy-downloads", wait_until="domcontentloaded")
+            page.locator(".welcome-problem button", has_text="Remove all demo assistants").click()
+            _choose_dialog(page).wait_for(timeout=15_000)
+            _choose_dialog(page).locator("#modal-confirm").click()
+            confirm = _confirm_dialog(page)
+            confirm.wait_for(timeout=15_000)
+            confirm.locator("#removal-phrase").fill("remove 1 assistant")
+            confirm.locator("#modal-confirm").click()
+            for _ in range(120):
+                if not store.list_bots():
+                    break
+                page.wait_for_timeout(250)
+            runs = [(r.status.value, r.exit_reason) for r in store.list_runs(bot.id)] if store.list_bots() else []
+            assert store.list_bots() == [], f"the leftover and its ghost run are gone; calls={calls} toasts={page.locator('.toast-root .toast').all_inner_texts()} runs={runs}"
+        finally:
+            page.context.close()

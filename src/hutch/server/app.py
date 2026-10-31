@@ -142,6 +142,8 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("GET", "/api/v1/bots/{ref}/identity"): None,
     ("PUT", "/api/v1/bots/{ref}/identity"): None,
     ("GET", "/api/v1/catalog"): None,
+    ("GET", "/api/v1/assistant-proposals"): None,
+    ("POST", "/api/v1/assistant-proposals/{proposal_id}/dismiss"): None,
     ("POST", "/api/v1/catalog/export-draft"): None,
     ("POST", "/api/v1/catalog/import-draft"): None,
     ("GET", "/api/v1/catalog/sources"): None,
@@ -7278,6 +7280,8 @@ def create_app() -> FastAPI:
     install_identity_routes(app, store, config)
     from .catalog_api import install_catalog_routes
     install_catalog_routes(app, store, config)
+    from .proposals_api import install_proposal_routes
+    install_proposal_routes(app, store)
     from .installation_api import install_installation_routes
     install_installation_routes(app, store)
     from .routes_api import install_routes_api
