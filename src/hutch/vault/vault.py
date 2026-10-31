@@ -16,6 +16,8 @@ own module so they can be read, tested and changed independently.
 from __future__ import annotations
 
 import threading
+import weakref
+import weakref
 from typing import Optional
 
 from .access import AccessMixin
@@ -51,20 +53,25 @@ class VaultBook(LifecycleMixin, SecretsMixin, DestinationsMixin, AccessMixin, _V
         super().__init__(store, scrypt_params=scrypt_params, clock=clock)
 
 
-#: One unlock state per database path in this process. The dashboard and a bot run in the same
-#: process must share it: unlocking in Settings must make a mediated use possible in the run loop.
-_REGISTRY: dict[str, VaultBook] = {}
+#: One unlock state per ``Store`` in this process. The dashboard and a bot run share the Store the
+#: application opened, so unlocking in Settings must make a mediated use possible in the run loop.
+#: Keyed weakly: a closed and discarded Store takes its vault book with it, and a reopened database
+#: starts locked, which is what a fresh process looks like.
+_REGISTRY = weakref.WeakKeyDictionary()
 _REGISTRY_LOCK = threading.Lock()
 
 
 def vault_for(store, *, scrypt_params=None) -> VaultBook:
-    """The process-wide vault for ``store``'s database. ``scrypt_params`` only applies on creation."""
-    key = str(store.config.db_path)
+    """The process-wide vault for ``store``. ``scrypt_params`` only applies when it is created.
+
+    A run in the supervised child process has its own Store and therefore its own locked vault:
+    mediated use fails closed there rather than silently reaching into a parent's memory.
+    """
     with _REGISTRY_LOCK:
-        book = _REGISTRY.get(key)
+        book = _REGISTRY.get(store)
         if book is None:
             book = VaultBook(store, scrypt_params=scrypt_params)
-            _REGISTRY[key] = book
+            _REGISTRY[store] = book
         return book
 
 

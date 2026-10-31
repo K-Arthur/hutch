@@ -230,3 +230,7 @@ def test_the_http_surface_and_a_run_share_one_unlock_state(api):
     _client, store, vault = api
     from hutch.vault import vault_for
     assert vault_for(store) is vault
+    assert vault.is_unlocked is False
+    create(_client)
+    assert vault.is_unlocked is True
+    assert vault_for(store).is_unlocked is True

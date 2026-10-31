@@ -18,7 +18,7 @@ from .refs import (
     SecretRefError,
     category_profile,
 )
-from .schema import migrate
+from .schema import migrate, migrate_destinations
 from .vault import (
     AccessDenied,
     Grant,
@@ -68,6 +68,7 @@ __all__ = [
     "canonical_origin",
     "category_profile",
     "migrate",
+    "migrate_destinations",
     "request_origin",
     "vault_for",
 ]
