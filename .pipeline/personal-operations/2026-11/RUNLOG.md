@@ -137,19 +137,25 @@ rather than as a regression, and every later run uses `~/.hutch-tmp`.
 
 ## Gate status
 
-`npm run check:agent` in the shared checkout now reports four frozen files above their baseline
-(`cli.py` +88, `engine.py` +33, `providers/ollama.py` +50, `store.py` +15). None of that growth is
-this slice's:
+`npm run check:agent` in the shared working tree fails context hygiene on frozen files grown by
+another session's uncommitted work. At the tip as of this record that is five files: `cli.py`
+(+91), `engine.py` (+30), `providers/ollama.py` (+82), `store.py` (+15) and `tests/fakes.py` (+52).
+None is this slice's; this slice's only `store.py` change is line-neutral (two imports and the
+migration-list entry swapped in place), and the committed `store.py` at `227b1c89` is still 12593
+lines, its baseline.
 
-- the working tree also holds another session's uncommitted model-picker and removal work in
-  `cli.py`, `engine.py`, `ollama.py` and `store.py`;
-- at a clean detached worktree of HEAD (`1f9aa0c3`), context hygiene passed (924 source files, 117
-  frozen files), constitution passed and the agent map check passed. The tool-contract audit
-  could not run there because that worktree has no installed environment; it passes in the main
-  checkout (44 registered tools).
+Measured at the committed tip, in a clean detached worktree of `227b1c89` with its own environment:
 
-This is recorded as a gate blocked by concurrent uncommitted work, not as a green gate. It goes
-green when that session's changes are staged or reverted.
+| Check | Result |
+|---|---|
+| `python scripts/audit_context_hygiene.py` | passed (931 source files; 117 frozen over-cap files) |
+| `python scripts/audit_constitution.py` | passed (3 roles, 14 rules; every rule maps to existing enforcement) |
+| `python scripts/generate_agent_map.py --check` | passed (118 lines; 2333 tracked files scanned) |
+| `python scripts/audit_tool_contracts.py` | passed in the main checkout (44 registered tools) |
+
+So the committed tree is green and the working tree is not, because of work this slice never
+touched. This is recorded as a gate blocked by concurrent uncommitted work, not as a green gate;
+it goes green when that session's changes are staged or reverted.
 
 ## What was not verified
 
