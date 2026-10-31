@@ -11,15 +11,16 @@ docs/adr/0026-provider-identity-accounts-capabilities-and-runtimes.md.
 | Provider identity | What service is this, what does it offer, and what is actually implemented? | src/hutch/data/providers.json, validated by src/hutch/providers/catalog.py |
 | Authentication profile | Which named account would pay, with what credential source and billing relationship? | connections + src/hutch/providers/accounts.py |
 | Endpoint / route | Which URL, region and protocol contract? | connection templates, data/connections.json, data/compat.json |
-| Protocol adapter | How are messages, tools and streams encoded? | src/hutch/providers/openai_compat.py, openai_responses.py, claude.py, ollama.py |
+| Protocol adapter | How are messages, tools and streams encoded? | src/hutch/providers/openai_compat.py, openai_responses.py, claude.py, ollama.py, gemini.py, transcription.py (speech-to-text over a chat-completions audio part) |
 | Execution runtime | What executes the work, under which permissions and budget? | src/hutch/runtime/registry.py plus the existing runtime switch |
 | Capability evidence | How is a capability known, at what scope, from which dated source? | src/hutch/providers/capabilities.py |
 | Readiness | Would this account or route work now, and what is missing? | src/hutch/providers/readiness.py |
-| Media / search | Which complementary service produces or grounds content? | existing media job/storage/validation lifecycle and grounding plane |
+| Media / search | Which complementary service produces or grounds content? | existing media job/storage/validation lifecycle, the grounding plane, and the governed transcription tool |
 
 A provider entry is not a support claim. Integration status uses a closed vocabulary: implemented,
-implemented-unverified, experimental, documented (research only), blocked, retired, deferred. The
-validation ledger records that this build performed no hosted live verification.
+implemented-unverified, experimental, documented (research only), blocked, retired, deferred. Live
+results are dated and recorded in the validation ledger; a route listed here is not verified merely
+because its adapter exists.
 
 ## Account rules
 
@@ -64,19 +65,27 @@ never enabled by registration. See docs/runtime-setup.md for prerequisites.
 
 ## Known limits
 
-- Live verification is limited to two owner-authorized DeepSeek text routes dated 2026-10-30 (direct built-in runtime and managed OpenCode runtime). Every other hosted provider and every other capability remains unverified.
+- Live verification as of 2026-10-31 covers text generation on two owner-authorized DeepSeek routes,
+the managed OpenCode runtime, and Xiaomi MiMo (`mimo-v2.6-flash`, `mimo-v2.6-pro`), plus speech-to-text
+on `mimo-v2.5-asr` through `transcribe_audio`. Every other hosted provider and every other capability
+remains unverified.
 - Custom endpoints keep Hutch's existing credential scoping (ambient keys go only to official hosts,
   embedded URL credentials are refused, Strict Offline requires loopback). Outside Strict Offline a
   private-range allowlist and redirect/DNS pinning are not implemented in the provider layer: reviewed
   and recorded, not silently assumed safe.
-- Media expansion is research-complete but not shipped: video, music, transcription and provider-native
-  search adapters are deferred rather than stubbed, and no demo fixtures exist.
+- Media expansion is partly shipped: speech-to-text is implemented and live-verified against one
+  account. Speech synthesis exists only for the two-host audio-overview pipeline; video, music, image
+  editing and provider-native search adapters remain research-complete and deferred rather than stubbed,
+  and no demo fixtures exist.
 
-## Live evidence (2026-10-30)
+## Live evidence (2026-10-30 and 2026-10-31)
 
 Owner-authorized live testing exercised the direct DeepSeek route (built-in runtime) and the managed
 OpenCode runtime with a DeepSeek model. Both completed a real text request and returned the expected token;
 the capability registry carries two dated live-verified text entries for exactly those model routes.
-No other provider, and no tool, streaming, vision, audio, video, music or search capability, was
-live-verified. The stored OpenCode Go key reported expired and the attempted managed run failed explicitly
-with zero recorded cost; that failure is kept as evidence rather than retried or routed elsewhere.
+On 2026-10-31 a second account (Xiaomi MiMo Token Plan) was exercised for text generation and then for
+speech-to-text: one wav file produced by the same account's TTS was transcribed through the
+`transcribe_audio` tool with matching text and provider-reported usage. No other provider, and no tool
+calling, streaming, vision, video, music or search capability, was live-verified. The stored OpenCode Go
+key reported expired and the attempted managed run failed explicitly with zero recorded cost; that
+failure is kept as evidence rather than retried or routed elsewhere.

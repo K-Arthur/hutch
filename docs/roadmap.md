@@ -258,9 +258,12 @@ supervision. These conflict with the product's premise.
 
 The provider layer now separates identity, named accounts, protocol, runtime, capability evidence and
 readiness. Shipped: validated provider catalogue, provider-grouped accounts, capability evidence levels,
-explicit route readiness, runtime boundary registry, bounded loopback discovery, and the Providers page.
-Next, still research-only or deferred: Gemini/Responses protocol generalisation, media and speech
+explicit route readiness, runtime boundary registry, bounded loopback discovery, the Providers page, the
+Gemini API-key chat route, 25 hosted OpenAI-compatible routes, and speech-to-text (`transcribe_audio`)
+for connections that declare a transcription block.
+Next, still research-only or deferred: speech synthesis as a general tool, video/music/image-edit
 adapters with real job contracts, provider-native search attribution, and new runtime executors that
-need an approval/usage/lifecycle contract first. Hosted live verification remains blocked without
-credentials; the research package records that boundary.
+need an approval/usage/lifecycle contract first. Live verification covers DeepSeek text, the managed
+OpenCode runtime and Xiaomi text plus speech-to-text (2026-10-30/31); every other hosted route remains
+unverified for want of a usable credential, and the research package records that boundary.
 

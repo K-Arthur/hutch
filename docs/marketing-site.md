@@ -431,7 +431,7 @@ The group exists because the previous split - shipped versus research-tracked - 
 route that is real but unproven. The three labels now mean:
 
 - **shipped route families**: an implemented route, with live verification only where a dated evidence
-  artifact exists (DeepSeek text, 2026-10-30).
+  artifact exists (DeepSeek text, 2026-10-30; Xiaomi text and speech-to-text, 2026-10-31).
 - **shipped routes, inference unverified**: a real connection path to a real endpoint, no model or
   capability claim.
 - **research-tracked, not shipped**: no route in the product.
@@ -440,3 +440,17 @@ The site must not move a name out of the middle group into the first without a d
 artifact, must not add capability words (tools, vision, streaming) to any of these badges, and must not
 imply vendor partnership. `tests/test_provider_routes.py` keeps the templates and the reachability record
 in agreement; the site copy is the human-readable reflection of those two.
+
+### Speech-to-text claim (2026-10-31)
+
+The capability paragraph now says speech-to-text ships through Xiaomi MiMo's ASR model, and the badge
+list carries `xiaomi asr (one wav live-verified 2026-10-31)`. The claim is intentionally narrow because
+the evidence is: one 169 KB wav produced by the same account's TTS, transcribed through Hutch's
+`transcribe_audio` tool with a matching sentence and provider-reported usage (48 prompt / 11 completion
+tokens, 23 audio input tokens, 4 s). Artifact:
+`docs/research/2026-10-provider-platform/artifacts/live-verification/xiaomi-transcription-live-2026-10-31.json`.
+
+The copy must not extend this to mp3, Chinese, automatic language detection, the cn/ams hosts, large
+files or streaming: none were exercised. It must not call the route free (the plan bills in credits),
+and it must not imply that any other provider's speech-to-text is shipped. Image, video, music and
+provider-native search claims are unchanged by this slice.

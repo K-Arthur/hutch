@@ -32,6 +32,7 @@ _SPECS: dict[str, tuple[str, str]] = {
     "inspect_document": ("documents", "InspectDocumentTool"),
     "create_media": ("media", "CreateMediaTool"),
     "render_diagram": ("media", "RenderDiagramTool"),
+    "transcribe_audio": ("transcribe", "TranscribeAudioTool"),
     "run_python": ("python_exec", "RunPythonTool"),
     "reset_workspace": ("python_exec", "ResetWorkspaceTool"),
     "delegate_task": ("delegation", "DelegateTaskTool"),
@@ -92,6 +93,7 @@ GROUPS: dict[str, list[str]] = {
     "files": ["read_file", "list_files", "write_file"],
     "documents": ["create_document", "revise_document", "inspect_document"],
     "media": ["create_media", "render_diagram"],
+    "audio": ["transcribe_audio"],
     "workspace": ["run_python", "reset_workspace"],
     # Keep account-backed workspace actions opt-in. The existing ``workspace`` group
     # predates these tools and is used by Bots that should only get local scratch access.

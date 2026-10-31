@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-31",
+  "verification": "transcribe_audio tool -> providers/transcription.py -> Xiaomi MiMo Token Plan (Singapore)",
+  "authorization": "Owner-authorized live testing in this task used credentials already configured in the environment (the installed OpenCode account's Token Plan key), read in memory only. One short TTS request produced the sample and one ASR request transcribed it; no secret is stored in this artifact and no audio bytes are included.",
+  "route": {
+    "connection": "mimo-live",
+    "template": "xiaomi-token-plan-sgp",
+    "provider": "xiaomi",
+    "endpoint": "https://token-plan-sgp.xiaomimimo.com/v1",
+    "billing": "subscription credits",
+    "model": "mimo-v2.5-asr"
+  },
+  "audio": {
+    "source": "same account's mimo-v2.5-tts, format wav, voice mimo_default",
+    "spoken_text": "Hutch transcription check, October thirty first.",
+    "bytes": 169004,
+    "sha256": "9e2122bcd993f8cfd303af141ffe93594fe45174e4d0dc7f82f1ba68cbc78f72"
+  },
+  "approval": {
+    "outward": true,
+    "detail": {
+      "connection": "mimo-live",
+      "provider": "xiaomi",
+      "endpoint": "https://token-plan-sgp.xiaomimimo.com/v1",
+      "model": "mimo-v2.5-asr",
+      "language": "en",
+      "audio_bytes": 169004,
+      "format": "wav",
+      "billing": "subscription",
+      "note": "the audio leaves this machine; the provider's plan may charge for it"
+    }
+  },
+  "result": {
+    "ok": true,
+    "transcript": "1. Hutch transcription check, October thirty-first.",
+    "reported_model": "mimo-v2.5-asr",
+    "requested_model": "mimo-v2.5-asr",
+    "audio_seconds": 4.0,
+    "prompt_tokens": 48,
+    "completion_tokens": 11,
+    "audio_tokens": 23,
+    "notes": [
+      "connection mimo-live bills in credits or a subscription, not per-token currency; the token counts are not a price",
+      "the provider reported 4s of audio",
+      "23 of the prompt tokens were audio input"
+    ],
+    "tool_output": "1. Hutch transcription check, October thirty-first.\n\n[transcribed with mimo-v2.5-asr on mimo-live; 48 prompt / 11 completion tokens]"
+  },
+  "ledger_row": [
+    "xiaomi",
+    "mimo-v2.5-asr",
+    48,
+    11,
+    "transcription",
+    "mimo-live"
+  ],
+  "elapsed_seconds": 4.032,
+  "established": [
+    "authenticated model discovery already recorded 2026-10-31",
+    "one real wav file transcribed through Hutch's own tool and adapter",
+    "transcript matches the spoken sentence; the model prefixed an ordinal marker (\"1.\") that is not in the audio",
+    "provider-reported usage and audio duration captured",
+    "usage written to the run ledger as kind=transcription",
+    "approval detail named connection, endpoint, model, language and byte count"
+  ],
+  "not_established": [
+    "mp3 input (the wire path is shared with wav, but only wav was exercised live)",
+    "Chinese or auto language detection",
+    "other regional Token Plan hosts (cn, ams)",
+    "large-file behaviour near the 10 MB ceiling",
+    "streaming transcription",
+    "pricing: the plan bills in credits and Hutch has no currency price row"
+  ]
+}

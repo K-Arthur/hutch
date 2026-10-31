@@ -2153,3 +2153,16 @@ broke at phone width when expanded, runtime-table column clipping, and a CLI ver
 filesystem path into a rendered tag. Artifacts and the capture manifest:
 docs/research/2026-10-provider-platform/artifacts/visual/. Remaining gaps: no physical device or
 screen-reader session, and no native browser zoom gesture (CSS font-size 200 percent used instead).
+
+## Speech-to-text claim on the provider section (2026-10-31)
+
+The marketing provider panel gained one sentence and one badge for speech-to-text on Xiaomi MiMo. The
+expanded `#providers` section was captured at 1440x960, 1280x720, 900x1024, 390x844 and 320x740, and at
+1280x720 with CSS font-size at 200 percent. Every viewport reported 0 px horizontal overflow, zero
+console errors, and both the new sentence and the `xiaomi asr (one wav live-verified 2026-10-31)` badge
+visible. The 200 percent run still shows the site-wide 316 px horizontal overflow measured on 2026-10-31
+and traced to a header button, not to this section; it is unchanged by this slice. Inspected visually at
+desktop and phone widths: the capability card remains the tallest of its row (pre-existing), the new
+badge wraps to two lines at 390 px without clipping, and the copy no longer adds a third line of height.
+Evidence: `docs/research/2026-10-provider-platform/artifacts/visual/asr-2026-10-31/` (element captures,
+viewport captures and `capture-results.json`).

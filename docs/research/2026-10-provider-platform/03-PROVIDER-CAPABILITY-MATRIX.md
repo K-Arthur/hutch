@@ -1,8 +1,8 @@
 # 03 - Provider capability matrix
 
-Date: 2026-10-30. Live verification: two owner-authorized real routes were exercised on 2026-10-30 -
-the direct DeepSeek connection through the built-in runtime and the managed OpenCode runtime with a
-DeepSeek model. Text generation succeeded on both; tool calling, streaming, image input, other
+Date: 2026-10-30. Live verification: text generation was exercised through three owner-authorized
+routes (DeepSeek direct, the managed OpenCode runtime, and Xiaomi MiMo on 2026-10-31), and
+speech-to-text on Xiaomi MiMo on 2026-10-31. Tool calling, streaming, image input, other
 modalities and every other provider were not live-exercised. The column exists so a code path is never
 mistaken for a working provider account. Research detail and dated sources are in
 drafts/01-core-providers.md, drafts/02-hosting-gateway-local.md and drafts/03-media-speech-search.md.
@@ -34,7 +34,7 @@ How to read the columns:
 | qwen | vendor | chat, tools, coding_cli | openai-chat, anthropic | api-key [per_token; documented]; coding-plan [subscription; documented]; portal-oauth [subscription; retired] | documented | 01-core | not live-verified |
 | stepfun | vendor | chat, speech, transcription | openai-chat | api-key [per_token; implemented] | implemented-unverified | 02-hosted | not live-verified |
 | xai | vendor | chat, search, code_execution, images, video, speech, transcription | openai-chat, custom | api-key [per_token; implemented]; oauth [subscription; documented] | implemented-unverified | 01-core | not live-verified |
-| xiaomi | vendor | chat | openai-chat, anthropic | api-key [credits; implemented] | implemented | 02-hosted | live-verified 2026-10-31 (text only: mimo-v2.6-flash, mimo-v2.6-pro; built-in runtime; reasoning capture and truncation reporting exercised) |
+| xiaomi | vendor | chat, transcription | openai-chat, anthropic | api-key [credits; implemented] | implemented | 02-hosted | live-verified 2026-10-31 (text: mimo-v2.6-flash, mimo-v2.6-pro, built-in runtime, reasoning capture and truncation reporting; speech-to-text: mimo-v2.5-asr through `transcribe_audio`, wav only) |
 | zai | vendor | chat, tools, coding_cli | openai-chat, anthropic | api-key [per_token; implemented]; coding-plan [subscription; documented] | implemented-unverified | 01-core | not live-verified |
 | alibaba-model-studio | serving_platform | chat, embeddings, images, tools | openai-chat | api-key [per_token; documented] | documented | 02-hosted | not live-verified |
 | qianfan | serving_platform | chat, embeddings, images | custom | api-key [per_token; documented]; oauth [per_token; documented] | documented | 02-hosted | not live-verified |

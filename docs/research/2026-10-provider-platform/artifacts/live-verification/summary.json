@@ -75,6 +75,15 @@
       "capability": "reasoning text retained; all-reasoning answer explained",
       "artifact": "xiaomi-reasoning-live-2026-10-31.json",
       "notes": "caps 12 and 64 on mimo-v2.6-flash; 12 produced no visible answer and said so in the notes."
+    },
+    {
+      "provider": "xiaomi",
+      "route": "transcribe_audio tool -> providers/transcription.py -> xiaomi-token-plan-sgp",
+      "checked_on": "2026-10-31",
+      "result": "succeeded",
+      "capability": "speech-to-text on mimo-v2.5-asr",
+      "artifact": "xiaomi-transcription-live-2026-10-31.json",
+      "notes": "One TTS-generated wav was transcribed through Hutch's tool; 48 prompt / 11 completion tokens, 23 audio input tokens, 4s reported. The transcript matched the sentence with an extra ordinal marker; mp3, Chinese, other regions and streaming were not exercised."
     }
   ]
 }

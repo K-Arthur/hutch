@@ -406,3 +406,76 @@ each other and can be tested without a transport.
 - Streaming was not exercised: `Provider.chat` takes no per-call delta callback, and driving the
   streaming path live would need a harness whose result would not tell us anything about a user's run.
   Recorded as a gap rather than implied.
+
+## Speech-to-text: transcribe_audio (2026-10-31)
+
+Hutch had no audio path at all: the media store and the block renderer anticipated `kind: "audio"`,
+but nothing produced or consumed speech. This slice adds the first one - speech-to-text - as a
+governed tool rather than a chat feature, so the same capability is available to bots and workflows
+without changing which model answers a conversation.
+
+### What was built
+
+| Piece | File | What it owns |
+|---|---|---|
+| Route declaration | `src/hutch/data/connections.json` (4 xiaomi templates) | `transcription.protocol/model/languages/max_audio_base64_bytes/source`; a connection only offers the route when its bundled template declares it |
+| Adapter | `src/hutch/providers/transcription.py` | wav/mp3 sniffing, data-URL request, response parsing, usage extraction, typed `ProviderError`s, redirect refusal |
+| Tool | `src/hutch/tools/transcribe.py` | workspace path jail, account selection, approval detail, `begin_effect`, usage ledger row, no retry |
+| Registry | `src/hutch/tools/__init__.py`, `src/hutch/integrations/catalog.py` | `transcribe_audio` in the catalogue, the new `audio` group, and Strict Offline withholding |
+
+### The wire contract, observed rather than assumed
+
+`POST https://token-plan-sgp.xiaomimimo.com/v1/chat/completions` with
+`model: mimo-v2.5-asr` and one `input_audio` content part (`data:audio/wav;base64,...`). The reply is
+an ordinary chat completion: `choices[0].message.content` is the transcript,
+`usage.prompt_tokens_details.audio_tokens` counts audio input, and `usage.seconds` reports duration.
+The vendor documents wav/mp3 only and a 10 MB base64 ceiling
+(https://mimo.mi.com/docs/en-US/quick-start/usage-guide/audio/Speech-Recognition, fetched 2026-10-31).
+
+### Live run (owner-authorized, bounded)
+
+One `mimo-v2.5-tts` request produced a 169,004-byte wav ("Hutch transcription check, October thirty
+first."), then `TranscribeAudioTool` transcribed it through the real adapter. No secret was written
+anywhere; the state directory was temporary and the artifact carries no audio bytes.
+
+| Observation | Value |
+|---|---|
+| Transcript | `1. Hutch transcription check, October thirty-first.` |
+| Model reported by the provider | `mimo-v2.5-asr` (the requested model) |
+| Usage | 48 prompt / 11 completion tokens; 23 audio input tokens |
+| Audio duration reported | 4 s |
+| Ledger row | `xiaomi / mimo-v2.5-asr / 48 / 11 / transcription / mimo-live` |
+| Approval detail | connection, provider, endpoint, model, language, bytes, format, billing |
+| Wall time | 4.03 s |
+
+The transcript matches the sentence; the model prefixed an ordinal marker that was not in the audio.
+That is recorded rather than trimmed, because the tool reports what the provider returned.
+
+### What this establishes and what it does not
+
+Established: authenticated speech-to-text through Hutch's own tool and adapter; exact usage capture;
+run-ledger accounting under `kind=transcription`; an approval prompt that names the receiving service
+and account before the audio leaves the machine; redirects refused so the bearer key cannot travel to
+another host.
+
+Not established: mp3 input (the byte-sniffing and payload path are shared, but only wav was sent),
+Chinese or automatic language detection, the cn/ams regional hosts, behaviour near the 10 MB ceiling,
+streaming transcription, and any currency price (the Token Plan bills in credits and Hutch has no
+reviewed price row for these models).
+
+### Focused checks for this slice
+
+| Check | Command | Result |
+|---|---|---|
+| Adapter and tool behaviour | `uv run --frozen --no-sync pytest -q tests/test_provider_transcription.py tests/test_transcribe_tool.py` | 30 passed |
+| Tool contract + registry | `uv run --frozen --no-sync python scripts/audit_tool_contracts.py` | passed (45 tools) |
+| Context hygiene | `uv run --frozen --no-sync python scripts/audit_context_hygiene.py` | passed |
+| Research package honesty | `python3 scripts/audit_provider_research.py` | PASS |
+
+Marketing claim check: the provider section was captured with Playwright Chromium at 1440x960,
+1280x720, 900x1024, 390x844 and 320x740, plus 1280x720 at 200 percent text. Every viewport reported
+0 px horizontal overflow and zero console errors; the 200 percent run keeps the site-wide 316 px header
+gap already recorded above. Measured against the copy and badge added here: 0 px overflow, and the new
+sentence and badge render at every width. Evidence: `artifacts/visual/asr-2026-10-31/`.
+
+Artifact: `artifacts/live-verification/xiaomi-transcription-live-2026-10-31.json`.

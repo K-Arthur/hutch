@@ -128,7 +128,8 @@ def test_capability_snapshot_extension_is_additive_under_v1(store):
 
 def test_offline_withheld_list_is_the_single_source():
     assert OFFLINE_WITHHELD_TOOLS == frozenset({
-        "web_fetch", "browser", "computer", "live_search", "render_audio_overview", "run_workspace_plan",
+        "web_fetch", "browser", "computer", "live_search", "render_audio_overview", "transcribe_audio",
+        "run_workspace_plan",
         "google_calendar_events", "google_calendar_create_event", "google_mail_search", "google_mail_send",
         "outlook_calendar_events", "outlook_calendar_create_event", "outlook_mail_search", "outlook_mail_send"})
     assert offline_withheld(["web_fetch", "shell", "browser"]) == ["web_fetch", "browser"]

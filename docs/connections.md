@@ -393,9 +393,11 @@ its allowance and Hutch enforces it *before* the vendor does.
 
 ## Plans with templates
 
-Everything below was read from the vendor's docs or a docs aggregator on **2026-10-07**. **None of it was
-exercised against a live account** (there are no keys on the development machine); the fakes in
-`tests/fakes.py` reproduce the documented wire formats.
+Everything below was read from the vendor's docs or a docs aggregator on **2026-10-07**. Template rows
+describe documented wire formats; the fakes in `tests/fakes.py` reproduce them. Live account testing is
+recorded separately and currently covers text generation on DeepSeek (two routes), the managed OpenCode
+runtime and Xiaomi MiMo, plus speech-to-text on Xiaomi MiMo (2026-10-30/31; see the validation ledger in
+docs/research/2026-10-provider-platform/). Every other row remains unexercised against a live account.
 
 | Template | Endpoint | Key | Billing | Source |
 |---|---|---|---|---|
@@ -406,6 +408,22 @@ exercised against a live account** (there are no keys on the development machine
 | `xiaomi` | `https://api.xiaomimimo.com/v1` | `XIAOMI_API_KEY` (`sk-...`) | per token (needs a price row) | same |
 | `custom-openai` | any `/v1/chat/completions` server: OpenRouter, Together, Groq, a company gateway, vLLM | your env var | per token or subscription | - |
 | `custom-anthropic` | any `/v1/messages` server (URL **without** `/v1/messages`) | your env var | per token or subscription | - |
+
+### Speech-to-text routes (2026-10-31)
+
+A connection can also declare a `transcription` block. When it does, the `transcribe_audio` tool can send a
+workspace wav or mp3 to that account and return the provider's transcript. The four Xiaomi MiMo templates
+declare `mimo-v2.5-asr` with `auto`, `zh` and `en` language hints; the route is a chat completion carrying one
+`input_audio` content part, with a documented 10 MB base64 ceiling and wav/mp3 only.
+
+- The tool names the connection, endpoint, model, language and byte count in its approval prompt before
+  anything leaves the machine.
+- The account is never chosen silently: with several transcription-capable connections the call must name one,
+  or match the bot's provider exactly.
+- The provider's reported usage is written to the run ledger as `kind=transcription`. Credits are not converted
+  to currency, so the cost stays unpriced rather than zero.
+- Only wav input was exercised live on 2026-10-31. mp3, Chinese audio, the cn/ams hosts and the 10 MB boundary
+  are documented but not live-verified.
 
 OpenAI, Anthropic, Ollama, LM Studio and llama.cpp keep their built-in provider names and need no connection.
 

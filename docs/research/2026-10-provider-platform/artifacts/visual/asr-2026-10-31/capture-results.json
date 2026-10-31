@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-31",
+  "change": "website provider section: speech-to-text shipped claim and xiaomi asr badge",
+  "results": [
+    {
+      "viewport": "1440x960",
+      "horizontal_overflow_px": 0,
+      "paragraph_present": true,
+      "badge_present": true,
+      "badge_visible": true,
+      "console_errors": [],
+      "screenshot": "site-providers-asr-1440x960.png"
+    },
+    {
+      "viewport": "1280x720",
+      "horizontal_overflow_px": 0,
+      "paragraph_present": true,
+      "badge_present": true,
+      "badge_visible": true,
+      "console_errors": [],
+      "screenshot": "site-providers-asr-1280x720.png"
+    },
+    {
+      "viewport": "900x1024",
+      "horizontal_overflow_px": 0,
+      "paragraph_present": true,
+      "badge_present": true,
+      "badge_visible": true,
+      "console_errors": [],
+      "screenshot": "site-providers-asr-900x1024.png"
+    },
+    {
+      "viewport": "390x844",
+      "horizontal_overflow_px": 0,
+      "paragraph_present": true,
+      "badge_present": true,
+      "badge_visible": true,
+      "console_errors": [],
+      "screenshot": "site-providers-asr-390x844.png"
+    },
+    {
+      "viewport": "320x740",
+      "horizontal_overflow_px": 0,
+      "paragraph_present": true,
+      "badge_present": true,
+      "badge_visible": true,
+      "console_errors": [],
+      "screenshot": "site-providers-asr-320x740.png"
+    },
+    {
+      "viewport": "1280x720 at 200% text",
+      "horizontal_overflow_px": 316,
+      "console_errors": [],
+      "screenshot": "site-providers-asr-zoom200-1280x720.png"
+    }
+  ]
+}

@@ -2,7 +2,8 @@
 
 Compiled 2026-10-30 (America/Vancouver). This register indexes the official sources read for the
 provider platform work and records plan/authentication restrictions that change what Hutch may
-implement. Nothing here was live-verified: no provider account, key or paid request was used.
+implement. It is a source index: live results (including the 2026-10-30 and 2026-10-31 runs) are
+recorded in 06-VALIDATION-LEDGER.md, so a source does not become a verified capability by appearing here.
 
 ## Method and evidence grades
 
@@ -29,6 +30,7 @@ Rules applied when turning research into implementation:
 | Anthropic | platform.claude.com Messages API and pricing; Claude Code getting-started; Anthropic consumer/API terms | Console API key billing is separate from a Claude subscription. Anthropic terms prohibit third-party routing of Free/Pro/Max/Ultra plan credentials and storing/intermediating Claude.ai session tokens; community Max proxies are blocked. Sanctioned alternatives: claude setup-token for Claude Code/Agent SDK, and monthly API credits. |
 | Google | Gemini API and Vertex AI docs; Gemini Code Assist deprecation notice (developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals); Gemini CLI docs | Consumer Gemini CLI authentication changed on 2026-06-18 (free individuals and AI Pro/Ultra) in favour of Antigravity CLI; Gemini CLI remains for Code Assist Standard/Enterprise and paid API/Vertex keys. New AI Studio keys became auth keys from 2026-05-28. Retired consumer OAuth is not implemented. |
 | MiniMax | MiniMax platform API docs; M Plan / Token Plan terms (China mirror partially unreachable) | API key and Coding Plan are different billing routes; international and China endpoints are region-specific; refresh-token expiry and region mismatch need explicit recovery; paid music API closed to new users since 2026-08-20. |
+| Xiaomi | mimo.mi.com Token Plan page; Speech Recognition and Speech Synthesis API and usage-guide pages (api/audio/Speech-Recognition, api/audio/tts, quick-start/usage-guide/audio/*); api.xiaomimimo.com/v1 | Token Plan is a credits subscription with regional hosts (sgp/cn/ams) and a key is bound to one region; pay-as-you-go is a separate template. Speech is served as a chat completion: ASR takes one `input_audio` content part (wav/mp3 only, base64 ceiling 10 MB) and TTS returns base64 audio from an `assistant` message. The plan's terms name coding tools and do not state that unattended agent platforms are covered. |
 | Moonshot / Kimi | Moonshot platform docs; Kimi Code plan docs | General Moonshot and Kimi Coding use distinct endpoints, model namespaces and billing. Kimi K2 new-user cutoff 2026-10-31 and full retirement end-December 2026 recorded in draft 01. |
 | Qwen | qwenlm.github.io qwen-code auth configuration; Alibaba Model Studio docs | Qwen OAuth free tier discontinued 2026-04-15; current routes are QwenCloud/Model Studio Token Plan (monthly credits) and Coding Plan (weekly quota) keys with dedicated endpoints. Portal OAuth is retired and must not be rebuilt. |
 | xAI | docs.x.ai API docs; X/Grok subscription material | API key billing, provider-side search/code tools and subscription pools are distinct; X Subscription pool is first-party only; custom voices are US-only (excluding Illinois) and Enterprise-gated. |

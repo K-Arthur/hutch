@@ -588,7 +588,8 @@
       "category": "vendor",
       "summary": "",
       "services": [
-        "chat"
+        "chat",
+        "transcription"
       ],
       "protocols": [
         "openai-chat",
@@ -617,7 +618,7 @@
         "cn",
         "ams"
       ],
-      "notes": "Token Plan is a subscription-credit route with regional hosts; a key works only on its own region. Live-verified for text generation on 2026-10-31 (mimo-v2.6-flash, mimo-v2.6-pro) through the built-in runtime. Vision, tools and streaming are not live-verified."
+      "notes": "Token Plan is a subscription-credit route with regional hosts; a key works only on its own region. Live-verified on 2026-10-31 for text generation (mimo-v2.6-flash, mimo-v2.6-pro) through the built-in runtime and for speech-to-text (mimo-v2.5-asr) through the transcribe_audio tool. Vision, tool calling, streaming, mp3 input, non-English audio and the cn/ams hosts are not live-verified."
     },
     {
       "id": "stepfun",

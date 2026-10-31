@@ -57,9 +57,13 @@ reordered if research changes the risk picture.
 | S10 | done | website provider section and `docs/marketing-site.md` |
 | S11 | done for the 2026-10-30 delivery | see the final-integration section of the validation ledger |
 | S6b | done | 25 hosted OpenAI-compatible routes wired from vendor-documented endpoints and verified reachable without a credential: `src/hutch/data/connections.json`, `src/hutch/data/providers.json`, `tests/test_provider_routes.py`, evidence in `artifacts/live-verification/endpoint-reachability-2026-10-31.json` |
+| S6c | done | Speech-to-text: declarative route in four xiaomi templates, `src/hutch/providers/transcription.py`, `src/hutch/tools/transcribe.py`, `tests/test_provider_transcription.py`, `tests/test_transcribe_tool.py`; live-verified on `mimo-v2.5-asr` (artifact `artifacts/live-verification/xiaomi-transcription-live-2026-10-31.json`) |
 
 S6 remains open for every other protocol: Claude CLI/Gemini CLI/Codex executors, provider-native
-search, and media/speech/video adapters are still documented rather than implemented. The next slice
+search, speech synthesis through a general tool, and video/music adapters are still documented rather
+than implemented. Speech-to-text is no longer in that list: `transcribe_audio` transcribes one
+workspace wav/mp3 through a connection that declares the route, and the live run above is the evidence.
+The next slice
 that a new protocol unlocks should be chosen from live credential availability, because an adapter that
 cannot be exercised is only contract-tested code.
 
