@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
-    "daisyui": "^5.7.47",
+    "daisyui": "^5.7.50",
     "open-props": "^1.7.23",
     "tailwindcss": "^4.3.3"
   }
