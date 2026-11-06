@@ -139,6 +139,47 @@ The versioned provider compatibility matrix is available at `GET /api/v1/compati
 route. The route state describes the common protocol contract, not whether a particular live model can reliably use tools;
 the current model-list check does not verify that capability.
 
+## Getting and importing a local model (2026-11)
+
+Installing is an explicit, runtime-native operation, not a side effect of choosing a
+model. The Models page's **Install** button first asks the server for a preflight and
+shows it before anything is downloaded: the catalog size (or "unknown"), free space on
+the runtime's own model directory, the 16k fit verdict, and a measured-rate ETA when a
+previous transfer supplied one. **Confirm download** is the only action that starts a
+pull; the server re-runs the same plan, so a client cannot skip the check. An insufficient
+known size is refused with the free and needed numbers; an unknown size or an unreadable
+directory is a warning, never a fabricated zero.
+
+The name grammar is the runtime's own rather than a lowercase slug: `model`,
+`namespace/model`, `host/namespace/model`, optional `:tag`, and the real
+`hf.co/<user>/<repo>:<quant>` forms (a quant tag or a full GGUF filename, case-preserved).
+Model equality is case-insensitive. Cloud tags remain a data-sharing choice and are
+refused without an explicit confirmation.
+
+A running Ollama pull can be cancelled. The runtime keeps completely downloaded chunks
+until the pull resumes or the Ollama server restarts; pressing Install again resumes when
+it kept them, and some transfer paths restart a blob from zero instead. Hutch reports the
+bytes this attempt received, not a synthesized percentage. `OLLAMA_NOPRUNE=1` is the
+runtime's own switch for keeping parts across a restart. A page reload reattaches to a
+running job; a Hutch restart loses the job record and the page says to press Install again.
+Two clicks or two tabs share one job.
+
+A local GGUF can be imported through the runtime's own blob and create APIs
+(`POST /api/models/import`; the visible form is Phase 7). Hutch checks the GGUF header,
+hashes the file, asks the runtime whether the blob exists, uploads only when it does not,
+creates the model from the original filename and digest, and confirms it in the runtime's
+list. The runtime verifies the digest again. An expected checksum is compared before any
+upload, split shards are refused with the merge hint, and a license is shown from the
+request, a sidecar file, or the runtime's own report — a missing license is shown as
+missing.
+
+LM Studio (`lms get`), llama.cpp (`llama-server -hf`) and vLLM/SGLang are guided paths
+rather than Hutch jobs: their native downloads happen outside the runtime's request API
+or lack the cancel/catalog operations the job model needs. The exact commands, cache
+locations and token rules are in [runtime setup](runtime-setup.md#getting-a-local-model-2026-11).
+The dated evidence, including a real 1.9 GiB pull cancelled and resumed through the page,
+is in `docs/realignment/offline-models-2026-11/02-PROGRESS.md`.
+
 ## The Models page (`/models`)
 
 The "everything" view behind the switcher: runtimes and connections with state and fix, installed models marked

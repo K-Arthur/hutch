@@ -339,3 +339,41 @@ does not prove recall at 12,000 tokens on a slow machine, and the result text sa
 use `hutch doctor --deep`, which runs the unshortened check on request.
 
 Open: **D** (a real prompt through the offline broker in the isolated worker; section 3.5). Model server isolation stays a recorded boundary (section 5).
+
+---
+
+## 7. Phase 4 (2026-11): getting a model
+
+Phase 4 closes the Phase A open item ("a real multi-gigabyte pull through the page") and
+the install gaps recorded in `docs/realignment/offline-models-2026-11/`. Decisions and
+the full dated ledger are in `02-PROGRESS.md`; the boundary is ADR-0031.
+
+- **Name grammar (G1).** The lowercase regex is replaced by the runtime's grammar
+  (`model_names.py`): mixed case, registry hosts and ports, namespace/model/tag, and the
+  real `hf.co/<user>/<repo>:<quant>` forms. A live table built from Ollama's
+  `types/model/name.go` and Hugging Face's page is in `tests/test_model_names.py`.
+- **Preflight and the page (G6).** The real plan for `qwen2.5-coder:3b` reported a
+  2,040,109,465-byte catalog size, 75,594,895,360 bytes free on
+  `~/.hutch-tmp/localmodels/models` (from `OLLAMA_MODELS`), "fits" at 16,384 tokens, and
+  "download time unknown" because no transfer had been measured. The page required
+  **Confirm download**; the server re-ran the plan. A real 1.9 GiB pull through Chromium
+  was cancelled at 44,076,255 bytes and resumed from 46,717,902 bytes (not zero), then
+  finished in 106.3 s with `success` and the model in `/api/tags`. A page reload and a
+  second tab both reattached to the same running job. A second real pull (`qwen3:1.7b`)
+  repeated cancel/resume for the four-width visual states.
+- **Failure states.** A real pull into a 300 MiB tmpfs failed at 309,451,728 of
+  1,929,903,008 bytes with `write ...-partial: no space left on device`; a real pull with
+  no external route failed with `dial tcp ...: connect: network is unreachable`. Both are
+  classified (`disk_full` / `network`), carry one action, and redact credential-shaped
+  text.
+- **Local import.** The retained qwen3-4b GGUF imported with its SHA-256 compared against
+  the runtime's existing blob (no duplicate upload) in 7.22 s; the runtime returned the
+  Apache license and tools/thinking capabilities, and removing the imported model left
+  `qwen3:4b` intact. A 1.93 GB vision GGUF that was not in the store uploaded through
+  `POST /api/blobs` in 4.246 s, created the model, and its blob was removed with the test
+  model; the source file's hash was unchanged.
+- **Not run.** A gated Hugging Face pull (no token or gated repo), LM Studio's native
+  download through Hutch (deliberately guided: no cancel or catalog API), and vLLM/SGLang
+  install (not installed). The visible import form and the full state matrix are Phase 7.
+- **Not claimed.** Hutch can say this pull's bytes went to the local runtime; it cannot
+  say the runtime was air-gapped. Resume depends on the runtime keeping its parts.

@@ -114,14 +114,19 @@ panel; Phase 4's action is a page reload, which re-probes discovery.
 
 - Focused tests for every task, written to fail before the change; existing
   install/offline/model suites.
-- Real: retained Ollama 0.40.13, `qwen2.5:3b` (1.9 GB) pulled through the real page,
-  cancelled once and resumed once, with both attempts' byte events recorded; a real
-  import of the retained `qwen3-4b` GGUF with its SHA-256 checked against the runtime's
-  blob and license read from `/api/show`; a real disk-full pull inside `unshare -rm` with
-  a 300 MiB tmpfs; a real network-drop pull inside `unshare -rmn`; the page states
-  captured at four widths (dark only, the dashboard's real theme) and viewed.
+- Real: retained Ollama 0.40.13, `qwen2.5-coder:3b` (1.9 GiB, in the catalog so the page
+  has a real button) pulled through the real page, cancelled once and resumed once, with
+  both attempts' byte events recorded; a second real `qwen3:1.7b` pull repeated the
+  running/cancelled states after the layout fix; a real import of the retained
+  `qwen3-4b` GGUF with its SHA-256 checked against the runtime's blob and license read
+  from `/api/show`; a real 1.93 GB upload of the vision GGUF that was not in the store; a
+  real disk-full pull inside `unshare -rm` with a 300 MiB tmpfs; a real network-drop pull
+  inside `unshare -rmn`; the page states captured at four widths (dark only, the
+  dashboard's real theme) and viewed. The first view found a clipped, nowrap install
+  panel and a clipped pull hint; both were fixed with a full-width plan row, a readable
+  width cap, and wrapped state/hint text, then re-captured.
 - Gates: `npm run test:agent`, `npm run check:agent`, `npm run audit:context`,
   `scripts/audit_emoji.py`, focused e2e, phase-diff review, docs in the same series.
 - Honest limits: no gated Hugging Face token; LM Studio/vLLM/SGLang install is guided
-  only; the 1.9 GB pull is "multi-gigabyte" but below the 4 GB class recorded as not run
+  only; the 1.9 GiB pull is "multi-gigabyte" but below the 4 GB class recorded as not run
   in Phase 3.

@@ -56,7 +56,58 @@ The maintenance preflight and concurrent configuration behavior were checked aga
 ## Ollama and other local models
 
 - **Install:** install Ollama from <https://ollama.com> and start its local server. Hutch does not bundle the Ollama binary or model weights.
-- **Models:** pull a model with Ollama first. Hutch's model picker lists what the running server reports; a model name in a preset is a suggestion, not a promise that the weights are installed.
+- **Models:** the Models page can install a suggested model, or list what the running server already reports; a model name in a preset is a suggestion, not a promise that the weights are installed.
+
+### Getting a local model (2026-11)
+
+- **Ollama, from the Models page.** Pressing **Install** first asks the server for a
+  preflight: the catalog size, free space on the runtime's own model directory
+  (`OLLAMA_MODELS`, else `~/.ollama/models`), the fit estimate at 16k, and an ETA only
+  when a previous transfer was measured. Nothing downloads until **Confirm download**.
+  The server re-runs the same check, so a client cannot skip it. A known size that does
+  not fit beside a 512 MiB reserve is refused with both numbers. An unknown size, an
+  unreadable directory, or a non-loopback runtime is shown as unknown, never as zero.
+- **Name forms.** Hutch accepts Ollama's grammar: `model`, `namespace/model`, and
+  `host/namespace/model`, with an optional `:tag` and case-preserving names. Hugging Face
+  pulls use `hf.co/<user>/<repo>[:quant]` or the full `.gguf` filename as the tag; the
+  quant is case-insensitive. A `@sha256:<64 hex>` suffix is passed through, but the
+  runtime may not support a pinned digest. Cloud tags are refused unless the route has an
+  explicit data-sharing confirmation.
+- **Cancel and resume.** Cancel stops this Hutch job at the runtime's next progress
+  event. The runtime keeps completely downloaded chunks until the pull resumes or the
+  Ollama server restarts; pressing Install again resumes when it kept them. Ollama's
+  transfer path for some models restarts a blob from zero instead. Hutch reports the
+  bytes this attempt actually received and never manufactures a resumed percentage.
+  `OLLAMA_NOPRUNE=1` preserves partial chunks across an Ollama restart; Hutch does not
+  set it for you. The job list belongs to the Hutch process: a Hutch restart loses the
+  job record, and the page says to press Install again (the runtime may still have the
+  parts).
+- **Import a local GGUF.** `POST /api/models/import` (the visible form is Phase 7) takes
+  an absolute `.gguf` path, an optional expected SHA-256 and an optional license. Hutch
+  validates the GGUF header, hashes the file, asks `HEAD /api/blobs/<digest>`, uploads
+  only when the runtime does not have it, calls `POST /api/create` with the original
+  filename and digest, then confirms the model in `/api/tags`. The runtime verifies the
+  digest again. Split GGUFs are refused with the `gguf-split` merge hint. A sidecar
+  `LICENSE`/`<model>.LICENSE` is read when present; a missing license is shown as missing.
+  The runtime's own token (for a gated Hugging Face repo) is configured in the runtime,
+  never in a Hutch URL or the database.
+- **LM Studio.** It has a native download API and a CLI: `lms get <model>@<quant>`. The
+  documented API has no cancel operation and no catalog-list endpoint Hutch can build a
+  picker from, so Hutch does not wrap it in an install job. Files land in LM Studio's
+  model directory. Reopen the Models page after a download to re-scan.
+- **llama.cpp.** `llama-server -hf <user>/<repo>:<quant>` downloads at server start,
+  before the server answers; Hutch cannot cancel or track it. Add `--mmproj` when the
+  model needs a separate projector (it is fetched automatically for `-hf` when available).
+  Gated repos use `-hft` or `HF_TOKEN` on the server. The cache is selected from
+  `LLAMA_CACHE`, `HF_HUB_CACHE`/`HUGGINGFACE_HUB_CACHE`, `HF_HOME/hub`, or
+  `~/.cache/huggingface/hub`; `--offline` keeps a started server from fetching anything.
+  This is a guided command, not a Hutch job.
+- **vLLM and SGLang.** Launch them with their own CLI and point a connection at the
+  served `/v1` endpoint. Hutch has no install surface for either; their `/v1/models`
+  response does not report a served context window, so Hutch treats the window as unknown.
+- **Gated or private repositories.** A Hugging Face token is the runtime's credential
+  (Ollama's own sign-in/key, llama.cpp's `-hft`/`HF_TOKEN`). Hutch never asks for it in a
+  URL and never logs it.
 - **Loading and eviction:** a cold load is shown as `loading_model` with the measured duration, not as a timeout. Keep-alive expiry, an unload or the `OLLAMA_MAX_LOADED_MODELS` limit means the next turn reloads; Hutch re-reads `/api/ps` before every call. A runner killed mid-stream (`signal: killed`, or an `unexpected EOF` wrapper) is retried once after a reload when no text was delivered; partial text is kept as incomplete and the turn stops with the cause.
 - **Version:** Hutch gates tool calling, schema-constrained output, thinking and the measured `/api/ps` window by the server's reported version; `hutch doctor` and the Models page name the upgrade when one is needed. An unreadable version gets no advice.
 - **Without Ollama:** local routes are unavailable. Choose OpenRouter, OpenAI, Anthropic, or an installed OpenCode provider. Hutch does not silently substitute a hosted model.

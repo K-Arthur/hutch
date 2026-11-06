@@ -12,7 +12,7 @@ covers before relying on it.
 | 1 Locality truth | done (1.1, 1.2, 1.3) | see git log | 2026-11-06: real Ollama 0.40.13 rows (cloud stub, renamed cloud copy, local, missing model) | EC-02 second-interface run not run |
 | 2 Native runtime introspection | done (2.1, 2.2, 2.3, 2.4) | d057cc95..7c53c59e | 2026-11-06: llama.cpp b12144 9931 (4096 per slot with `-c 8192 --parallel 2`), LM Studio applied 8192, discovery fingerprints both, squatter unknown, `--api-key` needs_key then a keyed chat, needle self-check at 4096 | vLLM/SGLang not installed; LM Studio API-token mode not enabled live (401 path tested with a real key-protected llama-server) |
 | 3 Lifecycle states and errors | done (3.1, 3.2, 3.3) | bfcfaaf9..23ed98a3 | 2026-11-06: real Ollama cold load, real llama.cpp 503, real LM Studio unload/reload, real runner kill and llama-server restart | EC-09 4 GB model not downloaded (budget); old-version gate not live-tested |
-| 4 Get a model (install, import, guide) | in progress (4.1-4.5) | | | |
+| 4 Get a model (install, import, guide) | done (4.1-4.5) | see git log (b32a5e47..) | 2026-11-06: real 1.9 GiB pull cancelled/resumed through the page; real disk-full and no-route pulls; real GGUF import (reuse and upload); four-width captures | Gated HF pull not run (no token); LM Studio/vLLM/SGLang install guided only |
 | 5 Multimodal and tool reliability | not started | | | |
 | 6 Strict Offline live, boundary ADR | not started | | | Owner decision on the boundary (Phase 6.3) |
 | 7 Frontend | not started | | | |
@@ -28,12 +28,12 @@ owner questions answered (LM Studio: yes; download budget: not exceeded).
 
 | ID | Reproduced on real stack | Fixed in | Evidence row |
 |---|---|---|---|
-| G1 install name grammar | 2026-11-06, 6 of 10 real forms refused | Phase 4.1 (planned) | `00-BASELINE.md` Gap reproductions |
-| G2 cloud-tag locality | 2026-11-06, renamed cloud copy classified local; UI says "On this machine" | Phase 1 (planned) | same, plus `baseline-up/up-switcher-1280-dark.png` |
+| G1 install name grammar | 2026-11-06, 6 of 10 real forms refused | Phase 4.1: `providers/model_names.py`; `model_install.validate_model_name` delegates | `tests/test_model_names.py` (real names), commit b32a5e47 |
+| G2 cloud-tag locality | 2026-11-06, renamed cloud copy classified local; UI says "On this machine" | Phase 1: `providers/locality.py` (server signal first), live rows below | `baseline-up/up-switcher-1280-dark.png`; Phase 1 checkpoints |
 | G3 local group only for Ollama | 2026-11-06, llama.cpp reachable but `_local_choices` returned `[]` | Phase 2.3: `localchoices.py`, both real runtimes now produce `On this machine` rows | live choices run below |
 | G4 no native introspection | 2026-11-06, `rg` empty; real `/props`, `/slots`, `/api/v1/models` fields recorded | Phase 2.1: `providers/local/` adapters | live adapter run below |
 | G5 Strict Offline never live | historical gap confirmed; no live run yet | Phase 6.1 (planned) | `docs/realignment/offline-models-2026-10-31.md` section 3.5 |
-| G6 no disk preflight, no real big pull | 2026-11-06, `rg` empty | Phase 4.2/4.3 (planned) | `00-BASELINE.md` |
+| G6 no disk preflight, no real big pull | 2026-11-06, `rg` empty | Phase 4.2/4.3: `providers/install_plan.py`, server-side gate, measured rate; `install_errors.py`; real pull/cancel/resume, disk-full and no-route rows below | `~/.hutch-tmp/offline-models-2026-11/evidence/p4-pull-page.json`, `p4-disk-full.ndjson`, `p4-network-drop.ndjson`; commits 45af9d1b and later |
 | G7 port-trust discovery, key-protected servers | 2026-11-06, decoy on 8080 labelled llama.cpp; real `--api-key` server reported "no service answered" | Phase 2.1/2.4: response fingerprint, 9931 candidate, `needs_key` | decoy and key test below |
 | G8 frozen files not grown | confirmed 2026-11-06: 433/432/447/1955 against caps 435/432/466/1955 | Phase 9 recheck | `.file-size-baseline.json` |
 
@@ -56,11 +56,12 @@ or out-of-scope (reason). One line per ID once touched.
 - EC-22: tested-real, Phase 3: a real `kill -9` of the Ollama child `llama-server` mid-stream produced `llama-server process has terminated: signal: killed`; the full run reloaded once, showed `loading_model`, and succeeded. The partial-text stop path is unit-tested; GPU OOM could not be produced on this host.
 - EC-12: tested-real (decoy on 8080). Fix Phase 2.1.
 - EC-13: tested-real (`--api-key` server looks dead). Fix Phase 2.4.
-- EC-15: tested-real (G1 names; GGUF template present and tool-capable in `/props`). Fix Phase 4.1.
+- EC-15: tested-real; fixed Phase 4.1: `tests/test_model_names.py` covers the runtime's grammar and the real `hf.co` forms; `qwen2.5-coder:3b` installed through the page; a local GGUF was imported with the runtime's own `/api/blobs` + `/api/create` path and `/api/show` reported the family, quant, tools/thinking capabilities. The remaining Modelfile-specific case (a custom template in a created model) is covered by the same create API but not with a hand-written Modelfile this pass.
 - EC-18: tested-real (LM Studio empty answer with 64 reasoning tokens). Fix Phase 5.4.
 - EC-21: tested-real on this host (Ollama drops the iGPU; see `02-RUNTIME-API-NOTES.md`).
-- EC-23: reproduced as a missing capability (no disk preflight). Fix Phase 4.
-- EC-25: not-run (network-dependent tag check; Phase 4).
+- EC-20: tested-real for integrity and rights: a wrong expected SHA-256 is refused before any upload (`tests/test_model_import.py`); the runtime's blob endpoint verifies the digest again; the imported qwen3-4b GGUF carried the provided Apache text and `/api/show` returned tools/thinking; the 1.93 GB vision upload created a blob, and removing the test model removed that blob while the source file's hash stayed unchanged. Not run: a gated Hugging Face repository (no token).
+- EC-23: tested-real; fixed Phase 4.2/4.3: the plan named `~/.hutch-tmp/localmodels/models` and 70.4 GiB free; a real pull into a 300 MiB tmpfs failed at 309,451,728 of 1,929,903,008 bytes with `no space left on device`; cancel left the runtime's partial files and the resumed job started at 46,717,902 bytes rather than zero; removing the imported model left `qwen3:4b` intact.
+- EC-25: not-run (the live-tag check needs the network; the catalog is dated 2026-10-07 and was not refreshed in this pass).
 - EC-27: documented (llama.cpp accepts `input_audio`; no local audio run yet).
 - EC-28: tested-real for Strict Offline fallback rungs (cloud copy refused live) and unit-tested. Not covered: non-offline silent fallback; Phase 7 confirmation UI.
 
@@ -82,6 +83,13 @@ or out-of-scope (reason). One line per ID once touched.
 | 2026-11-06 | Ollama 0.40.13 | qwen3:0.6b | same | real `kill -9` of the Ollama child `llama-server` mid-stream, direct provider capture and a full app run; JSON at `evidence/p3-kill-runner.json` and `evidence/p3-run-kill.json` | real error text, classifier, reload, final answer, status timeline | GPU OOM | direct error `Ollama error mid-stream: ... unexpected EOF`; classifier reload; full run `pending, running, loading_model, running, succeeded` with two `load` events (one reload message, one measured reload); provider health recorded `llama-server process has terminated: signal: killed`; answer produced |
 | 2026-11-06 | llama.cpp b12144 (CPU) | qwen3-4b | same | `kill -9` of `llama-server` mid-stream, restart, `refresh_local_route`, real chat; JSON at `evidence/p3-llamacpp-restart.json` | real error text, classifier, restart detection, answer | full Hutch bot route (Phase 7) | error `cannot connect to http://127.0.0.1:9931/v1`; classifier reload; restarted server detected; answer `restarted` |
 | 2026-11-06 | version gates | — | — | `tests/test_local_versions.py` table, real Ollama 0.40.13 | gates at 0.40.13 and advice at 0.9.0/0.3.5 | an older runtime installation | all Ollama gates pass at 0.40.13; advice strings tested; LM Studio advice tested from a reported version; llama.cpp build string produces no advice |
+| 2026-11-06 | Ollama 0.40.13 | `qwen2.5-coder:3b`, catalog 1.9 GiB, installed model digest `f72c60cabf62...`, 1,929,912,626 bytes | Ryzen 3 5300U, CPU | real FastAPI app (fresh `HUTCH_STATE_DIR`), `OLLAMA_MODELS=~/.hutch-tmp/localmodels/models`, Chromium, `/models`; `p4_pull_page.py` | plan, Confirm, running, page reload mid-run, second tab, cancel at 44,076,255 bytes, resume at 46,717,902 (not zero), done; job flags; screenshots | the 4 GB class (budget) | plan: 2,040,109,465 bytes, 75,594,895,360 free, `OLLAMA_MODELS`, fits at 16,384, ETA unknown; job 92.3 s (script total 106.3 s); `show` license Qwen Research, capabilities completion/tools/insert; zero page/console errors, zero overflow; evidence `p4-pull-page.json` |
+| 2026-11-06 | Ollama 0.40.13 | `qwen3:1.7b`, catalog 1.4 GiB, installed model digest `8f68893c685c...`, 1,359,293,444 bytes | same | same page; `p4_second_pull.py` | running at 8,770,496 bytes, cancel at 56,098,762, resume to done; four-width running/cancelled/resumed cell captures | — | `resumed=true`; job 73.1 s (script total 82 s); zero page/console errors; evidence `p4-second-pull.json` |
+| 2026-11-06 | Ollama 0.40.13 | `qwen2.5:3b` (no catalog row) | same | `unshare -rm` + 300 MiB tmpfs; Ollama on 127.0.0.1:11500; `/api/pull` | real disk-full pull | — | failed at 309,451,728 of 1,929,903,008 bytes: `write ...-partial: no space left on device`; classifier `disk_full`, action `free_space`; evidence `p4-disk-full.ndjson` |
+| 2026-11-06 | Ollama 0.40.13 | `qwen2.5:3b` (no catalog row) | same | `unshare -rmn`, loopback up, no external route; Ollama on 127.0.0.1:11501; `/api/pull` | real network-drop pull | — | `pull model manifest: Get "https://registry.ollama.ai/...": dial tcp ...: connect: network is unreachable`; classifier `network`, action `retry`; evidence `p4-network-drop.ndjson` |
+| 2026-11-06 | Ollama 0.40.13 | `qwen3-4b.gguf`, 2,497,280,480 bytes, sha256 `3e4cb1417446...` | same | real app, `POST /api/models/import`; `p4_import_evidence.py` | wrong expected digest refused; existing blob reused (`HEAD` hit, no upload); `/api/create`; `/api/show` license and capabilities; remove imported model | a hand-written Modelfile with a custom template | wrong digest 422; import 7.22 s total; license text shown; capabilities tools/thinking/completion; `qwen3:4b` survived the remove; evidence `p4-import.json` |
+| 2026-11-06 | Ollama 0.40.13 | `Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf`, 1,929,901,056 bytes, sha256 `d02fe9b69ad8...` | same | real app, `POST /api/models/import`; `p4_import_upload.py` | `HEAD` miss, real streamed 1.93 GB `POST /api/blobs`, create, remove | vision inference on the imported model | upload 4.246 s; blob 1,929,901,056 bytes created and removed with the test model; source hash unchanged; license shown as none; evidence `p4-import-upload.json` |
+| 2026-11-06 | Chromium (Playwright) | real plan panel and status cells | same | captures under `docs/realignment/artifacts/offline-models-2026-11/p4-install/` | plan panel at 360/768/1280/1920; running/cancelled/resumed cells and full pages; images viewed | the full state matrix (runtime down, loading, needs-key, failed visual; Phase 7) | zero horizontal overflow and zero console errors; defects found: duplicated "time unknown", clipped nowrap panel, clipped pull hint; fixed by a full-width plan row, a width cap, and wrapped state/hint text; re-captured |
 
 ## Decisions log
 
@@ -114,6 +122,42 @@ or out-of-scope (reason). One line per ID once touched.
 - 2026-11-06, Phase 3: a sleeping llama.cpp model is reported as reloadable, not down. Hutch
   does not send a warmup POST to force the wake, so the first request includes the reload and
   its status remains `running`; the adapter reports `sleeping` and the run note says so.
+
+- 2026-11-06, Phase 4: the install grammar is the runtime's own (`types/model/name.go`), not a
+  lowercase slug: mixed case, registry hosts and ports, namespace/model/tag, and the real
+  `hf.co` quant/filename tags. Defaults are stripped only for display and equality is
+  case-insensitive. A pinned `@sha256:` suffix is passed through; the runtime decides support.
+- 2026-11-06, Phase 4: preflight blocks only what it can prove. Size is the catalog figure or
+  unknown; free space is read only from `OLLAMA_MODELS` or the documented default and only for
+  a loopback runtime; the 512 MiB reserve is shown; ETA exists only after a measured transfer
+  (stored in `install_speed.json`). A known insufficient size is refused on both the read and
+  write paths; unknown values stay warnings.
+- 2026-11-06, Phase 4: cancel closes the pull stream and resume re-requests the pull. The copy
+  says "the runtime keeps verified parts" only after a prior attempt received bytes; it never
+  promises a restart resume (R36/R37). The runtime's `-partial` file is preallocated to the
+  blob size, so the job's byte counters, not the file size, are the resume evidence.
+- 2026-11-06, Phase 4: a Hutch restart loses the in-process job record; the page says so and
+  asks to press Install again. A page reload and a second tab reattach to the live job, and a
+  duplicate start returns the same job instead of an error.
+- 2026-11-06, Phase 4: install failures are classified from the runtime's text into one code
+  and one action (disk full, network, runtime down, auth/gated, name, integrity, interrupted);
+  credential-shaped substrings are redacted before the text is stored or shown.
+- 2026-11-06, Phase 4: local import is single-file only and uses the runtime's own blob/create
+  APIs. A split shard is refused with the merge hint, a wrong expected SHA-256 is refused
+  before upload, a sidecar/provided license is shown, and a missing license is shown as missing.
+- 2026-11-06, Phase 4: LM Studio, llama.cpp and vLLM/SGLang are guided paths, not Hutch jobs
+  (no cancel/catalog API or no request-time download). ADR-0031 records the boundary.
+- 2026-11-06, Phase 4: the real page pull used `qwen2.5-coder:3b` because it is the
+  catalog-backed 1.9 GiB suggestion with a real Install button; `qwen2.5:3b` has no catalog
+  row. `qwen3:1.7b` repeated the visual states. The new download footprint is 1.9 + 1.4 GiB
+  plus about 0.3 GB in the failed tmpfs; the 10 GB budget is not exceeded and both installed
+  models are retained for Phase 5.
+- 2026-11-06, Phase 4: `src/hutch/data/compat.json` is unchanged. A catalogue row is a public
+  compatibility claim and this phase's evidence is one host; Phase 8 owns the row, as Phase 2
+  decided.
+- 2026-11-06, Phase 4 visual: the plan is a full-width table row, not content in the narrow
+  nowrap install cell, with a 720 px readable cap. The state span and the "or run" hint wrap
+  in the cell. No template or CSS file changed; the styles are applied by the install script.
 
 ## Owner questions (ask once, batched)
 
@@ -163,9 +207,38 @@ Still open (ask at the phase that needs it):
   `bad_request` observation and `load_fixed_runtime` catches it too; one regression test. The
   4-file runtime set then passed 127.
 
+- 2026-11-06, Phase 4 review: the first real panel view showed the preflight in a narrow
+  nowrap table cell: the model-directory path and warnings were clipped at every width, and
+  the "download time unknown" sentence was duplicated between the facts and the warning list.
+  Fixed by rendering the plan as a full-width table row, capping it at a readable 720 px,
+  wrapping the summary/warnings, and removing the duplicate warning; re-captured and viewed.
+- 2026-11-06, Phase 4 review: the running/cancelled text and the secondary "or run" hint sat
+  in the same nowrap cell and clipped at 360. The install cell now wraps its state span, hint
+  and code text; the 360 re-capture shows the full hint (`scrollWidth == clientWidth`).
+- 2026-11-06, Phase 4 review: `model_install.py` reached 407 lines and
+  `import_local_model` 66 lines, and `_read_events` was unused. Split the job record and
+  event folding into `providers/install_jobs.py`, split the import into focused helpers, and
+  removed the dead reader. Current files: `model_install.py` 249, `install_jobs.py` 158,
+  `model_import.py` 235, `install_plan.py` 229, `install_errors.py` 134, `model_names.py`
+  127; no Python function over 60 lines.
+- 2026-11-06, Phase 4 review: the runtime preallocates the `-partial` blob file to the full
+  blob size, so its file size is not progress. The resume evidence uses the job byte
+  counters (44,076,255 cancelled -> 46,717,902 resumed) and this is recorded rather than
+  inferring progress from the filesystem.
+- 2026-11-06, Phase 4 review: no credential reaches a job, page, result or log. The captured
+  sign-in URL with `key=...` is redacted in the classifier, the import's runtime error is
+  redacted, and the import response contains no token. The endpoint requires CSRF and
+  rejects non-GGUF, split, missing and cloud-tagged inputs before touching the runtime.
+- 2026-11-06, Phase 4 gates: the 7-file unit/API set passed 145; `tests/e2e/test_model_install.py`
+  passed 3 (install, cancel, keyboard preflight); `npm run check:agent` passed (context
+  hygiene, tool contracts, constitution, agent map); `npm run audit:context` passed;
+  `scripts/audit_emoji.py` reports only the pre-existing `.codewhale/state` file, not a
+  Phase 4 file. `/code-review` and `/simplify` are not available in this session; the phase
+  diff was re-read manually and the findings above were fixed.
+
 ## Open items and deferred
 
-- G1, G2, G3, G4, G6, G7 fixes: Phases 1, 2 and 4.
+- G2, G3, G4 and G7 fixes: Phases 1 and 2. G1 and G6 are closed in Phase 4.
 - G5 live Strict Offline: Phase 6.
 - Phase 3 not run: a 4 GB cold load (budget), a 60-minute LM Studio TTL wait, a 5-minute
   Ollama keep-alive wait, an older Ollama/LM Studio installation for the upgrade path, GPU
@@ -173,6 +246,17 @@ Still open (ask at the phase that needs it):
   restart and reload paths were exercised live and are recorded in the ledger.
 - vLLM and SGLang: not installed (dependency decision needed); OpenAI-compatible seam only.
 - LM Studio API-token mode from the CLI: not found in this pass; GUI setting documented.
+- Phase 4 not run: a gated Hugging Face pull (no token or gated repo); LM Studio's native
+  download as a Hutch surface (deliberately guided: no cancel/catalog API); vLLM/SGLang
+  install; the visible import form and the full local-runtimes/state matrix (Phase 7); a
+  hand-written Modelfile with a custom template (the create API path is covered by the
+  GGUF import and a real `/api/show`, not by a custom template body). The 4 GB-class pull
+  remains below the download budget; the 1.9 GiB page pull is the multi-gigabyte case.
+- Phase 4 kept `qwen2.5-coder:3b` (1.9 GiB) and `qwen3:1.7b` (1.4 GiB) for Phase 5's
+  three-model tool bench. New downloads this phase: 3.3 GiB plus about 0.3 GB in the
+  failed tmpfs; total run footprint still under the 10 GB budget.
+- `src/hutch/data/compat.json` rows for install/import remain Phase 8 (one host, one
+  runtime; a catalogue row is a public claim).
 - Phase 0 artifacts total 40 PNGs plus the capture JSON; kept under
   `docs/realignment/artifacts/offline-models-2026-11/`.
 
@@ -310,9 +394,6 @@ Still open (ask at the phase that needs it):
   an exact not-run reason; the only deviation is the 4 GB model (budget) and the old-runtime
   upgrade path (no old runtime installed). Phase 3 is done.
 
-Next phase: Phase 4, get a model (install, import, guide): G1 name grammar, G6 disk preflight,
-failure and resume, other-runtime decisions, and the real multi-gigabyte pull through the page.
-
 ### Phase 4 checkpoints
 
 - 2026-11-06, Phase 4 research: `docs/research/2026-11-offline-models/05-PHASE4-INSTALL.md`
@@ -332,5 +413,25 @@ failure and resume, other-runtime decisions, and the real multi-gigabyte pull th
 - 2026-11-06, Phase 4 baseline: retained Ollama 0.40.13 up on 127.0.0.1:11434 with
   `~/.hutch-tmp/localmodels/models` (3.8 GB); filesystem 70.4 GiB free; models
   `qwen3:0.6b`, `qwen2.5-coder:1.5b`, `qwen3:4b`, plus the Phase 1 cloud stubs. Real pull
-  target `qwen2.5:3b` (1.9 GB, Q4_K_M, Qwen Research License, tools) is not installed.
+  target `qwen2.5-coder:3b` (1.9 GiB, Q4_K_M, Qwen Research License, tools) is in the
+  catalog and not installed; `qwen2.5:3b` is the same size but has no catalog entry and
+  therefore no Install button on the page.
+- 2026-11-06, Phase 4 live: the plan/Confirm/cancel/resume run through Chromium against the
+  real app and Ollama is in the evidence ledger above (`p4-pull-page.json`); the second
+  pull (`p4-second-pull.json`), the real disk-full/no-route pulls, and the real import
+  (reuse and 1.93 GB upload) are there too. Screenshots are under
+  `docs/realignment/artifacts/offline-models-2026-11/p4-install/`; the plan panel, running,
+  cancelled and resumed states were viewed at 360/768/1280/1920, with zero horizontal
+  overflow and zero page/console errors.
+- Phase 4 exit checks: G1 is closed by `tests/test_model_names.py` and the live grammar
+  table; G6 by the server-side preflight, the measured-rate job, the real 1.9 GiB
+  cancel/resume, and the real disk-full/no-route captures. EC-15, EC-20 and EC-23 are
+  marked with evidence; the only not-run items are the gated Hugging Face pull, LM
+  Studio/vLLM/SGLang install surfaces (guided by decision), and the visible import/state
+  matrix (Phase 7). Phase 4 is done.
+
+Next phase: Phase 5, multimodal and tool reliability on real local models: vision end to
+end on Ollama and llama.cpp with real images, audio/speech where the runtime does it
+natively, three-model tool-call qualification per runtime, reasoning-budget handling, and
+the embeddings/memory offline check.
 
