@@ -145,6 +145,68 @@ def _details(meta: Optional[ModelMeta]) -> dict[str, Any]:
             "max_context": meta.max_context, "size_bytes": meta.size_bytes}
 
 
+def _provider_name(provider: Any) -> str:
+    return getattr(provider, "name", "ollama")
+
+
+def _installed_models(provider: Any) -> list[ModelMeta]:
+    try:
+        return list(provider.list_models())
+    except Exception as exc:
+        raise ProviderError("unreachable", f"could not read the runtime's model list: {exc}",
+                            provider=_provider_name(provider)) from None
+
+
+def _license_choice(license_text: Optional[str], path: Path) -> tuple[str, str]:
+    supplied = (license_text or "").strip()
+    if supplied:
+        return supplied, "provided"
+    supplied, sidecar_name = _sidecar_license(path)
+    return supplied, f"sidecar: {sidecar_name}" if supplied else ""
+
+
+def _create_with_blob(provider: Any, model: str, info: GgufInfo, digest: str, supplied: str) -> None:
+    try:
+        if not provider.blob_exists(digest):
+            provider.put_blob(digest, info.path)
+        events = provider.create_model(model, {info.path.name: digest},
+                                       license_text=supplied or "", parameters=None)
+        for event in events:
+            if event.get("error"):
+                raise ProviderError("other", redact_secrets(str(event["error"])),
+                                    provider=_provider_name(provider))
+    except ProviderError as exc:
+        raise ProviderError(exc.kind, redact_secrets(str(exc)), provider=exc.provider,
+                            status=exc.status) from None
+    except OSError as exc:
+        raise ProviderError("other", redact_secrets(f"could not import {info.path.name}: {exc}"),
+                            provider=_provider_name(provider)) from None
+
+
+def _confirm_imported(provider: Any, model: str) -> None:
+    try:
+        present = any(same_model(model, meta.name) for meta in provider.list_models())
+    except Exception as exc:
+        raise ProviderError("unreachable", f"the runtime did not list the imported model: {exc}",
+                            provider=_provider_name(provider)) from None
+    if not present:
+        raise ProviderError("other", "the runtime reported success but does not list the imported model",
+                            provider=_provider_name(provider))
+
+
+def _show_meta(provider: Any, model: str) -> Optional[ModelMeta]:
+    try:
+        return provider.show(model)
+    except Exception:
+        return None
+
+
+def _license_source(supplied_source: str, runtime_license: str) -> str:
+    if supplied_source:
+        return supplied_source
+    return "runtime" if runtime_license else "none"
+
+
 def import_local_model(provider: Any, path: str, name: str, *, expected_sha256: Optional[str] = None,
                        license_text: Optional[str] = None) -> ImportResult:
     """Import one local GGUF and confirm it in the runtime's registry."""
@@ -154,60 +216,20 @@ def import_local_model(provider: Any, path: str, name: str, *, expected_sha256: 
     if expected and not hmac.compare_digest(expected, info.sha256):
         raise ValueError(f"the file's SHA-256 is {info.sha256[:16]}..., which does not match "
                          f"the expected {expected[:16]}...")
-
-    try:
-        installed = provider.list_models()
-    except Exception as exc:
-        raise ProviderError("unreachable", f"could not read the runtime's model list: {exc}",
-                            provider=getattr(provider, "name", "ollama")) from None
-    if any(same_model(model, meta.name) for meta in installed):
+    if any(same_model(model, meta.name) for meta in _installed_models(provider)):
         raise ProviderError("bad_request", f"{model} is already installed; remove it before importing",
-                            provider=getattr(provider, "name", "ollama"))
+                            provider=_provider_name(provider))
 
-    supplied = (license_text or "").strip()
-    supplied_source = "provided" if supplied else ""
-    if not supplied:
-        supplied, sidecar_name = _sidecar_license(info.path)
-        supplied_source = f"sidecar: {sidecar_name}" if supplied else ""
-
+    supplied, supplied_source = _license_choice(license_text, info.path)
     digest = f"sha256:{info.sha256}"
-    try:
-        if not provider.blob_exists(digest):
-            provider.put_blob(digest, info.path)
-        events = provider.create_model(model, {info.path.name: digest},
-                                       license_text=supplied or "", parameters=None)
-        for event in events:
-            if event.get("error"):
-                raise ProviderError("other", redact_secrets(str(event["error"])),
-                                    provider=getattr(provider, "name", "ollama"))
-    except ProviderError as exc:
-        raise ProviderError(exc.kind, redact_secrets(str(exc)), provider=exc.provider,
-                            status=exc.status) from None
-    except OSError as exc:
-        raise ProviderError("other", redact_secrets(f"could not import {info.path.name}: {exc}"),
-                            provider=getattr(provider, "name", "ollama")) from None
+    _create_with_blob(provider, model, info, digest, supplied)
+    _confirm_imported(provider, model)
 
-    try:
-        present = any(same_model(model, meta.name) for meta in provider.list_models())
-    except Exception as exc:
-        raise ProviderError("unreachable", f"the runtime did not list the imported model: {exc}",
-                            provider=getattr(provider, "name", "ollama")) from None
-    if not present:
-        raise ProviderError("other", "the runtime reported success but does not list the imported model",
-                            provider=getattr(provider, "name", "ollama"))
-
-    meta: Optional[ModelMeta] = None
-    try:
-        meta = provider.show(model)
-    except Exception:
-        meta = None
+    meta = _show_meta(provider, model)
     runtime_license = (meta.license if meta is not None else "").strip()
-    final_license = runtime_license or supplied
-    source = supplied_source.split(":", 1)[0] or ("runtime" if runtime_license else "none")
-    if supplied_source.startswith("sidecar:"):
-        source = supplied_source
     return ImportResult(model=model, path=str(info.path), size_bytes=info.size_bytes,
-                        sha256=info.sha256, digest=digest, license_text=final_license,
-                        license_source=source,
+                        sha256=info.sha256, digest=digest,
+                        license_text=runtime_license or supplied,
+                        license_source=_license_source(supplied_source, runtime_license),
                         capabilities=list(meta.capabilities) if meta is not None else [],
                         details=_details(meta))
