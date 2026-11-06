@@ -234,6 +234,7 @@
       note.hidden = true;
       return;
     }
+    note.hidden = false;
     const causes = [];
     if (Number(totals.failed_last_24h || 0)) causes.push(`${Number(totals.failed_last_24h)} with a failed last run`);
     if (Number(totals.pending_approvals || 0)) causes.push(`${Number(totals.pending_approvals)} waiting for approval`);
@@ -265,6 +266,7 @@
     if (!toggle || !count) return;
     const ready = state.roll !== null;
     toggle.disabled = !ready || rows.length === 0;
+    if (!ready) toggle.checked = false;
     const only = ready && state.filter;
     let visible = 0;
     rows.forEach(row => {
