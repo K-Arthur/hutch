@@ -8,7 +8,7 @@ covers before relying on it.
 
 | Phase | Status | Last commit | Live-verified | Blocked on |
 |---|---|---|---|---|
-| 0 Diagnose | done | (recorded below) | 2026-11-06: Ollama 0.40.13/0.40.15, llama.cpp b12144 CPU+Vulkan, LM Studio llmster 0.0.27-1, Chromium captures | — |
+| 0 Diagnose | done | 33bf8a61 | 2026-11-06: Ollama 0.40.13/0.40.15, llama.cpp b12144 CPU+Vulkan, LM Studio llmster 0.0.27-1, Chromium captures | — |
 | 1 Locality truth | not started | | | |
 | 2 Native runtime introspection | not started | | | |
 | 3 Lifecycle states and errors | not started | | | |
@@ -111,6 +111,9 @@ Still open (ask at the phase that needs it):
 - 2026-11-06, Phase 0: the first capture pass labelled "light" images that rendered dark.
   Cause: the dashboard is fixed dark and no linked stylesheet reads `data-hutch-theme`.
   Fixed the harness to capture the real state and recorded the reason; no product change.
+- 2026-11-06, Phase 0: `scripts/audit_emoji.py` reports 8 pictographic findings, all in
+  `.codewhale/state/subagents.v1.json` (another actor's state directory). None is in a
+  Phases 0 file; not touched.
 
 ## Open items and deferred
 
