@@ -193,3 +193,24 @@ check. The Tencent Token Plan is blocked by its terms and has no template (ADR-0
   template or a live check.
 - **Custom OpenAI/Anthropic endpoints.** ADR-0034 address policy, pinned transport, layered test. Statuses are
   unchanged (implemented-unverified).
+
+## Phase 6 routes (2026-11-06): media, speech and search, identities not verified behavior
+
+- **Source of truth:** `src/hutch/data/media-routes.json` (ADR-0036). Fourteen routes are protocol-tested only; three
+  are documented because the wire was not read (Runway, MiniMax Hailuo, Google Gemini Omni Flash); two are retired
+  (OpenAI Sora 2 and the Videos API, 2026-09-24; Google Veo preview, 2026-10-22).
+- **What the tests prove:** the request each route builds, how each answer is read, and how failures are told apart
+  (envelope in a 200, refusal, empty result, rate limit, transient poll failure), against `httpx.MockTransport`
+  replies shaped after vendor documentation. They prove nothing about a vendor's live behavior.
+- **What the real-stack run proves:** `docs/realignment/run_media_resume_check.py` (record in
+  `artifacts/provider-expansion-2026-11/phase6/media-resume-run.json`) SIGKILLs a process after a stand-in provider
+  answered, then a real `hutch serve` on the same state finishes the job with one provider request. The provider
+  is a stand-in; this is evidence about Hutch's recovery, ledger and routes only.
+- **Not exercised:** any vendor request. No provider key existed in the environment (OpenAI, Anthropic, Google,
+  xAI, MiniMax, fal, ElevenLabs, Deepgram, Runway and PixVerse variables were all unset), so every route is
+  `blocked: no credential` for live purposes. No real ComfyUI server was available either.
+- **Open wire questions (recorded, not guessed):** xAI image field names beyond `model` and `prompt` come from
+  OpenClaw; the Google Interactions API has no documented way to stop Google keeping an interaction, so none is
+  sent; the Runway request fields and status list come from third-party summaries; MiniMax's query and
+  file-retrieve responses were not read; Deepgram and ElevenLabs maximum lengths are the pages' or Hutch's own.
+

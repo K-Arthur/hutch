@@ -446,6 +446,26 @@ text to speak travels in the `assistant` message, and an optional style instruct
   output, streaming synthesis, the voice-design and voice-clone models, and the cn/ams hosts are not offered
   or not live-verified. A stored clip was synthesized and round-trip transcribed on 2026-10-31.
 
+### Image, video and other speech routes (2026-11-06)
+
+Besides the chat-completions `speech` block above, `create_media` can use the rows in
+`src/hutch/data/media-routes.json` (ADR-0036). A route that names connection templates (`xai`, `minimax`,
+`google-gemini`, `openai-api`) uses that connection's key, endpoint and billing relationship, and its backend is
+named `<route>:<connection>`, for example `xai-image:xai`. A route for a vendor with no chat connection (fal,
+PixVerse, ElevenLabs, Deepgram) reads one named environment variable and is labeled **ambient** in the approval:
+a key in the environment is not a decision made in Hutch.
+
+- The approval names who receives the prompt, the credential and where it came from, the endpoint, the billing
+  relationship, and a dated cost estimate with its basis or "cost unknown". It never shows a key.
+- With more than one capable backend, `create_media` refuses and lists them; pass `backend_hint` with the exact
+  name. An ambient `OPENAI_API_KEY` and a configured OpenAI connection are two backends.
+- A request outside the route's documented limits (prompt length, seconds, voice, style) is refused before the
+  prompt, with the number.
+- A job that is still running when the call returns can be listed, advanced or cancelled from the media jobs API
+  (`GET /api/v1/media/jobs`, `POST /api/v1/media/jobs/{id}/advance`, `.../cancel`). Those routes are local-owner
+  only.
+- No route here has been exercised against a vendor account; all are implemented-unverified.
+
 ### Provider-native search routes (2026-10-31)
 
 A connection can also declare a `search` block. When it does, the `search_web` tool asks that account's

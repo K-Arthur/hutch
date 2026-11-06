@@ -124,6 +124,48 @@ implemented-unverified: the hosts were probed without a key and nothing was call
   accounts (Gemini and Claude), Entra ID, Cloudflare AI Gateway (account and gateway ids in the URL, a second
   auth header, and a vendor-deprecated `/compat` path), Alibaba workspace endpoints. No dependency was added.
 
+## Media, speech and search routes (2026-11-06)
+
+Media routes are rows in `src/hutch/data/media-routes.json`, validated by `media/providers/route_spec.py` and
+driven by two backends (ADR-0036): `sync` returns the media in one request and `task` submits, polls and fetches.
+The table is the support claim for media, and every buildable row is `implemented-unverified`: no vendor account
+exercised any of them.
+
+| Route | Kind | Protocol | Credential | Status |
+|---|---|---|---|---|
+| `xai-image`, `xai-video`, `xai-speech` | image, video, audio | sync, task, sync | `xai` connection | implemented-unverified |
+| `minimax-image`, `minimax-speech` | image, audio | sync | `minimax` connection | implemented-unverified |
+| `google-image`, `google-speech` | image, audio | sync (Interactions API) | `google-gemini` connection | implemented-unverified |
+| `openai-image`, `openai-speech` | image, audio | adapter, sync | `openai-api` connection | implemented-unverified |
+| `fal-image`, `fal-video` | image, video | task | `FAL_KEY` (ambient) | implemented-unverified |
+| `pixverse-video` | video | task | `PIXVERSE_API_KEY` (ambient) | implemented-unverified |
+| `elevenlabs-speech`, `deepgram-speech` | audio | sync | environment variable (ambient) | implemented-unverified |
+| `runway-video`, `minimax-video`, `google-omni-video` | video | task | - | documented (wire not read) |
+| `openai-video` (Sora 2), `google-veo` | video | - | - | retired 2026-09-24, 2026-10-22 |
+| ComfyUI | image, video | task (local) | `HUTCH_COMFYUI_URL` | implemented-unverified |
+
+Rules that hold for every route:
+
+- A backend exists only where a credential does, and the approval names the connection or environment variable,
+  the endpoint, the billing relationship and who receives the prompt. When several backends can produce a kind the
+  tool refuses and names them; it never picks between accounts.
+- A paid synchronous result is written to the spool before `submit` returns, so a crash does not lose it and
+  recovery needs no second request. A task job needs only the id in the ledger.
+- An HTTP 200 is not success. A failure envelope, a refusal marker or a response with no media is reported as
+  such, with a note that the provider may have billed. Nothing is retried.
+- A refusal (OpenAI `moderation_blocked`, MiniMax 1026, PixVerse status 7, a fal safety flag) is the `refused`
+  status with the provider's reason.
+- The approval shows a dated estimate with its basis, or says the cost is unknown. Only Google image and speech
+  have a readable price; every other route is `unpriced` and says so.
+- Jobs outlive the tool call: `GET /api/v1/media/jobs`, `POST /api/v1/media/jobs/{id}/advance` and `.../cancel`.
+  A cancel is confirmed only when the provider says so; otherwise the job is `cancel_unconfirmed`.
+- Audio is stored as wav. Every speech route requests wav. mp3, streaming synthesis, music, image editing and
+  voice cloning are not built.
+
+`live_search` (Hutch's own grounding fan-out) and provider-native search stay different capabilities. Provider
+search for OpenAI ($10 per 1,000 calls), Google grounding (5,000 free a month, then $14 per 1,000) and xAI ($5 per
+1,000 tool calls) is documented, not built, because their request shapes were not read this phase.
+
 ## Capability and readiness rules
 
 - Levels are documented, advertised, observed and live-verified, scoped to provider, endpoint,
@@ -173,8 +215,9 @@ were not exercised anywhere.
   Anthropic SDK path is checked before each call but not pinned; an environment proxy resolves the name itself;
   vendor hosts are exempt from the name rule; the private-address path was not run live (no LAN peer).
 - Media expansion is partly shipped: speech-to-text and connection-scoped speech synthesis are
-  implemented and live-verified against one account, and the synthesized clip was round-trip
-  transcribed. The two-host audio-overview pipeline remains for podcast rendering. Provider-native
+  implemented and live-verified against one account (Xiaomi), and the synthesized clip was round-trip
+  transcribed. Phase 6 added protocol-tested routes for other providers (see "Media, speech and search
+  routes"); none is live-verified. The two-host audio-overview pipeline remains for podcast rendering. Provider-native
   search is implemented but **blocked on account entitlement**: the vendor refused the documented
   request because the account's web-search plugin is not activated, so no live citation was ever
   parsed. Video, music, image editing, streaming synthesis, mp3/pcm output remain
