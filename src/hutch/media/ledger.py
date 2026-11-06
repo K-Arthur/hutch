@@ -46,3 +46,13 @@ def describe(row: dict[str, Any]) -> dict[str, Any]:
                                   f"{result.get('version', 1)}/content"}
                   if result.get("media_id") else None),
     }
+
+
+def sweep_orphans(store: Any, spool: Any, *, older_than_seconds: float = 7 * 86400.0) -> int:
+    """Remove held results nothing references: entries of jobs that are no longer open and are
+    older than the bound. A held result of a job still open is never touched."""
+    with store._lock:
+        rows = store._db.execute(
+            "SELECT upstream_job_id FROM media_jobs WHERE status IN ('queued','running') "
+            "AND upstream_job_id IS NOT NULL").fetchall()
+    return spool.sweep(keep={row[0] for row in rows}, older_than_seconds=older_than_seconds)

@@ -10,9 +10,9 @@ evidence about any vendor, and every route it touches stays implemented-unverifi
       --state /tmp/some/empty/dir --port 18895 --out docs/realignment/artifacts/provider-expansion-2026-11/phase6/media-resume-run.json
 
 Steps: (1) a victim process submits a speech job (the stand-in answers and "bills"), then kills
-itself before storing anything; (2) a real server starts on the same state directory and lists the
+itself before storing anything (the paid bytes are in the spool); (2) a real server starts on the same state directory and lists the
 open job; (3) advance finishes it with exactly one provider request and the served bytes hash to the
-stand-in's bytes; (4) a video job is advanced while the stand-in says pending, then done; (5) a
+stand-in's bytes and the spool entry is released; (4) a video job is advanced while the stand-in says pending, then done; (5) a
 second video job is cancelled and, because xAI documents no cancel call, ends cancel_unconfirmed;
 (6) a MiniMax image request answered with status 1026 ends as a refusal.
 """
@@ -197,7 +197,8 @@ def main() -> int:
         served = fetch_bytes(base + media["content_url"]) if media else b""
         step("advance-speech", action=advanced["action"], status=advanced["job"]["status"],
              sha256_served=hashlib.sha256(served).hexdigest(), sha256_expected=hashlib.sha256(WAV).hexdigest(),
-             bytes_match=served == WAV, provider_tts_requests=StandIn.counts.get("/v1/tts", 0))
+             bytes_match=served == WAV, provider_tts_requests=StandIn.counts.get("/v1/tts", 0),
+             spool_entries_after=sorted(p.name for p in (state / "media" / "spool").glob("spool_*")))
 
         # 4. a video job: pending, then done
         out = victim("video", "xai-video:xai", "waves on a shore", "k-video")
@@ -225,7 +226,9 @@ def main() -> int:
 
         everything = json.dumps(record) + json.dumps(listing) + json.dumps(advanced)
         record["secrets_in_record"] = any(s in everything for s in ("sk-standin-secret", "mm-standin-secret"))
+        spool_left = record["steps"][2]["spool_entries_after"]
         ok = (advanced["action"] == "finalized" and served == WAV and StandIn.counts.get("/v1/tts") == 1
+              and spool_left == []
               and done["action"] == "finalized" and vserved == MP4
               and cancelled["job"]["status"] == "cancel_unconfirmed" and refused["status"] == "refused"
               and not record["secrets_in_record"])

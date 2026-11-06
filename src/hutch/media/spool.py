@@ -173,3 +173,16 @@ class ResultHold:
         if self._spool is not None:
             self._spool.discard(handle)
         self._memory.pop(handle, None)
+
+
+def release_hold(backend: object, job: dict) -> None:
+    """Ask a backend to drop its held copy after the media store committed the bytes.
+
+    A failure here is never the user's problem: the stored media is the truth, and a leftover entry
+    is removed by :func:`hutch.media.ledger.sweep_orphans`."""
+    release = getattr(backend, "release", None)
+    if callable(release):
+        try:
+            release(job)
+        except Exception:  # noqa: BLE001 - housekeeping must not fail a finished job
+            pass

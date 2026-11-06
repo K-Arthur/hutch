@@ -6,14 +6,14 @@
       "step": "victim-killed",
       "returncode": -9,
       "signal": true,
-      "job": "mj_af4c674e24bdbb15",
+      "job": "mj_c7cead9d096d8a82",
       "provider_tts_requests": 1
     },
     {
       "step": "open-jobs",
       "jobs": [
         [
-          "mj_af4c674e24bdbb15",
+          "mj_c7cead9d096d8a82",
           "running",
           "xai-speech:xai"
         ]
@@ -26,7 +26,8 @@
       "sha256_served": "58a2f64e4937368f19c47cca70b3f448914fffbb29b10e81ccaf04a99ba7eff4",
       "sha256_expected": "58a2f64e4937368f19c47cca70b3f448914fffbb29b10e81ccaf04a99ba7eff4",
       "bytes_match": true,
-      "provider_tts_requests": 1
+      "provider_tts_requests": 1,
+      "spool_entries_after": []
     },
     {
       "step": "advance-video",

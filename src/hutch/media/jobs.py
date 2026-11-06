@@ -2,27 +2,11 @@
 ``record_upstream_job`` / ``transition_media_job``.
 
 Status vocabulary. The v54 ``media_jobs.status`` CHECK allows exactly
-``queued|running|succeeded|failed|cancelled``, so the service maintains its own
-caller-facing vocabulary on top and maps it honestly:
-
-=========================================  =========================================
-service status                             store representation
-=========================================  =========================================
-``submitting``                             ``queued`` (no upstream id yet: not accepted)
-``running``                                ``running``
-``succeeded``                              ``succeeded`` (+ ``result`` payload)
-``failed``                                 ``failed`` (+ ``error``)
-``cancelled``                              ``cancelled`` (backend confirmed)
-``cancel_unconfirmed``                     ``failed`` + ``error`` starting
-                                           ``cancel_unconfirmed:`` + cost note
-=========================================  =========================================
-
-``cancel_unconfirmed`` is a REAL, reportable state, never silently rewritten to
-``cancelled``: the backend did not confirm the cancellation, so the upstream job
-may still be running and billing. The store row is marked ``failed`` (of the five
-enumerated store states it is the only honest terminal choice, the job did not
-succeed and was not confirmed cancelled) and the error/cost note carry the truth;
-:func:`MediaJobService.service_status` restores the precise state for callers.
+``queued|running|succeeded|failed|cancelled``, so the service keeps its own caller-facing
+vocabulary on top (``submitting``, ``cancel_unconfirmed``, ``refused``) and maps it honestly; the
+table and the wording live in :mod:`hutch.media.status`. ``cancel_unconfirmed`` and ``refused`` are
+REAL, reportable states, never rewritten to ``cancelled`` or a generic failure: the first means the
+upstream job may still be running and billing, the second means the provider declined the request.
 
 Billing discipline (failure class A.2 in ``docs/research/outputs-failures-2026-10-10.md``):
 
@@ -48,6 +32,7 @@ from ..store import IdempotencyConflict, Store
 from . import validate as media_validate
 from .providers.base import MediaBackend, MediaRefused
 from .status import CANCEL_UNCONFIRMED_PREFIX as _CANCEL_UNCONFIRMED_PREFIX
+from .spool import release_hold
 from .status import failure_cost_note, failure_text, service_status, submit_failure
 from .storage import (MAX_MEDIA_BYTES, MediaStorage, MediaStorageError,
                       new_job_id, new_media_id)
@@ -410,6 +395,7 @@ class MediaJobService:
             return {}, self._fail(job_id, f"the result could not be committed: {exc}",
                               "the bytes were validated but never recorded; the provider "
                               "charge may stand")
+        release_hold(backend, row)
         final = self.store.get_media_job(job_id) or {}
         return payload, final
 

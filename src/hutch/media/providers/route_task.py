@@ -33,10 +33,10 @@ class TaskRouteBackend(RouteBackendBase):
         except RouteInputError as exc:
             raise RouteBackendError(str(exc)) from exc
         spec = self.route.request
+        path, request_body = self._build(spec, values)
         try:
             response = self._http.send(
-                str(spec.get("method", "POST")), fill_path(spec["path"], values),
-                headers=self._headers(), body=fill(spec.get("body"), values),
+                str(spec.get("method", "POST")), path, headers=self._headers(), body=request_body,
                 params=fill(spec.get("query") or {}, values) or None, may_bill=True)
             body = response.json()
             self._raise_envelope(body, self.route.task.get("envelope"))

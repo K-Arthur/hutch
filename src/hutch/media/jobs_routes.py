@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException
 from . import resume
 from .backends import build_backends
 from .jobs import MediaJobService
-from .ledger import get_job, list_jobs
+from .ledger import get_job, list_jobs, sweep_orphans
 from .spool import MediaSpool
 from .storage import MediaStorage
 
@@ -43,6 +43,10 @@ def build_jobs_router(store: Any, media_store: MediaStorage, state_dir: Path | N
 
     @router.get("/api/v1/media/jobs")
     def jobs(open: bool = True, limit: int = 50) -> dict[str, Any]:
+        try:                       # housekeeping: week-old held results of finished jobs
+            sweep_orphans(store, MediaSpool(media_store.root))
+        except OSError:
+            pass
         return {"jobs": list_jobs(store, open_only=open, limit=limit)}
 
     @router.get("/api/v1/media/jobs/{job_id}")

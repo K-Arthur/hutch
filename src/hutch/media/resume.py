@@ -20,7 +20,7 @@ from typing import Any
 from .cost import estimate
 from .jobs import TERMINAL_STATUSES, MediaJobError, MediaJobService
 from .ledger import describe
-from .usage import record_media_usage
+from .usage import measured_usage, record_media_usage
 
 
 def default_alt_text(kind: str, prompt: str) -> str:
@@ -59,26 +59,32 @@ def _finalize(service: MediaJobService, store: Any, backend: Any, row: dict[str,
     kind = str(row["kind"])
     probe = getattr(backend, "duration_seconds", None)
     duration = probe(row) if kind == "audio" and callable(probe) else None
+    spoken = measured_usage(backend, kind, row)         # before finalize releases the held copy
     try:
         _, final = service.finalize(row["id"], alt_text=default_alt_text(kind, prompt),
                                     duration_seconds=duration)
     except MediaJobError as exc:
-        return {"action": "failed", "note": str(exc), "job": describe(service.status(row["id"]) or row)}
+        current = service.status(row["id"]) or row
+        if current["status"] in TERMINAL_STATUSES:       # another request finished it first
+            return {"action": "none", "note": "the job was finished by another request",
+                    "job": describe(current)}
+        return {"action": "failed", "note": str(exc), "job": describe(current)}
     if final.get("status") != "succeeded":
         return {"action": "failed", "note": str(final.get("error") or ""), "job": describe(final)}
-    note = _usage(service, store, backend, kind, row, requested)
+    note = _usage(store, backend, kind, row, requested, spoken)
     return {"action": "finalized", "note": note, "job": describe(final)}
 
 
-def _usage(service: MediaJobService, store: Any, backend: Any, kind: str, row: dict[str, Any],
-           requested: dict[str, Any]) -> str:
+def _usage(store: Any, backend: Any, kind: str, row: dict[str, Any], requested: dict[str, Any],
+           spoken: Any) -> str:
     run = store.get_run(str(row["run_id"]))
     if run is None:
         return "usage was not recorded: the run that started this job no longer exists"
     price = getattr(getattr(backend, "route", None), "price", "")
     detail = {"cost_basis": estimate(price, requested).as_dict()}
     note, _, _ = record_media_usage(store, run_id=run.id, bot_id=run.bot_id, backend=backend,
-                                    kind=kind, job=row, request=requested, detail=detail)
+                                    kind=kind, job=row, request=requested, detail=detail,
+                                    spoken=spoken)
     return note
 
 

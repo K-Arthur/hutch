@@ -149,6 +149,12 @@ class SpeechBackend:
                           "may have billed the request and the audio was never stored. "
                           "Hutch does not regenerate it automatically")}
 
+    def release(self, job: dict[str, Any]) -> None:
+        handle = str(job.get("upstream_job_id") or "")
+        if handle:
+            self._hold.discard(handle)
+            self._results.pop(handle, None)
+
     def can_recover(self, job: dict[str, Any]) -> bool:
         return self._hold.durable and self._hold.has(str(job.get("upstream_job_id") or ""))
 

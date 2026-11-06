@@ -28,7 +28,7 @@ from ..media.cost import estimate
 from ..media.providers.base import MediaBackend
 from ..media.resume import default_alt_text
 from ..media.spool import MediaSpool
-from ..media.usage import record_media_usage
+from ..media.usage import measured_usage, record_media_usage
 from ..outputblocks import new_block_id, parse_blocks
 from ..safety import Decision, Verdict
 from .base import ToolContext, ToolResult, rehearsed
@@ -261,6 +261,7 @@ def _finalize(ctx: ToolContext, service: MediaJobService, backend: MediaBackend,
     alt_text = default_alt_text(kind, prompt)
     probe = getattr(backend, "duration_seconds", None)
     duration = probe(row) if kind == "audio" and callable(probe) else None
+    spoken = measured_usage(backend, kind, row)         # before finalize releases the held copy
     try:
         payload, final_row = service.finalize(row["id"], alt_text=alt_text,
                                               duration_seconds=duration)
@@ -269,17 +270,17 @@ def _finalize(ctx: ToolContext, service: MediaJobService, backend: MediaBackend,
                      "charge may stand")
     if service_status(final_row) in ("failed", "refused"):
         return _unfinished(final_row, service_status(final_row), 0, True) or _fail("error: failed")
-    usage_note = _record_usage(ctx, backend, kind, row, detail)
+    usage_note = _record_usage(ctx, backend, kind, row, detail, spoken)
     return _result(ctx, tool_name, kind, prompt, alt_text, payload, final_row, row, backend,
                    usage_note, detail)
 
 
 def _record_usage(ctx: ToolContext, backend: MediaBackend, kind: str, row: dict[str, Any],
-                  detail: dict[str, Any]) -> str:
+                  detail: dict[str, Any], spoken: Any) -> str:
     """Write the run-ledger usage row and keep the run's token counters in step."""
     note, prompt_tokens, completion_tokens = record_media_usage(
         ctx.store, run_id=ctx.run.id, bot_id=ctx.bot.id, backend=backend, kind=kind, job=row,
-        request=row.get("requested") or {}, detail=detail)
+        request=row.get("requested") or {}, detail=detail, spoken=spoken)
     if note:
         return note
     try:

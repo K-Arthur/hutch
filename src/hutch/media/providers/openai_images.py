@@ -154,6 +154,11 @@ class OpenAIImagesBackend:
         except SpoolError as exc:
             raise OpenAIImagesError(f"the held result is unusable: {exc}") from exc
 
+    def release(self, job: dict[str, Any]) -> None:
+        handle = str(job.get("upstream_job_id") or "")
+        if handle:
+            self._hold.discard(handle)
+
     def cancel(self, job: dict[str, Any]) -> Optional[dict[str, Any]]:
         # A synchronous API has nothing left to cancel once submit returned; the charge already
         # happened. Reporting 'confirmed' would be a lie.

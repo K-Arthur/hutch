@@ -95,6 +95,21 @@ class RouteBackendBase:
     def cancel(self, job: Mapping[str, Any]) -> Optional[dict[str, Any]]:
         return None
 
+    @staticmethod
+    def _build(spec: Mapping[str, Any], values: dict[str, Any]) -> tuple[str, Any]:
+        """The path and body for a request. A route that cannot be filled fails here, before
+        anything is sent, so the error never claims a billing risk that does not exist."""
+        try:
+            return fill_path(spec["path"], values), fill(spec.get("body"), values)
+        except WireError as exc:
+            raise RouteBackendError(f"{exc}; nothing was sent") from exc
+
+    def release(self, job: Mapping[str, Any]) -> None:
+        """Drop the held copy once the media store has committed the bytes."""
+        handle = str(job.get("upstream_job_id") or "")
+        if handle:
+            self._hold.discard(handle)
+
 
 class SyncRouteBackend(RouteBackendBase):
     """One request returns the finished media; the result is held before submit returns."""
@@ -105,10 +120,10 @@ class SyncRouteBackend(RouteBackendBase):
         except RouteInputError as exc:
             raise RouteBackendError(str(exc)) from exc
         spec = self.route.request
+        path, body = self._build(spec, values)
         try:
             response = self._http.send(
-                str(spec.get("method", "POST")), fill_path(spec["path"], values),
-                headers=self._headers(), body=fill(spec.get("body"), values),
+                str(spec.get("method", "POST")), path, headers=self._headers(), body=body,
                 params=fill(spec.get("query") or {}, values) or None, may_bill=True)
             data = self._media_from(response)
         except MediaHttpError as exc:
