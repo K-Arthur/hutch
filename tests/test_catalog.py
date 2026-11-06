@@ -33,7 +33,7 @@ DIR = Path(__file__).resolve().parent.parent / "src" / "hutch" / "data" / "catal
 
 
 def _digest(info) -> str:
-    bot = info.bot.model_dump(mode="json", exclude={"id", "created_at", "updated_at"})
+    bot = info.bot.model_dump(mode="json", exclude={"id", "created_at", "updated_at", "archived"})
     facts = {"category": info.category, "tagline": info.tagline, "reads": info.reads, "produces": info.produces,
              "safety": info.safety, "needs_folder": info.needs_folder}
     return hashlib.sha256(json.dumps([bot, facts], sort_keys=True).encode()).hexdigest()
