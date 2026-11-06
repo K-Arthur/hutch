@@ -25,4 +25,4 @@ serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.145"
 # Same pinned zip crate rust_xlsxwriter uses, also used to rewrite the empty-string
 # shared-string entry after saving. Pinned to the transitive version so it is not duplicated.
-zip = { version = "=4.6.1", default-features = false, features = ["deflate"] }
+zip = { version = "=9.0.5", default-features = false, features = ["deflate"] }
