@@ -36,7 +36,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, Optional
 
-from .connection_endpoints import models_base, validate_endpoints
+from .connection_endpoints import models_base, normalize_base, validate_endpoints
 
 WINDOWS = {"5h": 5 * 3600, "day": 24 * 3600, "week": 7 * 24 * 3600, "month": 30 * 24 * 3600}
 PROTOCOLS = ("openai-chat", "anthropic", "gemini")
@@ -202,9 +202,9 @@ class ConnectionBook:
             raise ValueError("OpenRouter routing controls require an OpenRouter connection")
         return Connection(
             name=name, template=row.get("template", ""), title=merged.get("title", name), protocol=proto,
-            base_url=merged["base_url"].rstrip("/"), api_key_env=merged.get("api_key_env", ""), billing=billing,
+            base_url=normalize_base(merged["base_url"]), api_key_env=merged.get("api_key_env", ""), billing=billing,
             account_id=account_id, account_daily_cost_cap_usd=account_cap, openrouter_policy=routing,
-            anthropic_base_url=(merged.get("anthropic_base_url") or "").rstrip("/"),
+            anthropic_base_url=normalize_base(merged.get("anthropic_base_url") or ""),
             models_base_url=models_base_url,
             session_header=merged.get("session_header", ""),
             user_agent=(merged.get("user_agent") or f"hutch/{_version()}").replace("{version}", _version()),

@@ -45,6 +45,10 @@ def validate_endpoints(merged: dict[str, Any]) -> None:
         if (parts.scheme not in {"http", "https"} or not host or parts.query or parts.fragment or
                 (port is not None and not 1 <= port <= 65535) or "%" in host):
             raise ValueError("connection endpoint must be an absolute HTTP(S) URL without query or fragment")
+        from .providers.endpoint_policy import literal_refusal
+        refusal = literal_refusal(host)
+        if refusal:
+            raise ValueError(refusal)
         if parts.scheme == "http":
             try:
                 loopback = ipaddress.ip_address(host).is_loopback
@@ -52,6 +56,21 @@ def validate_endpoints(merged: dict[str, Any]) -> None:
                 loopback = host == "localhost"
             if not loopback:
                 raise ValueError("connection endpoints must use HTTPS except for a loopback HTTP service")
+
+
+#: API paths a person pastes from a curl example; the root is what a connection stores. Anthropic's SDK appends
+#: ``/v1/messages`` itself, so its pasted path is removed whole.
+_PASTED_API_PATHS = ("/v1/messages", "/chat/completions", "/completions", "/models", "/responses")
+
+
+def normalize_base(url: str) -> str:
+    """The endpoint root: no trailing slash (``/v1/`` made some servers answer ``GET /v1//models`` 404) and no pasted
+    API path. Nothing is added: whether a server wants ``/v1`` is something the connectivity test can tell."""
+    cleaned = str(url or "").strip().rstrip("/")
+    for path in _PASTED_API_PATHS:
+        if cleaned.lower().endswith(path):
+            return cleaned[: -len(path)].rstrip("/")
+    return cleaned
 
 
 def origin(url: str) -> tuple[str, str, int | None]:

@@ -101,6 +101,18 @@ def _addresses(host: str, port: int, resolver: Optional[_Resolver]) -> list[str]
     return found
 
 
+def literal_refusal(host: str) -> Optional[str]:
+    """Why a host that needs no lookup (an IP literal in any spelling, or a metadata name) is refused, else None."""
+    name = host.lower().rstrip(".")
+    if name not in _METADATA_NAMES and literal_ip(name) is None:
+        return None
+    try:
+        vet(name, 0)
+    except EndpointRefused as exc:
+        return str(exc)
+    return None
+
+
 def vet(host: str, port: int, *, resolver: Optional[_Resolver] = None, vendor: bool = False,
         env: Optional[dict] = None) -> list[tuple[str, str]]:
     """Resolve ``host`` and return ``[(address, kind), ...]`` in resolver order, or raise :class:`EndpointRefused`."""
