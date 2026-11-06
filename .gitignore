@@ -28,6 +28,7 @@ node_modules/
 .coverage.*
 coverage.xml
 htmlcov/
+.codewhale
 
 # Runtime state (never commit bot workspaces, DBs, secrets, transcripts)
 .state/
