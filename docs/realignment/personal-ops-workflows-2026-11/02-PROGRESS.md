@@ -9,7 +9,7 @@ output.
 |---|---|---|---|---|
 | 0 Diagnose and baseline audit | done | 1bec95e1 | 73 focused tests passed (54.38s); 40 baseline screenshots (0 errors, 0 overflow) | none |
 | 1 Live web research and failure mining | done | c3856c3b | 8/8 owner URLs fetched live; 48 requirements and 48 failure rows cross-checked; `npm run check:agent` and `npm run audit:context` pass; emoji audit has no repository-source hits (8 hits only in git-ignored `.codewhale/state/subagents.v1.json`) | none |
-| 2 Automations trust & observability (G03, G06) | done | e7ac6411 | 2A+2B+2C: 172 focused tests; 3 Playwright tests at 360/768/1280/1920 dark and light preference; 12 captures with 0 errors and 0 overflow; dark-only theme limit recorded | none |
+| 2 Automations trust & observability (G03, G06) | done | c31b9a92 | 2A+2B+2C: 172 focused tests; 3 Playwright tests at 360/768/1280/1920 dark and light preference; 12 captures with 0 errors and 0 overflow; dark-only theme limit recorded | none |
 | 3 Inbound webhook & event triggers (G04) | not started | | | |
 | 4 Multimodal intake pipeline (chat, channels, Today) | not started | | | |
 | 5 Personal ops bridges: provenance & calendar (G08, G09) | not started | | | |
@@ -29,8 +29,8 @@ recorded in section E rather than guessed.
 |---|---|---|---|
 | 2A Schedule revision journal | done | 817c3942 | `npm run test:agent -- tests/test_schedule_history.py`: 7 passed; real SQLite migration v92; update/delete refused; no-op save writes zero rows |
 | 2B Approval checkpoints and bounded conditions | done | 69b2637b | `npm run test:agent -- tests/test_schedule_conditions.py tests/test_schedule_policy.py tests/test_schedule_approvals.py tests/test_schedule_history.py tests/test_scheduler.py tests/test_schedule_outcomes.py tests/test_schedule_durability.py tests/test_lifecycle.py tests/test_approval_cas.py`: 172 passed; real approval parks, approve releases, deny/expire skips, one notification |
-| 2C Schedules surface (filter, history, roll-call) | done | fd988138 (cleanup e7ac6411) | `uv run --frozen --no-sync pytest -q tests/e2e/test_schedule_history.py`: 3 passed; 12 captures, 0 console errors, 0 overflow; roll call, filter, keyboard history, policy save verified |
-| Phase 2 exit | done | e7ac6411 | 172 focused tests; real SQLite v93; real FastAPI statuses 200/409/422/404; real Chromium 153.0.8010.12; evidence in `06-VALIDATION-LEDGER.md` |
+| 2C Schedules surface (filter, history, roll-call) | done | fd988138 (cleanup e7ac6411, fix c31b9a92) | `uv run --frozen --no-sync pytest -q tests/e2e/test_schedule_history.py`: 3 passed; 12 captures, 0 console errors, 0 overflow; roll call, filter, keyboard history, policy save verified |
+| Phase 2 exit | done | c31b9a92 | 172 focused tests; real SQLite v93; real FastAPI statuses 200/409/422/404; real Chromium 153.0.8010.12; evidence in `06-VALIDATION-LEDGER.md` |
 
 ## Owner inputs needed (batch, ask once)
 
@@ -116,6 +116,7 @@ remains the visual reference for the next UI phase.
 | 2026-11-06 | Phase 2 | `src/hutch/server/static/schedules.js` | The MutationObserver rewrote the same attention note and parked-run text on every mutation, risking a self-trigger loop. Added idempotence guards; the e2e test still passes | fd988138 |
 | 2026-11-06 | Phase 2 | `docs/design-system.md` (theme contract) | Forcing `data-hutch-theme="light"` leaves the legacy dashboard tokens at the same dark values. The light captures are layout/overflow checks, not a shipped light theme; recorded in the ledger and operations guide | fd988138 |
 | 2026-11-06 | Phase 2 | `src/hutch/server/static/schedules.js` | Final cleanup removed an unused bulk policy fetch; the four affected screenshots were recaptured and the e2e test stayed green | e7ac6411 |
+| 2026-11-06 | Phase 2 | `src/hutch/server/static/schedules.js` | After the note was hidden once, a later positive count could leave it hidden; the disabled filter also kept a stale checked state. Both states now reset correctly and the e2e test passes | c31b9a92 |
 
 ## Open items and deferred
 

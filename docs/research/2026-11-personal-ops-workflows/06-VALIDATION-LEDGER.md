@@ -13,6 +13,7 @@ Commits under test:
 - `99ec03fc` - the occurrence read used by the history API (fix forward for an omitted file in 2B)
 - `fd988138` - fleet roll call, attention filter, history/policy disclosure and visual evidence
 - `e7ac6411` - remove the unused bulk policy fetch and recapture the four affected screenshots
+- `c31b9a92` - keep the attention note and filter state consistent after a roll-call refresh
 
 Environment:
 
