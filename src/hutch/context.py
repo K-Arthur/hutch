@@ -137,18 +137,31 @@ class ContextPlan:
     fit: Optional[Fit]
     blocked: bool
     note: str
+    #: A fixed-window runtime reports the window it actually applies. It wins over anything Hutch
+    #: wanted: the request cannot change it, and fit arithmetic must not overrule a measured value.
+    applied: Optional[int] = None
+    slots: Optional[int] = None
+    policy: str = "unknown"
 
 
-def plan_context(meta: Optional[ModelMeta], hw: Hardware, want: int, min_ctx: int, *, local: bool) -> ContextPlan:
+def plan_context(meta: Optional[ModelMeta], hw: Hardware, want: int, min_ctx: int, *, local: bool,
+                 applied: Optional[int] = None, slots: Optional[int] = None, policy: str = "unknown") -> ContextPlan:
     """Decide the window to REQUEST (LM-1). Always explicit for local models; hosted models size themselves."""
     if not local:
         return ContextPlan(None, None, False, "hosted model: the provider manages the window")
+    if applied:
+        note = f"the runtime reports {applied:,} tokens applied"
+        if slots and slots > 1:
+            note += f" per request across {slots} slots"
+        if want and want != applied:
+            note += f" (wanted {want:,}; a fixed window cannot be changed per request)"
+        return ContextPlan(applied, None, False, note, applied=applied, slots=slots, policy=policy)
     if meta is None:
         return ContextPlan(want, None, False, f"model metadata unavailable; requesting {want:,} tokens unverified")
     fit = estimate_fit(meta, hw, want, min_ctx=min_ctx)
     if fit.status == "wont_fit":
         return ContextPlan(max(fit.effective_ctx, 0) or None, fit, True, fit.reason)
-    return ContextPlan(fit.effective_ctx, fit, False, fit.reason)
+    return ContextPlan(fit.effective_ctx, fit, False, fit.reason, policy=policy)
 
 
 # ----------------------------------------------------------------- self-check (LM-2)

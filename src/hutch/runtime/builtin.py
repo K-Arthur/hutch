@@ -428,27 +428,25 @@ class BuiltinRuntime:
         if not rung.local:
             self._hosted_window_notice(ctx, run, ladder, rung, messages, specs)
             return Session(rung, provider, None, None)
-        meta = provider.show(rung.model) if rung.provider == "ollama" else None
-        num_ctx: Optional[int] = None
-        if rung.provider == "ollama":
-            if meta is None:
-                health = provider.health()
-                if not health.ok:
-                    raise ProviderError("unreachable", f"{health.detail}", provider="ollama")
-                raise ProviderError("model_missing", f"model '{rung.model}' is not installed - "
-                                                     f"`ollama pull {rung.model}`", provider="ollama")
-            from ..presets import load_presets
-            preset = load_presets(ctx.config.state_dir / "presets.json").get(bot.preset or "")
-            want = bot.num_ctx or (preset.want_ctx if preset else DEFAULT_WANT_CTX)
-            floor = min(want, preset.min_ctx if preset else 4096)
-            hardware, _ = self._admission_memory(provider, rung.model)
-            plan = plan_context(meta, hardware, want, floor, local=True)
-            if plan.blocked or not plan.num_ctx:
-                raise ProviderError("oom", f"{rung.spec} does not fit this machine: {plan.note}", provider="ollama")
-            num_ctx = plan.num_ctx
-            self._log(ctx, run, "context", f"{rung.model}: requesting a {num_ctx:,}-token window ({plan.note})",
-                      num_ctx=num_ctx, fit=plan.fit.status if plan.fit else "unknown",
-                      estimated=bool(plan.fit and plan.fit.estimated))
+        from ..presets import load_presets
+        from ..providers.local.admission import admit_local
+        preset = load_presets(ctx.config.state_dir / "presets.json").get(bot.preset or "")
+        want = bot.num_ctx or (preset.want_ctx if preset else DEFAULT_WANT_CTX)
+        floor = min(want, preset.min_ctx if preset else 4096)
+        hardware, _ = (self._admission_memory(provider, rung.model) if rung.provider == "ollama"
+                       else (self._hardware(), False))
+        admission = admit_local(rung.provider, provider=provider, base_url=getattr(provider, "base_url", ""),
+                                model=rung.model, want=want, min_ctx=floor, hardware=hardware,
+                                credential=getattr(provider, "api_key", "") if rung.provider != "ollama" else "")
+        meta, num_ctx = admission.meta, admission.num_ctx
+        if admission.blocked or (rung.provider == "ollama" and not num_ctx):
+            raise ProviderError(admission.error_kind or "server", admission.reason, provider=rung.provider)
+        self._log(ctx, run, "context",
+                  (f"{rung.model}: requesting a {num_ctx:,}-token window ({admission.note})" if rung.provider == "ollama"
+                   else f"{rung.model}: {admission.note}"),
+                  num_ctx=num_ctx, fit=admission.fit_status or ("measured" if num_ctx else "unknown"),
+                  estimated=admission.estimated, state=admission.state,
+                  **({"severity": "warn"} if not num_ctx else {}))
         # LM-3: prompt + tools vs the window the model will actually get
         if num_ctx:
             chk = check_prompt(messages, specs, num_ctx, self._turn_cap(bot, rung, run))

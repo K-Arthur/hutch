@@ -21,7 +21,6 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
 from .connections import ConnectionBook
-from .fit import estimate_fit
 from .hardware import Hardware, probe
 from .models import Bot, RuntimeKind
 from .providers.pricing import LOCAL_PROVIDERS, PriceBook
@@ -119,29 +118,8 @@ def _per_million(price) -> str:
 
 
 def _local_choices(bot: Bot, hw: Hardware, provider: Any) -> list[Choice]:
-    from .modelview import installed
-    out: list[Choice] = []
-    ollama_up = any(r.name == "ollama" and r.reachable for r in hw.runtimes)
-    if not ollama_up:
-        return out
-    want = bot.num_ctx or 16384
-    for name, meta in sorted(_cached("installed", lambda: installed(provider)).items()):
-        spec = f"ollama/{name}"
-        if not is_local(spec):
-            out.append(Choice(spec=spec, label=name, group="Hosted", state="setup", hosted=True,
-                              note="Ollama Cloud model; inference runs on ollama.com",
-                              fix="Sign in to Ollama, then use this only with Hybrid routing.",
-                              detail=["Ollama classifies this tag as a cloud model",
-                                      "Hutch has no price row for this route; cost caps refuse it until priced"]))
-            continue
-        fit = estimate_fit(meta, hw, want)
-        ok = fit.status != "wont_fit"
-        out.append(Choice(
-            spec=spec, label=name, group="On this machine", state="ready" if ok else "wont_fit",
-            note=(f"{'fits' if fit.status == 'fits' else 'tight fit'}, {fit.effective_ctx // 1024}k context"
-                  if ok else "does not fit this machine"),
-            fix="" if ok else fit.reason, detail=[fit.reason]))
-    return out
+    from .localchoices import local_choices
+    return local_choices(bot, hw, provider)
 
 
 def _hosted_choices(bot: Bot, book: PriceBook) -> list[Choice]:

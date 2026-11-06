@@ -97,7 +97,8 @@ def register_provider_pages(app: FastAPI, page: Callable, go: Callable, read_for
 
     def local_services() -> dict:
         try:
-            return probe_local_services()
+            from ..providers.local.credentials import runtime_credentials
+            return probe_local_services(credential_for=runtime_credentials(config.state_dir))
         except Exception:  # noqa: BLE001 - discovery must never break a page
             return {}
 

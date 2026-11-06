@@ -93,6 +93,36 @@ def residency_note(meta: ModelMeta) -> str:
     return ", ".join(parts)
 
 
+def local_window_notes(hw: Hardware) -> list[str]:
+    """Measured windows from non-Ollama runtimes that are actually running.
+
+    Only called when the hardware probe already found one reachable, so a models page with no
+    llama.cpp/LM Studio server does not pay for a second round of connection attempts.
+    """
+    if not any(r.reachable and r.name != "ollama" for r in hw.runtimes):
+        return []
+    from .providers.discovery import ENDPOINTS, probe_local_services
+    notes: list[str] = []
+    for row in probe_local_services(timeout=0.4, endpoints=[e for e in ENDPOINTS if e.provider_id != "ollama"]).values():
+        if not row.get("reachable"):
+            continue
+        windows = row.get("applied_context") or {}
+        slots = row.get("parallel")
+        for model, ctx in sorted(windows.items()):
+            if row.get("runtime") == "llamacpp" and slots and slots > 1:
+                slot_note = f" per request across {slots} slots"
+            elif slots and slots > 1:
+                slot_note = f" (parallel {slots})"
+            else:
+                slot_note = ""
+            notes.append(f"{row['title']} reports {model} loaded at {ctx:,} tokens{slot_note}")
+        if not windows and row.get("state") == "needs_key":
+            notes.append(f"{row['title']} is running but needs an API key before Hutch can read its models")
+        elif not windows and row.get("models"):
+            notes.append(f"{row['title']} reports no applied window; Hutch will not assume one")
+    return notes
+
+
 def installed(provider: Any) -> dict[str, ModelMeta]:
     """Installed Ollama models with the runtime's own architecture numbers (not estimates)."""
     out: dict[str, ModelMeta] = {}
@@ -148,7 +178,7 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
             sugg.append((tag, estimate_fit(meta, hw, REFERENCE_WINDOWS[0]), meta))
     sugg.sort(key=lambda t: (t[1].status == "wont_fit", t[2].params_b or 0))
     book = PriceBook(config.state_dir / "prices.json")
-    notes = list(hw.notes)
+    notes = list(hw.notes) + local_window_notes(hw)
     if not ollama_up:
         notes.append("Ollama is not running, so installed models cannot be listed. Start it with `ollama serve`; "
                      "suggestions below are estimates from the catalog.")
