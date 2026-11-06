@@ -243,3 +243,18 @@ OpenAI's pricing page was read through a summarising fetch; only gpt-4o ($2.50/$
   reliability on the user's own machine (**LM-11**).
 - No local LLM runtime exists on the development machine (4-core Ryzen 3 5300U, no usable GPU), so local-model
   behaviour was built against the documented Ollama API plus a scripted fake server, not measured on real models.
+
+## 6. Update: local runtimes now exist on the bench (2026-11-06)
+
+The last line of section 5 is superseded for the 2026-11 offline-models work. Ollama 0.40.13
+and 0.40.15, llama.cpp b12144 (CPU and Vulkan) and LM Studio llmster 0.0.27-1 were run on
+this host against real GGUFs; the integrated AMD GPU is visible to the Vulkan build while
+Ollama drops it by default. Baseline, exact fields and reproductions live in
+`docs/research/2026-11-offline-models/`.
+
+The most directly relevant competing-product failure is IncarnaMind #174: a real agent app
+decided locality from the provider URL, so an Ollama cloud model served through loopback
+passed as "on this computer" into local mode with no consent. The public fix matches the
+Hutch design: read `remote_host` / `remote_model` from `/api/tags` or `/api/show` first and
+use the `:cloud` / `-cloud` name suffix only as a fallback. That is the failure Hutch must
+not reproduce, and it is the first test in Phase 1.

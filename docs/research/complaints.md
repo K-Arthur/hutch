@@ -191,3 +191,27 @@ These are test prompts derived from specific public reports, not evidence of pre
 Site bot-blocking arms race, CAPTCHA solving, model-level hallucination/"claims done",
 vendor allowance churn, regional availability of cloud agents, frontier-model speed,
 and a per-user theme/accent picker (hutch ships one documented theme; the tokens are the contract).
+
+## Local-model runtimes (2026-11-06)
+
+Primary reports read for the 2026-11 offline-models run, with the Hutch response:
+
+- **IncarnaMind #174** — Ollama cloud models pass as local because the app classifies by
+  endpoint URL; the fix is `remote_host` / `remote_model` from `/api/tags` first, name
+  suffix second. Hutch: one locality classifier, cloud label everywhere, refusal in local
+  and offline mode, explicit consent before any cloud route.
+- **llama.cpp #26359** — `--jinja` returns a tool-call id that the model's own template
+  rejects on the echoed turn (HTTP 400 before inference). Hutch: repair or regenerate ids
+  in the tool-call path and record the model/template pair; never promise by model name.
+- **Ollama #6628** — model creation can need the archive, working files and final GGUF at
+  once; "no space left" arrives after the transfer. Hutch: preflight the runtime's own
+  model directory and show size before the button.
+- **LM Studio TTL/auto-evict and `truncateMiddle`** — a JIT model can unload after 60 idle
+  minutes, and a configured overflow policy can drop the middle of the history while
+  keeping the system prompt. Hutch: read both, show loading/eviction as states, compact or
+  refuse before overflow.
+- **Intel/AMD integrated GPU** — Ollama drops an integrated AMD GPU unless
+  `OLLAMA_IGPU_ENABLE=1`; llama.cpp's Vulkan build uses the same GPU. Hutch: name the
+  runtime and build, not a blanket acceleration claim.
+
+Full evidence and test ideas: `docs/research/2026-11-offline-models/01-FAILURE-MINING.md`.
