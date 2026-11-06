@@ -19,6 +19,19 @@ def _dropped_schema_keywords(book: ConnectionBook, conn: Connection) -> frozense
     return frozenset(_template_value(book, conn, "tool_schema_unsupported_keywords", ()))
 
 
+def _openai_chat_provider(book: ConnectionBook, conn: Connection, base: str, key: str, headers: dict[str, str]):
+    """The OpenAI chat adapter, with tool-schema trimming only when the template declares it."""
+    from .openai_compat import OpenAICompatProvider
+    cls, extra = OpenAICompatProvider, {}
+    dropped = _dropped_schema_keywords(book, conn)
+    if dropped:
+        from .schema_trim import SchemaTrimmedProvider
+        cls, extra = SchemaTrimmedProvider, {"dropped_keywords": dropped}
+    return cls(base, key, provider_name=conn.name, headers=headers, session_header=conn.session_header,
+               openrouter=conn.template == "openrouter", routing_policy=conn.openrouter_policy,
+               catalog_url=conn.models_base_url, **extra)
+
+
 def provider_for_connection(book: ConnectionBook, name: str, model: str, *, resolved_key: str | None = None) -> Provider:
     conn: Connection | None = book.get(name)
     if conn is None:
@@ -44,15 +57,7 @@ def provider_for_connection(book: ConnectionBook, name: str, model: str, *, reso
         from .openai_responses import OpenAIResponsesProvider
         return OpenAIResponsesProvider(key, base_url=base)
     if protocol == "openai-chat":
-        from .openai_compat import OpenAICompatProvider
-        cls, extra = OpenAICompatProvider, {}
-        dropped = _dropped_schema_keywords(book, conn)
-        if dropped:
-            from .schema_trim import SchemaTrimmedProvider
-            cls, extra = SchemaTrimmedProvider, {"dropped_keywords": dropped}
-        return cls(base, key, provider_name=name, headers=headers, session_header=conn.session_header,
-                   openrouter=conn.template == "openrouter", routing_policy=conn.openrouter_policy,
-                   catalog_url=conn.models_base_url, **extra)
+        return _openai_chat_provider(book, conn, base, key, headers)
     if protocol == "anthropic":
         from .claude import ClaudeProvider
         return ClaudeProvider(api_key=key, base_url=base, provider_name=name, headers=headers,
