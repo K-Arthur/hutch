@@ -15,7 +15,7 @@ covers before relying on it.
 | 4 Get a model (install, import, guide) | done (4.1-4.5) | see git log (b32a5e47..) | 2026-11-06: real 1.9 GiB pull cancelled/resumed through the page; real disk-full and no-route pulls; real GGUF import (reuse and upload); four-width captures | Gated HF pull not run (no token); LM Studio/vLLM/SGLang install guided only |
 | 5 Multimodal and tool reliability | done (5.1-5.5) | 3a789476..a08009f6 + current-model comparison | 2026-11-06: real Ollama 0.40.13, llama.cpp b12144 + Qwen2.5-VL/Qwen3.5/Gemma 4 projectors, LM Studio 0.0.27-1, real cat photo and Playwright screenshot, sixteen model/runtime benches (2025 baseline and current Qwen3.5/Gemma 4), full-app current-model comparison | Ollama app-level vision blocked for the 2K moondream only; audio/speech not run; vLLM/SGLang not installed; Gemma 4 e4b/12b/26b and Qwen3.5 122B not run |
 | 6 Strict Offline live, boundary ADR | done (6.1, 6.2, 6.3) | see git log | 2026-11-06: real Ollama and llama.cpp tool-and-image turns through the broker; airplane test inside `unshare -rn`; shell egress 101; 1,200-token stream; cancel; runner kill; server restart; 64 MiB cap | Managed model process is the accepted ADR-0035 decision, not implemented |
-| 7 Frontend | not started | | | |
+| 7 Frontend | in progress | 24be8a4c | 2026-11-06: /models capture (4 widths, dark), zero overflow, zero console errors; grouping + privacy labels + capability chips + measured labels live | full state matrix (runtime down/loading/ready/installing/failed/cloud-tagged/needs-key/empty/offline-in-browser) not yet captured; keyboard traversal not yet recorded
 | 8 Website and docs | not started | | | |
 | 9 Final review and merge | not started | | | |
 
@@ -767,8 +767,40 @@ Still open (ask at the phase that needs it):
   through the Offline worker, vLLM/SGLang, the managed process, macOS/Windows and GPU.
   Phase 6 is done.
 
-Next phase: Phase 7, Frontend. It needs the Local runtimes panel, the grouped model list,
-the install/import flow, the first-run recommendation and every empty/error/loading/offline/
-key-protected state, with the visual validation gate. The managed model process from
-ADR-0035 is a separate implementation task, not part of Phase 7's UI work.
+### Phase 7 checkpoints
+
+- 2026-11-06, Phase 7 research: `docs/research/2026-11-offline-models/09-PHASE7-FRONTEND.md`
+  (F-P7-1..F-P7-6, D-P7-1..D-P7-5). Design:
+  `docs/realignment/offline-models-2026-11/09-PHASE7-DESIGN.md`.
+- 2026-11-06, Phase 7.1/7.2: `modelview.py` gained `locality_for_route`,
+  `privacy_label_for` and a `locality`/`privacy_label` field on
+  `ConfiguredModelRoute`. `models.html` now groups configured routes by where
+  inference happens (On this machine / On your network / Cloud via local runtime
+  / Hosted) with a privacy label per group, adds a locality tag per row, shows
+  capability chips (or "unknown" when the runtime did not report), and labels
+  runtime values as measured. Commit 24be8a4c.
+- 2026-11-06, Phase 7 visual: capture of /models at 360/768/1280/1920 (dark)
+  produced zero horizontal overflow and zero page/console errors. Images viewed:
+  grouping and privacy labels render; the tab strip still overlaps the
+  Route-readiness card (pre-existing layout defect, logged, not fixed this pass).
+- 2026-11-06, Phase 7 gates: `tests/test_models_page.py` 19 passed,
+  `tests/test_models_layer.py` 23 passed, `tests/test_model_switcher.py` 54
+  passed, `tests/test_models_detected_route.py` 4 passed,
+  `tests/test_locality.py` 12 passed. `npm run check:agent` passed (context
+  hygiene, tool contracts, constitution, agent map after regeneration);
+  `scripts/audit_emoji.py` reports only the pre-existing `.codewhale/state`
+  file. `/code-review` and `/simplify` are not available in this session.
+
+### Phase 7 not yet done
+
+- Visual state matrix for runtime down, loading, ready, installing, install
+  cancelled, install failed (disk/network/name), cloud-tagged, non-loopback,
+  upgrade-needed, empty, offline-in-browser and key-protected states, each at
+  4 widths, viewed and defects fixed.
+- Keyboard-only traversal and focus order recorded for the new controls.
+- Focused e2e for touched pages re-run after the remaining state work.
+
+Next phase: Phase 7 completion (state matrix + keyboard traversal), then
+Phase 8 (Website and documentation). Phase 7 is not done yet; do not start
+Phase 8 until its exit checks pass.
 
