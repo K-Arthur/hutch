@@ -51,7 +51,7 @@ from ..toolcalling.envelope import decode_action, looks_like_envelope
 from ..toolcalling.profiles import ModelCapabilityProfile, resolve_profile
 from ..providers.local.lifecycle import admission_memory, refresh_local_route
 from .ladder import Ladder, Rung, SpendGuard, get_provider
-from .outcomes import classify_local_failure, exit_reason
+from .outcomes import classify_local_failure, exit_reason, selfcheck_error
 from .steps import StepTimer, call_tool, finish_step
 from . import fitloop
 from .toolrepair import LoopDetector, coerce_args, repair_instruction, unknown_tool_message, validate_args
@@ -511,8 +511,7 @@ class BuiltinRuntime:
                     ctx.store.kv_set(key, json.dumps(sc))
             if not sc.get("ok"):
                 self._log(ctx, run, "selfcheck", f"FAILED: {sc.get('detail')}", ok=False)
-                raise ProviderError("context", f"context self-check failed for {rung.spec}: {sc.get('detail')}",
-                                    provider="ollama")
+                raise selfcheck_error(rung.spec, str(sc.get("detail") or ""))
             self._log(ctx, run, "selfcheck", f"passed: {sc.get('detail')}", ok=True)
         return Session(rung, provider, num_ctx, meta)
 

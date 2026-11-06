@@ -41,6 +41,52 @@ def test_a_restart_or_broken_stream_is_reloaded_once_when_nothing_was_delivered(
     assert classify_local_failure(exc, "llamacpp", partial=True).action == "stop"
 
 
+def test_an_offline_bridge_loss_is_not_blamed_on_the_runtime(monkeypatch):
+    monkeypatch.setenv("HUTCH_OFFLINE_BROKER_DIR", "/run/hutch-offline")
+    exc = ProviderError(
+        "unreachable",
+        "cannot connect to Ollama at http://127.0.0.1:11434 - is it running? (`ollama serve`)")
+    failure = classify_local_failure(exc, "ollama")
+    assert failure.action == "stop"
+    assert "Strict Offline's model bridge" in failure.message
+    assert "start the runtime" not in failure.message
+    kept = classify_local_failure(exc, "ollama", partial=True)
+    assert kept.action == "stop"
+    assert "kept and marked incomplete" in kept.message
+
+
+def test_a_runtime_loss_outside_offline_still_advises_a_runtime_restart(monkeypatch):
+    monkeypatch.delenv("HUTCH_OFFLINE_BROKER_DIR", raising=False)
+    exc = ProviderError(
+        "unreachable",
+        "cannot connect to Ollama at http://127.0.0.1:11434 - is it running? (`ollama serve`)")
+    failure = classify_local_failure(exc, "ollama")
+    assert failure.action == "reload"
+    assert "start the runtime" in failure.message
+
+
+def test_a_broker_upstream_failure_is_reloaded_once():
+    exc = ProviderError(
+        "server",
+        "Ollama returned HTTP 502: the configured loopback model service did not answer")
+    failure = classify_local_failure(exc, "ollama")
+    assert failure.action == "reload"
+    assert "local runtime stopped answering" in failure.message
+    assert classify_local_failure(exc, "ollama", partial=True).action == "stop"
+
+
+def test_a_selfcheck_interrupted_by_the_runtime_is_not_a_context_failure():
+    from hutch.runtime.outcomes import selfcheck_error
+
+    interrupted = selfcheck_error(
+        "ollama/gemma4:e2b",
+        "the model call failed: Ollama returned HTTP 500: an error was encountered while running "
+        "the model: unexpected EOF")
+    assert interrupted.kind == "stream"
+    assert "context self-check failed" in str(interrupted)
+    assert selfcheck_error("ollama/gemma4:e2b", "recalled the wrong word").kind == "context"
+
+
 def test_the_real_killed_runner_wrapper_is_recognised():
     exc = ProviderError(
         "server", "Ollama error mid-stream: an error was encountered while running the model: unexpected EOF")
