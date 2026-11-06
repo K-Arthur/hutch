@@ -1,0 +1,25 @@
+{
+  "supports_vision_qwen2vl": true,
+  "supports_vision_qwen3": false,
+  "png": {
+    "status": 200,
+    "seconds": 24.227,
+    "content": "The image shows the number 31 on a blue background with a white border.",
+    "finish_reason": "stop",
+    "error": null
+  },
+  "jpeg": {
+    "status": 200,
+    "seconds": 12.642,
+    "content": "An orange tabby cat with green eyes is looking at the camera, standing on a concrete surface.",
+    "finish_reason": "stop",
+    "error": null
+  },
+  "webp": {
+    "status": 400,
+    "seconds": 0.023,
+    "content": null,
+    "finish_reason": null,
+    "error": "'url' field must be a base64 encoded image."
+  }
+}

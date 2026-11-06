@@ -1,0 +1,91 @@
+{
+  "cat": {
+    "status": 200,
+    "seconds": 8.037,
+    "content": "Cat",
+    "tool_calls": null,
+    "finish": "stop",
+    "usage": {
+      "completion_tokens": 2,
+      "prompt_tokens": 199,
+      "total_tokens": 201,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  },
+  "screenshot": {
+    "status": 200,
+    "seconds": 39.485,
+    "content": "Based on the screenshot provided, here are the answers:\n\n**1. What page is shown in this screenshot?**\nThe page shown is the **Models** page (as indicated by the main heading and the navigation sidebar).\n\n**2. Name one visible heading.**\nOne visible heading is **Models**. (Other visible headings include \"Route readiness\").",
+    "tool_calls": null,
+    "finish": "stop",
+    "usage": {
+      "completion_tokens": 76,
+      "prompt_tokens": 490,
+      "total_tokens": 566,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  },
+  "two_images": {
+    "status": 200,
+    "seconds": 44.367,
+    "content": "**Image 1 Analysis:**\nImage 1 shows a close-up of an orange tabby cat. This is an animal.\n\n**Image 2 Analysis:**\nImage 2",
+    "tool_calls": null,
+    "finish": "length",
+    "usage": {
+      "completion_tokens": 40,
+      "prompt_tokens": 677,
+      "total_tokens": 717,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  },
+  "webp": {
+    "status": 200,
+    "seconds": 17.861,
+    "content": "A short sentence describing the image of the cat.\nThe image shows a close-up of an orange cat with golden eyes.\n\nPlan: Create a concise description focusing on the main subject and its appearance.",
+    "tool_calls": null,
+    "finish": "stop",
+    "usage": {
+      "completion_tokens": 59,
+      "prompt_tokens": 195,
+      "total_tokens": 254,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  },
+  "image_tool": {
+    "status": 200,
+    "seconds": 14.534,
+    "content": "",
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "describe_scene",
+          "arguments": "{\"animal\":\"cat\",\"color\":\"orange\"}"
+        },
+        "id": "JSQGXTZu6lnxrYlskVrvRK4hoC8UeWie"
+      }
+    ],
+    "finish": "tool_calls",
+    "usage": {
+      "completion_tokens": 24,
+      "prompt_tokens": 267,
+      "total_tokens": 291,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  }
+}

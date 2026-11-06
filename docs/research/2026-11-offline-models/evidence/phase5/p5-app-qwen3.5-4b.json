@@ -1,0 +1,32 @@
+{
+  "model": "qwen3.5:4b-q4_K_M",
+  "label": "qwen3.5-4b",
+  "bot": "bot_db43399f178b",
+  "conversation": "conv_2dbff80ca0b0",
+  "cases": [
+    {
+      "case": "cat",
+      "send": 201,
+      "status": "succeeded",
+      "error": "",
+      "seconds": 136.5,
+      "answer": "I can't see images directly. Based on the filename \"cat-640.jpg\" provided, I will assume the answer to your question is **cat**.\n\nHowever, if you meant a different animal and the filename is just an example, please let me know for clarification."
+    },
+    {
+      "case": "screenshot",
+      "send": 201,
+      "status": "succeeded",
+      "error": "",
+      "seconds": 118.41,
+      "answer": "The page shown is the **Models** page.\n\nOne visible heading is \"Route readiness\"."
+    },
+    {
+      "case": "two_images",
+      "send": 201,
+      "status": "failed",
+      "error": "cannot start on ollama/qwen3.5:4b-q4_K_M: the prompt (2,563 tokens) plus 1 tool definition(s) (209 tokens) cannot fit the 4,096-token window once 2,048 tokens are reserved for the reply. use a model/hardware with a larger window, give the bot fewer tools (default is 8 or fewer), or shorten its instructions and memory",
+      "seconds": 2.02,
+      "answer": "The page shown is the **Models** page.\n\nOne visible heading is \"Route readiness\"."
+    }
+  ]
+}

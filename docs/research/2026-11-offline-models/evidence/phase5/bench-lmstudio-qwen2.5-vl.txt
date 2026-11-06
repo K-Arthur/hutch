@@ -1,0 +1,41 @@
+profiling qwen2.5-vl on lmstudio: 3 trial(s) per probe at 8,192 tokens (each 
+trial is one model call; on CPU this can take a while)
+  Forms a valid tool call ...
+  Gets argument types right (int, bool) ...
+  Picks the right tool among five ...
+  Does not call a tool it does not need ...
+  Uses what a tool returned ...
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
+┃                                       ┃        ┃         ┃ what    ┃         ┃
+┃                                       ┃        ┃         ┃ went    ┃         ┃
+┃ probe                                 ┃ passed ┃ unaided ┃ wrong   ┃ causes  ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
+│ Forms a valid tool call               │    0/3 │     0/3 │ answer… │ no_call │
+│                                       │        │         │ in      │ 3       │
+│                                       │        │         │ prose   │         │
+│                                       │        │         │ instead │         │
+│                                       │        │         │ of      │         │
+│                                       │        │         │ calling │         │
+│                                       │        │         │ the     │         │
+│                                       │        │         │ tool    │         │
+│ Gets argument types right (int, bool) │    0/3 │     0/3 │ answer… │ no_call │
+│                                       │        │         │ in      │ 3       │
+│                                       │        │         │ prose   │         │
+│                                       │        │         │ instead │         │
+│                                       │        │         │ of      │         │
+│                                       │        │         │ calling │         │
+│                                       │        │         │ the     │         │
+│                                       │        │         │ tool    │         │
+│ Picks the right tool among five       │    0/3 │     0/3 │ answer… │ no_call │
+│                                       │        │         │ in      │ 3       │
+│                                       │        │         │ prose   │         │
+│                                       │        │         │ instead │         │
+│                                       │        │         │ of      │         │
+│                                       │        │         │ calling │         │
+│                                       │        │         │ the     │         │
+│                                       │        │         │ tool    │         │
+│ Does not call a tool it does not need │    3/3 │     3/3 │ -       │ -       │
+│ Uses what a tool returned             │    3/3 │     3/3 │ -       │ -       │
+└───────────────────────────────────────┴────────┴─────────┴─────────┴─────────┘
+unreliable with tools: 40% of tool probes passed; weakest: forms a valid tool 
+call (0/3)

@@ -1,0 +1,91 @@
+{
+  "cat": {
+    "status": 200,
+    "seconds": 17.031,
+    "content": "cat",
+    "tool_calls": null,
+    "finish": "stop",
+    "usage": {
+      "completion_tokens": 4,
+      "prompt_tokens": 424,
+      "total_tokens": 428,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  },
+  "screenshot": {
+    "status": 200,
+    "seconds": 58.64,
+    "content": "The page shown in the screenshot is the **Models** page within the Hunch AI platform.\n\nOne visible heading on this page is **\"Route readiness\"**.",
+    "tool_calls": null,
+    "finish": "stop",
+    "usage": {
+      "completion_tokens": 35,
+      "prompt_tokens": 1025,
+      "total_tokens": 1060,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  },
+  "two_images": {
+    "status": 200,
+    "seconds": 77.727,
+    "content": "Based on the visual content of the two images provided:\n\n- **Image 1** displays a close-up photograph of an orange tabby cat.\n- **Image 2** shows",
+    "tool_calls": null,
+    "finish": "length",
+    "usage": {
+      "completion_tokens": 40,
+      "prompt_tokens": 1443,
+      "total_tokens": 1483,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  },
+  "webp": {
+    "status": 200,
+    "seconds": 22.561,
+    "content": "A close-up portrait of a fluffy ginger cat with striking green eyes looking directly at the camera.",
+    "tool_calls": null,
+    "finish": "stop",
+    "usage": {
+      "completion_tokens": 22,
+      "prompt_tokens": 420,
+      "total_tokens": 442,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  },
+  "image_tool": {
+    "status": 200,
+    "seconds": 34.675,
+    "content": "",
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "describe_scene",
+          "arguments": "{\"animal\":\"cat\",\"color\":\"orange\"}"
+        },
+        "id": "Rvx5wVgzb193pbU2R75bjlWfBOJB37tJ"
+      }
+    ],
+    "finish": "tool_calls",
+    "usage": {
+      "completion_tokens": 40,
+      "prompt_tokens": 705,
+      "total_tokens": 745,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  }
+}

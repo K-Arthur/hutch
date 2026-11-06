@@ -1,0 +1,91 @@
+{
+  "cat": {
+    "status": 200,
+    "seconds": 24.024,
+    "content": "",
+    "tool_calls": null,
+    "finish": "length",
+    "usage": {
+      "completion_tokens": 20,
+      "prompt_tokens": 424,
+      "total_tokens": 444,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  },
+  "screenshot": {
+    "status": 200,
+    "seconds": 60.005,
+    "content": "",
+    "tool_calls": null,
+    "finish": "length",
+    "usage": {
+      "completion_tokens": 40,
+      "prompt_tokens": 1025,
+      "total_tokens": 1065,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  },
+  "two_images": {
+    "status": 200,
+    "seconds": 79.943,
+    "content": "",
+    "tool_calls": null,
+    "finish": "length",
+    "usage": {
+      "completion_tokens": 20,
+      "prompt_tokens": 1443,
+      "total_tokens": 1463,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  },
+  "webp": {
+    "status": 200,
+    "seconds": 24.268,
+    "content": "",
+    "tool_calls": null,
+    "finish": "length",
+    "usage": {
+      "completion_tokens": 60,
+      "prompt_tokens": 420,
+      "total_tokens": 480,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  },
+  "image_tool": {
+    "status": 200,
+    "seconds": 36.817,
+    "content": "",
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "describe_scene",
+          "arguments": "{\"animal\":\"cat\\n</"
+        },
+        "id": "aYDENudYeaIKoVlGh1qGw6daW7MN6SEP"
+      }
+    ],
+    "finish": "length",
+    "usage": {
+      "completion_tokens": 120,
+      "prompt_tokens": 705,
+      "total_tokens": 825,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "error": null
+  }
+}

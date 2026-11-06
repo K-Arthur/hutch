@@ -1,0 +1,46 @@
+{
+  "cat": {
+    "status": 200,
+    "seconds": 13.842,
+    "content": "Cat",
+    "reasoning": "",
+    "tool_calls": [],
+    "finish": "stop",
+    "usage": {
+      "prompt_tokens": 199,
+      "completion_tokens": 2,
+      "total_tokens": 201,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0
+      }
+    },
+    "error": null
+  },
+  "screenshot": {
+    "status": 200,
+    "seconds": 39.91,
+    "content": "**Page Shown:**\nThe page shown is the **Models** page.\n\n**Visible Heading:**\nOne visible heading is **Models** (the main title) or **Route readiness**.",
+    "reasoning": "Here's my thought process for answering the request:\n\n1.  **Analyze the Request:** The user wants two pieces of information based on the provided screenshot:\n    *   What page is shown?\n    *   Name one visible heading.\n\n2.  **Examine the Screenshot (Identify the Page):**\n    *   Look at the main content area.\n    *   The title at the top of the main content is \"Models\".\n    *   Look at the navigation/sidebar (left side). The active item is \"Models\" (highlighted).\n    *   *Conclusion:* The page shown is the \"Models\" page.\n\n3.  **Examine the Screenshot (Identify Visible Headings):**\n    *   I need to scan the text for titles, section headers, or bolded text that functions as a heading.\n    *   *Top Level:* \"Models\" (This is the main page title).\n    *   *Section Headers/Subheadings:* I see \"Route readiness\".\n\n4.  **Formulate the Answer:**\n\n    *   *Page:* Based on the title and navigation, it's the Models page.\n    *   *Heading:* I can choose any of the clear headings found (e.g., \"Models\" or \"Route readiness\").\n\n5.  **Final Review against Constraints:** (The answer must be accurate based *only* on the image.) The findings match the visual evidence. (Self-Correction: Ensure the heading is clearly visible. \"Models\" and \"Route readiness\" are both very clear.)",
+    "tool_calls": [],
+    "finish": "stop",
+    "usage": {
+      "prompt_tokens": 490,
+      "completion_tokens": 373,
+      "total_tokens": 863,
+      "completion_tokens_details": {
+        "reasoning_tokens": 330
+      }
+    },
+    "error": null
+  },
+  "webp": {
+    "status": 400,
+    "seconds": 0.01,
+    "content": null,
+    "reasoning": null,
+    "tool_calls": null,
+    "finish": null,
+    "usage": null,
+    "error": "'url' field must be a base64 encoded image."
+  }
+}

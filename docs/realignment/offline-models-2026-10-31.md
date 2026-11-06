@@ -377,3 +377,56 @@ the full dated ledger are in `02-PROGRESS.md`; the boundary is ADR-0031.
   install (not installed). The visible import form and the full state matrix are Phase 7.
 - **Not claimed.** Hutch can say this pull's bytes went to the local runtime; it cannot
   say the runtime was air-gapped. Resume depends on the runtime keeping its parts.
+
+---
+
+## 8. Phase 5 (2026-11): vision, tools and reasoning on real local models
+
+Phase 5 closes the multimodal and tool-reliability gaps for the three runtimes on this
+host. Dated evidence and the not-run list are in
+`docs/realignment/offline-models-2026-11/02-PROGRESS.md`; raw benches and captures are in
+`docs/research/2026-11-offline-models/evidence/phase5/`.
+
+- **Vision capability is read, not guessed.** Ollama uses `/api/show.capabilities`;
+  llama.cpp uses `/props.modalities.vision` and the model's input modalities; LM Studio
+  uses `/api/v1/models.capabilities.vision`. Before this phase Hutch refused every
+  llama.cpp and LM Studio vision model because its OpenAI-compatible provider only knew the
+  official OpenAI table. A shared resolver now asks the runtime.
+- **A real image path.** A 640 px cat photo and a Playwright capture of `/models` went
+  through the real app on llama.cpp b12144 (Qwen2.5-VL-3B Q4_K_M + Q8_0 projector) and LM
+  Studio 0.0.27-1 (qwen2.5-vl). Answers were content-dependent (`Cat`, `"Models"`,
+  `image 1` for two images), and the run's media record showed `transmitted: 1`. A text
+  model was refused before sending. Ollama moondream described the cat through the native
+  provider; the app refuses that 2,048-token model as below the 4,096-token agent floor.
+- **Image cost is bounded.** Planning and compaction count an image as 800 tokens, never
+  as its base64 payload. The first live run exposed the old compaction estimate turning a
+  121 KB JPEG into about 52,000 fake tokens; the shared `content_tokens` estimator now
+  keeps the run at ~2,500 tokens and the image fits.
+- **LM Studio media types are honest.** 0.0.27-1 accepts PNG/JPEG data URIs and rejects a
+  WebP data URI. Hutch refuses WebP on that route with the reason before sending; it does
+  not rewrite the file.
+- **Tool causes are measurable.** `hutch models bench --provider ...` now runs against
+  llama.cpp and LM Studio. Sixteen model/runtime pairs were measured; the same coder model
+  scored 6/15 on Ollama, 1/15 on llama.cpp and 3/15 on LM Studio. The bench names
+  `call_in_content` (a complete call left as text), `reasoning_only`, `missing_id`,
+  `parse_error` and the rest instead of calling every failure "prose".
+- **Current-model comparison (owner-approved beyond the original budget).** Qwen3.5 0.8B/2B/4B
+  and Gemma 4 e2b were pulled and measured beside the 2025 baseline. All four passed 15/15
+  isolated probes on Ollama; Qwen3.5 2B also passed 15/15 on llama.cpp, while Gemma 4 e2b
+  passed 11/15 there and 12/15 on LM Studio (reasoning-only). The full-app image comparison
+  separated them: Gemma 4 e2b 3/3, Qwen3.5 4B 2/3, Qwen3.5 2B 1/3, Qwen3.5 0.8B 0/3. Gemma 4
+  e2b is the current full-multimodal winner on this host; Qwen3.5 2B Q4 is the lightweight
+  tool choice; the old qwen3:0.6b remains the fastest tiny tool model. The catalog and presets
+  now carry the measured rows.
+- **Reasoning budget is a state.** A real Ollama qwen3:4b turn with `think: true` and 32
+  output tokens returned `done_reason: length`, empty content and 147 characters of
+  thinking; Hutch's note says the output limit was reached while reasoning and gives the
+  fix. llama.cpp qwen3-4b at the default budget generated at ~3.9 tokens/s and did not
+  finish four probes in ten minutes; no third-trial result is claimed.
+- **Ollama GGUF import is not a vision path.** Importing the Qwen2.5-VL GGUF produced
+  `capabilities: ["completion"]` and no projector. Pull a vision model instead.
+- **Not run.** Audio/speech on any runtime, an air-gapped model server (D remains open),
+  GPU vision, Gemma 4 e4b/12b/26b, Qwen3.5 122B, Qwen3-VL specifically, and full-app
+  text-only runs for the current models. The old Qwen2.5-VL template has no tool section, so
+  its image-plus-tool probe used a disclosed local merge; the current Gemma 4 and Qwen3.5 2B
+  templates support vision and tools together.

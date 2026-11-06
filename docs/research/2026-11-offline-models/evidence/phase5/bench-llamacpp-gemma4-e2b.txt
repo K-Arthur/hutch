@@ -1,0 +1,34 @@
+profiling gemma4-e2b on llamacpp: 3 trial(s) per probe at 8,192 tokens (each 
+trial is one model call; on CPU this can take a while)
+  Forms a valid tool call ...
+  Gets argument types right (int, bool) ...
+  Picks the right tool among five ...
+  Does not call a tool it does not need ...
+  Uses what a tool returned ...
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
+┃                                       ┃        ┃         ┃ what    ┃         ┃
+┃                                       ┃        ┃         ┃ went    ┃         ┃
+┃ probe                                 ┃ passed ┃ unaided ┃ wrong   ┃ causes  ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
+│ Forms a valid tool call               │    3/3 │     3/3 │ -       │ -       │
+│ Gets argument types right (int, bool) │    2/3 │     2/3 │ answer… │ no_call │
+│                                       │        │         │ in      │ 1       │
+│                                       │        │         │ prose   │         │
+│                                       │        │         │ instead │         │
+│                                       │        │         │ of      │         │
+│                                       │        │         │ calling │         │
+│                                       │        │         │ the     │         │
+│                                       │        │         │ tool    │         │
+│ Picks the right tool among five       │    0/3 │     0/3 │ answer… │ call_i… │
+│                                       │        │         │ in      │ 3       │
+│                                       │        │         │ prose   │         │
+│                                       │        │         │ instead │         │
+│                                       │        │         │ of      │         │
+│                                       │        │         │ calling │         │
+│                                       │        │         │ the     │         │
+│                                       │        │         │ tool    │         │
+│ Does not call a tool it does not need │    3/3 │     3/3 │ -       │ -       │
+│ Uses what a tool returned             │    3/3 │     3/3 │ -       │ -       │
+└───────────────────────────────────────┴────────┴─────────┴─────────┴─────────┘
+unreliable with tools: 73% of tool probes passed; weakest: picks the right tool 
+among five (0/3); protocol: 3 call(s) left as text

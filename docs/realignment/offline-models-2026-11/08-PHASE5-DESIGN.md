@@ -113,3 +113,13 @@ No source change. Record in `docs/runtime-setup.md` and `docs/models.md`:
   the LM Studio chat models. `--no-recall` for the long bench, with Phase 2's needle run
   as the recall evidence. Commit the JSON profiles under
   `docs/research/2026-11-offline-models/evidence/phase5/`.
+
+## Addendum: current-model comparison (owner request, 2026-11-06)
+
+The retained models were not current. The owner approved exceeding the download budget,
+so Qwen3.5 0.8B/2B/4B and Gemma 4 e2b were pulled and measured beside the baseline. The
+GGUF model and projector blobs were hard-linked into the llama.cpp/LM Studio model
+directories for cross-runtime checks. The full-app image comparison, not the isolated
+bench, chose the current model: Gemma 4 e2b 3/3, Qwen3.5 4B 2/3, Qwen3.5 2B 1/3,
+Qwen3.5 0.8B 0/3. The measured rows and presets are in `src/hutch/data/catalog.json` and
+`presets.json`; the evidence remains one CPU host.

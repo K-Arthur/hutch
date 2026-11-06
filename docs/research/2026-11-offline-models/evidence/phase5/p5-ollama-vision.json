@@ -1,0 +1,48 @@
+{
+  "supports_vision_moondream": true,
+  "supports_vision_text_model": false,
+  "native_cat": {
+    "status": 200,
+    "seconds": 3.965,
+    "content": "\nThe image features a close-up of a ginger cat sitting on a concrete surface. The cat has a warm, inviting orange hue and is looking directly at the camera with a curious expression. The cat's whiskers are visible, adding to its endearing appearance. The cat is positioned on the left side of the",
+    "thinking": null,
+    "tool_calls": null,
+    "done_reason": "length",
+    "prompt_tokens": 741,
+    "eval_count": 64,
+    "load_ms": 4.467562
+  },
+  "provider_cat": {
+    "seconds": 3.612,
+    "content": "\nThe image features a close-up of a ginger cat sitting on a concrete surface. The cat has a warm, inviting orange hue and is looking directly at the camera with a curious expression. The cat's whiskers are visible, adding to its endearing appearance. The cat is positioned on the left side of the",
+    "thinking": "",
+    "tool_calls": [],
+    "finish_reason": "length",
+    "prompt_tokens": 741,
+    "completion_tokens": 64,
+    "context_window": 2048,
+    "notes": []
+  },
+  "native_two_images": {
+    "status": 200,
+    "seconds": 17.868,
+    "content": "",
+    "thinking": null,
+    "tool_calls": null,
+    "done_reason": "stop",
+    "prompt_tokens": 1480,
+    "eval_count": 1,
+    "load_ms": 4.615498
+  },
+  "provider_two_images": {
+    "seconds": 0.147,
+    "content": "",
+    "thinking": "",
+    "tool_calls": [],
+    "finish_reason": "stop",
+    "prompt_tokens": 1480,
+    "completion_tokens": 1,
+    "context_window": 2048,
+    "notes": []
+  }
+}

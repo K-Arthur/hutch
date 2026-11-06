@@ -13,7 +13,7 @@ covers before relying on it.
 | 2 Native runtime introspection | done (2.1, 2.2, 2.3, 2.4) | d057cc95..7c53c59e | 2026-11-06: llama.cpp b12144 9931 (4096 per slot with `-c 8192 --parallel 2`), LM Studio applied 8192, discovery fingerprints both, squatter unknown, `--api-key` needs_key then a keyed chat, needle self-check at 4096 | vLLM/SGLang not installed; LM Studio API-token mode not enabled live (401 path tested with a real key-protected llama-server) |
 | 3 Lifecycle states and errors | done (3.1, 3.2, 3.3) | bfcfaaf9..23ed98a3 | 2026-11-06: real Ollama cold load, real llama.cpp 503, real LM Studio unload/reload, real runner kill and llama-server restart | EC-09 4 GB model not downloaded (budget); old-version gate not live-tested |
 | 4 Get a model (install, import, guide) | done (4.1-4.5) | see git log (b32a5e47..) | 2026-11-06: real 1.9 GiB pull cancelled/resumed through the page; real disk-full and no-route pulls; real GGUF import (reuse and upload); four-width captures | Gated HF pull not run (no token); LM Studio/vLLM/SGLang install guided only |
-| 5 Multimodal and tool reliability | not started | | | |
+| 5 Multimodal and tool reliability | done (5.1-5.5) | 3a789476..a08009f6 + current-model comparison | 2026-11-06: real Ollama 0.40.13, llama.cpp b12144 + Qwen2.5-VL/Qwen3.5/Gemma 4 projectors, LM Studio 0.0.27-1, real cat photo and Playwright screenshot, sixteen model/runtime benches (2025 baseline and current Qwen3.5/Gemma 4), full-app current-model comparison | Ollama app-level vision blocked for the 2K moondream only; audio/speech not run; vLLM/SGLang not installed; Gemma 4 e4b/12b/26b and Qwen3.5 122B not run |
 | 6 Strict Offline live, boundary ADR | not started | | | Owner decision on the boundary (Phase 6.3) |
 | 7 Frontend | not started | | | |
 | 8 Website and docs | not started | | | |
@@ -57,12 +57,15 @@ or out-of-scope (reason). One line per ID once touched.
 - EC-12: tested-real (decoy on 8080). Fix Phase 2.1.
 - EC-13: tested-real (`--api-key` server looks dead). Fix Phase 2.4.
 - EC-15: tested-real; fixed Phase 4.1: `tests/test_model_names.py` covers the runtime's grammar and the real `hf.co` forms; `qwen2.5-coder:3b` installed through the page; a local GGUF was imported with the runtime's own `/api/blobs` + `/api/create` path and `/api/show` reported the family, quant, tools/thinking capabilities. The remaining Modelfile-specific case (a custom template in a created model) is covered by the same create API but not with a hand-written Modelfile this pass.
-- EC-18: tested-real (LM Studio empty answer with 64 reasoning tokens). Fix Phase 5.4.
+- EC-16: tested-real, Phase 5.1: llama.cpp b12144 Qwen2.5-VL-3B + Q8_0 mmproj answered `Cat` for a real 640 px photo, `"Models"` for a real Playwright capture, `image 1` for a two-image message, and described a WebP photo; image-plus-tool returned `describe_scene(animal="cat", colour="orange")` with a disclosed merged template. Ollama moondream described the cat through the native provider (741 prompt tokens); its 2,048-token window is refused by the app (4,096 floor). LM Studio qwen2.5-vl answered the screenshot and accepts PNG/JPEG; WebP is refused before sending. A text model was refused before send. Oversize (3.5 MB) was refused at admission. Current-model rerun: Gemma 4 e2b answered all three full-app image cases (`cat`, `Models`/`Route readiness`, `Image 1`), Qwen3.5 4B 2/3, Qwen3.5 2B 1/3, Qwen3.5 0.8B 0/3; Gemma 4 and Qwen3.5 2B also produced stock-template image+tool calls on llama.cpp, and LM Studio Gemma vision worked after the projector was named `mmproj-gemma4-e2b.gguf`.
+- EC-17: tested-real, Phase 5.3: sixteen model/runtime benches, 3 trials per probe, no recall. Baseline real causes: `no_call`, `call_in_content` (15/15 for llama.cpp qwen2.5-coder-3b: a complete call body in `content`, `tool_calls` null), `wrong_answer`, `ignored_result`, `wrong_arguments`. Current-model causes: Ollama all four 15/15; llama.cpp Gemma 4 e2b 11/15 (`call_in_content` 3 on tool choice, `no_call` 1 on argument types); LM Studio Gemma 4 e2b 12/15 (`reasoning_only` 3 on argument types). The same model scores differently per runtime, and the isolated bench does not predict the full-app result: Qwen3.5 2B passes 15/15 but answers 1/3 full-app image cases. No text-to-call repair was added.
+- EC-18: tested-real, Phase 5.4: real Ollama qwen3:4b with `think: true`, tools and 32 output tokens returned `done_reason: length`, empty content and 147 characters of thinking; the result note says the output limit was reached while reasoning and names the fix. The OpenAI-shaped path already had the equivalent note; the native Ollama path now shares it. llama.cpp qwen3-4b at the default budget ran at ~3.9 tokens/s and did not finish four probes in ten minutes; not a third-trial result. Current-model rerun: llama.cpp Qwen3.5 2B with the default thinking budget returned `length` and empty content for 20-120-token image probes; `--reasoning-budget 0` produced `cat`, `Models`, `image 1`, and a clean `describe_scene` call. LM Studio Gemma 4 e2b's default reasoning produced three `reasoning_only` bench trials at the 256-token cap; Ollama sends `think=False` and scored 15/15.
+- EC-19: not-run live (Phase 6 airplane test). Code audit: `rg` finds no `/v1/embeddings` client and no hosted embedding call in the chat, memory or search path; `synthesis/model.py` uses the chat route. LM Studio exposes `/v1/embeddings`, but no Hutch feature requests it for a local assistant.
 - EC-21: tested-real on this host (Ollama drops the iGPU; see `02-RUNTIME-API-NOTES.md`).
 - EC-20: tested-real for integrity and rights: a wrong expected SHA-256 is refused before any upload (`tests/test_model_import.py`); the runtime's blob endpoint verifies the digest again; the imported qwen3-4b GGUF carried the provided Apache text and `/api/show` returned tools/thinking; the 1.93 GB vision upload created a blob, and removing the test model removed that blob while the source file's hash stayed unchanged. Not run: a gated Hugging Face repository (no token).
 - EC-23: tested-real; fixed Phase 4.2/4.3: the plan named `~/.hutch-tmp/localmodels/models` and 70.4 GiB free; a real pull into a 300 MiB tmpfs failed at 309,451,728 of 1,929,903,008 bytes with `no space left on device`; cancel left the runtime's partial files and the resumed job started at 46,717,902 bytes rather than zero; removing the imported model left `qwen3:4b` intact.
-- EC-25: not-run (the live-tag check needs the network; the catalog is dated 2026-10-07 and was not refreshed in this pass).
-- EC-27: documented (llama.cpp accepts `input_audio`; no local audio run yet).
+- EC-25: partially addressed in Phase 5. The catalog now carries the measured current rows (`qwen3.5:0.8b`, `qwen3.5:2b-q4_K_M`, `qwen3.5:4b-q4_K_M`, `gemma4:e2b`) and the presets prefer them; sizes/capabilities were read from the live Ollama library and `/api/show` on 2026-11-06. Not run: an automated live-tag refresh and the larger Gemma 4/Qwen3.5 tags; the catalog is still a dated suggestion list, not a promise.
+- EC-27: documented, Phase 5.2: llama.cpp accepts `input_audio` with a compatible audio model; Ollama exposes `/v1/audio/speech` with Phonon (WAV/PCM, 4,096 characters); LM Studio has no documented audio input. No audio or speech model was retained, so no local audio run was made and none is claimed.
 - EC-28: tested-real for Strict Offline fallback rungs (cloud copy refused live) and unit-tested. Not covered: non-offline silent fallback; Phase 7 confirmation UI.
 
 ## Evidence ledger (real runs only)
@@ -90,6 +93,19 @@ or out-of-scope (reason). One line per ID once touched.
 | 2026-11-06 | Ollama 0.40.13 | `qwen3-4b.gguf`, 2,497,280,480 bytes, sha256 `3e4cb1417446...` | same | real app, `POST /api/models/import`; `p4_import_evidence.py` | wrong expected digest refused; existing blob reused (`HEAD` hit, no upload); `/api/create`; `/api/show` license and capabilities; remove imported model | a hand-written Modelfile with a custom template | wrong digest 422; import 7.22 s total; license text shown; capabilities tools/thinking/completion; `qwen3:4b` survived the remove; evidence `p4-import.json` |
 | 2026-11-06 | Ollama 0.40.13 | `Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf`, 1,929,901,056 bytes, sha256 `d02fe9b69ad8...` | same | real app, `POST /api/models/import`; `p4_import_upload.py` | `HEAD` miss, real streamed 1.93 GB `POST /api/blobs`, create, remove | vision inference on the imported model | upload 4.246 s; blob 1,929,901,056 bytes created and removed with the test model; source hash unchanged; license shown as none; evidence `p4-import-upload.json` |
 | 2026-11-06 | Chromium (Playwright) | real plan panel and status cells | same | captures under `docs/realignment/artifacts/offline-models-2026-11/p4-install/` | plan panel at 360/768/1280/1920; running/cancelled/resumed cells and full pages; images viewed | the full state matrix (runtime down, loading, needs-key, failed visual; Phase 7) | zero horizontal overflow and zero console errors; defects found: duplicated "time unknown", clipped nowrap panel, clipped pull hint; fixed by a full-width plan row, a width cap, and wrapped state/hint text; re-captured |
+| 2026-11-06 | Ollama 0.40.13 | `moondream:1.8b-v2-q3_K_S` digest `c1f516864beb`, 1.6 GB, capabilities completion/vision | Ryzen 3 5300U, CPU | `OLLAMA_MODELS=~/.hutch-tmp/localmodels/models ollama pull moondream:1.8b-v2-q3_K_S`; real `OllamaProvider` chat, `num_ctx=2048` | pull, `/api/show`, native and provider chat with a real 640 px cat photo; text model `qwen3:0.6b` refused vision | the app-level run (model below the 4,096 floor); multi-image (model returned 1 token) | 741 prompt tokens; caption `ginger cat ... orange`; `supports_vision` true for moondream, false for qwen3:0.6b; evidence `p5-ollama-vision.json` |
+| 2026-11-06 | Ollama 0.40.13 | `Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf`, 1,929,901,056 bytes, sha256 `d02fe9b69ad8...` + 844,757,728-byte mmproj | same | `ollama create p5-vl-import -f Modelfile.p5-vl` with `FROM <the text GGUF>` | real import of a vision GGUF without a projector path | vision inference on the import | `/api/show` returned `capabilities: ["completion"]`, `families: ["qwen2vl"]`, `projector_info: null`; model removed; F18 reproduced |
+| 2026-11-06 | llama.cpp b12144-69ee2ecc0 (CPU) | Qwen2.5-VL-3B Q4_K_M + Q8_0 projector | same | `llama-server -m models/vision/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf --mmproj models/vision/mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf -c 8192 -t 8 --jinja --host 127.0.0.1 --port 9931` | `/props.modalities.vision`, real `/v1/chat/completions` with a 640 px cat photo, two images, WebP; second server on 9932 with a merged tool template | GPU, video | cat `Cat` 562 prompt tokens; two images `image 1` 592 tokens; WebP cat description; image+tool `describe_scene(animal="cat", colour="orange")` 729 prompt tokens, 42.866 s; evidence `p5-llamacpp-vision.json`, `p5-llamacpp-image-tool.json` |
+| 2026-11-06 | LM Studio llmster 0.0.27-1 | qwen2.5-vl (Qwen2.5-VL-3B + mmproj, 2,774,658,784 bytes), capabilities vision true / trained_for_tool_use false | same | `lms import -L`, projector in the model folder, `lms server start --port 1234`; real `/v1/chat/completions` with PNG, JPEG and WebP data URIs | `/api/v1/models`, `supports_vision` via the local adapter, PNG/JPEG accepted | API-token mode | PNG icon `number 31 ... blue background`; JPEG cat description; WebP returned 400 `'url' field must be a base64 encoded image`; evidence `p5-lmstudio-vision.json` |
+| 2026-11-06 | FastAPI app (this checkout), fresh `HUTCH_STATE_DIR`, uvicorn 127.0.0.1:8765 | real llama.cpp/LM Studio/Ollama routes | same | `p5_app_pipeline.py`: bot create, conversation, `POST .../uploads`, `POST .../messages` with `image_attachment_ids`; real Playwright capture of `/models` | composer upload, admission, wire conversion, answer, media transmission record; cat, screenshot, two images, WebP, oversize | Ollama app-level vision (2K floor) | llama.cpp: `Cat` 73.3 s, `"Models"` 146.0 s, `image 1` 188.0 s, WebP cat 81.9 s, 3.5 MB image refused with the 1.5 MB limit; LM Studio PNG `Models` section 35.6 s, WebP refused in 0.099 s; text model refused in words; media `transmitted: 1`; evidence `p5-app-pipeline.json` |
+| 2026-11-06 | Ollama 0.40.13 | qwen3:0.6b (15/15), qwen2.5-coder:1.5b (6/15), qwen3:4b (13/15) | same | `HUTCH_STATE_DIR=... hutch models bench <model> --no-recall -n 3 --ctx 8192` | 3 trials of 5 tool probes; causes; memory refusal for the 2K vision model | recall probe (Phase 2 needle evidence) | 43.5 / 15.3 / 7.6 tokens/s; verdicts reliable / unreliable / unreliable; causes `no_call`; files `bench-ollama-*.txt` |
+| 2026-11-06 | llama.cpp b12144 (CPU) | qwen3-0.6b (15/15), qwen2.5-coder-1.5b (1/15), qwen2.5-coder-3b (0/15) | same | `hutch models bench <model> --provider llamacpp --base-url http://127.0.0.1:9931/v1 --no-recall -n 3 --ctx 8192` | 3 trials of 5 probes; `call_in_content` on 15/15 coder-3b trials | qwen3-4b 3-trial run (default reasoning at ~3.9 tokens/s exceeded 10 min; see EC-18) | reliable / unreliable / unreliable; coder-3b bodies were complete calls with `tool_calls: null`; files `bench-llamacpp-*.txt` |
+| 2026-11-06 | LM Studio 0.0.27-1 | qwen3-0.6b (15/15), qwen2.5-coder-1.5b (3/15), qwen2.5-vl (6/15) | same | `hutch models bench <model> --provider lmstudio --base-url http://127.0.0.1:1234/v1 --no-recall -n 3 --ctx 8192` | 3 trials of 5 probes; JIT loads; causes | API-token mode; GPU | reliable / unreliable / unreliable; `no_call` 9, `wrong_answer` 3; files `bench-lmstudio-*.txt` |
+| 2026-11-06 | Ollama 0.40.13 | qwen3:4b | same | `OllamaProvider.chat(ChatRequest(..., think=True, max_tokens=32, tools=[read_file]))`; real provider | reasoning-only turn with a tool list | a full app run with thinking on | `finish_reason=length`, content `""`, 147 thinking chars, 32 completion tokens; note names the output limit and the fix; evidence in the EC-18 row |
+| 2026-11-06 | Ollama 0.40.13 | `qwen3.5:0.8b` 1.3 GB Q8_0; `qwen3.5:2b-q4_K_M` 1.9 GB; `qwen3.5:4b-q4_K_M` 3.3 GB; `gemma4:e2b` 4.6 GB | Ryzen 3 5300U, CPU | `ollama pull` each; `hutch models bench <model> --no-recall -n 3 --ctx 8192` | 3 trials of 5 probes; capabilities vision/tools/thinking (Gemma also audio) | larger Gemma 4 and Qwen3.5 122B | all 15/15; 12.7 / 13.6 / 4.8 / 9.8 tokens/s; `bench-ollama-*.txt` |
+| 2026-11-06 | llama.cpp b12144 (CPU) | `qwen3.5-2b.gguf` 1,274,396,992 bytes + 671,372,768-byte projector; `gemma4-e2b.gguf` 3,502,493,472 + 986,833,664-byte projector | same | `llama-server -m ... --mmproj ... -c 8192 -t 8 --jinja [--reasoning-budget 0]`; `hutch models bench ... --provider llamacpp` | stock template vision+tools, tool bench, real image+tool | GPU | Qwen3.5 2B 15/15; Gemma 4 e2b 11/15 (tool choice 0/3, three calls left as text); both image+tool calls clean; `bench-llamacpp-*.txt` |
+| 2026-11-06 | LM Studio 0.0.27-1 | `gemma4-e2b` (projector named `mmproj-gemma4-e2b.gguf`), vision/tools true | same | `lms import -L`, projector rename, `lms server restart`; real `/v1/chat/completions`; `hutch models bench ... --provider lmstudio` | cat and screenshot vision, WebP refusal, tool bench | audio | cat `Cat`; screenshot `Models`; WebP 400; tool bench 12/15 (argument types 0/3, three `reasoning_only` turns); `bench-lmstudio-gemma4-e2b.txt`, `p5-lmstudio-gemma4-e2b-vision.json` |
+| 2026-11-06 | FastAPI app (this checkout), fresh state, uvicorn 8765 | current Ollama models at an 8,192-token vision preset | same | `p5_current_model_app.py`: real upload + message + polling, real cat photo and Playwright screenshot | full-app image comparison: cat, screenshot, two images | full-app text-only; 0.8B at 8K | Gemma 4 e2b 3/3 (56-96 s); Qwen3.5 4B 2/3 (100-205 s); Qwen3.5 2B 1/3 (62-76 s); Qwen3.5 0.8B 0/3 at 4K (two-image window refusal); `p5-app-*.json` |
 
 ## Decisions log
 
@@ -159,12 +175,68 @@ or out-of-scope (reason). One line per ID once touched.
   nowrap install cell, with a 720 px readable cap. The state span and the "or run" hint wrap
   in the cell. No template or CSS file changed; the styles are applied by the install script.
 
+- 2026-11-06, Phase 5: vision capability is a runtime signal, not a model-name table. Ollama
+  `/api/show`, llama.cpp `/props` + input modalities, and LM Studio `/api/v1/models` are the
+  sources; an unreadable runtime is a refusal, never a guess.
+- 2026-11-06, Phase 5: any `*.gguf` model id from llama-server is presented as its basename
+  (relative or absolute path). The live app run exposed that only absolute paths were shortened,
+  so Hutch rejected its own route until this was fixed.
+- 2026-11-06, Phase 5: an image costs a bounded 800-token block in planning and compaction. A
+  list body is never measured by `str(content)`: the first live app run turned a 121 KB JPEG into
+  ~52,000 fake tokens and blocked a fitting request. Protected user anchors keep user text only.
+- 2026-11-06, Phase 5: LM Studio 0.0.27-1 refuses a WebP data URI. Hutch refuses WebP on that
+  named route before sending and does not re-encode the user's image; PNG and JPEG are accepted.
+- 2026-11-06, Phase 5: Ollama GGUF import is not a vision path. The create call succeeds but the
+  external mmproj is not attached (`capabilities: ["completion"]`). The guide says to pull a
+  vision model.
+- 2026-11-06, Phase 5: the tool bench names causes and never repairs a call-shaped text into a
+  call. `call_in_content` is counted as an integration/parser cause; missing ids are recorded;
+  duplicate ids are already rejected by the runtime.
+- 2026-11-06, Phase 5: a reasoning-only turn with `finish_reason=length` gets one note naming the
+  output budget and the fix. Hutch does not automatically retry with a different budget, and the
+  native Ollama result folding now shares the note with the OpenAI-shaped path.
+- 2026-11-06, Phase 5: the tool bench sends `think=False` where the runtime accepts it. LM
+  Studio's OpenAI-compatible surface has no thinking toggle, so a reasoning-only result there is
+  disclosed per model rather than hidden.
+- 2026-11-06, Phase 5: the Qwen2.5-VL image-plus-tool probe used a local merge of llama.cpp's
+  Qwen2.5 tool template and the model's vision loop. That is a test configuration, not a
+  vendor-shipped template; the stock model reports `supports_tools: false`.
+- 2026-11-06, Phase 5: a 2,048-token vision model is not admitted to the app (4,096-token agent
+  floor). The floor was not lowered for Phase 5; the direct provider path proves the vision wire
+  and the app refusal is the recorded state.
+- 2026-11-06, Phase 5: audio/speech and a local embedding route are deferred. No model was
+  retained, no Hutch seam was exercised, and nothing is claimed.
+- 2026-11-06, Phase 5: the owner approved pulling current models beyond the original 10 GB
+  download cap. New downloads: `qwen3.5:0.8b` 1.3 GB, `qwen3.5:2b-q4_K_M` 1.9 GB,
+  `qwen3.5:4b-q4_K_M` 3.3 GB, `gemma4:e2b` 4.6 GB (11.1 GB). Total footprint is about
+  20.4 GB of a now-extended budget. No further download without asking.
+- 2026-11-06, Phase 5 current-model comparison: on Ollama, all four current models passed
+  15/15 isolated tool probes (Gemma 4 e2b 9.8 tokens/s, Qwen3.5 2B 13.6, Qwen3.5 0.8B 12.7,
+  Qwen3.5 4B 4.8). On llama.cpp, Qwen3.5 2B also passed 15/15 and Gemma 4 e2b passed 11/15
+  (tool choice 0/3, three calls left as text). On LM Studio, Gemma 4 e2b passed 12/15
+  (argument types 0/3, three reasoning-only turns). The full-app image comparison separated
+  them: Gemma 4 e2b 3/3, Qwen3.5 4B 2/3, Qwen3.5 2B 1/3, Qwen3.5 0.8B 0/3. The old
+  Qwen2.5-VL baseline was also 3/3 but took 73-188 s per run.
+- 2026-11-06, Phase 5 model choice: Gemma 4 e2b is the current full-multimodal winner on this
+  host (4.6 GB, 131k context, vision/tools/thinking/audio, stock vision-plus-tool template on
+  llama.cpp). Qwen3.5 2B Q4 is the lightweight tool/router choice (1.9 GB, 15/15 in isolation)
+  but not a full multimodal agent. Qwen3.5 4B is slower and less accurate than Gemma in the full
+  app; Qwen3.5 0.8B is isolated-probe only. The old qwen3:0.6b remains the fastest tiny tool
+  model (43.5 tokens/s) but is not the current recommendation. `catalog.json` and `presets.json`
+  now carry the measured current rows; the benchmark is one host and the choices remain
+  suggestions, not support claims.
+- 2026-11-06, Phase 5 LM Studio projector: LM Studio pairs a vision projector only when the file
+  is named `mmproj-<model>.gguf` and the server is restarted. An arbitrary name (`gemma4-e2b-mmproj.gguf`)
+  was listed as a separate CLIP model and the chat model reported `vision: false`; renaming fixed
+  it. This is a setup requirement, recorded in `docs/runtime-setup.md`.
+
 ## Owner questions (ask once, batched)
 
 Answered in Phase 0:
 
 - Permission to install LM Studio: **yes**, installed if obtainable (llmster used).
-- Download budget beyond 10 GB: **not needed** (4.1 GB used).
+- Download budget beyond 10 GB: **approved in Phase 5** for the current-model comparison.
+  New downloads were 11.1 GB (four models), bringing the footprint to about 20.4 GB.
 
 Still open (ask at the phase that needs it):
 
@@ -236,6 +308,62 @@ Still open (ask at the phase that needs it):
   Phase 4 file. `/code-review` and `/simplify` are not available in this session; the phase
   diff was re-read manually and the findings above were fixed.
 
+- 2026-11-06, Phase 5 review: the first real whole-app image run blocked a fitting request
+  with "the next request (~52,446 tokens)". `fitloop._message_tokens` was measuring a list
+  body with `str(content)`, which turns a 121 KB JPEG's base64 into ~50k fake text tokens.
+  Fixed by exposing `context.content_tokens` and using it in both estimators; protected
+  compaction anchors now keep only user text. Regression tests use a 200 KB data URL.
+- 2026-11-06, Phase 5 review: the same run rejected Hutch's own llama.cpp route because
+  `_model_id` shortened only absolute `.gguf` paths. llama-server listed
+  `models/vision/...gguf`; any `.gguf` path now presents its basename. The live route then
+  ran and answered `Cat`.
+- 2026-11-06, Phase 5 review: LM Studio 0.0.27-1 really does reject a WebP data URI while
+  accepting PNG/JPEG. The first live app run failed after the media was prepared; the route
+  now refuses WebP before sending, and the refusal says why. This is a named-route rule,
+  not a global image restriction.
+- 2026-11-06, Phase 5 review: llama.cpp + qwen2.5-coder-3b returned a complete call body
+  as `content` with `tool_calls: null`. The bench initially called that "prose"; the
+  classifier now counts `call_in_content`, and the rerun reports 15 such trials. Hutch still
+  does not promote text to a call.
+- 2026-11-06, Phase 5 review: `reliability.py` reached 414 lines and failed the context
+  audit. The cause classifier moved to `reliability_causes.py` (101 lines);
+  `reliability.py` is 333. `ollama.py` shrank from 432 to 400 by moving result folding to
+  `ollama_result.py`; no frozen file grew.
+- 2026-11-06, Phase 5 review: the Ollama import attempt created a model with
+  `capabilities: ["completion"]` and no projector, so the import path is not documented as a
+  vision path. The 2,048-token moondream app run is refused by the existing 4,096 floor; the
+  floor was not lowered just to make the evidence look uniform.
+- 2026-11-06, Phase 5 review, current models: the isolated bench passed every current model on
+  Ollama (15/15), but the full-app image comparison did not: Gemma 4 e2b 3/3, Qwen3.5 4B 2/3,
+  Qwen3.5 2B 1/3, Qwen3.5 0.8B 0/3. The tiny models echoed the question; the bench's five short
+  probes do not exercise Hutch's full system prompt. The recommendation therefore uses the
+  full-app result for multimodal and the bench only for isolated tool tasks. This is recorded
+  rather than hidden because a bench-only recommendation would have picked the wrong model.
+- 2026-11-06, Phase 5 review, current models: the first full-app comparison used a 4,096-token
+  preset; the two-image message needed 2,487 prompt + 209 tool + 2,048 reply tokens and was
+  refused at admission. That was a test-preset artifact, not a model or vision failure. The
+  comparison was rerun at 8,192 tokens; Gemma 4 e2b answered all three cases.
+- 2026-11-06, Phase 5 review, current models: llama.cpp Qwen3.5 2B at the default thinking
+  budget returned `finish_reason=length` and empty content for 20-120-token image probes; the
+  shared reasoning note fires, and `--reasoning-budget 0` produced the answers and a clean
+  stock-template `describe_scene` call. LM Studio Gemma 4 e2b produced three `reasoning_only`
+  bench trials at the 256-token cap; Ollama sends `think=False` and scored 15/15.
+- 2026-11-06, Phase 5 review, current models: LM Studio listed Gemma 4 e2b as `vision: false`
+  until its projector file was renamed to `mmproj-gemma4-e2b.gguf` and the server restarted.
+  The setup docs now name the convention. This is a runtime setup rule, not a model limitation.
+- 2026-11-06, Phase 5 review, catalog: the shipped catalog/presets now carry the measured current
+  rows and prefer Gemma 4 e2b for vision and Qwen3.5 2B/4B for tool presets. One preset
+  expectation in `tests/test_models_layer.py` changed from qwen3:14b/32b to
+  qwen3.5:4b-q4_K_M. The catalog remains a dated one-host suggestion list.
+- 2026-11-06, Phase 5 gates: the 14-file focused suite passed 264 with 1 skipped; `npm run
+  check:agent` passed after regenerating `.ai/repo-map.generated.md` for the new modules;
+  `npm run audit:context` passed; `scripts/audit_emoji.py` reports only the pre-existing
+  `.codewhale/state` file. The catalog/preset change adds `tests/test_models_layer.py` and
+  `tests/test_state_snapshot.py` to the focused set; both pass after the expectation update.
+  No UI or website file changed, so the visual and focused e2e gates do not apply.
+  `/code-review` and `/simplify` are not available in this session; the phase diff was re-read
+  manually and the findings above were fixed.
+
 ## Open items and deferred
 
 - G2, G3, G4 and G7 fixes: Phases 1 and 2. G1 and G6 are closed in Phase 4.
@@ -254,9 +382,27 @@ Still open (ask at the phase that needs it):
   remains below the download budget; the 1.9 GiB page pull is the multi-gigabyte case.
 - Phase 4 kept `qwen2.5-coder:3b` (1.9 GiB) and `qwen3:1.7b` (1.4 GiB) for Phase 5's
   three-model tool bench. New downloads this phase: 3.3 GiB plus about 0.3 GB in the
-  failed tmpfs; total run footprint still under the 10 GB budget.
+  failed tmpfs; the footprint was under 10 GB before the Phase 5 owner-approved extension.
 - `src/hutch/data/compat.json` rows for install/import remain Phase 8 (one host, one
-  runtime; a catalogue row is a public claim).
+  runtime; a catalogue row is a public claim). Vision/tool rows are likewise Phase 8.
+- Phase 5 not run: Ollama app-level vision on the retained 2,048-token moondream (the app
+  refuses it below the 4,096 floor; direct provider vision is recorded); audio and speech
+  on every runtime (no model retained); vLLM/SGLang (not installed); GPU vision; the old
+  Qwen2.5-VL's stock template has no tool section, so its image-plus-tool probe used a
+  disclosed merged template (the current Gemma 4 and Qwen3.5 2B templates need no override);
+  full-app text-only runs for the current models; Gemma 4 e4b/12b/26b, Qwen3.5 122B and
+  Qwen3-VL specifically (not downloaded); and the llama.cpp qwen3-4b three-trial bench
+  (default reasoning at ~3.9 tokens/s exceeded the foreground window).
+- Phase 5 kept `moondream:1.8b-v2-q3_K_S` (1.6 GB) and the current comparison set
+  (`qwen3.5:0.8b`, `qwen3.5:2b-q4_K_M`, `qwen3.5:4b-q4_K_M`, `gemma4:e2b`) for Phase 6/7.
+  The download footprint is about 20.4 GB after the owner-approved extension; do not
+  download more without asking. The retained llama.cpp and LM Studio model links point at
+  the same GGUFs and add no download.
+- The Phase 5 image benchmark used a real 640 px cat photo from Wikimedia Commons
+  (`Cat03.jpg`, Fir0002/Flagstaffotos, CC BY-NC 3.0; used locally for non-commercial
+  testing and not committed) and a real Playwright capture of the local Models page. The
+  full-size original exceeded the CPU window for a probe; the downscaled copy is the same
+  photo. No demo data was added to the product.
 - Phase 0 artifacts total 40 PNGs plus the capture JSON; kept under
   `docs/realignment/artifacts/offline-models-2026-11/`.
 
@@ -430,8 +576,56 @@ Still open (ask at the phase that needs it):
   Studio/vLLM/SGLang install surfaces (guided by decision), and the visible import/state
   matrix (Phase 7). Phase 4 is done.
 
-Next phase: Phase 5, multimodal and tool reliability on real local models: vision end to
-end on Ollama and llama.cpp with real images, audio/speech where the runtime does it
-natively, three-model tool-call qualification per runtime, reasoning-budget handling, and
-the embeddings/memory offline check.
+### Phase 5 checkpoints
+
+- 2026-11-06, Phase 5 research: `docs/research/2026-11-offline-models/06-PHASE5-MULTIMODAL.md`
+  (P5-1 to P5-13, R42-R54, F12-F18); design in `08-PHASE5-DESIGN.md`.
+- 2026-11-06, Phase 5.1: new `providers/local/vision.py`; `OpenAICompatProvider.supports_vision`
+  consults the runtime for llama.cpp/LM Studio. Live: llama.cpp Qwen2.5-VL answered `Cat`,
+  `"Models"`, `image 1`, and a WebP photo; LM Studio accepted PNG/JPEG and refused WebP;
+  Ollama moondream described the cat through the native provider.
+- 2026-11-06, Phase 5.1 media gate: LM Studio WebP is refused before sending with the reason
+  (`attachments.py`), and the runtime passes the image MIMEs to that gate. The webp case is
+  covered in `tests/test_local_vision.py`.
+- 2026-11-06, Phase 5.1 accounting: `context.content_tokens` is shared by planning and
+  compaction; image parts cost 800 tokens, never base64 text; protected anchors keep user text.
+  The live app run that exposed the 52k-token miscount now fits and answers.
+- 2026-11-06, Phase 5.2: audio/speech documented and deferred (no retained model, no exercised
+  seam); EC-27 records what each runtime accepts.
+- 2026-11-06, Phase 5.3: `reliability.py` counts structured causes and detects a complete call
+  left in `content`; `cli_models.py` gains `--provider`/`--base-url`; the classifier lives in
+  `reliability_causes.py` after the cap split. Sixteen model/runtime pairs measured (baseline and
+  current); files under `docs/research/2026-11-offline-models/evidence/phase5/`.
+- 2026-11-06, Phase 5 current models (owner approved beyond the original 10 GB budget): pulled
+  `qwen3.5:0.8b` 1.3 GB, `qwen3.5:2b-q4_K_M` 1.9 GB, `qwen3.5:4b-q4_K_M` 3.3 GB and
+  `gemma4:e2b` 4.6 GB. Ollama: all four 15/15. llama.cpp: Qwen3.5 2B 15/15, Gemma 4 e2b 11/15.
+  LM Studio: Gemma 4 e2b 12/15 (reasoning-only) and vision works after the projector is named
+  `mmproj-gemma4-e2b.gguf`. Full-app image comparison on Ollama: Gemma 4 e2b 3/3, Qwen3.5 4B
+  2/3, Qwen3.5 2B 1/3, Qwen3.5 0.8B 0/3. The measured rows and the winners are now in
+  `src/hutch/data/catalog.json` and `presets.json`; `tests/test_models_layer.py` follows the
+  new research preset. The full-app result, not the isolated bench, chose Gemma 4 e2b for
+  multimodal and Qwen3.5 2B Q4 for lightweight tools.
+- 2026-11-06, Phase 5.4: `openai_result.reasoning_budget_notes` is shared by the OpenAI-shaped
+  and native Ollama paths; `ollama_result.py` holds the native fold. Live qwen3:4b with
+  `think=True`, 32 tokens, returned `length`, empty content and 147 thinking chars, with the
+  note naming the budget and the fix.
+- 2026-11-06, Phase 5.5: code audit found no `/v1/embeddings` client and no hosted embedding
+  call in the chat/memory/search path; EC-19 remains open for Phase 6's airplane test.
+- 2026-11-06, Phase 5 live-driven fixes: a relative GGUF id is presented as its basename
+  (`providers/local/llamacpp.py`); the compaction estimator and the vision media gate above;
+  `call_in_content` classification. New tests cover each; commits `b0a17155`, `fd37d413`,
+  `fddb96c7`, `a08009f6`.
+- Phase 5 exit checks: EC-16, EC-17 and EC-18 are marked with real evidence, including the
+  current-model comparison. EC-19 is not-run until Phase 6. The only not-run items are Ollama
+  app-level vision on the 2K moondream, audio and speech, vLLM/SGLang serving, GPU vision,
+  Gemma 4 e4b/12b/26b, Qwen3.5 122B, Qwen3-VL specifically, and full-app text-only runs for
+  the current models. The current models have stock vision-plus-tool templates; no override was
+  needed for them. Services started for evidence are stopped after the final gates; ports 8765,
+  9931, 9932, 11434 and 1234 are verified free. Phase 5 is done.
+
+Next phase: Phase 6, Strict Offline with a live model and the boundary decision. It needs
+the owner's choice on 6.3 (status-quo wording, a user-run offline profile, or a
+Hutch-managed model process); do not implement the managed process without approval. The
+airplane test and the isolated-worker evidence are the remaining MUST items (G5, EC-04,
+EC-19).
 

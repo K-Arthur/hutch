@@ -1,0 +1,32 @@
+{
+  "model": "qwen3.5:4b-q4_K_M",
+  "label": "qwen3.5-4b-8k",
+  "bot": "bot_54591ff5c60d",
+  "conversation": "conv_b32916652e2a",
+  "cases": [
+    {
+      "case": "cat",
+      "send": 201,
+      "status": "succeeded",
+      "error": "",
+      "seconds": 204.82,
+      "answer": "Cat"
+    },
+    {
+      "case": "screenshot",
+      "send": 201,
+      "status": "succeeded",
+      "error": "",
+      "seconds": 100.37,
+      "answer": "Models"
+    },
+    {
+      "case": "two_images",
+      "send": 201,
+      "status": "succeeded",
+      "error": "",
+      "seconds": 134.54,
+      "answer": "Which image contains an animal?"
+    }
+  ]
+}

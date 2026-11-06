@@ -40,6 +40,22 @@ only and are not asserted.
   result, but does not record missing ids, reasoning-only turns, call-shaped prose or
   parallel/unrequested calls. Its CLI is Ollama-only.
 
+## Current-model addendum (owner request, 2026-11-06)
+
+The first pass measured the retained 2025-era models because they were already on disk
+and the host is CPU-only. The owner then asked for the newer models and approved
+exceeding the original download budget. The current candidates were read from the live
+Ollama library pages (R55/R56) before pulling:
+
+- Qwen3.5 0.8B, 2B Q4_K_M and 4B Q4_K_M: 1.3, 1.9 and 3.3 GB; vision, tools, thinking;
+  256K context. All three are GGUF and expose a separate projector blob.
+- Gemma 4 e2b: 4.6 GB; vision, tools, thinking and audio; 128K context.
+
+The comparison is recorded in `02-PROGRESS.md` and `docs/models.md`: all four pass the
+isolated Ollama tool bench, but the full-app image comparison separates them (Gemma 4
+e2b 3/3, Qwen3.5 4B 2/3, Qwen3.5 2B 1/3, Qwen3.5 0.8B 0/3). The isolated bench alone
+would have recommended the wrong model for a full multimodal agent turn.
+
 ## Failure and complaint classes added in this phase
 
 | ID | Complaint | Evidence | Class | Hutch response | Test idea |

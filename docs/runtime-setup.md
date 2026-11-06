@@ -57,6 +57,16 @@ The maintenance preflight and concurrent configuration behavior were checked aga
 
 - **Install:** install Ollama from <https://ollama.com> and start its local server. Hutch does not bundle the Ollama binary or model weights.
 - **Models:** the Models page can install a suggested model, or list what the running server already reports; a model name in a preset is a suggestion, not a promise that the weights are installed.
+- **Vision:** pull a vision model and confirm `/api/show` lists `vision`. Current examples measured on
+  this host: `gemma4:e2b` (4.6 GB, vision/tools/thinking/audio) and `qwen3.5:2b-q4_K_M` (1.9 GB,
+  vision/tools/thinking). A text model is refused before an image is sent. Importing a GGUF with a
+  separate `mmproj` does not attach the projector on Ollama 0.40.13: the create call succeeded but
+  `/api/show` reported `capabilities: ["completion"]` only. Use a runtime-native vision model instead.
+  A 2,048-token model such as moondream is below the app's 4,096-token agent floor and is refused with
+  the fit message.
+- **Audio/speech:** Ollama exposes `/v1/audio/speech` with a speech model such as Phonon (WAV/PCM,
+  4,096-character input). No speech model was retained in the Phase 5 pass and Hutch has no Ollama
+  speech seam, so this is documented and deferred, not claimed.
 
 ### Getting a local model (2026-11)
 
@@ -121,6 +131,19 @@ The maintenance preflight and concurrent configuration behavior were checked aga
   call; if it does not answer again, the turn stops with that cause. The build string
   (`/props.build_info`) is recorded; capabilities come from fields such as
   `chat_template_caps.supports_tools`, because llama.cpp publishes no feature-by-build matrix.
+- **llama.cpp vision:** start the text model and its projector together, for example
+  `llama-server -m model.gguf --mmproj mmproj.gguf -c 8192 --jinja`. `/props.modalities.vision`
+  and the model's input modalities are the capability signal; a server without a projector reports
+  text only and Hutch refuses an image. If a vision model's embedded template has no tool section
+  (Qwen2.5-VL reports `supports_tools: false`), `--chat-template-file` can supply one. The Phase 5
+  image-plus-tool probe used a local merge of llama.cpp's Qwen2.5 tool template and that model's
+  vision loop; it is a test configuration, not a vendor-shipped template, and Hutch never swaps a
+  template for you. The current Gemma 4 e2b and Qwen3.5 2B templates report vision and tools together,
+  so they need no override for an image-plus-tool request. A thinking model can spend a small output
+  cap entirely on reasoning and return `length` with no visible answer; `--reasoning-budget 0` is the
+  server's switch for a short tool turn. Hutch notes the state and does not set the flag for you.
+- **llama.cpp audio:** `input_audio` is accepted with a compatible audio model. No audio model was
+  retained or exercised, so this is deferred.
 - **LM Studio:** start its server (default 127.0.0.1:1234). Hutch reads the applied
   `loaded_instances[].config.context_length`, not the model's maximum, and can load a cold model at a
   fitted window, timing the load. TTL expiry and auto-evict show as an unloaded model, and Hutch
@@ -128,6 +151,14 @@ The maintenance preflight and concurrent configuration behavior were checked aga
   enabled, store the token on a connection for that exact origin; without it the server shows
   `needs_key`, not "dead". The app does not report its version over HTTP, so Hutch records the
   native `/api/v1` presence (0.4.0 or newer) and gives no version advice.
+- **LM Studio vision:** `/api/v1/models` reports `capabilities.vision`; import a vision GGUF and put
+  its `mmproj` file in the same model folder, **named `mmproj-<model>.gguf`**, then restart `lms
+  server` so the model is rescanned. With any other name LM Studio 0.0.27-1 lists the projector as a
+  separate CLIP model and reports the chat model as `vision: false` (observed 2026-11-06). The
+  same version accepts PNG and JPEG data URIs and rejects a WebP data URI with "'url' field must be a
+  base64 encoded image". Hutch refuses WebP on that route before sending; it does not convert the
+  file silently.
+- **LM Studio audio:** no audio input is documented on the OpenAI-compatible surface. Deferred.
 - **Strict Offline:** requires a verified local route and the host's isolation checks. A hosted API key is not a Strict Offline fallback. A key-protected local server is still local; its token is a bearer header, never a URL credential.
 
 ## Hardware and network checks

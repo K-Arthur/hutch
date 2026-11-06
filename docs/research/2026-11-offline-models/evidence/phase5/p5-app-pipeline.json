@@ -1,0 +1,1348 @@
+{
+  "results": [
+    {
+      "label": "llamacpp_cat",
+      "send_status": 201,
+      "run_id": "run_d561f60b87fa",
+      "status": "succeeded",
+      "error": "",
+      "answer": "Cat",
+      "media_events": [
+        {
+          "kind": "media",
+          "note": "1 image(s) attached to this message",
+          "prepared": 1
+        },
+        {
+          "kind": "media",
+          "note": "1 attached image(s) included with this message to llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+          "prepared": 1,
+          "route": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+          "transmitted": 1
+        }
+      ],
+      "run_events": [
+        {
+          "status": "running",
+          "data": {
+            "origin": "manual:api",
+            "status": "running"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "browser_handoff": "headless",
+            "execution_purpose": "task",
+            "inference_mode": "hybrid",
+            "limits": {
+              "daily_cost_cap_usd": 0.0,
+              "daily_token_cap": 200000,
+              "max_cost_usd": 0.0,
+              "max_steps": 24,
+              "max_turn_tokens": 0,
+              "timeout_seconds": 900
+            },
+            "model": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "runtime": "builtin",
+            "skill_activation": [],
+            "skills": [],
+            "tool_access": "bot",
+            "tools": [
+              "ask_user_choice",
+              "propose_assistant"
+            ]
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "media",
+            "note": "1 image(s) attached to this message",
+            "prepared": 1
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "estimated": false,
+            "fit": "measured",
+            "kind": "context",
+            "note": "Qwen2.5-VL-3B-Instruct-Q4_K_M: llamacpp b12144-69ee2ecc0 reports 8,192 tokens applied per request across 4 slots (wanted 16,384; a fixed window cannot be changed per request)",
+            "num_ctx": 8192,
+            "state": "ready"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "plan",
+            "model": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "note": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M: ~2,468 prompt tokens, up to 24 steps, no per-token cost",
+            "prompt_tokens": 2468,
+            "window": 8192,
+            "worst_case_usd": 0.0
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "media",
+            "note": "1 attached image(s) included with this message to llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "prepared": 1,
+            "route": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "transmitted": 1
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "workflow_routing",
+            "model": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "note": "chat workflow recommendations are unavailable: selector on llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M: blocked; this role needs all held-out checks to pass on the exact route and execution profile; the active model build/settings were not verified",
+            "role": "selector",
+            "state": "blocked"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "aliases": {},
+            "cache_hit": false,
+            "catalog_hash": "c386380e512ff20e",
+            "compiled_ms": 0.232,
+            "compiler_version": "toolcalling-1",
+            "diagnostics": [],
+            "kind": "tool_protocol",
+            "note": "tools: native over openai-chat (llamacpp/local); 2 tool(s), validator jsonschema-2020-12",
+            "plan_hash": "6a1e109a17838b75",
+            "profile": {
+              "constrained_attachment": "response_format",
+              "constrained_schema": {
+                "detail": "response_format json_schema converts to GBNF; unsupported keywords are skipped silently",
+                "observed_on": "2026-10-10",
+                "source": "llama.cpp GBNF guide",
+                "state": "documented"
+              },
+              "endpoint_class": "local",
+              "execution_profile": {
+                "backend": "llama.cpp",
+                "backend_version": "b12144-69ee2ecc0",
+                "checkpoint_digest": "",
+                "complete": false,
+                "decoding": {
+                  "max_tokens": 2048,
+                  "stream": true,
+                  "temperature": null,
+                  "think": false
+                },
+                "effective_context": 8192,
+                "fingerprint": "023ee1a377e449c3ab6d792718c2a6d92fb909e3e63e1b194f06515e9ebcd423",
+                "missing": [
+                  "checkpoint_digest",
+                  "template_hash",
+                  "tokenizer_hash"
+                ],
+                "modalities": [
+                  "image"
+                ],
+                "modalities_known": true,
+                "parser_id": "hutch.openai-tool-args.strictjson-v1",
+                "protocol": "openai-chat",
+                "quantization": "Q4_K - Medium",
+                "template_hash": "",
+                "tokenizer_hash": ""
+              },
+              "model": "Qwen2.5-VL-3B-Instruct-Q4_K_M",
+              "multimodal": {
+                "detail": "",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "unknown"
+              },
+              "native_tools": {
+                "detail": "server-side function calling requires --jinja; generic handler covers unrecognized templates",
+                "observed_on": "2026-10-10",
+                "source": "llama.cpp function calling docs",
+                "state": "documented"
+              },
+              "notes": [
+                "GBNF conversion defaults additionalProperties to false and skips unsupported keywords; the compiler re-encodes that explicitly and reports every gap."
+              ],
+              "parallel_calls": {
+                "detail": "parallel_tool_calls must be requested explicitly",
+                "observed_on": "2026-10-10",
+                "source": "llama.cpp function calling docs",
+                "state": "documented"
+              },
+              "profile": "llamacpp/local",
+              "protocol": "openai-chat",
+              "provider": "llamacpp",
+              "revision": "f1dded0b3f8f7127d8ff870cf6520153b11be619ead14b6307a79c7a0ddf6b4c",
+              "source": "known-profile",
+              "streaming_calls": {
+                "detail": "server emits assembled tool_calls; ids may be omitted",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "unknown"
+              },
+              "strict_tool_schema": {
+                "detail": "no per-tool strict flag; schema-to-GBNF conversion has documented gaps",
+                "observed_on": "2026-10-10",
+                "source": "llama.cpp GBNF guide",
+                "state": "unsupported"
+              },
+              "tool_choice": {
+                "detail": "depends on the template and server version",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "unknown"
+              }
+            },
+            "protocol": "openai-chat",
+            "strategy": "native",
+            "tools": [
+              {
+                "name": "ask_user_choice",
+                "revision": "63f6904bc5744bbb",
+                "visible": "ask_user_choice"
+              },
+              {
+                "name": "propose_assistant",
+                "revision": "e4d485172da8d55a",
+                "visible": "propose_assistant"
+              }
+            ],
+            "validator": "jsonschema-2020-12"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "provider",
+            "note": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M reported serving 'models/vision/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf'",
+            "requested": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "served": "models/vision/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "final_chars": 3,
+            "steps": 1,
+            "tokens": 1890
+          }
+        },
+        {
+          "status": "succeeded",
+          "data": {
+            "reason": "completed",
+            "status": "succeeded"
+          }
+        }
+      ],
+      "started_at": "2026-11-06T11:51:10.740942+00:00",
+      "finished_at": "2026-11-06T11:52:24.042983+00:00",
+      "duration_seconds": 73.302
+    },
+    {
+      "label": "llamacpp_screenshot",
+      "send_status": 201,
+      "run_id": "run_6b35438ae713",
+      "status": "succeeded",
+      "error": "",
+      "answer": "\"Models\"",
+      "media_events": [
+        {
+          "kind": "media",
+          "note": "1 image(s) attached to this message",
+          "prepared": 1
+        },
+        {
+          "kind": "media",
+          "note": "1 attached image(s) included with this message to llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+          "prepared": 1,
+          "route": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+          "transmitted": 1
+        }
+      ],
+      "run_events": [
+        {
+          "status": "running",
+          "data": {
+            "origin": "manual:api",
+            "status": "running"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "browser_handoff": "headless",
+            "execution_purpose": "task",
+            "inference_mode": "hybrid",
+            "limits": {
+              "daily_cost_cap_usd": 0.0,
+              "daily_token_cap": 200000,
+              "max_cost_usd": 0.0,
+              "max_steps": 24,
+              "max_turn_tokens": 0,
+              "timeout_seconds": 900
+            },
+            "model": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "runtime": "builtin",
+            "skill_activation": [],
+            "skills": [],
+            "tool_access": "bot",
+            "tools": [
+              "ask_user_choice",
+              "propose_assistant"
+            ]
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "media",
+            "note": "1 image(s) attached to this message",
+            "prepared": 1
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "estimated": false,
+            "fit": "measured",
+            "kind": "context",
+            "note": "Qwen2.5-VL-3B-Instruct-Q4_K_M: llamacpp b12144-69ee2ecc0 reports 8,192 tokens applied per request across 4 slots (wanted 16,384; a fixed window cannot be changed per request)",
+            "num_ctx": 8192,
+            "state": "ready"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "plan",
+            "model": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "note": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M: ~2,504 prompt tokens, up to 24 steps, no per-token cost",
+            "prompt_tokens": 2504,
+            "window": 8192,
+            "worst_case_usd": 0.0
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "media",
+            "note": "1 attached image(s) included with this message to llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "prepared": 1,
+            "route": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "transmitted": 1
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "workflow_routing",
+            "model": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "note": "chat workflow recommendations are unavailable: selector on llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M: blocked; this role needs all held-out checks to pass on the exact route and execution profile; the active model build/settings were not verified",
+            "role": "selector",
+            "state": "blocked"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "aliases": {},
+            "cache_hit": true,
+            "catalog_hash": "c386380e512ff20e",
+            "compiled_ms": 0.307,
+            "compiler_version": "toolcalling-1",
+            "diagnostics": [],
+            "kind": "tool_protocol",
+            "note": "tools: native over openai-chat (llamacpp/local); 2 tool(s), validator jsonschema-2020-12",
+            "plan_hash": "6a1e109a17838b75",
+            "profile": {
+              "constrained_attachment": "response_format",
+              "constrained_schema": {
+                "detail": "response_format json_schema converts to GBNF; unsupported keywords are skipped silently",
+                "observed_on": "2026-10-10",
+                "source": "llama.cpp GBNF guide",
+                "state": "documented"
+              },
+              "endpoint_class": "local",
+              "execution_profile": {
+                "backend": "llama.cpp",
+                "backend_version": "b12144-69ee2ecc0",
+                "checkpoint_digest": "",
+                "complete": false,
+                "decoding": {
+                  "max_tokens": 2048,
+                  "stream": true,
+                  "temperature": null,
+                  "think": false
+                },
+                "effective_context": 8192,
+                "fingerprint": "023ee1a377e449c3ab6d792718c2a6d92fb909e3e63e1b194f06515e9ebcd423",
+                "missing": [
+                  "checkpoint_digest",
+                  "template_hash",
+                  "tokenizer_hash"
+                ],
+                "modalities": [
+                  "image"
+                ],
+                "modalities_known": true,
+                "parser_id": "hutch.openai-tool-args.strictjson-v1",
+                "protocol": "openai-chat",
+                "quantization": "Q4_K - Medium",
+                "template_hash": "",
+                "tokenizer_hash": ""
+              },
+              "model": "Qwen2.5-VL-3B-Instruct-Q4_K_M",
+              "multimodal": {
+                "detail": "",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "unknown"
+              },
+              "native_tools": {
+                "detail": "server-side function calling requires --jinja; generic handler covers unrecognized templates",
+                "observed_on": "2026-10-10",
+                "source": "llama.cpp function calling docs",
+                "state": "documented"
+              },
+              "notes": [
+                "GBNF conversion defaults additionalProperties to false and skips unsupported keywords; the compiler re-encodes that explicitly and reports every gap."
+              ],
+              "parallel_calls": {
+                "detail": "parallel_tool_calls must be requested explicitly",
+                "observed_on": "2026-10-10",
+                "source": "llama.cpp function calling docs",
+                "state": "documented"
+              },
+              "profile": "llamacpp/local",
+              "protocol": "openai-chat",
+              "provider": "llamacpp",
+              "revision": "f1dded0b3f8f7127d8ff870cf6520153b11be619ead14b6307a79c7a0ddf6b4c",
+              "source": "known-profile",
+              "streaming_calls": {
+                "detail": "server emits assembled tool_calls; ids may be omitted",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "unknown"
+              },
+              "strict_tool_schema": {
+                "detail": "no per-tool strict flag; schema-to-GBNF conversion has documented gaps",
+                "observed_on": "2026-10-10",
+                "source": "llama.cpp GBNF guide",
+                "state": "unsupported"
+              },
+              "tool_choice": {
+                "detail": "depends on the template and server version",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "unknown"
+              }
+            },
+            "protocol": "openai-chat",
+            "strategy": "native",
+            "tools": [
+              {
+                "name": "ask_user_choice",
+                "revision": "63f6904bc5744bbb",
+                "visible": "ask_user_choice"
+              },
+              {
+                "name": "propose_assistant",
+                "revision": "e4d485172da8d55a",
+                "visible": "propose_assistant"
+              }
+            ],
+            "validator": "jsonschema-2020-12"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "provider",
+            "note": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M reported serving 'models/vision/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf'",
+            "requested": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "served": "models/vision/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "final_chars": 8,
+            "steps": 1,
+            "tokens": 2724
+          }
+        },
+        {
+          "status": "succeeded",
+          "data": {
+            "reason": "completed",
+            "status": "succeeded"
+          }
+        }
+      ],
+      "started_at": "2026-11-06T11:52:25.198216+00:00",
+      "finished_at": "2026-11-06T11:54:51.158997+00:00",
+      "duration_seconds": 145.961
+    },
+    {
+      "label": "llamacpp_two_images",
+      "send_status": 201,
+      "status": "succeeded",
+      "error": "",
+      "answer": "image 1",
+      "run_id": "run_f33f9c04c838",
+      "started_at": "2026-11-06T11:54:52.092262+00:00",
+      "finished_at": "2026-11-06T11:58:00.138448+00:00",
+      "duration_seconds": 188.046
+    },
+    {
+      "label": "llamacpp_webp",
+      "send_status": 201,
+      "run_id": "run_4717daeec338",
+      "status": "succeeded",
+      "error": "",
+      "answer": "An orange tabby cat with yellow eyes is in the image.",
+      "media_events": [
+        {
+          "kind": "media",
+          "note": "1 image(s) attached to this message",
+          "prepared": 1
+        },
+        {
+          "kind": "media",
+          "note": "1 attached image(s) included with this message to llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+          "prepared": 1,
+          "route": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+          "transmitted": 1
+        }
+      ],
+      "run_events": [
+        {
+          "status": "running",
+          "data": {
+            "origin": "manual:api",
+            "status": "running"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "browser_handoff": "headless",
+            "execution_purpose": "task",
+            "inference_mode": "hybrid",
+            "limits": {
+              "daily_cost_cap_usd": 0.0,
+              "daily_token_cap": 200000,
+              "max_cost_usd": 0.0,
+              "max_steps": 24,
+              "max_turn_tokens": 0,
+              "timeout_seconds": 900
+            },
+            "model": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "runtime": "builtin",
+            "skill_activation": [],
+            "skills": [],
+            "tool_access": "bot",
+            "tools": [
+              "ask_user_choice",
+              "propose_assistant"
+            ]
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "media",
+            "note": "1 image(s) attached to this message",
+            "prepared": 1
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "estimated": false,
+            "fit": "measured",
+            "kind": "context",
+            "note": "Qwen2.5-VL-3B-Instruct-Q4_K_M: llamacpp b12144-69ee2ecc0 reports 8,192 tokens applied per request across 4 slots (wanted 16,384; a fixed window cannot be changed per request)",
+            "num_ctx": 8192,
+            "state": "ready"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "plan",
+            "model": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "note": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M: ~2,579 prompt tokens, up to 24 steps, no per-token cost",
+            "prompt_tokens": 2579,
+            "window": 8192,
+            "worst_case_usd": 0.0
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "media",
+            "note": "1 attached image(s) included with this message to llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "prepared": 1,
+            "route": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "transmitted": 1
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "workflow_routing",
+            "model": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "note": "chat workflow recommendations are unavailable: selector on llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M: blocked; this role needs all held-out checks to pass on the exact route and execution profile; the active model build/settings were not verified",
+            "role": "selector",
+            "state": "blocked"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "aliases": {},
+            "cache_hit": true,
+            "catalog_hash": "c386380e512ff20e",
+            "compiled_ms": 0.352,
+            "compiler_version": "toolcalling-1",
+            "diagnostics": [],
+            "kind": "tool_protocol",
+            "note": "tools: native over openai-chat (llamacpp/local); 2 tool(s), validator jsonschema-2020-12",
+            "plan_hash": "6a1e109a17838b75",
+            "profile": {
+              "constrained_attachment": "response_format",
+              "constrained_schema": {
+                "detail": "response_format json_schema converts to GBNF; unsupported keywords are skipped silently",
+                "observed_on": "2026-10-10",
+                "source": "llama.cpp GBNF guide",
+                "state": "documented"
+              },
+              "endpoint_class": "local",
+              "execution_profile": {
+                "backend": "llama.cpp",
+                "backend_version": "b12144-69ee2ecc0",
+                "checkpoint_digest": "",
+                "complete": false,
+                "decoding": {
+                  "max_tokens": 2048,
+                  "stream": true,
+                  "temperature": null,
+                  "think": false
+                },
+                "effective_context": 8192,
+                "fingerprint": "023ee1a377e449c3ab6d792718c2a6d92fb909e3e63e1b194f06515e9ebcd423",
+                "missing": [
+                  "checkpoint_digest",
+                  "template_hash",
+                  "tokenizer_hash"
+                ],
+                "modalities": [
+                  "image"
+                ],
+                "modalities_known": true,
+                "parser_id": "hutch.openai-tool-args.strictjson-v1",
+                "protocol": "openai-chat",
+                "quantization": "Q4_K - Medium",
+                "template_hash": "",
+                "tokenizer_hash": ""
+              },
+              "model": "Qwen2.5-VL-3B-Instruct-Q4_K_M",
+              "multimodal": {
+                "detail": "",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "unknown"
+              },
+              "native_tools": {
+                "detail": "server-side function calling requires --jinja; generic handler covers unrecognized templates",
+                "observed_on": "2026-10-10",
+                "source": "llama.cpp function calling docs",
+                "state": "documented"
+              },
+              "notes": [
+                "GBNF conversion defaults additionalProperties to false and skips unsupported keywords; the compiler re-encodes that explicitly and reports every gap."
+              ],
+              "parallel_calls": {
+                "detail": "parallel_tool_calls must be requested explicitly",
+                "observed_on": "2026-10-10",
+                "source": "llama.cpp function calling docs",
+                "state": "documented"
+              },
+              "profile": "llamacpp/local",
+              "protocol": "openai-chat",
+              "provider": "llamacpp",
+              "revision": "f1dded0b3f8f7127d8ff870cf6520153b11be619ead14b6307a79c7a0ddf6b4c",
+              "source": "known-profile",
+              "streaming_calls": {
+                "detail": "server emits assembled tool_calls; ids may be omitted",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "unknown"
+              },
+              "strict_tool_schema": {
+                "detail": "no per-tool strict flag; schema-to-GBNF conversion has documented gaps",
+                "observed_on": "2026-10-10",
+                "source": "llama.cpp GBNF guide",
+                "state": "unsupported"
+              },
+              "tool_choice": {
+                "detail": "depends on the template and server version",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "unknown"
+              }
+            },
+            "protocol": "openai-chat",
+            "strategy": "native",
+            "tools": [
+              {
+                "name": "ask_user_choice",
+                "revision": "63f6904bc5744bbb",
+                "visible": "ask_user_choice"
+              },
+              {
+                "name": "propose_assistant",
+                "revision": "e4d485172da8d55a",
+                "visible": "propose_assistant"
+              }
+            ],
+            "validator": "jsonschema-2020-12"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "provider",
+            "note": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M reported serving 'models/vision/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf'",
+            "requested": "llamacpp/Qwen2.5-VL-3B-Instruct-Q4_K_M",
+            "served": "models/vision/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "final_chars": 53,
+            "steps": 1,
+            "tokens": 1991
+          }
+        },
+        {
+          "status": "succeeded",
+          "data": {
+            "reason": "completed",
+            "status": "succeeded"
+          }
+        }
+      ],
+      "started_at": "2026-11-06T11:58:01.242373+00:00",
+      "finished_at": "2026-11-06T11:59:23.139569+00:00",
+      "duration_seconds": 81.897
+    },
+    {
+      "label": "llamacpp_oversize",
+      "send_status": 422,
+      "send_detail": "oversize.png is too large to send as an image (3.5 MB; the limit is 1.5 MB)"
+    },
+    {
+      "label": "lmstudio_webp",
+      "send_status": 201,
+      "run_id": "run_c62d7038e23f",
+      "status": "failed",
+      "error": "LM Studio rejects WebP image data URIs; use a PNG or JPEG image, so your message and its 1 image(s) were not sent to the model; choose a vision-capable route or describe the images in text",
+      "answer": "",
+      "media_events": [
+        {
+          "kind": "media",
+          "note": "1 image(s) attached to this message",
+          "prepared": 1
+        }
+      ],
+      "run_events": [
+        {
+          "status": "running",
+          "data": {
+            "origin": "manual:api",
+            "status": "running"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "browser_handoff": "headless",
+            "execution_purpose": "task",
+            "inference_mode": "hybrid",
+            "limits": {
+              "daily_cost_cap_usd": 0.0,
+              "daily_token_cap": 200000,
+              "max_cost_usd": 0.0,
+              "max_steps": 24,
+              "max_turn_tokens": 0,
+              "timeout_seconds": 900
+            },
+            "model": "lmstudio/qwen2.5-vl",
+            "runtime": "builtin",
+            "skill_activation": [],
+            "skills": [],
+            "tool_access": "bot",
+            "tools": [
+              "ask_user_choice"
+            ]
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "media",
+            "note": "1 image(s) attached to this message",
+            "prepared": 1
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "estimated": false,
+            "fit": "measured",
+            "kind": "context",
+            "note": "qwen2.5-vl: lmstudio reports 8,192 tokens applied (parallel 4) (wanted 16,384; a fixed window cannot be changed per request)",
+            "num_ctx": 8192,
+            "state": "ready"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "plan",
+            "model": "lmstudio/qwen2.5-vl",
+            "note": "lmstudio/qwen2.5-vl: ~1,778 prompt tokens, up to 24 steps, no per-token cost",
+            "prompt_tokens": 1778,
+            "window": 8192,
+            "worst_case_usd": 0.0
+          }
+        },
+        {
+          "status": "failed",
+          "data": {
+            "reason": "media_input",
+            "status": "failed"
+          }
+        }
+      ],
+      "started_at": "2026-11-06T11:59:23.791635+00:00",
+      "finished_at": "2026-11-06T11:59:23.890352+00:00",
+      "duration_seconds": 0.099
+    },
+    {
+      "label": "lmstudio_png",
+      "send_status": 201,
+      "run_id": "run_d33acd79c746",
+      "status": "succeeded",
+      "error": "",
+      "answer": "The image shows the \"Models\" section of a platform, listing various AI model options with their status and capabilities.",
+      "media_events": [
+        {
+          "kind": "media",
+          "note": "1 image(s) attached to this message",
+          "prepared": 1
+        },
+        {
+          "kind": "media",
+          "note": "1 attached image(s) included with this message to lmstudio/qwen2.5-vl",
+          "prepared": 1,
+          "route": "lmstudio/qwen2.5-vl",
+          "transmitted": 1
+        }
+      ],
+      "run_events": [
+        {
+          "status": "running",
+          "data": {
+            "origin": "manual:api",
+            "status": "running"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "browser_handoff": "headless",
+            "execution_purpose": "task",
+            "inference_mode": "hybrid",
+            "limits": {
+              "daily_cost_cap_usd": 0.0,
+              "daily_token_cap": 200000,
+              "max_cost_usd": 0.0,
+              "max_steps": 24,
+              "max_turn_tokens": 0,
+              "timeout_seconds": 900
+            },
+            "model": "lmstudio/qwen2.5-vl",
+            "runtime": "builtin",
+            "skill_activation": [],
+            "skills": [],
+            "tool_access": "bot",
+            "tools": [
+              "ask_user_choice"
+            ]
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "media",
+            "note": "1 image(s) attached to this message",
+            "prepared": 1
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "estimated": false,
+            "fit": "measured",
+            "kind": "context",
+            "note": "qwen2.5-vl: lmstudio reports 8,192 tokens applied (parallel 4) (wanted 16,384; a fixed window cannot be changed per request)",
+            "num_ctx": 8192,
+            "state": "ready"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "plan",
+            "model": "lmstudio/qwen2.5-vl",
+            "note": "lmstudio/qwen2.5-vl: ~1,807 prompt tokens, up to 24 steps, no per-token cost",
+            "prompt_tokens": 1807,
+            "window": 8192,
+            "worst_case_usd": 0.0
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "media",
+            "note": "1 attached image(s) included with this message to lmstudio/qwen2.5-vl",
+            "prepared": 1,
+            "route": "lmstudio/qwen2.5-vl",
+            "transmitted": 1
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "workflow_routing",
+            "model": "lmstudio/qwen2.5-vl",
+            "note": "chat workflow recommendations are unavailable: selector on lmstudio/qwen2.5-vl: blocked; this role needs all held-out checks to pass on the exact route and execution profile; the active model build/settings were not verified",
+            "role": "selector",
+            "state": "blocked"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "aliases": {},
+            "cache_hit": false,
+            "catalog_hash": "4d1da20a5931d1c1",
+            "compiled_ms": 0.24,
+            "compiler_version": "toolcalling-1",
+            "diagnostics": [
+              {
+                "classification": "locally_enforced",
+                "code": "strategy.native.unverified",
+                "detail": "native tool support is not verified for this exact route/model; Hutch will still validate every call locally and reject malformed, unknown, or schema-invalid calls",
+                "field": "",
+                "severity": "warning",
+                "tool": ""
+              }
+            ],
+            "kind": "tool_protocol",
+            "note": "tools: native over openai-chat (lmstudio/local); 1 tool(s), validator jsonschema-2020-12",
+            "plan_hash": "7800cb374f2ab731",
+            "profile": {
+              "constrained_attachment": "",
+              "constrained_schema": {
+                "detail": "not documented for the chat endpoint; explicit opt-in only",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "unknown"
+              },
+              "endpoint_class": "local",
+              "execution_profile": {
+                "backend": "lmstudio",
+                "backend_version": "",
+                "checkpoint_digest": "",
+                "complete": false,
+                "decoding": {
+                  "max_tokens": 2048,
+                  "stream": true,
+                  "temperature": null,
+                  "think": false
+                },
+                "effective_context": 8192,
+                "fingerprint": "fbb722b5ba37b59ce8ef460a9888486a73d0e4b30d8b54fb34bfe9a5d32f30c6",
+                "missing": [
+                  "backend_version",
+                  "checkpoint_digest",
+                  "template_hash",
+                  "tokenizer_hash"
+                ],
+                "modalities": [
+                  "image"
+                ],
+                "modalities_known": true,
+                "parser_id": "hutch.openai-tool-args.strictjson-v1",
+                "protocol": "openai-chat",
+                "quantization": "Q4_K_M",
+                "template_hash": "",
+                "tokenizer_hash": ""
+              },
+              "model": "qwen2.5-vl",
+              "multimodal": {
+                "detail": "",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "unknown"
+              },
+              "native_tools": {
+                "detail": "OpenAI-compatible tool use documented by LM Studio",
+                "observed_on": "2026-10-10",
+                "source": "LM Studio tool use docs",
+                "state": "advertised"
+              },
+              "notes": [],
+              "parallel_calls": {
+                "detail": "",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "unknown"
+              },
+              "profile": "lmstudio/local",
+              "protocol": "openai-chat",
+              "provider": "lmstudio",
+              "revision": "9c73fa21a7a4d91bd62b43172be95f6973834af284da96647377b5ad886b28dc",
+              "source": "known-profile",
+              "streaming_calls": {
+                "detail": "",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "advertised"
+              },
+              "strict_tool_schema": {
+                "detail": "",
+                "observed_on": "",
+                "source": "",
+                "state": "unknown"
+              },
+              "tool_choice": {
+                "detail": "",
+                "observed_on": "2026-10-10",
+                "source": "",
+                "state": "unknown"
+              }
+            },
+            "protocol": "openai-chat",
+            "strategy": "native",
+            "tools": [
+              {
+                "name": "ask_user_choice",
+                "revision": "63f6904bc5744bbb",
+                "visible": "ask_user_choice"
+              }
+            ],
+            "validator": "jsonschema-2020-12"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "field": "",
+            "kind": "tool_protocol",
+            "note": "strategy.native.unverified: native tool support is not verified for this exact route/model; Hutch will still validate every call locally and reject malformed, unknown, or schema-invalid calls",
+            "severity": "warning",
+            "tool": ""
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "final_chars": 120,
+            "steps": 1,
+            "tokens": 1966
+          }
+        },
+        {
+          "status": "succeeded",
+          "data": {
+            "reason": "completed",
+            "status": "succeeded"
+          }
+        }
+      ],
+      "started_at": "2026-11-06T11:59:25.843171+00:00",
+      "finished_at": "2026-11-06T12:00:01.478019+00:00",
+      "duration_seconds": 35.635
+    },
+    {
+      "label": "ollama_text_refusal",
+      "send_status": 201,
+      "run_id": "run_c7f66272cc1e",
+      "status": "failed",
+      "error": "the model 'qwen3:0.6b' does not accept image input, so your message and its 1 image(s) were not sent to the model; choose a vision-capable route or describe the images in text",
+      "answer": "",
+      "media_events": [
+        {
+          "kind": "media",
+          "note": "1 image(s) attached to this message",
+          "prepared": 1
+        }
+      ],
+      "run_events": [
+        {
+          "status": "running",
+          "data": {
+            "origin": "manual:api",
+            "status": "running"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "browser_handoff": "headless",
+            "execution_purpose": "task",
+            "inference_mode": "hybrid",
+            "limits": {
+              "daily_cost_cap_usd": 0.0,
+              "daily_token_cap": 200000,
+              "max_cost_usd": 0.0,
+              "max_steps": 24,
+              "max_turn_tokens": 0,
+              "timeout_seconds": 900
+            },
+            "model": "ollama/qwen3:0.6b",
+            "runtime": "builtin",
+            "skill_activation": [],
+            "skills": [],
+            "tool_access": "bot",
+            "tools": [
+              "ask_user_choice"
+            ]
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "media",
+            "note": "1 image(s) attached to this message",
+            "prepared": 1
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "estimated": false,
+            "fit": "fits",
+            "kind": "context",
+            "note": "qwen3:0.6b: requesting a 16,384-token window (2.8 of 4.9 GiB usable at 16,384 tokens)",
+            "num_ctx": 16384,
+            "state": "ready"
+          }
+        },
+        {
+          "status": "loading_model",
+          "data": {
+            "model": "ollama/qwen3:0.6b",
+            "status": "loading_model"
+          }
+        },
+        {
+          "status": "running",
+          "data": {
+            "model": "ollama/qwen3:0.6b",
+            "status": "running"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "load",
+            "load_ms": 1844.2061610003293,
+            "note": "loaded qwen3:0.6b into memory in 1.8s (cold load)"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "selfcheck",
+            "note": "checking that qwen3:0.6b uses its 16,384-token window and recalls a fact from the top of a long prompt: a 1,440-token probe (shortened from 12,000 to fit; throughput 12 tokens/s assumed for this hardware), about 2.0 minutes. This runs once per model and window."
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "selfcheck",
+            "note": "passed: recalled the code word from the top of a ~1,440-token prompt in a 16,384-token window (verified to 1,440 tokens, shortened from 12,000 to fit this machine's speed); the runtime reports a 16,384-token window in effect",
+            "ok": true
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "plan",
+            "model": "ollama/qwen3:0.6b",
+            "note": "ollama/qwen3:0.6b: ~1,772 prompt tokens, up to 24 steps, no per-token cost",
+            "prompt_tokens": 1772,
+            "window": 16384,
+            "worst_case_usd": 0.0
+          }
+        },
+        {
+          "status": "failed",
+          "data": {
+            "reason": "media_input",
+            "status": "failed"
+          }
+        }
+      ],
+      "started_at": "2026-11-06T12:00:02.048635+00:00",
+      "finished_at": "2026-11-06T12:00:16.253263+00:00",
+      "duration_seconds": 14.205
+    },
+    {
+      "label": "ollama_moondream_cat",
+      "send_status": 201,
+      "run_id": "run_33b69dc3bba9",
+      "status": "failed",
+      "error": "cannot start on ollama/moondream:1.8b-v2-q3_K_S: moondream:1.8b-v2-q3_K_S does not fit this machine: only 2,048 tokens of context fit after the 1.5 GiB of weights (needs at least 4,096)",
+      "answer": "",
+      "media_events": [
+        {
+          "kind": "media",
+          "note": "1 image(s) attached to this message",
+          "prepared": 1
+        }
+      ],
+      "run_events": [
+        {
+          "status": "running",
+          "data": {
+            "origin": "manual:api",
+            "status": "running"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "browser_handoff": "headless",
+            "execution_purpose": "task",
+            "inference_mode": "hybrid",
+            "limits": {
+              "daily_cost_cap_usd": 0.0,
+              "daily_token_cap": 200000,
+              "max_cost_usd": 0.0,
+              "max_steps": 24,
+              "max_turn_tokens": 0,
+              "timeout_seconds": 900
+            },
+            "model": "ollama/moondream:1.8b-v2-q3_K_S",
+            "runtime": "builtin",
+            "skill_activation": [],
+            "skills": [],
+            "tool_access": "bot",
+            "tools": [
+              "ask_user_choice"
+            ]
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "media",
+            "note": "1 image(s) attached to this message",
+            "prepared": 1
+          }
+        },
+        {
+          "status": "failed",
+          "data": {
+            "reason": "error",
+            "status": "failed"
+          }
+        }
+      ],
+      "started_at": "2026-11-06T12:00:18.146350+00:00",
+      "finished_at": "2026-11-06T12:00:18.218180+00:00",
+      "duration_seconds": 0.072
+    },
+    {
+      "label": "ollama_moondream_screenshot",
+      "send_status": 201,
+      "run_id": "run_58db21245bca",
+      "status": "failed",
+      "error": "cannot start on ollama/moondream:1.8b-v2-q3_K_S: moondream:1.8b-v2-q3_K_S does not fit this machine: only 2,048 tokens of context fit after the 1.5 GiB of weights (needs at least 4,096)",
+      "answer": "",
+      "media_events": [
+        {
+          "kind": "media",
+          "note": "1 image(s) attached to this message",
+          "prepared": 1
+        }
+      ],
+      "run_events": [
+        {
+          "status": "running",
+          "data": {
+            "origin": "manual:api",
+            "status": "running"
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "browser_handoff": "headless",
+            "execution_purpose": "task",
+            "inference_mode": "hybrid",
+            "limits": {
+              "daily_cost_cap_usd": 0.0,
+              "daily_token_cap": 200000,
+              "max_cost_usd": 0.0,
+              "max_steps": 24,
+              "max_turn_tokens": 0,
+              "timeout_seconds": 900
+            },
+            "model": "ollama/moondream:1.8b-v2-q3_K_S",
+            "runtime": "builtin",
+            "skill_activation": [],
+            "skills": [],
+            "tool_access": "bot",
+            "tools": [
+              "ask_user_choice"
+            ]
+          }
+        },
+        {
+          "status": null,
+          "data": {
+            "kind": "media",
+            "note": "1 image(s) attached to this message",
+            "prepared": 1
+          }
+        },
+        {
+          "status": "failed",
+          "data": {
+            "reason": "error",
+            "status": "failed"
+          }
+        }
+      ],
+      "started_at": "2026-11-06T12:00:20.202263+00:00",
+      "finished_at": "2026-11-06T12:00:20.270625+00:00",
+      "duration_seconds": 0.068
+    }
+  ]
+}

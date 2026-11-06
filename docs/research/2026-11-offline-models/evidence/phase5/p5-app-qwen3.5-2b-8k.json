@@ -1,0 +1,32 @@
+{
+  "model": "qwen3.5:2b-q4_K_M",
+  "label": "qwen3.5-2b-8k",
+  "bot": "bot_befee3e113bd",
+  "conversation": "conv_deb4410e7318",
+  "cases": [
+    {
+      "case": "cat",
+      "send": 201,
+      "status": "succeeded",
+      "error": "",
+      "seconds": 76.29,
+      "answer": "The cat in the image is a ginger tabby."
+    },
+    {
+      "case": "screenshot",
+      "send": 201,
+      "status": "succeeded",
+      "error": "",
+      "seconds": 62.23,
+      "answer": "What page is shown in this screenshot?"
+    },
+    {
+      "case": "two_images",
+      "send": 201,
+      "status": "succeeded",
+      "error": "",
+      "seconds": 74.25,
+      "answer": "Which image shows an animal?"
+    }
+  ]
+}

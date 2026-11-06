@@ -1,0 +1,32 @@
+{
+  "model": "gemma4:e2b",
+  "label": "gemma4-e2b-8k",
+  "bot": "bot_371f1a4f7846",
+  "conversation": "conv_4ce4cc736153",
+  "cases": [
+    {
+      "case": "cat",
+      "send": 201,
+      "status": "succeeded",
+      "error": "",
+      "seconds": 96.36,
+      "answer": "cat"
+    },
+    {
+      "case": "screenshot",
+      "send": 201,
+      "status": "succeeded",
+      "error": "",
+      "seconds": 56.22,
+      "answer": "The screenshot shows a page titled \"Models\" from an application interface.\n\nA visible heading is **Models**."
+    },
+    {
+      "case": "two_images",
+      "send": 201,
+      "status": "succeeded",
+      "error": "",
+      "seconds": 60.23,
+      "answer": "Image 1"
+    }
+  ]
+}

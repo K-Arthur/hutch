@@ -1,0 +1,29 @@
+profiling qwen3:4b on ollama: 3 trial(s) per probe at 8,192 tokens (each trial 
+is one model call; on CPU this can take a while)
+  Forms a valid tool call ...
+  Gets argument types right (int, bool) ...
+  Picks the right tool among five ...
+  Does not call a tool it does not need ...
+  Uses what a tool returned ...
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
+┃                                       ┃        ┃         ┃ what    ┃         ┃
+┃                                       ┃        ┃         ┃ went    ┃         ┃
+┃ probe                                 ┃ passed ┃ unaided ┃ wrong   ┃ causes  ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
+│ Forms a valid tool call               │    3/3 │     3/3 │ -       │ -       │
+│ Gets argument types right (int, bool) │    1/3 │     1/3 │ answer… │ no_call │
+│                                       │        │         │ in      │ 2       │
+│                                       │        │         │ prose   │         │
+│                                       │        │         │ instead │         │
+│                                       │        │         │ of      │         │
+│                                       │        │         │ calling │         │
+│                                       │        │         │ the     │         │
+│                                       │        │         │ tool    │         │
+│ Picks the right tool among five       │    3/3 │     3/3 │ -       │ -       │
+│ Does not call a tool it does not need │    3/3 │     3/3 │ -       │ -       │
+│ Uses what a tool returned             │    3/3 │     3/3 │ -       │ -       │
+└───────────────────────────────────────┴────────┴─────────┴─────────┴─────────┘
+unreliable with tools: 87% of tool probes passed; weakest: gets argument types 
+right (int, bool) (1/3)
+speed: 7.6 tokens/s median;  quant Q4_K_M;  measured on CPU only, 10.8 GiB 
+usable for models (medium tier)

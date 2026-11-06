@@ -230,8 +230,132 @@ did right on its own). The verdict is *reliable*, *works, leaning on argument re
 Profiles are keyed by model, quantisation, runtime, chat-template hash, file digest and window, so a changed file or
 template is a different profile (the Models page flags "changed since measured") instead of a stale number.
 `hutch doctor` warns when a bot with tools runs on a model measured unreliable, and notes models never measured.
-This is a profile of one model on one machine, not a leaderboard score. It has been exercised only against scripted
-models; run it on your own installed models to get real numbers.
+This is a profile of one model on one machine, not a leaderboard score.
+
+`--provider llamacpp|lmstudio --base-url <url>` runs the same probes against a local runtime's
+OpenAI-compatible endpoint. The **causes** column names each failure instead of leaving it as prose:
+`no_call`, `empty_answer`, `reasoning_only`, `call_in_content`, `missing_id`, `duplicate_id`,
+`parallel_calls`, `parse_error`, `wrong_tool`, `unexpected_call`, `schema`, `type_repair`,
+`ignored_result`, `wrong_answer`, `call_failed`. A complete call left as text is a template or parser
+failure, not a model weakness, and it is counted separately.
+
+Measured on this CPU-only host on 2026-11-06 (3 trials per probe, no recall probe; output files in
+`docs/research/2026-11-offline-models/evidence/phase5/`). The first table is the retained 2025-era
+baseline; the second is the November 2026 comparison, pulled after the owner approved exceeding the
+original download budget. Both remain evidence: the old numbers are not replaced.
+
+| Runtime | Model | Tool probes | Verdict | Main causes |
+|---|---|---|---|---|
+| Ollama 0.40.13 | qwen3:0.6b | 15/15 | reliable | none; 43.5 tokens/s |
+| Ollama 0.40.13 | qwen2.5-coder:1.5b | 6/15 | unreliable | `no_call` 9; form, argument types and tool choice 0/3 |
+| Ollama 0.40.13 | qwen3:4b | 13/15 | unreliable | argument types 1/3 (`no_call` 2); 7.6 tokens/s |
+| llama.cpp b12144 | qwen3-0.6b | 15/15 | reliable | none |
+| llama.cpp b12144 | qwen2.5-coder:1.5b | 1/15 | unreliable | `no_call`, `wrong_answer`, `ignored_result` |
+| llama.cpp b12144 | qwen2.5-coder-3b | 0/15 | unreliable | `call_in_content` 15: the body was a complete call, `tool_calls` was null |
+| LM Studio 0.0.27-1 | qwen3-0.6b | 15/15 | reliable | none |
+| LM Studio 0.0.27-1 | qwen2.5-coder-1.5b | 3/15 | unreliable | `no_call` 9, `wrong_answer` 3 |
+| LM Studio 0.0.27-1 | qwen2.5-vl | 6/15 | unreliable | `no_call` 9; not trained for tool use |
+
+The same model can land in different places per runtime: qwen2.5-coder:1.5b scored 6/15 through
+Ollama, 1/15 through llama-server and 3/15 through LM Studio. That is the reason this bench exists.
+A thinking model can also spend the whole output budget before a call: llama.cpp + qwen3-4b generated
+at about 3.9 tokens/s and did not finish four probes in ten minutes with the default reasoning budget;
+`--reasoning-budget 0` exists for this. No third trial result is claimed for that case.
+
+The current-model comparison, same host and commands:
+
+| Runtime | Model | Tool probes | Verdict | Notes |
+|---|---|---|---|---|
+| Ollama 0.40.13 | qwen3.5:0.8b | 15/15 | reliable | 12.7 tokens/s, Q8_0, 1.3 GB |
+| Ollama 0.40.13 | qwen3.5:2b-q4_K_M | 15/15 | reliable | 13.6 tokens/s, 1.9 GB |
+| Ollama 0.40.13 | qwen3.5:4b-q4_K_M | 15/15 | reliable | 4.8 tokens/s, 3.3 GB |
+| Ollama 0.40.13 | gemma4:e2b | 15/15 | reliable | 9.8 tokens/s, 4.6 GB; vision and audio |
+| llama.cpp b12144 | qwen3.5-2b | 15/15 | reliable | stock template has vision and tools |
+| llama.cpp b12144 | gemma4-e2b | 11/15 | unreliable | tool choice 0/3, 3 calls left as text |
+| LM Studio 0.0.27-1 | gemma4-e2b | 12/15 | unreliable | argument types 0/3, 3 reasoning-only turns |
+
+All current models pass the isolated tool probes on Ollama; the same file behaves differently on the
+other two runtimes. The bench is not the whole story: it sends five short probes, not Hutch's full
+system prompt. A separate full-app image comparison on Ollama (8,192-token preset, real cat photo,
+real Playwright screenshot, two-image message) produced:
+
+| Model | Cat | Screenshot | Two images | Full-app result |
+|---|---|---|---|---|
+| gemma4:e2b | `cat` | `Models` / `Route readiness` | `Image 1` | 3/3 correct |
+| qwen3.5:4b-q4_K_M | `Cat` | `Models` | repeated the question | 2/3 |
+| qwen3.5:2b-q4_K_M | ginger tabby | repeated the question | repeated the question | 1/3 |
+| qwen3.5:0.8b | repeated the question | repeated the question | refused at the 4K window | 0/3 (8K not run) |
+| qwen2.5-vl (old baseline) | `Cat` | `"Models"` | `image 1` | 3/3, but 73-188 s per run |
+
+That gap is the practical selection rule. **Gemma 4 e2b is the current full-multimodal winner on this
+host**: 15/15 isolated tools on Ollama, 3/3 full-app images, a stock vision-plus-tool template on
+llama.cpp, and working vision on LM Studio. **Qwen3.5 2B Q4 is the lightweight tool winner** (15/15,
+13.6 tokens/s, 1.9 GB) for routing and extraction, but 1/3 in the full multimodal prompt. Qwen3.5 4B
+is slower and less accurate in the full app than Gemma 4 e2b. Qwen3.5 0.8B is an isolated-probe model,
+not a full-agent model. The old qwen3:0.6b is still the fastest tiny tool model (43.5 tokens/s) but is
+2025-era; qwen2.5-coder remains unsuitable for tool calling at every size measured.
+
+## Vision and image input (2026-11-06)
+
+Images are message content, never a silent text substitute. A route must state that it accepts images
+before one is sent: Ollama reports `vision` in `/api/show` capabilities; llama.cpp reports
+`modalities.vision` and input modalities in `/props` (a server started without `--mmproj` reports text
+only); LM Studio reports `capabilities.vision` in `/api/v1/models`. A model without vision is refused
+with words before the request; an image whose stored digest, MIME or size does not verify is refused
+too.
+
+Image cost is counted as a bounded per-image block (800 tokens) by both planning and compaction. It is
+never the base64 payload: a 1.5 MB image would otherwise look like about 500,000 text tokens and block
+a run that fits. The estimate is conservative, not a promise. Measured prompt tokens are 741 for a
+640 px cat photo through Ollama moondream, 562 through llama.cpp Qwen2.5-VL, and 592 for two images
+(the second a small icon). A large, detailed image can cost more, so the normal window check still
+applies.
+
+Real results recorded on 2026-11-06 with the retained Qwen2.5-VL/moondream2 baseline and the current
+Gemma 4 e2b comparison:
+
+| Runtime and model | Input | Answer | Measured |
+|---|---|---|---|
+| llama.cpp b12144, Qwen2.5-VL-3B Q4_K_M + Q8_0 mmproj | real 640 px cat photo | `Cat` | 562 prompt tokens |
+| llama.cpp, same | real Playwright capture of `/models` | `"Models"` | answer depends on the heading |
+| llama.cpp, same | cat plus the screenshot in one message | `image 1` | 592 prompt tokens |
+| llama.cpp, same | WebP cat photo | cat description | WebP is accepted on this route |
+| llama.cpp, same, merged tool template | cat plus a `describe_scene` tool | `describe_scene(animal="cat", colour="orange")` | 729 prompt tokens, 42.9 s |
+| Ollama 0.40.13, moondream 1.8b Q3_K_S | real 640 px cat photo | ginger cat description | 741 prompt tokens, 4.0 s |
+| LM Studio 0.0.27-1, qwen2.5-vl | real Playwright capture of `/models` | describes the Models section | 35.6 s for the whole app run |
+| Ollama 0.40.13, gemma4:e2b | cat, screenshot, two images (whole app) | `cat`, `Models` / `Route readiness`, `Image 1` | 3/3 correct; 56-96 s per run |
+| llama.cpp b12144, gemma4-e2b + mmproj | cat plus a `describe_scene` tool | `describe_scene(animal="cat", color="orange")` | 267 prompt tokens; stock template |
+| LM Studio 0.0.27-1, gemma4-e2b | cat, screenshot | `Cat`, `Models` | vision true after the projector is named correctly; WebP still rejected |
+
+The whole-app path (composer upload, admission, wire conversion, real answer, transmission record)
+was exercised on real images through llama.cpp, LM Studio and Ollama. The old moondream model is
+refused by the app at 2,048 tokens (below the 4,096-token agent floor), which is a window state, not a
+vision failure. The current Gemma 4 e2b passed the whole-app image comparison 3/3 on Ollama.
+
+Limits found in the same pass:
+
+- **Ollama cannot import a separate projector.** Importing the Qwen2.5-VL GGUF with a Modelfile
+  produced `capabilities: ["completion"]` and no projector; `/api/show` is the confirmation. To use
+  vision on Ollama, pull a vision model (for example `moondream`), do not import a text GGUF.
+- **A vision model's embedded template may have no tools.** Qwen2.5-VL's template reported
+  `supports_tools: false`. The image-plus-tool result for that model used `--chat-template-file` with
+  a local merge of llama.cpp's Qwen2.5 tool template and the model's own vision loop. That is a test
+  configuration, not a vendor-shipped file, and Hutch does not modify a launch automatically. The
+  current Gemma 4 e2b and Qwen3.5 2B templates report vision and tools together, so the stock
+  template produced a clean `describe_scene` call.
+- **LM Studio 0.0.27-1 rejects a WebP data URI** in `image_url` with "'url' field must be a base64
+  encoded image"; PNG and JPEG are accepted. Hutch refuses WebP on that route before sending and does
+  not rewrite the user's file type.
+- **LM Studio pairs a projector only by filename.** Gemma 4 e2b was listed with `vision: false` until
+  its projector was renamed to `mmproj-<model>.gguf` and the server restarted; before that LM Studio
+  treated the projector as a separate CLIP model. This is a setup requirement, not a model capability.
+- **Audio and speech are deferred.** Ollama exposes `/v1/audio/speech` (Phonon, WAV/PCM, 4,096
+  characters), llama.cpp accepts `input_audio` with a compatible model, and LM Studio has no
+  documented audio input. No audio or speech model was retained, and no Hutch audio path was
+  exercised, so none is claimed.
+- **Embeddings are not called for a local assistant.** LM Studio exposes `/v1/embeddings`, but no
+  Hutch chat, memory or search path requests a hosted embedding; `synthesis/model.py` uses the chat
+  route. The airplane test that proves the whole turn has no egress is Phase 6.
 
 ## Tool calling modes and compatibility
 
@@ -403,9 +527,18 @@ Per-runtime health (also on the Models page): each call's outcome is recorded; t
   human-wait release, cancellation before reservation, fresh-memory refusal, fit arithmetic, ordering, swap measurement logic,
   override validation, the fit guard on an overridden run, price edits, doctor and health, and the switcher in a
   real browser (desktop and phone width).
-- **Not verified on real models.** The development machine has about 3 GiB free and no Ollama, so swap latency,
-  cold-load times and context self-check results on real local models have not been measured. The pages and commands
-  report "not measured" rather than showing numbers that were not.
+- **Verified on real local models (2026-11-06).** Ollama 0.40.13, llama.cpp b12144 and LM Studio
+  0.0.27-1 ran on this CPU-only host. Measured: cold loads, per-slot windows, tool reliability on
+  sixteen model/runtime pairs (the retained 2025 baseline and the current Qwen3.5/Gemma 4 set),
+  vision on real images, and the whole-app image path. The evidence and the not-run list are in
+  `docs/realignment/offline-models-2026-11/02-PROGRESS.md`; the raw benches are in
+  `docs/research/2026-11-offline-models/evidence/phase5/`.
+- **Not verified.** GPU inference, CUDA/ROCm/Metal, a 4 GB-class cold load, an older runtime's
+  upgrade path, GPU OOM, LM Studio API-token mode from the CLI, vLLM/SGLang serving, audio/speech
+  (including Gemma 4's audio capability), a gated Hugging Face pull, an air-gapped model-server
+  process, Gemma 4 e4b/12b/26b, Qwen3.5 122B, Qwen3-VL specifically, and full-app text-only runs for
+  the current models. The pages and commands report "not measured" rather than showing numbers that
+  were not.
 
 ## Route readiness and provider evidence (2026-10-30)
 
