@@ -27,6 +27,7 @@ from typing import Any, Callable, Optional
 from .context import run_selfcheck
 from .models import iso, utcnow
 from .providers.base import ChatRequest, ChatResult, Provider, ProviderError
+from .reliability_causes import classify_call
 from .runtime.toolrepair import coerce_args, validate_args
 
 DEFAULT_TRIALS = 3
@@ -220,77 +221,11 @@ def probes() -> list[Probe]:
 
 # ------------------------------------------------------------------ causes
 
-_CALL_MARKERS = ("<tool_call", "<|tool_call", "[TOOL_REQUEST]", "<function=")
-
-
-def _looks_like_call(text: str) -> bool:
-    """Call-shaped text left in content by a parser that could not turn it into a call."""
-    low = text.lower()
-    return any(marker.lower() in low for marker in _CALL_MARKERS)
-
-
-def _protocol_observations(res: ChatResult) -> list[str]:
-    """Protocol facts visible even when a call passed: ids, parallelism, reasoning-only."""
-    found: list[str] = []
-    ids = [tc.id for tc in res.tool_calls]
-    if any(not call_id for call_id in ids):
-        found.append("missing_id")
-    present = [call_id for call_id in ids if call_id]
-    if len(present) != len(set(present)):
-        found.append("duplicate_id")
-    if len(ids) > 1:
-        found.append("parallel_calls")
-    if not ids and not res.content.strip() and res.thinking.strip():
-        found.append("reasoning_only")
-    if not ids and _looks_like_call(res.content):
-        found.append("call_in_content")
-    return found
-
-
-def _failure_cause(res: ChatResult, probe: Probe, why: str) -> str:
-    """One structured cause for a failed trial, from the result shape and the judge's words."""
-    if not probe.expects_call and res.tool_calls:
-        return "unexpected_call"
-    if res.tool_calls:
-        if len(res.tool_calls) > 1:
-            return "multiple_calls"
-        call = res.tool_calls[0]
-        if call.parse_error:
-            return "parse_error"
-        expected = probe.tools[0]["function"]["name"] if probe.tools else ""
-        if expected and call.name != expected:
-            return "wrong_tool"
-        if why.startswith("arguments do not match"):
-            return "schema"
-        return "wrong_arguments"
-    if res.thinking.strip() and not res.content.strip():
-        return "reasoning_only"
-    if not res.content.strip():
-        return "empty_answer"
-    if _looks_like_call(res.content):
-        return "call_in_content"
-    if "ignored the tool result" in why:
-        return "ignored_result"
-    if why.startswith("did not answer"):
-        return "wrong_answer"
-    return "no_call"
-
-
 def classify_trial(res: ChatResult, probe: Probe, judgement: Judgement) -> tuple[str, list[str]]:
-    """(primary failure cause, every cause observed in this trial).
-
-    Observations count even when the trial passed, so a missing id or a reasoning-only turn is
-    visible without pretending it failed. The primary cause is empty for a passed trial.
-    """
-    causes = _protocol_observations(res)
-    if judgement.why == "needed type repair":
-        causes.append("type_repair")
-    if judgement.repaired:
-        return "", causes
-    primary = _failure_cause(res, probe, judgement.why)
-    if primary not in causes:
-        causes.append(primary)
-    return primary, causes
+    """The bench-level wrapper: pass the probe's expectation to the cause classifier."""
+    expected = probe.tools[0]["function"]["name"] if probe.tools else ""
+    return classify_call(res, expected_tool=expected, expects_call=probe.expects_call,
+                         repaired=judgement.repaired, why=judgement.why)
 
 
 # ------------------------------------------------------------------ running

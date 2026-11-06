@@ -55,6 +55,21 @@ def test_call_shaped_text_is_kept_distinct_from_a_prose_answer():
     assert "call_in_content" in causes
 
 
+def test_a_bare_json_call_left_in_content_is_not_prose():
+    """Captured live from llama.cpp b12144 + qwen2.5-coder-3b: finish stop, no tool_calls."""
+    probe = _probe("call_shape")
+    captured = '{"name": "read_file", "arguments": {"path": "notes.txt"}}'
+    primary, causes = classify_trial(ChatResult(content=captured), probe,
+                                     Judgement(False, False, "answered in prose instead of calling the tool"))
+    assert primary == "call_in_content"
+    assert "call_in_content" in causes
+
+    fenced = "```json\n" + captured + "\n```"
+    assert classify_trial(
+        ChatResult(content=fenced), probe,
+        Judgement(False, False, "answered in prose instead of calling the tool"))[0] == "call_in_content"
+
+
 def test_a_plain_prose_answer_has_no_protocol_cause():
     probe = _probe("call_shape")
     result = ChatResult(content="notes.txt says the meeting moved.")
