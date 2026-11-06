@@ -11,7 +11,7 @@ Update at every checkpoint. Keep entries short and factual.
 | 2 Credential lifecycle | done 2026-11-06 | Phase 2 commit | fixture lifecycle; no provider call | - |
 | 3 Flagship providers | done 2026-11-06 | 88edb95d | unauthenticated GET opencode.ai/inference/v1/models (200); no paid call | shell env lacks OPENAI/ANTHROPIC/GEMINI keys |
 | 4 Hosted and gateways | done 2026-11-06 | 47067fc6 | unauthenticated probes of 49 hosts; real server + CLI on isolated state; no keyed call | no credential for any Phase 4 provider |
-| 5 Local and custom | not started | | | |
+| 5 Local and custom | done 2026-11-06 | 43c472cf | real LM Studio 0.0.27-1 (cold load, streaming through the pinned transport, five layered outcomes); real Ollama 0.40.13 identified behind /v1 (GET only); no paid call | vLLM, SGLang, inferrs, ds4 not installable here; private-LAN path has no peer |
 | 6 Media, speech, search | not started | | | |
 | 7 Frontend | not started | | | |
 | 8 Website and docs | not started | | | |
@@ -150,6 +150,40 @@ Update at every checkpoint. Keep entries short and factual.
 - Not run: any keyed or paid call (no credential), a real LiteLLM proxy, a real local engine, keyboard
   traversal (no markup changed), light theme (G16).
 
+## Phase 5 outputs (2026-11-06)
+
+- Diagnosis first (real LM Studio, loopback): `https://169.254.169.254/v1` saved as a connection; bot `base_url`
+  routes accepted any URL; a name was never judged by its address; HTTPS-on-a-plain-port said "is the server running?";
+  a missing `/v1` said "invalid model catalog"; vLLM/SGLang `max_model_len` was parsed and then ignored (the prior
+  note that the field is not in `/v1/models` was wrong: vLLM and SGLang `ModelCard` both carry it).
+- `c1003d35` `providers/endpoint_policy.py`: address kinds (loopback, private, fake-IP 198.18/15, public, blocked),
+  exact-name allowlist `HUTCH_PRIVATE_HOSTS`, local-style names, vendor exemption.
+- `02cc1416` `providers/pinned_transport.py`, installed at `offline.httpx_offline_options` (the one seam every httpx
+  adapter uses, so no adapter call site changed): resolve once, judge every answer, connect to the validated address
+  with the original Host and TLS name, plain HTTP only to loopback/private, a credential header never over plain HTTP
+  off loopback. Real-socket tests, including dual-stack `localhost` fallback.
+- `d5f027de` blocked literals refused at save in every scheme and spelling; pasted API paths reduced to the root
+  (`connections.py` unchanged in length: same-line edits).
+- `15894273`, `a92e16ac`, `8f5361b8` `providers/endpoint_probe.py` and `check_connection`: layers address, dns,
+  connect, tls, key, models; `/v1` suggestion; real self-signed TLS test; Ollama named from its own `/api/version`;
+  a user-run endpoint is reported as not key-verified; an HTTP error the server explained keeps its words.
+- `46666e1d` vLLM/SGLang window from `max_model_len` when `owned_by` names the server (implemented-unverified).
+- `c62043f9` custom Anthropic endpoints are checked before each call (the SDK uses a vendored `httpx2`, so it is not
+  pinned).
+- Docs in the same series: `docs/research/2026-11-provider-expansion/06-LOCAL-AND-CUSTOM.md` (sources, diagnosis,
+  decisions, results, not-run list), ADR-0034, `connections.md`, `models.md`, `provider-platform.md`, `runtime-setup.md`,
+  `provider-compatibility.md`. `compat.json` is unchanged (no route contract changed).
+- Validation: focused provider/local/media/connection/offline/runtime suites (see the run recorded in the research
+  doc); `npm run check:agent` (context hygiene, tool contracts, constitution passed; agent map regenerated after the
+  commits) and `npm run audit:context` passed; 20/20 Models page captures at 360/768/1280/1920 with 0 console errors,
+  0 failed requests, 0 px overflow.
+- Real stack: isolated state, `hutch init`, `hutch serve --port 18893`; a real `hutch run` cold-loaded
+  `lmstudio/qwen3-0.6b` (16384) and a named custom connection streamed an answer through the pinned transport; a bot
+  at `http://169.254.169.254/v1` failed with the blocked-address sentence and `steps=0`.
+- Not run: vLLM, SGLang, inferrs, ds4 (no engine); private-LAN address over real sockets (no peer; forwarding LM Studio
+  to the LAN address was declined by the permission guard and not worked around); DNS rebinding against a real
+  resolver; an environment proxy; keyboard traversal and light theme (no markup changed; dark-only, G16).
+
 ## Owner inputs (batch, answered 2026-11-06)
 
 - Provisioned credentials: OpenAI, Anthropic, Google Gemini. Every other paid route is
@@ -211,6 +245,19 @@ Update at every checkpoint. Keep entries short and factual.
   acknowledged notice, not a hint, because the payer can differ from the key's owner.
 - 2026-11-06: Volcengine tool-schema trimming rests on one aggregator report and is not reproduced against an
   account; it is applied to the wire copy only and not extended to BytePlus.
+- 2026-11-06: Endpoint policy decides on addresses, not spellings; `blocked` (link-local, metadata, unspecified,
+  multicast, reserved) is refused for every scheme. A public-looking name that resolves privately is refused unless it
+  is local-style or listed in `HUTCH_PRIVATE_HOSTS`; vendor hosts are exempt from the name rule (ADR-0034).
+- 2026-11-06: Plain HTTP only to loopback/private; a key is never sent in clear text off loopback; redirects are not
+  followed. Self-signed TLS stays refused (no skip switch); `SSL_CERT_FILE` is honored.
+- 2026-11-06: Keyless named connections were not added: the keyless route already exists (`vllm/<model>` or
+  `openai-compatible/<model>` with the bot's base URL) and is now guarded; a new auth mode would grow frozen
+  `connections.py`, the CLI and the dashboard API without a safety gain.
+- 2026-11-06: A custom endpoint's connection test is reported as not key-verified, because user-run servers answer
+  their model list with any key or none (Ollama, LM Studio without a token).
+- 2026-11-06: inferrs and ds4 get no template: no engine to verify and ds4 is Metal-only. They stay `documented` and
+  reachable through the generic OpenAI-compatible route.
+
 
 ## Review findings log
 
@@ -252,6 +299,22 @@ Update at every checkpoint. Keep entries short and factual.
 - 2026-11-06, Phase 4, `provider_for_connection` grew to 43 lines; the OpenAI chat construction moved to a helper.
 - 2026-11-06, Phase 4, the seam and trimming tests were written in the same step as their code and not run red
   on their own; the honesty and Models page tests were run red first.
+- 2026-11-06, Phase 5, the first Anthropic attempt injected an httpx transport; the SDK here is built on a vendored
+  `httpx2`, so nine existing Claude tests failed with a type error. Replaced by a precheck, and the limit is recorded.
+- 2026-11-06, Phase 5, the layered text replaced the server's own explanation of an HTTP 400 on the model list;
+  `test_connection_secrets` caught it. The server's words are kept for explained HTTP errors, with a test that fails
+  without the change.
+- 2026-11-06, Phase 5, an existing test pinned "the key goes out exactly once"; the keyless `/api/version` request kept
+  that property and the assertion now filters to key-bearing requests (intent unchanged, stated in the commit).
+- 2026-11-06, Phase 5, a custom endpoint test said "authenticated" for servers that ignore keys; now under-claims.
+- 2026-11-06, Phase 5, wording defects found by reading the live output: "set the endpoint to that" pointed at
+  `/v1/models`; a literal blocked address read "resolves to" itself. Both fixed. A dead `LAYERS` constant was removed.
+- 2026-11-06, Phase 5, the policy and transport tests were written in the same step as their code, not run red first;
+  the one mutation tried (dropping the link-local check) was equivalent because `is_global` already blocks it, so it
+  proves nothing; the honesty and word-keeping tests were each shown to fail without their change.
+- 2026-11-06, Phase 5, another session's uncommitted edits to `ollama.py`, `openai_compat.py`, `runtime/outcomes.py`
+  and two tests were present in the tree; none were staged or touched.
+
 
 ## Open items and deferred
 
@@ -282,3 +345,14 @@ Update at every checkpoint. Keep entries short and factual.
   recorded vendor quirk, not a Hutch rule.
 - Phase 4: the two Tencent host spellings (`tencentmaas.com`, `tencentcloudmaas.com`) both answer HTTP 401;
   Hutch keeps the one in its recorded vendor source. Re-check when a Tencent account exists.
+- Phase 5: vLLM and SGLang window reading, inferrs and ds4 are unverified or unbuilt for want of an engine; installing
+  vLLM or SGLang needs the owner's approval and a GPU-class host. The `max_model_len` reading rests on vendor protocol
+  docs and source, not a live server.
+- Phase 5: private-address and `HUTCH_PRIVATE_HOSTS` paths are covered by real loopback sockets plus an injected
+  resolver, not a LAN peer. An environment proxy defeats pinning (literals are still checked). The Anthropic SDK path
+  is checked, not pinned, and the SDK follows redirects by default (pre-existing).
+- Phase 5: `bot.base_url` is judged at the first call, not at save; no UI for `HUTCH_PRIVATE_HOSTS`; the
+  layered test is not yet a dashboard surface of its own (Phase 7). A long flash notice renders as a heavy bold
+  paragraph at 360 px (Phase 7).
+- Phase 5: the generation ("test with one token") layer of the connectivity test remains the existing explicit probe;
+  `connections test` makes no inference request.
