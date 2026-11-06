@@ -205,10 +205,11 @@ class OpenAIImagesBackend:
         raise OpenAIImagesError("the response holds neither image bytes nor a URL")
 
     @classmethod
-    def from_env(cls, spool: Optional[MediaSpool] = None) -> Optional["OpenAIImagesBackend"]:
+    def from_env(cls, spool: Optional[MediaSpool] = None,
+                 environ: Optional[Any] = None) -> Optional["OpenAIImagesBackend"]:
         """Build from OPENAI_API_KEY; None when unset; an adapter without a key must simply not
         exist, not fail later mid-job. The credential is labeled ambient in every approval."""
         import os
-        key = os.environ.get("OPENAI_API_KEY")
+        key = (os.environ if environ is None else environ).get("OPENAI_API_KEY")
         return cls(api_key=key, spool=spool,
                    label="environment variable OPENAI_API_KEY (ambient)") if key else None

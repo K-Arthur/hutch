@@ -1,15 +1,17 @@
 """Provider-backed media creation, split out of ``tools/media.py``.
 
 ``tools/media.py`` is a frozen over-cap module: new behaviour moves into a sibling rather
-than growing it. This module owns the billable provider path (image, video and speech), the
-backend discovery that feeds it, and the shared media-job helpers the deterministic tools
-also use.
+than growing it. This module owns the billable provider path (image, video and speech) and the
+shared media-job helpers the deterministic tools also use. Backend discovery lives in
+:mod:`hutch.media.backends`.
 
 Trust story unchanged from the tool it serves: ``create_media`` is OUTWARD and billable for
 provider kinds, ``effect()`` is ``"web"``, the approval decision is ask-by-default with
 ``outward=True`` (sticky grants never cover it, SR-4), and ``ctx.begin_effect()`` brackets
 the call. If no backend is configured/capable the caller is told so honestly; nothing is
-substituted or fabricated.
+substituted or fabricated. Before the approval the request is validated against the route's
+documented limits, and the approval shows who is paid, from which credential, and an estimate
+of the cost with its basis (or says the cost is unknown).
 """
 
 from __future__ import annotations
@@ -21,12 +23,13 @@ from typing import Any, Optional
 
 from ..media import (MediaJobError, MediaJobService, MediaStorage, MediaUnavailableError,
                      service_status)
+from ..media.backends import build_backends
+from ..media.cost import estimate
 from ..media.providers.base import MediaBackend
+from ..media.spool import MediaSpool
 from ..outputblocks import new_block_id, parse_blocks
 from ..safety import Decision, Verdict
 from .base import ToolContext, ToolResult, rehearsed
-
-_MEDIA_BACKENDS: Optional[dict[str, MediaBackend]] = None
 
 CREATE_MEDIA_DECISION = Decision(
     verdict=Verdict.ask,
@@ -41,61 +44,10 @@ CREATE_MEDIA_DECISION = Decision(
 # ------------------------------------------------------------------ backends
 
 
-def default_backends() -> dict[str, MediaBackend]:
-    """Discover configured backends from the environment. An adapter without its
-    credentials simply does not exist here, tools then report honest absence."""
-    global _MEDIA_BACKENDS
-    if _MEDIA_BACKENDS is None:
-        from ..media.providers.comfyui import ComfyUIBackend
-        from ..media.providers.openai_images import OpenAIImagesBackend
-        found: dict[str, MediaBackend] = {}
-        openai_backend = OpenAIImagesBackend.from_env()
-        if openai_backend is not None:
-            found[openai_backend.name] = openai_backend
-        comfyui = ComfyUIBackend.from_env()
-        if comfyui is not None:
-            found[comfyui.name] = comfyui
-        _MEDIA_BACKENDS = found
-    return _MEDIA_BACKENDS
-
-
-def speech_backends(ctx: ToolContext) -> dict[str, MediaBackend]:
-    """Configured connections that declare a ``speech`` route, keyed by backend name.
-
-    Built per call rather than cached: the state directory and its keys are runtime data,
-    while ``default_backends`` caches environment-only discovery. A connection without a
-    key simply does not become a backend; absence is then reported honestly, never
-    replaced by another account.
-    """
-    from ..connections import ConnectionBook
-    from ..media.providers.speech import SpeechBackend, route_from_template
-
-    book = ConnectionBook(ctx.config.state_dir)
-    templates = book.templates()
-    found: dict[str, MediaBackend] = {}
-    for name, conn in sorted(book.configured().items()):
-        try:
-            route = route_from_template(templates.get(conn.template))
-        except ValueError:
-            continue          # a malformed template is Hutch's bug; it is not a backend
-        if route is None:
-            continue
-        key = book.key(name)
-        if not key:
-            continue
-        backend = SpeechBackend(
-            connection=name, base_url=conn.base_url, api_key=key, route=route,
-            provider=provider_identity(conn), billing=conn.billing,
-            headers={"User-Agent": conn.user_agent, **conn.headers})
-        found[backend.name] = backend
-    return found
-
-
-def provider_identity(conn) -> str:
-    from ..providers.catalog import bundled_catalog
-
-    entry = bundled_catalog().provider_for_template(conn.template)
-    return entry.id if entry is not None else conn.name
+def configured_backends(ctx: ToolContext) -> dict[str, MediaBackend]:
+    """Every backend whose credential exists, with durable result holding."""
+    spool = MediaSpool(MediaStorage(ctx.config).root)
+    return build_backends(ctx.config.state_dir, spool=spool)
 
 
 # ------------------------------------------------------------------ helpers
@@ -119,6 +71,101 @@ def check_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return errors
 
 
+def _fail(text: str) -> ToolResult:
+    return ToolResult(ok=False, output=text)
+
+
+# ------------------------------------------------------------------ request
+
+
+def _geometry(kind: str, width: Any, height: Any, seconds: Any) -> dict[str, Any]:
+    if kind == "audio":
+        return {}
+    clean: dict[str, Any] = {}
+    if isinstance(width, int):
+        clean["width"] = width
+    if isinstance(height, int):
+        clean["height"] = height
+    if isinstance(seconds, (int, float)):
+        clean["seconds"] = seconds
+    return clean
+
+
+def _audio_extra(backend: MediaBackend, voice: Any, style: Any) -> tuple[dict[str, Any], str]:
+    """The ``voice`` and ``style`` an audio request carries, or an error sentence."""
+    chosen = str(voice or "").strip()
+    caps = backend.capabilities()
+    offered = caps.get("voices") or []
+    if chosen and offered and chosen not in offered:
+        return {}, (f"error: voice {chosen!r} is not offered by {backend.name} "
+                    f"(voices: {', '.join(offered) or 'none declared'})")
+    if style is not None and not isinstance(style, str):
+        return {}, "error: style must be a string"
+    clean_style = " ".join(str(style or "").split())
+    if len(clean_style) > 2000:
+        return {}, "error: the style instruction is longer than 2000 characters"
+    return {"voice": chosen or str(caps.get("default_voice") or ""), "style": clean_style}, ""
+
+
+def _approval_detail(backend: MediaBackend, kind: str, prompt: str,
+                     request: dict[str, Any]) -> dict[str, Any]:
+    detail: dict[str, Any] = {"kind": kind, "backend": backend.name, "prompt_chars": len(prompt)}
+    describe = getattr(backend, "approval_detail", None)
+    if callable(describe):
+        detail.update(describe({"prompt": prompt, **request}))
+    price_key = getattr(getattr(backend, "route", None), "price", "")
+    cost = estimate(price_key, {"prompt": prompt, **request})
+    detail["cost"] = cost.sentence()
+    detail["cost_basis"] = cost.as_dict()
+    return detail
+
+
+# ------------------------------------------------------------------ waiting
+
+
+def _wait(service: MediaJobService, backend: MediaBackend, row: dict[str, Any],
+          poll_interval: float, max_polls: int) -> tuple[dict[str, Any], bool, int]:
+    """Poll until the upstream job reaches a state or the bound is spent."""
+    polls = 0
+    while polls < max_polls:
+        observed = str(backend.poll(row).get("status", "running"))
+        row = service.poll(row["id"], backend)   # records failed/cancelled/refused honestly
+        polls += 1
+        if observed == "succeeded":
+            return row, True, polls
+        if service_status(row) != "running":
+            break
+        time.sleep(poll_interval)
+    return row, False, polls
+
+
+def _unfinished(row: dict[str, Any], status: str, polls: int,
+                upstream_succeeded: bool) -> Optional[ToolResult]:
+    """The result for a job that did not finish cleanly, or None when it can be finalized."""
+    if not upstream_succeeded and status == "running":
+        return _fail(
+            f"the media job {row['id']} is still running upstream after {polls} checks; it is "
+            "recorded in the ledger and may complete and bill. It is not lost: check its status, "
+            "resume it or cancel it from the media jobs list (POST /api/v1/media/jobs/"
+            f"{row['id']}/advance or /cancel)")
+    if status == "refused":
+        return _fail(
+            f"the provider declined media job {row['id']} on content grounds: "
+            f"{row.get('error') or 'no reason given'}. This is a refusal, not an outage; "
+            "rephrase the request rather than retrying it. See the media job ledger.")
+    if status == "failed":
+        return _fail(
+            f"error: the media job {row['id']} failed upstream "
+            f"({row.get('error') or 'unknown reason'}); no media was stored. "
+            "Whether the provider charged for the attempt depends on the backend.")
+    if status == "cancel_unconfirmed":
+        return _fail(
+            f"error: the media job {row['id']} was asked to cancel but the backend never "
+            "confirmed; it may still be running and billing - verify with the backend. "
+            "This is recorded honestly in the ledger.")
+    return None
+
+
 # ------------------------------------------------------------------ provider path
 
 
@@ -131,165 +178,154 @@ def run_provider_media(*, ctx: ToolContext, tool_name: str, kind: str, prompt: s
     if ctx.dry_run:
         return rehearsed(f"create {kind} media from your prompt via a provider",
                          CREATE_MEDIA_DECISION)
-    if backends is not None:
-        selected = backends
-    else:
-        selected = dict(default_backends())
-        if kind == "audio":
-            selected.update(speech_backends(ctx))
-    service = service_for(ctx, backends=selected)
+    service = service_for(ctx, backends=backends if backends is not None
+                          else configured_backends(ctx))
     try:
         backend = service.backend_for(kind, str(backend_hint) if backend_hint else None)
     except (MediaUnavailableError, MediaJobError) as exc:
-        return ToolResult(ok=False, output=(
-            f"error: {exc}. hutch does not substitute stock assets or fabricate "
-            "previews — configure a media backend to enable this kind."))
-    clean_kwargs: dict[str, Any] = {}
-    if kind != "audio":
-        if isinstance(width, int):
-            clean_kwargs["width"] = width
-        if isinstance(height, int):
-            clean_kwargs["height"] = height
-        if isinstance(seconds, (int, float)):
-            clean_kwargs["seconds"] = seconds
-    requested_extra: Optional[dict[str, Any]] = None
-    clean_voice, clean_style = "", ""
+        return _fail(f"error: {exc}. hutch does not substitute stock assets or fabricate "
+                     "previews - configure a media backend to enable this kind.")
+    clean = _geometry(kind, width, height, seconds)
+    extra: Optional[dict[str, Any]] = None
     if kind == "audio":
-        clean_voice = str(voice or "").strip()
-        offered = backend.capabilities().get("voices") or []
-        if clean_voice and clean_voice not in offered:
-            return ToolResult(ok=False, output=(
-                f"error: voice {clean_voice!r} is not offered by {backend.name} "
-                f"(voices: {', '.join(offered) or 'none declared'})"))
-        if style is not None and not isinstance(style, str):
-            return ToolResult(ok=False, output="error: style must be a string")
-        clean_style = " ".join(str(style or "").split())
-        if len(clean_style) > 2000:
-            return ToolResult(ok=False, output=(
-                "error: the style instruction is longer than 2000 characters"))
-        requested_extra = {"voice": clean_voice or str(
-            backend.capabilities().get("default_voice") or ""), "style": clean_style}
-    detail = {"kind": kind, "backend": backend.name, "prompt_chars": len(prompt),
-              "note": "provider charges apply; hutch cannot know the cost"}
-    describe = getattr(backend, "approval_detail", None)
-    if callable(describe):
-        detail.update(describe({"prompt": prompt, "voice": clean_voice,
-                                "style": clean_style}))
+        extra, problem = _audio_extra(backend, voice, style)
+        if problem:
+            return _fail(problem)
+    problem = _refuse_before_approval(backend, {"prompt": prompt, **clean, **(extra or {})})
+    if problem:
+        return _fail(problem)
+    detail = _approval_detail(backend, kind, prompt, {**clean, **(extra or {})})
     action = (f"speak {len(prompt)} characters via {backend.name}" if kind == "audio"
               else f"create {kind} media via {backend.name}")
     try:
-        ctx.gate.decide("audio_synthesis" if kind == "audio" else "media", action,
-                        detail, CREATE_MEDIA_DECISION)
+        ctx.gate.decide("audio_synthesis" if kind == "audio" else "media", action, detail,
+                        CREATE_MEDIA_DECISION)
     except Exception as exc:
-        return ToolResult(ok=False, output=f"error: {exc}")
+        return _fail(f"error: {exc}")
     refusal = ctx.begin_effect()
     if refusal:
-        return ToolResult(ok=False, output=f"error: the request was not started ({refusal})")
+        return _fail(f"error: the request was not started ({refusal})")
+    return _submit_and_finish(ctx, service, backend, tool_name, kind, prompt, clean, extra,
+                              detail, poll_interval, max_polls)
+
+
+def _refuse_before_approval(backend: MediaBackend, request: dict[str, Any]) -> str:
+    """The backend's own check of the request against its documented limits, before any prompt."""
+    check = getattr(backend, "validate", None)
+    if not callable(check):
+        return ""
+    try:
+        check(request)
+    except ValueError as exc:
+        return f"error: {exc}. Nothing was sent or billed."
+    return ""
+
+
+def _submit_and_finish(ctx: ToolContext, service: MediaJobService, backend: MediaBackend,
+                       tool_name: str, kind: str, prompt: str, clean: dict[str, Any],
+                       extra: Optional[dict[str, Any]], detail: dict[str, Any],
+                       poll_interval: float, max_polls: int) -> ToolResult:
     key = media_idempotency_key(ctx, "create-media",
-                                {"kind": kind, "prompt": prompt, **clean_kwargs,
-                                 **(requested_extra or {})})
+                                {"kind": kind, "prompt": prompt, **clean, **(extra or {}),
+                                 "backend": backend.name})
     try:
         row = service.submit(run_id=ctx.run.id, conversation_id=ctx.run.conversation_id,
                              kind=kind, prompt=prompt, idempotency_key=key,
-                             backend_hint=backend.name, requested_extra=requested_extra,
-                             **clean_kwargs)
+                             backend_hint=backend.name, requested_extra=extra, **clean)
     except MediaJobError as exc:
-        return ToolResult(ok=False, output=(
-            f"error: the media job could not be submitted ({exc}). Nothing new was "
-            "billed by this call; a previous submission with the same content may "
-            "already exist — check the media job ledger."))
-    service_status_value = service_status(row)
-    if service_status_value == "submitting":
-        return ToolResult(ok=False, output=(
-            f"error: the job ({row['id']}) never reached the backend; "
-            f"{row.get('error') or 'the submission failed'} — see the media job ledger"))
-    polls = 0
-    upstream_succeeded = False
-    while polls < max_polls:
-        observed = str(backend.poll(row).get("status", "running"))
-        row = service.poll(row["id"], backend)   # records failed/cancelled honestly
-        service_status_value = service_status(row)
-        polls += 1
-        if observed == "succeeded":
-            upstream_succeeded = True
-            break
-        if service_status_value != "running":
-            break
-        time.sleep(poll_interval)
-    if not upstream_succeeded and service_status_value == "running":
-        return ToolResult(ok=False, output=(
-            f"the media job {row['id']} is still running upstream after "
-            f"{polls} checks; it is recorded in the ledger and may complete and "
-            "bill — check its status or cancel it explicitly"))
-    if service_status_value == "failed":
-        return ToolResult(ok=False, output=(
-            f"error: the media job {row['id']} failed upstream "
-            f"({row.get('error') or 'unknown reason'}); no media was stored. "
-            "Whether the provider charged for the attempt depends on the backend."))
-    if service_status_value == "cancel_unconfirmed":
-        return ToolResult(ok=False, output=(
-            f"error: the media job {row['id']} was asked to cancel but the backend "
-            "never confirmed; it may still be running and billing — verify with the "
-            "backend. This is recorded honestly in the ledger."))
-    if kind == "audio":
-        alt_text = f"Speech: {prompt[:200]}"[:600]
-    else:
-        alt_text = f"Generated {kind} from the prompt: {prompt[:400]}"[:600]
-    duration = None
-    usage_note = ""
-    if kind == "audio":
-        probe = getattr(backend, "duration_seconds", None)
-        if callable(probe):
-            duration = probe(row)
+        return _fail(f"error: the media job could not be submitted ({exc}). Nothing new was "
+                     "billed by this call; a previous submission with the same content may "
+                     "already exist - check the media job ledger.")
+    status = service_status(row)
+    if status == "refused":
+        return _unfinished(row, status, 0, False) or _fail("error: refused")
+    if status == "submitting":
+        return _fail(f"error: the job ({row['id']}) never reached the backend; "
+                     f"{row.get('error') or 'the submission failed'} - see the media job ledger")
+    row, upstream_succeeded, polls = _wait(service, backend, row, poll_interval, max_polls)
+    status = service_status(row)
+    stopped = _unfinished(row, status, polls, upstream_succeeded)
+    if stopped is not None:
+        return stopped
+    return _finalize(ctx, service, backend, tool_name, kind, prompt, row, detail)
+
+
+# ------------------------------------------------------------------ finishing
+
+
+def _finalize(ctx: ToolContext, service: MediaJobService, backend: MediaBackend,
+              tool_name: str, kind: str, prompt: str, row: dict[str, Any],
+              detail: dict[str, Any]) -> ToolResult:
+    alt_text = (f"Speech: {prompt[:200]}" if kind == "audio"
+                else f"Generated {kind} from the prompt: {prompt[:400]}")[:600]
+    probe = getattr(backend, "duration_seconds", None)
+    duration = probe(row) if kind == "audio" and callable(probe) else None
     try:
         payload, final_row = service.finalize(row["id"], alt_text=alt_text,
                                               duration_seconds=duration)
     except MediaJobError as exc:
-        return ToolResult(ok=False, output=(
-            f"error: the finished media could not be stored ({exc}); the provider "
-            "charge may stand"))
-    if kind == "audio":
-        result_for = getattr(backend, "result_for", None)
-        spoken = result_for(row) if callable(result_for) else None
-        if spoken is not None:
-            try:
-                ctx.store.add_usage(
-                    ctx.run.id, ctx.bot.id,
-                    str(getattr(backend, "provider", backend.name)), spoken.model,
-                    spoken.prompt_tokens, spoken.completion_tokens, 0, 0.0,
-                    kind="speech", account_id=str(getattr(backend, "connection", "")),
-                    cost_source="unpriced")
-                ctx.run.prompt_tokens += spoken.prompt_tokens
-                ctx.run.completion_tokens += spoken.completion_tokens
-                ctx.store.update_run(ctx.run)
-                usage_note = (f"; {spoken.prompt_tokens} prompt / "
-                              f"{spoken.completion_tokens} completion tokens recorded")
-            except Exception as exc:  # noqa: BLE001 - the audio is real and must be returned
-                usage_note = f"; usage could not be recorded in the run ledger: {exc}"
+        return _fail(f"error: the finished media could not be stored ({exc}); the provider "
+                     "charge may stand")
+    if service_status(final_row) in ("failed", "refused"):
+        return _unfinished(final_row, service_status(final_row), 0, True) or _fail("error: failed")
+    usage_note = _record_usage(ctx, backend, kind, row, detail)
+    return _result(ctx, tool_name, kind, prompt, alt_text, payload, final_row, row, backend,
+                   usage_note, detail)
+
+
+def _record_usage(ctx: ToolContext, backend: MediaBackend, kind: str, row: dict[str, Any],
+                  detail: dict[str, Any]) -> str:
+    """Write the run-ledger usage row: measured tokens when the backend reports them, else the
+    price estimate with its source labeled. Never fails the media the user already paid for."""
+    spoken = None
+    result_for = getattr(backend, "result_for", None)
+    if kind == "audio" and callable(result_for):
+        spoken = result_for(row)
+    basis = detail.get("cost_basis") or {}
+    usd = float(basis["usd"]) if basis.get("priced") else 0.0
+    prompt_tokens = spoken.prompt_tokens if spoken else 0
+    completion_tokens = spoken.completion_tokens if spoken else 0
+    try:
+        ctx.store.add_usage(
+            ctx.run.id, ctx.bot.id, str(getattr(backend, "provider", backend.name)),
+            spoken.model if spoken else str(detail.get("model") or backend.name),
+            prompt_tokens, completion_tokens, 0, usd, kind="speech" if kind == "audio" else "media",
+            account_id=str(getattr(backend, "connection", "") or ""),
+            cost_source="estimated" if basis.get("priced") else "unpriced")
+        ctx.run.prompt_tokens += prompt_tokens
+        ctx.run.completion_tokens += completion_tokens
+        ctx.store.update_run(ctx.run)
+    except Exception as exc:  # noqa: BLE001 - the media is real and must be returned
+        return f"; usage could not be recorded in the run ledger: {exc}"
+    return (f"; {prompt_tokens} prompt / {completion_tokens} completion tokens recorded"
+            if prompt_tokens or completion_tokens else "")
+
+
+def _result(ctx: ToolContext, tool_name: str, kind: str, prompt: str, alt_text: str,
+            payload: dict[str, Any], final_row: dict[str, Any], row: dict[str, Any],
+            backend: MediaBackend, usage_note: str, detail: dict[str, Any]) -> ToolResult:
+    job_id = final_row.get("id", row["id"])
     media_block = {
-        "v": 1, "id": new_block_id(), "kind": "media", "revision": 1,
-        "availability": "ready",
+        "v": 1, "id": new_block_id(), "kind": "media", "revision": 1, "availability": "ready",
         "text_fallback": (f"Speech: {prompt[:400]}" if kind == "audio"
                           else f"Generated {kind}: {alt_text[:400]}"),
-        "provenance": {"run_id": ctx.run.id, "tool": tool_name,
-                       "job_id": final_row.get("id", row["id"])},
+        "provenance": {"run_id": ctx.run.id, "tool": tool_name, "job_id": job_id},
         "payload": payload,
     }
     errors = check_blocks([media_block])
-    warnings = ""
-    data: dict[str, Any] = {"media": payload, "job_id": final_row.get("id", row["id"]),
+    warnings = ("" if not errors else " (the block failed its own validation: "
+                + "; ".join(e.get("error", "?") for e in errors)[:300] + ")")
+    data: dict[str, Any] = {"media": payload, "job_id": job_id,
                             "content_url": (f"/api/v1/media/{payload['media_id']}"
                                             f"/versions/{payload['version']}/content")}
-    if errors:
-        warnings = (" (the block failed its own validation: "
-                    + "; ".join(e.get("error", "?") for e in errors)[:300] + ")")
-    else:
+    if not errors:
         data["blocks"] = [media_block]
+    cost = detail.get("cost") or "provider charges apply"
     return ToolResult(
         ok=True,
         output=(f"created {kind} media via {backend.name} "
-                f"({payload['mime']}, sha256 {payload['sha256'][:16]}…); media "
+                f"({payload['mime']}, sha256 {payload['sha256'][:16]}...); media "
                 f"{payload['media_id']} v{payload['version']} is stored and "
-                f"verifiable{warnings}; cost: provider charges apply and hutch "
-                f"cannot verify the exact amount{usage_note}"),
+                f"verifiable{warnings}; cost: {cost}. hutch cannot verify the exact "
+                f"amount charged{usage_note}"),
         data=data)

@@ -154,8 +154,8 @@ class ComfyUIBackend:
         return payload if isinstance(payload, dict) else {}
 
     @classmethod
-    def from_env(cls) -> Optional["ComfyUIBackend"]:
+    def from_env(cls, environ: Optional[Any] = None) -> Optional["ComfyUIBackend"]:
         """Build from HUTCH_COMFYUI_URL; None when unset."""
         import os
-        endpoint = os.environ.get("HUTCH_COMFYUI_URL")
+        endpoint = (os.environ if environ is None else environ).get("HUTCH_COMFYUI_URL")
         return cls(endpoint) if endpoint else None

@@ -46,7 +46,7 @@ from typing import Any, Callable, Iterable, Optional
 
 from ..store import IdempotencyConflict, Store
 from . import validate as media_validate
-from .providers.base import MediaBackend
+from .providers.base import MediaBackend, MediaRefused
 from .status import CANCEL_UNCONFIRMED_PREFIX as _CANCEL_UNCONFIRMED_PREFIX
 from .status import failure_cost_note, failure_text, service_status, submit_failure
 from .storage import (MAX_MEDIA_BYTES, MediaStorage, MediaStorageError,
@@ -127,8 +127,9 @@ class MediaJobService:
         return None
 
     def backend_for(self, kind: str, backend_hint: Optional[str] = None) -> MediaBackend:
-        """Pick a capable backend. A hint names a specific backend; without one the
-        alphabetically-first capable backend wins (deterministic). None capable →
+        """Pick a capable backend. A hint names a specific backend. Without one, exactly one
+        capable backend is used; several is a refusal that names them, because choosing between
+        accounts that could pay is not Hutch's decision. None capable →
         :class:`MediaUnavailableError`, honest absence, never a substitute."""
         if kind not in MEDIA_KINDS:
             raise MediaJobError(f"unknown media kind {kind!r}; known: {', '.join(MEDIA_KINDS)}")
@@ -142,10 +143,15 @@ class MediaJobService:
                 raise MediaUnavailableError(
                     f"backend {backend_hint!r} does not list kind {kind!r}")
             return backend
-        for name in sorted(self.backends):
-            backend = self.backends[name]
-            if kind in backend.capabilities().get("kinds", []):
-                return backend
+        capable = [n for n in sorted(self.backends)
+                   if kind in self.backends[n].capabilities().get("kinds", [])]
+        if len(capable) > 1:
+            raise MediaUnavailableError(
+                f"{len(capable)} configured backends can produce {kind!r} media "
+                f"({', '.join(capable)}); name one with backend_hint - Hutch does not choose "
+                "which account pays")
+        if capable:
+            return self.backends[capable[0]]
         raise MediaUnavailableError(
             f"no configured backend can produce {kind!r} media; hutch does not "
             "substitute stock assets or fabricate previews")
@@ -332,6 +338,9 @@ class MediaJobService:
         kind = str(row["kind"])
         try:
             raw = backend.fetch(row)
+        except MediaRefused as exc:
+            refusal = submit_failure(exc)
+            return self._fail(job_id, refusal["error"], refusal["cost_note"])
         except Exception as exc:
             return self._fail(job_id, f"the result could not be fetched: {exc}",
                               "the fetch failed after the upstream job was accepted; "
