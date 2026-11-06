@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-06",
+  "provider": "stand-in HTTP server on loopback (NOT a vendor): proves Hutch's recovery and ledger, nothing about any vendor",
+  "steps": [
+    {
+      "step": "victim-killed",
+      "returncode": -9,
+      "signal": true,
+      "job": "mj_af4c674e24bdbb15",
+      "provider_tts_requests": 1
+    },
+    {
+      "step": "open-jobs",
+      "jobs": [
+        [
+          "mj_af4c674e24bdbb15",
+          "running",
+          "xai-speech:xai"
+        ]
+      ]
+    },
+    {
+      "step": "advance-speech",
+      "action": "finalized",
+      "status": "succeeded",
+      "sha256_served": "58a2f64e4937368f19c47cca70b3f448914fffbb29b10e81ccaf04a99ba7eff4",
+      "sha256_expected": "58a2f64e4937368f19c47cca70b3f448914fffbb29b10e81ccaf04a99ba7eff4",
+      "bytes_match": true,
+      "provider_tts_requests": 1
+    },
+    {
+      "step": "advance-video",
+      "first": "polled",
+      "then": "finalized",
+      "status": "succeeded",
+      "bytes_match": true,
+      "mime": "video/mp4"
+    },
+    {
+      "step": "cancel-video",
+      "status": "cancel_unconfirmed",
+      "error": "cancel_unconfirmed: the backend did not confirm the cancellation within 2s; the upstream job (vid-2) may still be runnin"
+    },
+    {
+      "step": "refusal",
+      "status": "refused",
+      "error": "refused: provider status 1026: input new_sensitive"
+    }
+  ],
+  "secrets_in_record": false,
+  "passed": true
+}
