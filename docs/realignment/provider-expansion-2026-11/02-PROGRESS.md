@@ -12,7 +12,7 @@ Update at every checkpoint. Keep entries short and factual.
 | 3 Flagship providers | done 2026-11-06 | 88edb95d | unauthenticated GET opencode.ai/inference/v1/models (200); no paid call | shell env lacks OPENAI/ANTHROPIC/GEMINI keys |
 | 4 Hosted and gateways | done 2026-11-06 | 47067fc6 | unauthenticated probes of 49 hosts; real server + CLI on isolated state; no keyed call | no credential for any Phase 4 provider |
 | 5 Local and custom | done 2026-11-06 | 43c472cf | real LM Studio 0.0.27-1 (cold load, streaming through the pinned transport, five layered outcomes); real Ollama 0.40.13 identified behind /v1 (GET only); no paid call | vLLM, SGLang, inferrs, ds4 not installable here; private-LAN path has no peer |
-| 6 Media, speech, search | not started | | | |
+| 6 Media, speech, search | done 2026-11-06 | 7525db43 | none against a vendor; real `hutch serve` + SIGKILL recovery against a loopback stand-in provider (Hutch's own recovery and ledger only); no paid call | no credential for any of the 11 media providers; no real ComfyUI; Runway, MiniMax video, Google Omni wire not read |
 | 7 Frontend | not started | | | |
 | 8 Website and docs | not started | | | |
 | 9 Final review and merge | not started | | | |
@@ -184,6 +184,39 @@ Update at every checkpoint. Keep entries short and factual.
   to the LAN address was declined by the permission guard and not worked around); DNS rebinding against a real
   resolver; an environment proxy; keyboard traversal and light theme (no markup changed; dark-only, G16).
 
+## Phase 6 outputs (2026-11-06)
+
+- `82fd0813` paid synchronous results are held in an owner-only atomic spool inside `submit` (`media/spool.py`);
+  reconcile leaves a recoverable job running; OpenAI Images picks `response_format` and sizes by model family (GPT
+  Image rejects both DALL-E parameters, four tracker issues) and the SDK no longer retries a billable call;
+  `moderation_blocked` is a refusal; result URLs go through one bounded downloader on the pinned transport.
+  `media/status.py` holds the service statuses (`refused` is new) and `jobs.py` shrank from 592 to 577 lines.
+- `dc172e1c`, `02b20c69` `data/media-routes.json` (19 rows: 14 implemented-unverified, 3 documented, 2 retired) driven by
+  a `sync` and a `task` backend; an HTTP 200 is not success (in-body envelopes, refusal markers, no media);
+  requests are checked against documented limits before the approval; `backend_for` refuses to choose between
+  accounts; the approval names who receives the prompt, the credential, the billing and a dated estimate or
+  "cost unknown" (`media/cost.py`, `data/media-prices.json`: only Google image and speech are priced).
+  `run_provider_media` (170 lines) became small functions.
+- `a21affc3` `media/ledger.py`, `media/resume.py`, `media/jobs_routes.py`: list, advance and cancel jobs outside the
+  tool call (`/api/v1/media/jobs`), local-owner only. Fixed pre-existing `finalize()` returning a bare row on failure.
+- `9f0a61dd` ComfyUI: queue-aware cancel (reads `GET /queue`, interrupts only our running prompt with its id, confirms
+  by re-reading), outputs from images/gifs/videos/audio, bounded and pinned downloads.
+- `406d09ba`, `a493257c` `docs/realignment/run_media_resume_check.py` and its record
+  (`artifacts/provider-expansion-2026-11/phase6/media-resume-run.json`): SIGKILLed victim, real server finishes
+  the job with one provider request, SHA-256 equal, spool released, video pending to done, unconfirmable cancel
+  stays `cancel_unconfirmed`, MiniMax 1026 inside a 200 is `refused`. Provider is a stand-in.
+- `87ac6e33` catalogue: fal, PixVerse, Deepgram, ElevenLabs from documented/deferred to implemented-unverified, services
+  limited to what a route backs; a test fails if a status exceeds the route table.
+- `ea57ead5`, `7525db43`, ADR-0036, `provider-platform.md`, `connections.md`, `provider-compatibility.md`,
+  `docs/research/2026-11-provider-expansion/07-MEDIA-SPEECH-SEARCH.md` (sources, failure classes, design, results,
+  defects found by running, not run). `runtime-setup.md` and `models.md` are unchanged: no runtime or model-choice
+  behavior changed.
+- Validation: 253 media tests, 590 provider/catalogue/compat/media/route/connection tests, 127 app and tool tests, 82
+  tool-contract and offline tests; `npm run check:agent` and `npm run audit:context` pass; mutation checks on the
+  envelope check, the no-retry header, the content-type check and the old ComfyUI cancel and fetch. The emoji audit
+  reports 8 violations, all in another tool's untracked `.codewhale/state/subagents.v1.json`.
+- No UI changed, so no screenshot gate applies; the Providers page media section is Phase 7.
+
 ## Owner inputs (batch, answered 2026-11-06)
 
 - Provisioned credentials: OpenAI, Anthropic, Google Gemini. Every other paid route is
@@ -258,6 +291,26 @@ Update at every checkpoint. Keep entries short and factual.
 - 2026-11-06: inferrs and ds4 get no template: no engine to verify and ds4 is Metal-only. They stay `documented` and
   reachable through the generic OpenAI-compatible route.
 
+- 2026-11-06: Media routes are rows in a validated table driven by a `sync` and a `task` backend; a vendor whose wire is
+  not read stays `documented` rather than being built on a guess (ADR-0036).
+- 2026-11-06: OpenAI Sora 2 / Videos API (shut down 2026-09-24, no replacement) and the Google Veo preview models
+  (2026-10-22) are `retired`; Gemini Omni Flash is `documented`, not built.
+- 2026-11-06: A paid synchronous result is spooled before `submit` returns and released after the media store commits;
+  recovery never pays twice. A task job needs only the ledger id.
+- 2026-11-06: A refusal is a service status (`refused:` prefix over the store's five states) with the provider's
+  reason, never retried and never a generic failure.
+- 2026-11-06: With several capable backends `backend_for` refuses and names them. An ambient env key and a configured
+  connection are two backends. Environment credentials are used only for vendors with no chat connection and are
+  labeled ambient in the approval.
+- 2026-11-06: Cost is a dated estimate with its basis or "cost unknown"; an unreadable price is never turned into a
+  number. Estimates are recorded as `estimated`, unknown as `unpriced`.
+- 2026-11-06: No automatic retry for any billable media call, including the SDK's defaults and Gemini TTS's empty 200.
+- 2026-11-06: Job routes are absent from `REMOTE_ROUTE_CAPABILITIES`; paired phones are denied by default.
+- 2026-11-06: Provider-native search for OpenAI, Google and xAI is documented, not built; the Xiaomi route and the
+  `live_search` distinction are unchanged.
+- 2026-11-06: ADR-0035 was already taken by the offline-models initiative running in the same repository, so this phase
+  uses ADR-0036.
+
 
 ## Review findings log
 
@@ -315,6 +368,24 @@ Update at every checkpoint. Keep entries short and factual.
 - 2026-11-06, Phase 5, another session's uncommitted edits to `ollama.py`, `openai_compat.py`, `runtime/outcomes.py`
   and two tests were present in the tree; none were staged or touched.
 
+- 2026-11-06, Phase 6, the real-stack run showed `finalize()` returning a bare row on failure paths while callers unpack a
+  tuple (pre-existing; a failed fetch raised ValueError in the tool). Fixed at the source with regression tests.
+- 2026-11-06, Phase 6, the first downloader let `EndpointRefused` escape; the metadata-address test failed and it is now a
+  `FetchError`.
+- 2026-11-06, Phase 6, the first reconcile tests used the live service, which rightly skips jobs it drives; they now
+  restart the service.
+- 2026-11-06, Phase 6, own-diff review found: held results were never released or swept; a local "route cannot be
+  filled" error claimed a billing risk; a lost race on `advance` reported a failure. All fixed with tests.
+- 2026-11-06, Phase 6, releasing the held copy lost Xiaomi's measured tokens (read after release); the existing speech
+  test caught it; usage is read before finalize and a resume-path test was added.
+- 2026-11-06, Phase 6, a new catalogue note used the word "bearer" and tripped the secret-text scan; the note was reworded,
+  not the test.
+- 2026-11-06, Phase 6, one test I wrote asserted nothing (templates have no `models` key); removed.
+- 2026-11-06, Phase 6, the route tests passed first time, so five mutations were run to prove they fail without the
+  behavior; all five were caught.
+- 2026-11-06, Phase 6, a concurrent session (offline-models Phase 7) committed to the same branch and regenerated the agent
+  map; its uncommitted `modelview.py`, `models.html` and webhook files were never staged.
+
 
 ## Open items and deferred
 
@@ -356,3 +427,18 @@ Update at every checkpoint. Keep entries short and factual.
   paragraph at 360 px (Phase 7).
 - Phase 5: the generation ("test with one token") layer of the connectivity test remains the existing explicit probe;
   `connections test` makes no inference request.
+- Phase 6: no route is live-verified. The owner said OpenAI, Anthropic and Google keys are provisioned, but the
+  variables are unset in this shell (and so are xAI, MiniMax, fal, ElevenLabs, Deepgram, Runway, PixVerse). Next
+  step per provider: export the key, agree the per-call cap (an image or a few hundred characters), run one request.
+- Phase 6: Runway, MiniMax Hailuo and Google Gemini Omni Flash need their request and result pages read before a
+  route is built. xAI image field names beyond model and prompt come from OpenClaw. Google's Interactions API has no
+  documented way to stop Google keeping an interaction; none is sent.
+- Phase 6: music, image editing through routes, streaming synthesis, mp3 output, voice cloning, image-to-video and
+  provider-native search for OpenAI, Google and xAI are not built. The media store accepts wav audio only.
+- Phase 6: the model of a route is data with no per-user override; a stale id is a data fix. The OpenAI guide and pricing
+  page name different current image ids, so the default (`gpt-image-1-mini`) is a choice, not a verified fact.
+- Phase 6: no page lists media jobs and a finished resumed job does not re-enter the conversation as a media block; the
+  API exists for the Phase 7 frontend.
+- Phase 6: media-only vendors (fal, PixVerse, ElevenLabs, Deepgram) read one environment variable and are labeled
+  ambient; there is no connection template or stored-key UI for them (frozen `connections.py`).
+- Phase 6: no real ComfyUI server was available, and Comfy Cloud is not built.
