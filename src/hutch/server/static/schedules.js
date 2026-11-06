@@ -279,14 +279,10 @@
 
   async function loadRollCall(container, mount) {
     try {
-      const [roll, policies] = await Promise.all([
-        callApi("/v1/schedules/roll-call"),
-        callApi("/v1/schedule-policies"),
-      ]);
+      const roll = await callApi("/v1/schedules/roll-call");
       state.roll = roll;
       state.bySchedule = new Map((roll.routines || []).map(item => [item.schedule_id, item]));
       state.attention = new Set((roll.routines || []).filter(item => item.needs_attention).map(item => item.schedule_id));
-      state.policies = new Map((policies || []).map(item => [`${item.bot_id}:${item.schedule_id}`, item]));
       mount.innerHTML = rollCallHtml(roll);
       updateAttentionNote(container, roll);
       $$(".schedule-overview-row", container).forEach(updateLastRun);
