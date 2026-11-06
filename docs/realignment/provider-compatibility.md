@@ -159,3 +159,23 @@ connection templates. None has a row in `compat.json`: no request-level behavior
 implemented-unverified and carries no capability, tool-schema, streaming or reasoning claim. The Alibaba and
 Z.AI coding-plan routes are blocked by their own terms and have no template (ADR-0032). The research record is
 `docs/research/2026-11-provider-expansion/04-FLAGSHIP-ROUTES.md`.
+
+## Phase 4 routes (2026-11-06): gateways and clouds, identities not verified behavior
+
+`vercel-ai-gateway`, `litellm`, `clawrouter`, `bedrock-runtime`, `bedrock-mantle`, `microsoft-foundry`,
+`qianfan` and `stepfun-global` were added as connection templates, and `synthetic` moved to its documented
+`/openai/v1` path. None has a row in `compat.json`: no request-level behavior was observed, so each is
+implemented-unverified with no capability, tool-schema, streaming or reasoning claim.
+
+Two request-shaping rules are data on the template, not provider-specific code, and neither is observed live:
+
+- `headers: {"api-key": "{api_key}"}` (Microsoft Foundry) sends the key in that header and no Bearer. Proven on
+  the wire against a local server; Azure itself was not called.
+- `tool_schema_unsupported_keywords` (Volcengine) trims bound keywords from the wire copy of each tool schema.
+  The source is the OpenClaw Volcengine page, read 2026-11-06; it was not reproduced against an account. The
+  canonical `Tool.parameters` and `validate_call` are unchanged.
+
+`models_list_ignores_key` marks seven hosts whose model list answered HTTP 200 for a placeholder key on
+2026-11-06 (Hugging Face, Kilo, Novita, NVIDIA, Ollama Cloud, Synthetic, Venice); a listing there is not a key
+check. The Tencent Token Plan is blocked by its terms and has no template (ADR-0033). The research record is
+`docs/research/2026-11-provider-expansion/05-HOSTED-AND-GATEWAYS.md`.

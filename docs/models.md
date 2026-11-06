@@ -207,6 +207,13 @@ blaming the picker:
 A returned list still proves nothing about the models in it. It is a claim by the provider that the id
 exists for your key, not that the model takes tools, images, a given context length, or your budget.
 
+**A list can also prove nothing about the key (2026-11-06).** Hugging Face, Kilo, Novita, NVIDIA, Ollama Cloud,
+Synthetic and Venice return their model list for any key, including a made-up one (measured with a placeholder
+value, no account). For those, **Test** on the Models page and `hutch connections test` list the models and say
+the key was *not verified*; they no longer say "verified" or "authenticated". Microsoft Foundry and Qianfan have no
+list to read, and Bedrock's runtime endpoint has none either, so those checks only prove a key is present. A normal
+bot request is the check that exercises the key, and it runs through the usual approvals and usage limits.
+
 ## Measuring tool reliability: `hutch models bench`
 
 "Supports tools" on a model card does not tell you whether a model forms a valid call, gets argument types right,

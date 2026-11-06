@@ -509,6 +509,33 @@ service even though the same model names may run locally.
 A route reads its key only from its own `api_key_env` or its own key file. `OPENAI_API_KEY` is never sent to a
 non-OpenAI host merely because the route speaks the OpenAI wire format.
 
+### Gateway and cloud routes (2026-11-06)
+
+Eight more templates, all `implemented-unverified` (hosts probed without a key; nothing called with an
+account): `vercel-ai-gateway` (needs a terms acknowledgement: a failed bring-your-own-key request is retried on
+Vercel's credentials and billed to the gateway account), `litellm` (default `http://localhost:4000/v1`; model
+ids are the proxy's aliases), `clawrouter` (administrator-issued, credential-scoped list), `bedrock-runtime`
+and `bedrock-mantle` (a Bedrock API key in `AWS_BEARER_TOKEN_BEDROCK`; IAM credentials and the Converse API are
+not implemented; the Region is part of the host and a long-term key works only in its own Region),
+`microsoft-foundry`, `qianfan` and `stepfun-global`.
+
+`microsoft-foundry` has no default host. Add it with your own endpoint:
+
+```bash
+hutch connections add microsoft-foundry --base-url https://RESOURCE.openai.azure.com/openai/v1
+```
+
+The model is your deployment name, exact and case-sensitive. The key is sent in the `api-key` header and no
+Bearer header; Microsoft Entra ID tokens are not implemented.
+
+`hutch connections test` and the Models page now say when a key was **not** verified. Hugging Face, Kilo,
+Novita, NVIDIA, Ollama Cloud, Synthetic and Venice return their model list for any key (measured 2026-11-06),
+so a successful list there proves reachability, not the key. Run a normal bot request to check it.
+
+The Tencent Token Plan is blocked (it forbids automated and non-interactive use). Volcengine and BytePlus
+Coding Plan endpoints are not offered: the `volcengine` and `byteplus` templates are the pay-as-you-go
+endpoints and the Volcengine one warns that it does not draw from a plan.
+
 ## What a connection controls
 
 - **Key** (`CN-2`). Read from the environment variable first, then from `<state dir>/keys/<name>.key` (created

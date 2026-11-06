@@ -89,6 +89,41 @@ Added 2026-11-06 (ADR-0032, Phase 3). The catalogue now holds 64 identities.
 - Not built: the Claude CLI delegate, the Codex native runtime, Grok OAuth, MiniMax plan sign-in. Each is
   `documented` and recorded in `docs/research/2026-11-provider-expansion/04-FLAGSHIP-ROUTES.md`.
 
+## Hosted providers and gateways
+
+Added 2026-11-06 (ADR-0033, Phase 4). Research, probes and sources are in
+`docs/research/2026-11-provider-expansion/05-HOSTED-AND-GATEWAYS.md`. Every route below is
+implemented-unverified: the hosts were probed without a key and nothing was called with an account.
+
+- New templates: `vercel-ai-gateway`, `litellm`, `clawrouter`, `bedrock-runtime` and `bedrock-mantle` (a
+  Bedrock API key on the two OpenAI-compatible endpoints), `microsoft-foundry` (v1 API with a resource key),
+  `qianfan` and `stepfun-global`. A template whose host belongs to the user (Azure resource) is refused
+  until the host is given, and the refusal names the flag.
+- A template header whose whole value is `{api_key}` carries the key in that header and sends no Bearer
+  (`providers/auth_headers.py`). Microsoft Foundry uses it for `api-key`; Entra ID treats a Bearer value as a
+  token, which is the 401/404 other clients hit. The key is substituted only when a provider is built, it is
+  never stored in the connection, and it is refused on non-OpenAI protocols.
+- Plan boundaries: the Tencent Token Plan is blocked (forbids automated and non-interactive use).
+  Volcengine and BytePlus Coding Plan endpoints are documented only and not offered: the vendor lists the
+  tools it supports and Hutch is not one of them. The pay-as-you-go Volcengine template says it does not draw
+  from a plan, because `/api/v3` bills extra when a plan holder uses it by mistake.
+- Gateways: a Vercel BYOK failure retries on Vercel's own credentials and bills the gateway account, so that
+  template requires acknowledging the notice. LiteLLM model ids are proxy aliases and ClawRouter lists are
+  credential-scoped; the model a response reports is what Hutch records.
+- Bedrock: long-term keys work only in the Region they were created in and bare ids for profile-only models
+  fail, so the templates show the Region and the `us.` `eu.` `apac.` `global.` profile prefixes. Hutch never
+  adds or strips a prefix. `bedrock-runtime` has no model list; `bedrock-mantle` serves some models under
+  `/openai/v1`.
+- Honest checks: eight hosts return HTTP 200 on their model list for any key (measured 2026-11-06). Seven of
+  them are flagged `models_list_ignores_key`; their connection test lists the models and reports the key as
+  not verified. OpenRouter keeps its own `/key` check.
+- Wire trimming: a template may list `tool_schema_unsupported_keywords`. Volcengine does, on the OpenClaw
+  report that its tool API rejects `maxLength` and similar bounds; the wire copy is trimmed and
+  `validate_call` still checks the canonical schema.
+- Not built, each recorded with its reason: AWS IAM/SigV4 and the Converse event stream, Vertex service
+  accounts (Gemini and Claude), Entra ID, Cloudflare AI Gateway (account and gateway ids in the URL, a second
+  auth header, and a vendor-deprecated `/compat` path), Alibaba workspace endpoints. No dependency was added.
+
 ## Capability and readiness rules
 
 - Levels are documented, advertised, observed and live-verified, scoped to provider, endpoint,
