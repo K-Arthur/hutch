@@ -1,0 +1,725 @@
+{
+  "captured_at": "2026-11-06T04:31:46.632845+00:00",
+  "origin": "http://127.0.0.1:18890",
+  "browser": {
+    "name": "chromium",
+    "version": "153.0.8010.12"
+  },
+  "git_revision": "1ffcb643670ed08f1ea56b828736161a3a360b6e",
+  "source_sha256": "c29e25fc6946fabb08c736f4d4348e31624edb7d588421fdb104c2594f57dd35",
+  "records": [
+    {
+      "page": "providers",
+      "scheme": "light",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18890/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (62)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers",
+        "Enterprise clouds",
+        "Subscription services",
+        "Local and self-hosted runtimes"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\n \nModel routes\n\nTwo owner-authorized routes were live-verified on 2026-10-30: the direct DeepSeek route through the built-in runtime and the managed OpenCode runtime with a DeepSeek model. Both were text only. Every other hosted route remains implemented-unverified, and no local inference service is running here. The catalogue is reviewed on 2026-10-30; evidence and sources are in docs/research/2026-10-provider-platform/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nNo provider accounts are configured yet.\n\nAdd an API-key or subscription account in Apps & AI. Local runtimes need no account.\n\nAdd an account\n\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:8080/v1/models\nno service\nno service answered\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered\nOllama http://127.0.0.1:11434/api/tags\nno service\nno service answered\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reservation\ncli installed\n\nThe CLI's own permission model, outside Hutch approvals and budgets.\n\nCodex CLI\ncodex\ndocumented\nnot selectable\nno usage reservation\ncli installed\ncodex-cli 0.160.0\n\nVendor permission model, outside Hutch approvals and budgets.\n\nGemini CLI\ngemini-cli\ndocumented\nnot selectable\nno usage reservation\ncli not installed\n\nVendor permission model, outside Hutch approvals and budgets.\n\nProvider catalogue (62)\n\nGrouped by what the service is. Status values: implemented, implemented-unverified, experimental, documented (research only), blocked, retired, deferred. Model and capability columns are evidence in the research package, not promises.\n\nSearch providers\nAll\nModel vendors\nModel-serving platforms\nGateways and routers\nEnterprise clouds\nSubscription services\nLocal and self-hosted runtimes\nMedia, speech and music\nCustom compatible endpoints\n\nShowing 62 providers.\n\nModel vendors\nOpenAI route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nopenai\n\nPlatform API billing and ChatGPT plan allowance stay separate routes. The ChatGPT preview is opt-in and eligibility-gated.\n\nServices: chat, responses, embeddings, images, speech, transcription, tools, batch\n\nAuth: Platform API key (implemented); Sign in with ChatGPT (plan use) (experimental)\n\nProtocols: openai-chat, openai-responses\n\nAnthropic route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nanthropic\n\nA Claude subscription is not an API key;",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-light-360.png",
+      "sha256": "152d5634515c95cf098cd277de2c33069c76f898d32d12399b8d9867904acc9c"
+    },
+    {
+      "page": "providers",
+      "scheme": "light",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18890/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (62)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers",
+        "Enterprise clouds",
+        "Subscription services",
+        "Local and self-hosted runtimes"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\n \nModel routes\n\nTwo owner-authorized routes were live-verified on 2026-10-30: the direct DeepSeek route through the built-in runtime and the managed OpenCode runtime with a DeepSeek model. Both were text only. Every other hosted route remains implemented-unverified, and no local inference service is running here. The catalogue is reviewed on 2026-10-30; evidence and sources are in docs/research/2026-10-provider-platform/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nNo provider accounts are configured yet.\n\nAdd an API-key or subscription account in Apps & AI. Local runtimes need no account.\n\nAdd an account\n\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:8080/v1/models\nno service\nno service answered\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered\nOllama http://127.0.0.1:11434/api/tags\nno service\nno service answered\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reservation\ncli installed\n\nThe CLI's own permission model, outside Hutch approvals and budgets.\n\nCodex CLI\ncodex\ndocumented\nnot selectable\nno usage reservation\ncli installed\ncodex-cli 0.160.0\n\nVendor permission model, outside Hutch approvals and budgets.\n\nGemini CLI\ngemini-cli\ndocumented\nnot selectable\nno usage reservation\ncli not installed\n\nVendor permission model, outside Hutch approvals and budgets.\n\nProvider catalogue (62)\n\nGrouped by what the service is. Status values: implemented, implemented-unverified, experimental, documented (research only), blocked, retired, deferred. Model and capability columns are evidence in the research package, not promises.\n\nSearch providers\nAll\nModel vendors\nModel-serving platforms\nGateways and routers\nEnterprise clouds\nSubscription services\nLocal and self-hosted runtimes\nMedia, speech and music\nCustom compatible endpoints\n\nShowing 62 providers.\n\nModel vendors\nOpenAI route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nopenai\n\nPlatform API billing and ChatGPT plan allowance stay separate routes. The ChatGPT preview is opt-in and eligibility-gated.\n\nServices: chat, responses, embeddings, images, speech, transcription, tools, batch\n\nAuth: Platform API key (implemented); Sign in with ChatGPT (plan use) (experimental)\n\nProtocols: openai-chat, openai-responses\n\nAnthropic route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nanthropic\n\nA Claude subscription is not an API key;",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-light-768.png",
+      "sha256": "4e059fd75338836df72787b9c48fe292a769adacba23b5e4ab70bff1471bb732"
+    },
+    {
+      "page": "providers",
+      "scheme": "light",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18890/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (62)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers",
+        "Enterprise clouds",
+        "Subscription services",
+        "Local and self-hosted runtimes"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\n \nModel routes\n\nTwo owner-authorized routes were live-verified on 2026-10-30: the direct DeepSeek route through the built-in runtime and the managed OpenCode runtime with a DeepSeek model. Both were text only. Every other hosted route remains implemented-unverified, and no local inference service is running here. The catalogue is reviewed on 2026-10-30; evidence and sources are in docs/research/2026-10-provider-platform/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nNo provider accounts are configured yet.\n\nAdd an API-key or subscription account in Apps & AI. Local runtimes need no account.\n\nAdd an account\n\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:8080/v1/models\nno service\nno service answered\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered\nOllama http://127.0.0.1:11434/api/tags\nno service\nno service answered\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reservation\ncli installed\n\nThe CLI's own permission model, outside Hutch approvals and budgets.\n\nCodex CLI\ncodex\ndocumented\nnot selectable\nno usage reservation\ncli installed\ncodex-cli 0.160.0\n\nVendor permission model, outside Hutch approvals and budgets.\n\nGemini CLI\ngemini-cli\ndocumented\nnot selectable\nno usage reservation\ncli not installed\n\nVendor permission model, outside Hutch approvals and budgets.\n\nProvider catalogue (62)\n\nGrouped by what the service is. Status values: implemented, implemented-unverified, experimental, documented (research only), blocked, retired, deferred. Model and capability columns are evidence in the research package, not promises.\n\nSearch providers\nAll\nModel vendors\nModel-serving platforms\nGateways and routers\nEnterprise clouds\nSubscription services\nLocal and self-hosted runtimes\nMedia, speech and music\nCustom compatible endpoints\n\nShowing 62 providers.\n\nModel vendors\nOpenAI route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nopenai\n\nPlatform API billing and ChatGPT plan allowance stay separate routes. The ChatGPT preview is opt-in and eligibility-gated.\n\nServices: chat, responses, embeddings, images, speech, transcription, tools, batch\n\nAuth: Platform API key (implemented); Sign in with ChatGPT (plan use) (experimental)\n\nProtocols: openai-chat, openai-responses\n\nAnthropic route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nanthropic\n\nA Claude subscription is not an API key;",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-light-1280.png",
+      "sha256": "85e84df2e9999d58974ad2a3cd1f116771075341495f2041debe7d0895fffb3d"
+    },
+    {
+      "page": "providers",
+      "scheme": "light",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18890/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (62)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers",
+        "Enterprise clouds",
+        "Subscription services",
+        "Local and self-hosted runtimes"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\n \nModel routes\n\nTwo owner-authorized routes were live-verified on 2026-10-30: the direct DeepSeek route through the built-in runtime and the managed OpenCode runtime with a DeepSeek model. Both were text only. Every other hosted route remains implemented-unverified, and no local inference service is running here. The catalogue is reviewed on 2026-10-30; evidence and sources are in docs/research/2026-10-provider-platform/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nNo provider accounts are configured yet.\n\nAdd an API-key or subscription account in Apps & AI. Local runtimes need no account.\n\nAdd an account\n\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:8080/v1/models\nno service\nno service answered\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered\nOllama http://127.0.0.1:11434/api/tags\nno service\nno service answered\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reservation\ncli installed\n\nThe CLI's own permission model, outside Hutch approvals and budgets.\n\nCodex CLI\ncodex\ndocumented\nnot selectable\nno usage reservation\ncli installed\ncodex-cli 0.160.0\n\nVendor permission model, outside Hutch approvals and budgets.\n\nGemini CLI\ngemini-cli\ndocumented\nnot selectable\nno usage reservation\ncli not installed\n\nVendor permission model, outside Hutch approvals and budgets.\n\nProvider catalogue (62)\n\nGrouped by what the service is. Status values: implemented, implemented-unverified, experimental, documented (research only), blocked, retired, deferred. Model and capability columns are evidence in the research package, not promises.\n\nSearch providers\nAll\nModel vendors\nModel-serving platforms\nGateways and routers\nEnterprise clouds\nSubscription services\nLocal and self-hosted runtimes\nMedia, speech and music\nCustom compatible endpoints\n\nShowing 62 providers.\n\nModel vendors\nOpenAI route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nopenai\n\nPlatform API billing and ChatGPT plan allowance stay separate routes. The ChatGPT preview is opt-in and eligibility-gated.\n\nServices: chat, responses, embeddings, images, speech, transcription, tools, batch\n\nAuth: Platform API key (implemented); Sign in with ChatGPT (plan use) (experimental)\n\nProtocols: openai-chat, openai-responses\n\nAnthropic route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nanthropic\n\nA Claude subscription is not an API key;",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-light-1920.png",
+      "sha256": "ed531ebecac565f15f11f4e09bf81a1daedb8cd78e3b074a839442b8eb63ab41"
+    },
+    {
+      "page": "providers",
+      "scheme": "dark",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18890/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (62)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers",
+        "Enterprise clouds",
+        "Subscription services",
+        "Local and self-hosted runtimes"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\n \nModel routes\n\nTwo owner-authorized routes were live-verified on 2026-10-30: the direct DeepSeek route through the built-in runtime and the managed OpenCode runtime with a DeepSeek model. Both were text only. Every other hosted route remains implemented-unverified, and no local inference service is running here. The catalogue is reviewed on 2026-10-30; evidence and sources are in docs/research/2026-10-provider-platform/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nNo provider accounts are configured yet.\n\nAdd an API-key or subscription account in Apps & AI. Local runtimes need no account.\n\nAdd an account\n\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:8080/v1/models\nno service\nno service answered\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered\nOllama http://127.0.0.1:11434/api/tags\nno service\nno service answered\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reservation\ncli installed\n\nThe CLI's own permission model, outside Hutch approvals and budgets.\n\nCodex CLI\ncodex\ndocumented\nnot selectable\nno usage reservation\ncli installed\ncodex-cli 0.160.0\n\nVendor permission model, outside Hutch approvals and budgets.\n\nGemini CLI\ngemini-cli\ndocumented\nnot selectable\nno usage reservation\ncli not installed\n\nVendor permission model, outside Hutch approvals and budgets.\n\nProvider catalogue (62)\n\nGrouped by what the service is. Status values: implemented, implemented-unverified, experimental, documented (research only), blocked, retired, deferred. Model and capability columns are evidence in the research package, not promises.\n\nSearch providers\nAll\nModel vendors\nModel-serving platforms\nGateways and routers\nEnterprise clouds\nSubscription services\nLocal and self-hosted runtimes\nMedia, speech and music\nCustom compatible endpoints\n\nShowing 62 providers.\n\nModel vendors\nOpenAI route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nopenai\n\nPlatform API billing and ChatGPT plan allowance stay separate routes. The ChatGPT preview is opt-in and eligibility-gated.\n\nServices: chat, responses, embeddings, images, speech, transcription, tools, batch\n\nAuth: Platform API key (implemented); Sign in with ChatGPT (plan use) (experimental)\n\nProtocols: openai-chat, openai-responses\n\nAnthropic route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nanthropic\n\nA Claude subscription is not an API key;",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-dark-360.png",
+      "sha256": "152d5634515c95cf098cd277de2c33069c76f898d32d12399b8d9867904acc9c"
+    },
+    {
+      "page": "providers",
+      "scheme": "dark",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18890/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (62)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers",
+        "Enterprise clouds",
+        "Subscription services",
+        "Local and self-hosted runtimes"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\n \nModel routes\n\nTwo owner-authorized routes were live-verified on 2026-10-30: the direct DeepSeek route through the built-in runtime and the managed OpenCode runtime with a DeepSeek model. Both were text only. Every other hosted route remains implemented-unverified, and no local inference service is running here. The catalogue is reviewed on 2026-10-30; evidence and sources are in docs/research/2026-10-provider-platform/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nNo provider accounts are configured yet.\n\nAdd an API-key or subscription account in Apps & AI. Local runtimes need no account.\n\nAdd an account\n\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:8080/v1/models\nno service\nno service answered\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered\nOllama http://127.0.0.1:11434/api/tags\nno service\nno service answered\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reservation\ncli installed\n\nThe CLI's own permission model, outside Hutch approvals and budgets.\n\nCodex CLI\ncodex\ndocumented\nnot selectable\nno usage reservation\ncli installed\ncodex-cli 0.160.0\n\nVendor permission model, outside Hutch approvals and budgets.\n\nGemini CLI\ngemini-cli\ndocumented\nnot selectable\nno usage reservation\ncli not installed\n\nVendor permission model, outside Hutch approvals and budgets.\n\nProvider catalogue (62)\n\nGrouped by what the service is. Status values: implemented, implemented-unverified, experimental, documented (research only), blocked, retired, deferred. Model and capability columns are evidence in the research package, not promises.\n\nSearch providers\nAll\nModel vendors\nModel-serving platforms\nGateways and routers\nEnterprise clouds\nSubscription services\nLocal and self-hosted runtimes\nMedia, speech and music\nCustom compatible endpoints\n\nShowing 62 providers.\n\nModel vendors\nOpenAI route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nopenai\n\nPlatform API billing and ChatGPT plan allowance stay separate routes. The ChatGPT preview is opt-in and eligibility-gated.\n\nServices: chat, responses, embeddings, images, speech, transcription, tools, batch\n\nAuth: Platform API key (implemented); Sign in with ChatGPT (plan use) (experimental)\n\nProtocols: openai-chat, openai-responses\n\nAnthropic route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nanthropic\n\nA Claude subscription is not an API key;",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-dark-768.png",
+      "sha256": "4e059fd75338836df72787b9c48fe292a769adacba23b5e4ab70bff1471bb732"
+    },
+    {
+      "page": "providers",
+      "scheme": "dark",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18890/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (62)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers",
+        "Enterprise clouds",
+        "Subscription services",
+        "Local and self-hosted runtimes"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\n \nModel routes\n\nTwo owner-authorized routes were live-verified on 2026-10-30: the direct DeepSeek route through the built-in runtime and the managed OpenCode runtime with a DeepSeek model. Both were text only. Every other hosted route remains implemented-unverified, and no local inference service is running here. The catalogue is reviewed on 2026-10-30; evidence and sources are in docs/research/2026-10-provider-platform/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nNo provider accounts are configured yet.\n\nAdd an API-key or subscription account in Apps & AI. Local runtimes need no account.\n\nAdd an account\n\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:8080/v1/models\nno service\nno service answered\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered\nOllama http://127.0.0.1:11434/api/tags\nno service\nno service answered\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reservation\ncli installed\n\nThe CLI's own permission model, outside Hutch approvals and budgets.\n\nCodex CLI\ncodex\ndocumented\nnot selectable\nno usage reservation\ncli installed\ncodex-cli 0.160.0\n\nVendor permission model, outside Hutch approvals and budgets.\n\nGemini CLI\ngemini-cli\ndocumented\nnot selectable\nno usage reservation\ncli not installed\n\nVendor permission model, outside Hutch approvals and budgets.\n\nProvider catalogue (62)\n\nGrouped by what the service is. Status values: implemented, implemented-unverified, experimental, documented (research only), blocked, retired, deferred. Model and capability columns are evidence in the research package, not promises.\n\nSearch providers\nAll\nModel vendors\nModel-serving platforms\nGateways and routers\nEnterprise clouds\nSubscription services\nLocal and self-hosted runtimes\nMedia, speech and music\nCustom compatible endpoints\n\nShowing 62 providers.\n\nModel vendors\nOpenAI route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nopenai\n\nPlatform API billing and ChatGPT plan allowance stay separate routes. The ChatGPT preview is opt-in and eligibility-gated.\n\nServices: chat, responses, embeddings, images, speech, transcription, tools, batch\n\nAuth: Platform API key (implemented); Sign in with ChatGPT (plan use) (experimental)\n\nProtocols: openai-chat, openai-responses\n\nAnthropic route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nanthropic\n\nA Claude subscription is not an API key;",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-dark-1280.png",
+      "sha256": "85e84df2e9999d58974ad2a3cd1f116771075341495f2041debe7d0895fffb3d"
+    },
+    {
+      "page": "providers",
+      "scheme": "dark",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18890/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (62)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers",
+        "Enterprise clouds",
+        "Subscription services",
+        "Local and self-hosted runtimes"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\n \nModel routes\n\nTwo owner-authorized routes were live-verified on 2026-10-30: the direct DeepSeek route through the built-in runtime and the managed OpenCode runtime with a DeepSeek model. Both were text only. Every other hosted route remains implemented-unverified, and no local inference service is running here. The catalogue is reviewed on 2026-10-30; evidence and sources are in docs/research/2026-10-provider-platform/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nNo provider accounts are configured yet.\n\nAdd an API-key or subscription account in Apps & AI. Local runtimes need no account.\n\nAdd an account\n\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:8080/v1/models\nno service\nno service answered\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered\nOllama http://127.0.0.1:11434/api/tags\nno service\nno service answered\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reservation\ncli installed\n\nThe CLI's own permission model, outside Hutch approvals and budgets.\n\nCodex CLI\ncodex\ndocumented\nnot selectable\nno usage reservation\ncli installed\ncodex-cli 0.160.0\n\nVendor permission model, outside Hutch approvals and budgets.\n\nGemini CLI\ngemini-cli\ndocumented\nnot selectable\nno usage reservation\ncli not installed\n\nVendor permission model, outside Hutch approvals and budgets.\n\nProvider catalogue (62)\n\nGrouped by what the service is. Status values: implemented, implemented-unverified, experimental, documented (research only), blocked, retired, deferred. Model and capability columns are evidence in the research package, not promises.\n\nSearch providers\nAll\nModel vendors\nModel-serving platforms\nGateways and routers\nEnterprise clouds\nSubscription services\nLocal and self-hosted runtimes\nMedia, speech and music\nCustom compatible endpoints\n\nShowing 62 providers.\n\nModel vendors\nOpenAI route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nopenai\n\nPlatform API billing and ChatGPT plan allowance stay separate routes. The ChatGPT preview is opt-in and eligibility-gated.\n\nServices: chat, responses, embeddings, images, speech, transcription, tools, batch\n\nAuth: Platform API key (implemented); Sign in with ChatGPT (plan use) (experimental)\n\nProtocols: openai-chat, openai-responses\n\nAnthropic route only, untested\n\nHutch can reach this service, but no live account has run a request through it.\n\nanthropic\n\nA Claude subscription is not an API key;",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-dark-1920.png",
+      "sha256": "ed531ebecac565f15f11f4e09bf81a1daedb8cd78e3b074a839442b8eb63ab41"
+    },
+    {
+      "page": "models",
+      "scheme": "light",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18890/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-light-360.png",
+      "sha256": "8aee653ccdaab0499bd28eb18ebf4781aa2a866446e7f7d6d6a82021940903fb"
+    },
+    {
+      "page": "models",
+      "scheme": "light",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18890/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-light-768.png",
+      "sha256": "3eb4043eff31dcccb1f091fb517f2fa5779a9ac4f2a0b2becd962bb43161c636"
+    },
+    {
+      "page": "models",
+      "scheme": "light",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18890/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-light-1280.png",
+      "sha256": "ab08e5557bdc82f447d68c6928f489b5a49539e82cb5e287253bdd983b17d9a5"
+    },
+    {
+      "page": "models",
+      "scheme": "light",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18890/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-light-1920.png",
+      "sha256": "f87894eec1e6ea2d94bb5e6d2ee188df17d2822763b6e17e585b3815451a46a1"
+    },
+    {
+      "page": "models",
+      "scheme": "dark",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18890/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-dark-360.png",
+      "sha256": "8aee653ccdaab0499bd28eb18ebf4781aa2a866446e7f7d6d6a82021940903fb"
+    },
+    {
+      "page": "models",
+      "scheme": "dark",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18890/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-dark-768.png",
+      "sha256": "3eb4043eff31dcccb1f091fb517f2fa5779a9ac4f2a0b2becd962bb43161c636"
+    },
+    {
+      "page": "models",
+      "scheme": "dark",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18890/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-dark-1280.png",
+      "sha256": "ab08e5557bdc82f447d68c6928f489b5a49539e82cb5e287253bdd983b17d9a5"
+    },
+    {
+      "page": "models",
+      "scheme": "dark",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18890/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-dark-1920.png",
+      "sha256": "f87894eec1e6ea2d94bb5e6d2ee188df17d2822763b6e17e585b3815451a46a1"
+    },
+    {
+      "page": "first-run",
+      "scheme": "light",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18890/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nReady\n\nNothing needs attention.\n\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-light-360.png",
+      "sha256": "6210f4a6f493b918da9e3c6797d55dabea9c9353466309cacfb13793435ae3b2"
+    },
+    {
+      "page": "first-run",
+      "scheme": "light",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18890/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nReady\n\nNothing needs attention.\n\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-light-768.png",
+      "sha256": "fdcb425345cbd1c29259f6c8fa105d24bb0b7e03f33eaab20c227639736c0bdd"
+    },
+    {
+      "page": "first-run",
+      "scheme": "light",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18890/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nReady\n\nNothing needs attention.\n\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-light-1280.png",
+      "sha256": "934fcfd18a955e29feb31f6ad5fdbabd78d4f298b182bcded9a2e1587abee8a3"
+    },
+    {
+      "page": "first-run",
+      "scheme": "light",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18890/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nReady\n\nNothing needs attention.\n\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-light-1920.png",
+      "sha256": "3611fc52a402758d5160b6401d2e2b6f497c24e0104c71bc259d793834a2abea"
+    },
+    {
+      "page": "first-run",
+      "scheme": "dark",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18890/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nReady\n\nNothing needs attention.\n\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-dark-360.png",
+      "sha256": "6210f4a6f493b918da9e3c6797d55dabea9c9353466309cacfb13793435ae3b2"
+    },
+    {
+      "page": "first-run",
+      "scheme": "dark",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18890/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nReady\n\nNothing needs attention.\n\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-dark-768.png",
+      "sha256": "fdcb425345cbd1c29259f6c8fa105d24bb0b7e03f33eaab20c227639736c0bdd"
+    },
+    {
+      "page": "first-run",
+      "scheme": "dark",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18890/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nReady\n\nNothing needs attention.\n\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-dark-1280.png",
+      "sha256": "934fcfd18a955e29feb31f6ad5fdbabd78d4f298b182bcded9a2e1587abee8a3"
+    },
+    {
+      "page": "first-run",
+      "scheme": "dark",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18890/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nReady\n\nNothing needs attention.\n\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-dark-1920.png",
+      "sha256": "3611fc52a402758d5160b6401d2e2b6f497c24e0104c71bc259d793834a2abea"
+    }
+  ],
+  "scope": "first-run empty state; no provider calls, credentials or external effects"
+}
