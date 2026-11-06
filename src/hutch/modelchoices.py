@@ -213,8 +213,8 @@ def _connection_choices(bot: Bot, store: Any, book: ConnectionBook, extra: set[s
             try:
                 models.update(f"{name}/{row['slug']}"
                               for row in ChatGPTAuthBook(book.state_dir).list_models(c.auth_account_id))
-            except ChatGPTAuthError as exc:
-                model_error = str(exc)
+            except (ChatGPTAuthError, KeyError, TypeError, ValueError) as exc:
+                model_error = str(exc) or "The saved ChatGPT account record is incomplete; reconnect it."
         elif has_key and c.template == "openrouter" and discover_hosted_models and c.models_endpoint:
             from .providers.base import ProviderError
             from .providers.connection import provider_for_connection

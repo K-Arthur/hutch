@@ -303,7 +303,12 @@ class ConnectionBook:
             return False
         if conn.auth_type == "chatgpt-siws":
             from .chatgpt_auth import ChatGPTAuthBook
-            return ChatGPTAuthBook(self.state_dir).has_plan_usage(conn.auth_account_id)
+            try:
+                rows = ChatGPTAuthBook(self.state_dir).accounts()
+            except Exception:  # noqa: BLE001 - an unreadable store has no usable credential
+                return False
+            return any(row.get("account_id") == conn.auth_account_id and
+                       row.get("credential_state") == "active" for row in rows)
         if conn.prefer_stored_key:
             f = self.key_file(name)
             return f.is_file() and f.stat().st_size > 0

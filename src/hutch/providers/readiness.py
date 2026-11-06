@@ -73,6 +73,12 @@ def account_readiness(book: ConnectionBook, name: str, *, catalog=None) -> Readi
         return _make("blocked_by_policy", name, "account",
                      "Hutch records this provider route as blocked: no supported integration exists.",
                      "Read the research register for the documented alternative.")
+    if profile.status == "expired":
+        return _make("authentication_expired", name, "account", profile.detail,
+                     "Sign in again on Connections; Hutch kept the account record.")
+    if profile.status == "revoked":
+        return _make("needs_authentication", name, "account", profile.detail,
+                     "Sign in again on Connections; the saved registration can be reauthorized.")
     if profile.status == "needs_key":
         env = ""
         conn = book.get(name)

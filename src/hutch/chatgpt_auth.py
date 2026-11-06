@@ -24,6 +24,7 @@ from typing import Any, Iterator
 from urllib.parse import urlencode, urlsplit
 
 from .platforms import locking as fcntl
+from .chatgpt_status import account_row
 import httpx
 
 AUTH_ORIGIN = "https://auth.openai.com"
@@ -394,14 +395,9 @@ class ChatGPTAuthBook:
     def accounts(self) -> list[dict[str, Any]]:
         with self._locked():
             data = self._read_accounts()
-        rows = []
-        for account_id, account in sorted(data["accounts"].items()):
-            connected = bool(account.get("access_token") or account.get("refresh_token"))
-            rows.append({"account_id": account_id,
-                         "email": account.get("email", "") if account.get("email_verified") is True else "",
-                         "connected": connected, "plan_usage": PLAN_SCOPE in account.get("scopes", []),
-                         "expires_at": float(account.get("expires_at", 0) or 0)})
-        return rows
+        now = self.clock()
+        return [account_row(account_id, account, now, PLAN_SCOPE)
+                for account_id, account in sorted(data["accounts"].items())]
 
     def has_plan_usage(self, account_id: str) -> bool:
         if not ACCOUNT_ID.fullmatch(account_id or ""):

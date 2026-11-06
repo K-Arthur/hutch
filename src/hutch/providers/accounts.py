@@ -20,7 +20,8 @@ from ..connections import Connection, ConnectionBook, load_templates
 from .catalog import Provider, bundled_catalog
 
 #: Local account states. None of these claims the provider works; they describe local readiness.
-ACCOUNT_STATES = ("ready", "needs_key", "needs_sign_in", "needs_configuration", "local_service")
+ACCOUNT_STATES = ("ready", "needs_key", "needs_sign_in", "expired", "revoked", "needs_configuration",
+                  "local_service")
 
 _BILLING_LABELS = {
     "per_token": "Per-token API billing",
@@ -61,6 +62,8 @@ class AccountProfile:
     protocol: str
     status: str              # one of ACCOUNT_STATES
     detail: str
+    credential_state: str = "present"   # active | expired | revoked | missing | unreadable | not_required
+    credential_expires_at: float = 0.0
 
     @property
     def usable_locally(self) -> bool:
@@ -116,6 +119,22 @@ def _credential(book: ConnectionBook, conn: Connection) -> tuple[str, str]:
     return "missing", "missing"
 
 
+def _chatgpt_credential(book: ConnectionBook, conn: Connection) -> tuple[str, str, str, float]:
+    """(credential, source, state, expires_at) from the protected account store, never a token."""
+    from ..chatgpt_auth import ChatGPTAuthBook
+    try:
+        rows = ChatGPTAuthBook(book.state_dir).accounts()
+    except Exception:  # noqa: BLE001 - an unreadable store is a repair state, not a crash
+        return "missing", "ChatGPT credential store unreadable", "unreadable", 0.0
+    row = next((item for item in rows if item.get("account_id") == conn.auth_account_id), None)
+    if row is None:
+        return "missing", "missing", "missing", 0.0
+    state = str(row.get("credential_state") or "missing")
+    credential = "present" if state in ("active", "expired") else "missing"
+    source = "protected ChatGPT account credential (" + state + ")"
+    return credential, source, state, float(row.get("expires_at") or 0)
+
+
 def account_profile(book: ConnectionBook, name: str, catalog=None) -> AccountProfile:
     """Resolve one configured connection into an explicit account profile. Raises KeyError if absent."""
     conn = book.get(name)
@@ -123,7 +142,12 @@ def account_profile(book: ConnectionBook, name: str, catalog=None) -> AccountPro
         raise KeyError(name)
     catalog = catalog or bundled_catalog()
     provider = provider_for_connection(conn, catalog)
-    credential, source = _credential(book, conn)
+    if conn.auth_type == "chatgpt-siws":
+        credential, source, credential_state, credential_expires_at = _chatgpt_credential(book, conn)
+    else:
+        credential, source = _credential(book, conn)
+        credential_state = "not_required" if credential == "not_required" else credential
+        credential_expires_at = 0.0
     auth_method = auth_method_for_connection(conn)
     auth_label = _AUTH_LABELS.get(auth_method, auth_method)
     if provider is not None:
@@ -141,9 +165,26 @@ def account_profile(book: ConnectionBook, name: str, catalog=None) -> AccountPro
     else:
         provider_id, provider_title = provider.id, provider.title
         category, provider_status = provider.category, provider.integration_status
-        if conn.auth_type == "chatgpt-siws" and credential == "missing":
-            status = "needs_sign_in"
-            detail = "Plan-use permission is missing for this ChatGPT account. Authorize it on Connections."
+        if conn.auth_type == "chatgpt-siws":
+            if credential_state == "active":
+                status = "ready"
+                detail = ("Credential source: " + source + ". Hutch can refresh this access; that is not a "
+                          "live-availability claim.")
+            elif credential_state == "expired":
+                status = "expired"
+                detail = ("The saved ChatGPT access expired and no refresh credential remains. Hutch kept the "
+                          "account record; sign in again on Connections.")
+            elif credential_state == "revoked":
+                status = "revoked"
+                detail = ("OpenAI access for this account was revoked or the local credential was cleared. "
+                          "Hutch kept the account record; sign in again to reconnect.")
+            elif credential_state == "unreadable":
+                status = "needs_sign_in"
+                detail = ("ChatGPT credential storage is unreadable. Preserve it for inspection, then sign in "
+                          "again on Connections.")
+            else:
+                status = "needs_sign_in"
+                detail = "Plan-use permission is missing for this ChatGPT account. Authorize it on Connections."
         elif credential == "missing":
             env_hint = f"set {conn.api_key_env} where Hutch starts, or store a key on Connections" if conn.api_key_env \
                 else "store a key on Connections"
@@ -160,7 +201,8 @@ def account_profile(book: ConnectionBook, name: str, catalog=None) -> AccountPro
         provider_category=category, provider_status=provider_status, auth_method=auth_method,
         auth_label=auth_label, billing=conn.billing, billing_label=_BILLING_LABELS.get(conn.billing, conn.billing),
         credential=credential, credential_source=source, endpoint=conn.base_url, protocol=conn.protocol,
-        status=status, detail=detail,
+        status=status, detail=detail, credential_state=credential_state,
+        credential_expires_at=credential_expires_at,
     )
 
 

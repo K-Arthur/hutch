@@ -532,6 +532,13 @@ def register_pages(app: FastAPI) -> None:
         return ConnectionBook(config.state_dir)
 
     def conn_views(book: ConnectionBook):
+        chatgpt_rows = {}
+        if any(c.auth_type == "chatgpt-siws" for c in book.configured().values()):
+            from ..chatgpt_auth import ChatGPTAuthBook
+            try:
+                chatgpt_rows = {row["account_id"]: row for row in ChatGPTAuthBook(config.state_dir).accounts()}
+            except Exception:  # noqa: BLE001 - a page must not fail on an unreadable store
+                chatgpt_rows = {}
         out = []
         for name, c in book.configured().items():
             used = store.account_usage_tokens_since(c.account_id, c.quota.seconds) if c.quota.tokens else 0
@@ -548,7 +555,8 @@ def register_pages(app: FastAPI) -> None:
                 "cost_reserved": cost_reserved, "account_cost_cap": account_cost_cap,
                 "pct": min(100.0, projected / c.quota.tokens * 100) if c.quota.tokens else 0.0,
                 "level": ("hot" if c.quota.tokens and projected / c.quota.tokens >= 0.9 else
-                          "warn" if c.quota.tokens and projected / c.quota.tokens >= c.quota.warn_at else "ok")}))
+                          "warn" if c.quota.tokens and projected / c.quota.tokens >= c.quota.warn_at else "ok"),
+                "chatgpt": chatgpt_rows.get(c.auth_account_id) or {"credential_state": "missing"}}))
         return out
 
     from .connectors_page import install_connectors_page
@@ -567,7 +575,8 @@ def register_pages(app: FastAPI) -> None:
         return page(request, "connections.html", nav="connections", conns=conn_views(book),
                     templates=[(k, v) for k, v in book.templates().items()], have=have, windows=list(WINDOWS),
                     errors=book.errors, chatgpt_accounts=ChatGPTAuthBook(config.state_dir).accounts(),
-                    chatgpt_enabled=chatgpt_plan_signin_enabled())
+                    chatgpt_enabled=chatgpt_plan_signin_enabled(),
+                    chatgpt_remote=bool(getattr(request.state, "hutch_remote", False)))
 
     @app.post("/connections/chatgpt/sign-in", include_in_schema=False)
     async def chatgpt_sign_in_page(request: Request):

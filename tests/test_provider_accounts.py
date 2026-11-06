@@ -6,6 +6,7 @@ import json
 
 import pytest
 
+from hutch.chatgpt_auth import PLAN_SCOPE
 from hutch.connections import ConnectionBook
 from hutch.providers.accounts import (
     account_profile,
@@ -13,6 +14,7 @@ from hutch.providers.accounts import (
     provider_groups,
     rename_account,
 )
+from hutch.providers.readiness import account_readiness
 
 
 @pytest.fixture()
@@ -30,6 +32,39 @@ def _add_common(book):
     book.add("custom-openai", "internal-gateway", title="Internal gateway",
              base_url="https://models.example.com/v1", api_key_env="EXAMPLE_GATEWAY_KEY")
     return book
+
+
+def _write_chatgpt_state(state, account_id, record):
+    root = state / "chatgpt"
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path = root / "accounts.json"
+    path.write_text(json.dumps({"version": 1, "host_id": "urn:uuid:test", "accounts": {account_id: record}}))
+    path.chmod(0o600)
+
+
+@pytest.mark.parametrize("record,status,credential_state,readiness_state", [
+    ({"access_token": "access", "refresh_token": "refresh", "expires_at": 0, "scopes": [PLAN_SCOPE]},
+     "ready", "active", "available"),
+    ({"access_token": "access", "refresh_token": "", "expires_at": 0, "scopes": [PLAN_SCOPE]},
+     "expired", "expired", "authentication_expired"),
+    ({"access_token": "", "refresh_token": "", "expires_at": 0, "revocation_status": "confirmed"},
+     "revoked", "revoked", "needs_authentication"),
+])
+def test_chatgpt_credential_state_is_explicit(book, tmp_path, record, status, credential_state, readiness_state):
+    account_id = "acct_" + "b" * 24
+    _write_chatgpt_state(tmp_path / "state", account_id, record)
+    book.add("chatgpt-plan", "chatgpt-plan", auth_account_id=account_id)
+    profile = account_profile(book, "chatgpt-plan")
+    assert profile.status == status
+    assert profile.credential_state == credential_state
+    assert account_readiness(book, "chatgpt-plan").state == readiness_state
+
+
+def test_chatgpt_account_without_a_saved_record_needs_sign_in(book):
+    book.add("chatgpt-plan", "chatgpt-plan", auth_account_id="acct_" + "c" * 24)
+    profile = account_profile(book, "chatgpt-plan")
+    assert profile.status == "needs_sign_in"
+    assert profile.credential_state == "missing"
 
 
 def test_templates_declare_provider_and_auth_method(book):

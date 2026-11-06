@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 
 import pytest
@@ -129,6 +130,29 @@ def test_providers_page_renders_catalogue_accounts_and_local_services(state):
     assert 'action="/providers/account/openai-personal/rename"' in html
     assert "sk-unit-test-placeholder" not in html
     assert re.search(r'name="csrf" value="[^"]+"', html)
+
+
+def test_provider_and_connection_pages_show_expired_and_revoked_credentials(state):
+    client, directory = state
+    account_id = "acct_" + "d" * 24
+    root = directory / "chatgpt"
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path = root / "accounts.json"
+
+    def write(record):
+        path.write_text(json.dumps({"version": 1, "host_id": "urn:uuid:test",
+                                    "accounts": {account_id: record}}))
+        path.chmod(0o600)
+
+    book = ConnectionBook(directory)
+    book.add("chatgpt-plan", "chatgpt-plan", auth_account_id=account_id)
+    write({"access_token": "access", "refresh_token": "", "expires_at": 0,
+           "scopes": ["chatgpt.tokens.use.direct"]})
+    assert "authentication expired" in client.get("/providers").text
+    assert "expired - sign in again" in client.get("/legacy/connections").text
+    write({"access_token": "", "refresh_token": "", "expires_at": 0, "revocation_status": "confirmed"})
+    assert "needs authentication" in client.get("/providers").text
+    assert "revoked - sign in again" in client.get("/legacy/connections").text
 
 
 def test_account_actions_require_csrf(state):

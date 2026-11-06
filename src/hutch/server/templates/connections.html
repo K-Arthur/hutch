@@ -18,7 +18,10 @@
     <div class="tags"><span class="tag">experimental preview</span><span class="tag">local callback only</span></div>
     <p class="hint">This asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.</p></div></header>
   <p class="hint">The current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the <a href="https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations" rel="noopener noreferrer" target="_blank">preview limits</a> before connecting.</p>
-  {% if chatgpt_enabled %}
+  {% if chatgpt_remote %}
+  <p class="hint">Sign in with ChatGPT needs a 127.0.0.1 callback on the Hutch host. This dashboard is remote, so the loopback flow cannot complete here. Run Hutch on the host, use an API key, or use the official Codex CLI with its own sign-in. OpenAI does not document a device-code flow for this client, so Hutch does not implement one.</p>
+  <button class="btn primary small" disabled>Continue with ChatGPT</button>
+  {% elif chatgpt_enabled %}
   <form method="post" action="/connections/chatgpt/sign-in" class="hutch-form hutch-inline">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <button class="btn primary small">Continue with ChatGPT</button>
@@ -30,10 +33,14 @@
   {% if chatgpt_accounts %}<div class="plain-list" aria-label="Saved ChatGPT accounts">
     {% for account in chatgpt_accounts %}
     <div class="list-row"><div><strong>{{ account.email or 'ChatGPT account' }}</strong>
-      {% if account.plan_usage %}<span class="chip st-succeeded">plan use authorized</span>
+      {% if account.credential_state == 'revoked' %}<span class="chip st-failed">revoked - sign in again</span>
+      {% elif account.credential_state == 'expired' %}<span class="chip st-failed">expired - sign in again</span>
+      {% elif account.plan_usage %}<span class="chip st-succeeded">plan use authorized</span>
       {% elif account.connected %}<span class="chip st-waiting_approval">identity only</span>
       {% else %}<span class="chip st-failed">disconnected</span>{% endif %}
-      <p class="hint">{% if account.plan_usage %}Route: <code>chatgpt-{{ account.account_id.removeprefix('acct_') }}/&lt;model&gt;</code>
+      <p class="hint">{% if account.credential_state == 'revoked' %}OpenAI access was revoked or the local credential was cleared. No tokens remain; the saved registration can be reauthorized.
+        {% elif account.credential_state == 'expired' %}The saved access expired and cannot refresh. Hutch kept the account record; sign in again.
+        {% elif account.plan_usage %}Route: <code>chatgpt-{{ account.account_id.removeprefix('acct_') }}/&lt;model&gt;</code>
         {% elif account.connected %}Sign-in succeeded, but model access was not granted. Reauthorize plan use to add a model route.
         {% else %}Local credentials are cleared. The saved registration can be reauthorized.{% endif %}</p></div>
       <div class="card-actions">
@@ -70,7 +77,10 @@
     <div class="conn-block">
       {% if c.auth_type == 'chatgpt-siws' %}
         <h3>ChatGPT account</h3>
-        <p><span class="chip st-succeeded">{{ v.key }}</span></p>
+        <p>{% if v.chatgpt.credential_state == 'active' %}<span class="chip st-succeeded">connected</span>
+          {% elif v.chatgpt.credential_state == 'expired' %}<span class="chip st-failed">expired - sign in again</span>
+          {% elif v.chatgpt.credential_state == 'revoked' %}<span class="chip st-failed">revoked - sign in again</span>
+          {% else %}<span class="chip st-failed">not connected</span>{% endif %}</p>
         <p class="hint">Hutch refreshes this account's protected OAuth credential and sends it only to OpenAI's official Responses API.</p>
         <p class="hint">Provider output-token limits are unavailable on this preview route; local usage caps are estimates.</p>
       {% else %}

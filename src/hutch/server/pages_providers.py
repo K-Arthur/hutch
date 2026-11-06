@@ -82,6 +82,8 @@ def _profile_json(profile) -> dict:
         "provider_status": profile.provider_status, "auth_method": profile.auth_method,
         "auth_label": profile.auth_label, "billing": profile.billing, "billing_label": profile.billing_label,
         "credential": profile.credential, "credential_source": profile.credential_source,
+        "credential_state": profile.credential_state,
+        "credential_expires_at": profile.credential_expires_at,
         "endpoint": profile.endpoint, "protocol": profile.protocol, "status": profile.status,
         "detail": profile.detail,
     }
