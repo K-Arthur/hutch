@@ -9,7 +9,7 @@ covers before relying on it.
 | Phase | Status | Last commit | Live-verified | Blocked on |
 |---|---|---|---|---|
 | 0 Diagnose | done | 33bf8a61 | 2026-11-06: Ollama 0.40.13/0.40.15, llama.cpp b12144 CPU+Vulkan, LM Studio llmster 0.0.27-1, Chromium captures | — |
-| 1 Locality truth | not started | | | |
+| 1 Locality truth | in progress (1.1, 1.2 committed; 1.3 offline-readiness, live Ollama run, EC-02/28 evidence open) | | unit + loopback HTTP only; not yet against real Ollama | |
 | 2 Native runtime introspection | not started | | | |
 | 3 Lifecycle states and errors | not started | | | |
 | 4 Get a model (install, import, guide) | not started | | | |
@@ -124,3 +124,8 @@ Still open (ask at the phase that needs it):
 - LM Studio API-token mode from the CLI: not found in this pass; GUI setting documented.
 - Phase 0 artifacts total 40 PNGs plus the capture JSON; kept under
   `docs/realignment/artifacts/offline-models-2026-11/`.
+
+- 2026-11-06, Phase 1: `providers/locality.py` (server signal, resolved address, name fallback); wired into
+  `validate_offline_route`, `OllamaProvider.data_stays_local(model)`, `validate_model_name(allow_cloud=False)`.
+  Cloud-install confirmation UI deferred to Phase 7. Tests: `tests/test_locality.py` (12), plus offline/install/privacy suites 146 pass.
+  Process note: do not `git stash` in this shared checkout (it briefly swept another session's CSS edit; restored intact).

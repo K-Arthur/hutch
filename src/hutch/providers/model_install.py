@@ -31,6 +31,7 @@ from typing import Any, Iterator, Optional
 
 from ..models import iso, utcnow
 from .base import ProviderError
+from .locality import CLOUD_TAG
 
 #: Two installs at once is plenty for a person on one machine, and bounds both memory
 #: and the runtime's own download queue.
@@ -43,8 +44,12 @@ _MODEL_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}(?:/[a-z0-9][a-z0-9._-]{0,6
 _MAX_STATUS_CHARS = 200
 
 
-def validate_model_name(name: str) -> str:
-    """Return the canonical model name or refuse it before any request is made."""
+def validate_model_name(name: str, *, allow_cloud: bool = False) -> str:
+    """Return the canonical model name or refuse it before any request is made.
+
+    A cloud-tagged model runs on someone else's computer, so pulling one is a data-sharing choice: it is refused
+    unless the caller passes ``allow_cloud`` after an explicit confirmation.
+    """
     candidate = (name or "").strip()
     if not candidate:
         raise ValueError("a model name is required, for example qwen3:4b")
@@ -56,6 +61,9 @@ def validate_model_name(name: str) -> str:
     if not _MODEL_NAME.match(candidate):
         raise ValueError(f"'{name}' is not a valid model name: use lowercase letters, digits, '.', '_', '-' "
                          "and an optional ':tag'")
+    if not allow_cloud and CLOUD_TAG.search(candidate):
+        raise ValueError(f"'{name}' is a cloud model: it runs on a remote service, not this computer. "
+                         "Confirm the data-sharing choice before adding it.")
     return candidate
 
 

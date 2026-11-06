@@ -10,7 +10,6 @@ cap, an estimate) refuses rather than guessing.
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from importlib import resources
@@ -18,15 +17,13 @@ from pathlib import Path
 from typing import Optional
 
 STALE_DAYS = 90
-LOCAL_PROVIDERS = {"ollama", "lmstudio", "llamacpp", "llama.cpp", "vllm"}
-_OLLAMA_CLOUD_TAG = re.compile(r"(?:^|[:_-])cloud(?:$|[-_.])", re.IGNORECASE)
+from .locality import LOCAL_PROVIDERS  # noqa: E402  (re-exported: modelview and modelchoices import it from here)
 
 
 def is_local_route(provider: str, model: str = "") -> bool:
-    """Classify known cloud-tagged Ollama models as hosted despite the local API endpoint."""
-    if provider == "ollama" and _OLLAMA_CLOUD_TAG.search(model):
-        return False
-    return provider in LOCAL_PROVIDERS
+    """Name-level classification only (no I/O). The server signal is checked where a boundary is enforced."""
+    from .locality import model_locality
+    return bool(model_locality(provider, model))
 
 
 @dataclass

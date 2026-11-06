@@ -364,7 +364,7 @@ class Provider(ABC):
         result.total_ms = result.total_ms or (time.perf_counter() - t0) * 1000.0
         return result
 
-    def data_stays_local(self) -> bool:
+    def data_stays_local(self, model: str = "") -> bool:
         """True only when this route's endpoint is on this machine (loopback). Anything else is data egress."""
         return False
 

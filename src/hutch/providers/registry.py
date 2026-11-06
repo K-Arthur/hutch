@@ -200,7 +200,11 @@ def validate_offline_route(spec: str, base_url: Optional[str] = None) -> None:
     provider, model = parse_spec(spec)
     if not model or not is_local(spec):
         raise ValueError(f"{spec} is not a local inference route")
-    loopback_endpoint(provider, base_url)
+    endpoint = loopback_endpoint(provider, base_url)
+    from .locality import route_locality
+    verdict = route_locality(provider, model, endpoint)
+    if verdict.local is False:
+        raise ValueError(f"{spec} is not a local inference route: {verdict.reason}")
 
 
 def offline_endpoints_for_bot(bot, *, model_override: str = "") -> list[str]:

@@ -84,7 +84,7 @@ def test_private_local_observations_block_hosted_fallback_including_derived_repl
                           emit=lambda event: None)
     run = SimpleNamespace(id="r1")
     messages = [{"role": "tool", "name": "browser", "content": "PRIVATE-SENTINEL"}]
-    local = SimpleNamespace(provider=SimpleNamespace(data_stays_local=lambda: True, supports_vision=lambda m: False),
+    local = SimpleNamespace(provider=SimpleNamespace(data_stays_local=lambda model="": True, supports_vision=lambda m: False),
                             rung=SimpleNamespace(model="local"))
     runtime = BuiltinRuntime()
     assert runtime._request_messages(ctx, run, local, messages)[0]["content"] == "PRIVATE-SENTINEL"

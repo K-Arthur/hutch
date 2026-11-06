@@ -296,7 +296,7 @@ class BuiltinRuntime:
             vision = False
         withheld = ""
         try:
-            local_route = bool(session.provider.data_stays_local())
+            local_route = bool(session.provider.data_stays_local(session.rung.model))
         except Exception:
             local_route = False
         allow_observation = local_route or getattr(ctx.bot, "observation_to_hosted", False)
