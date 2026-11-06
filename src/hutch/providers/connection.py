@@ -96,11 +96,34 @@ def check_connection(book: ConnectionBook, name: str) -> ConnectionCheck:
                                      "so it was not verified. Run a normal bot request to check model behavior through "
                                      "Hutch's usage and approval controls.", verified=False)
     ok, detail, models = provider.probe_models()
+    if not ok and conn.protocol == "openai-chat":
+        detail = _failed_layer(book, conn, name) or detail
+    elif ok and conn.template.startswith("custom-"):
+        detail += _engine_note(conn)
     if ok and _template_value(book, conn, "models_list_ignores_key", False):
         return ConnectionCheck(True, f"the model list is public and answered without checking the key, so the key was "
                                      f"NOT verified ({len(models)} model(s) listed). Run a normal bot request to "
                                      "check it through Hutch's usage and approval controls.", models, verified=False)
     return ConnectionCheck(ok, detail, models, verified=ok)
+
+
+def _failed_layer(book: ConnectionBook, conn: Connection, name: str) -> str:
+    """Which layer failed, in words (the provider's own sentence stays when every layer passes). Same key and
+    model-list URL the runtime uses; it runs only after the provider's own check failed."""
+    from .endpoint_probe import probe_endpoint
+    catalog = (conn.models_base_url or conn.base_url).rstrip("/") + "/models"
+    bad = probe_endpoint(conn.base_url, key=book.key(name) or "", models_url=catalog).failed
+    return f"{bad.name} layer: {bad.detail}" if bad else ""
+
+
+def _engine_note(conn: Connection) -> str:
+    """A custom endpoint that identifies itself as Ollama behind /v1 gets the context-window advice. The one extra
+    request is a keyless GET of the same origin's /api/version; the key is still sent exactly once."""
+    from urllib.parse import urlsplit
+    from .endpoint_probe import identify_engine
+    parts = urlsplit(conn.base_url)
+    advice = identify_engine(f"{parts.scheme}://{parts.netloc}")[1]
+    return f" Note: {advice}" if advice else ""
 
 
 # ----------------------------------------------------------------- typed probe

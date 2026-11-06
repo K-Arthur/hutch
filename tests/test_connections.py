@@ -531,8 +531,8 @@ def test_connection_api_accepts_a_key_once_and_reports_model_discovery(book, con
     assert stored.key("connected-provider") == "the-key-pasted-in-hutch"
     assert stored.get("connected-provider").api_key_env == "CUSTOM_API_KEY"
     assert stored.get("connected-provider").prefer_stored_key is True
-    assert [request["headers"]["authorization"] for request in oai.requests] == [
-        "Bearer the-key-pasted-in-hutch"]
+    assert [request["headers"]["authorization"] for request in oai.requests
+            if "authorization" in request["headers"]] == ["Bearer the-key-pasted-in-hutch"]   # the key goes out once
     stored.clear_key("connected-provider")
     assert stored.key("connected-provider") == "the-old-environment-key"
     assert stored.get("connected-provider").prefer_stored_key is False
