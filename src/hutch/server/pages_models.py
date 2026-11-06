@@ -6,11 +6,13 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse
 
 from .. import routes
 from ..modelview import build_models_view
 from ..providers.base import ProviderError
+from ..providers.model_import import import_local_model
 from ..providers.model_install import ModelInstaller
 from ..providers.pricing import PriceBook
 from .security import check_csrf
@@ -103,6 +105,39 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
         if not installer().cancel(job_id):
             raise HTTPException(404, "no running install with that id")
         return {"cancelling": job_id}
+
+    @app.post("/api/models/import")
+    async def model_import(request: Request) -> dict:
+        """Import a local GGUF through the runtime's blob and create APIs.
+
+        The path is read by Hutch and hashed locally; the bytes go to the runtime over
+        loopback, and the runtime verifies the digest again. A license is shown as
+        provided, from a sidecar file, or from the runtime's own report, never guessed.
+        """
+        require_csrf(request)
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(422, "expected a JSON object with 'name' and 'path'") from None
+        if not isinstance(body, dict):
+            raise HTTPException(422, "expected a JSON object with 'name' and 'path'")
+        license_text = body.get("license")
+        if license_text is not None and not isinstance(license_text, str):
+            raise HTTPException(422, "license must be text")
+        try:
+            result = await run_in_threadpool(
+                import_local_model, installer().provider, str(body.get("path") or ""),
+                str(body.get("name") or ""), expected_sha256=str(body.get("sha256") or "") or None,
+                license_text=license_text)
+        except FileNotFoundError as exc:
+            raise HTTPException(404, str(exc)) from None
+        except PermissionError as exc:
+            raise HTTPException(403, f"the file could not be read: {exc}") from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        except ProviderError as exc:
+            raise HTTPException(404 if exc.kind == "model_missing" else 409, str(exc)) from None
+        return result.to_json()
 
     @app.post("/api/models/remove")
     async def model_remove(request: Request) -> dict:

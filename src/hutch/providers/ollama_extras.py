@@ -5,6 +5,7 @@ and a repair for reasoning the runtime fails to separate from the answer.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any, Iterator, Optional
 
 from .base import ProviderError
@@ -95,3 +96,62 @@ class OllamaExtras:
             raise ProviderError("model_missing", f"{model} is not installed", provider=self.name, status=404)
         if r.status_code >= 400:
             raise self._error_from_response(r, model)
+
+    # ------------------------------------------------------- blob / create (import)
+
+    def blob_exists(self, digest: str) -> bool:
+        """Whether the runtime already has a blob, so import does not upload it twice."""
+        r = self._http().request("HEAD", f"/api/blobs/{digest}", timeout=self._timeout(read=30.0))
+        if r.status_code == 200:
+            return True
+        if r.status_code == 404:
+            return False
+        raise self._error_from_response(r, digest)
+
+    def put_blob(self, digest: str, path: Path) -> None:
+        """Upload one file as a content-addressed blob; the runtime verifies the digest."""
+        size = path.stat().st_size
+
+        def chunks() -> Iterator[bytes]:
+            with path.open("rb") as handle:
+                while True:
+                    chunk = handle.read(4 * 1024 * 1024)
+                    if not chunk:
+                        return
+                    yield chunk
+
+        r = self._http().post(
+            f"/api/blobs/{digest}", content=chunks(),
+            headers={"Content-Type": "application/octet-stream", "Content-Length": str(size)},
+            timeout=self._timeout(read=900.0))
+        if r.status_code not in (200, 201):
+            raise self._error_from_response(r, path.name)
+
+    def create_model(self, model: str, files: dict[str, str], *, license_text: str = "",
+                     parameters: Optional[dict[str, Any]] = None) -> Iterator[dict[str, Any]]:
+        """Stream ``/api/create`` for a model made from already-uploaded blobs."""
+        payload: dict[str, Any] = {"model": model, "files": files, "stream": True}
+        if license_text:
+            payload["license"] = license_text
+        if parameters:
+            payload["parameters"] = parameters
+        yield from self._stream_events("/api/create", payload, read=900.0)
+
+    def _stream_events(self, path: str, payload: dict[str, Any], *, read: float) -> Iterator[dict[str, Any]]:
+        from .ollama import _httpx
+        h = _httpx()
+        timeout = h.Timeout(connect=10.0, read=read, write=900.0, pool=5.0)
+        with self._http().stream("POST", path, json=payload, timeout=timeout) as resp:
+            if resp.status_code >= 400:
+                body = resp.read().decode("utf-8", "replace")
+                raise ProviderError("http", f"{path} returned HTTP {resp.status_code}: {body[:300]}",
+                                    provider=self.name, status=resp.status_code)
+            for line in resp.iter_lines():
+                if not line.strip():
+                    continue
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(event, dict):
+                    yield event
