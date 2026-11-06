@@ -1,9 +1,9 @@
 """Admission for local rungs: what window will this runtime actually give this model?
 
 Ollama can be told a window per request. llama.cpp fixes it at launch and reports the per-slot
-value; LM Studio fixes it at load and reports the applied value; vLLM and SGLang do not report it
-at all. This module returns one shape for all of them and never substitutes a wanted window for a
-measured one.
+value; LM Studio fixes it at load and reports the applied value; vLLM and SGLang fix it at launch and
+report it as max_model_len when their own owned_by says who they are. This module returns one shape for
+all of them and never substitutes a wanted window for a measured one.
 """
 
 from __future__ import annotations

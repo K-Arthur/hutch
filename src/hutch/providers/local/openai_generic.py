@@ -1,9 +1,10 @@
 """OpenAI-compatible local servers: vLLM, SGLang, and any other /v1/models answer.
 
-``/v1/models`` is the OpenAI model object. It does not normally carry the served window
-(``max_model_len`` is a server launch argument), so the adapter reports the window as unknown
-unless a server includes one of those fields. Identity comes from the response, never the port:
-an unrecognised server stays unlabelled rather than being called llama.cpp or vLLM.
+``/v1/models`` is the OpenAI model object. vLLM and SGLang add ``max_model_len`` to every entry (vLLM's and
+SGLang's ``ModelCard``; checked 2026-11-06), and it is the largest prompt-plus-output the server accepts per request.
+It is reported as the applied window only when ``owned_by`` identifies the server as one of those two. Any other
+OpenAI-compatible server keeps an unknown window even if it sends a similar field. Identity comes from the response,
+never the port: an unrecognised server stays unlabelled rather than being called llama.cpp or vLLM.
 """
 
 from __future__ import annotations
@@ -11,12 +12,13 @@ from __future__ import annotations
 from typing import Any, Callable, Optional
 
 from ..base import ModelMeta
-from .base import Identity, NEEDS_KEY, READY, RuntimeState, UNKNOWN
+from .base import Identity, Loaded, NEEDS_KEY, READY, RuntimeState, UNKNOWN
 from .probe import DEFAULT_TIMEOUT, ProbeError, get_json
 
 OWNERS = {"vllm": "vllm", "sglang": "sglang", "llamacpp": "llamacpp", "lmstudio": "lmstudio"}
 POLICY_NOTE = ("the server does not report the window it serves over /v1/models; Hutch states the window as "
                "unknown and makes no truncation claim")
+WINDOW_SERVERS = frozenset({"vllm", "sglang"})
 
 
 def _root(base_url: str) -> str:
@@ -66,8 +68,8 @@ class OpenAIGenericRuntime:
     def models(self) -> list[ModelMeta]:
         return self._read().models
 
-    def loaded(self) -> dict[str, Any]:
-        return {}
+    def loaded(self) -> dict[str, Loaded]:
+        return self._read().loaded
 
     def capabilities(self, model: str) -> list[str]:
         return []
@@ -116,5 +118,9 @@ class OpenAIGenericRuntime:
             state.identity = Identity("unknown", "/v1/models returned no models")
         state.state = READY if state.models else UNKNOWN
         state.policy, state.policy_detail = "unknown", POLICY_NOTE
+        if state.identity.runtime in WINDOW_SERVERS and state.identity.confidence == "strong":
+            state.loaded = {m.name: Loaded(m.name, applied_context=m.max_context) for m in state.models if m.max_context}
+            if state.loaded:
+                state.policy, state.policy_detail = "refuse", f"{state.identity.runtime} rejects a request above max_model_len"
         self._cached = state
         return state
