@@ -53,14 +53,15 @@ def wait_done(job, timeout: float = 10.0):
 @pytest.mark.parametrize("raw,expected", [
     ("qwen3:4b", "qwen3:4b"),
     ("qwen3", "qwen3:latest"),                 # a bare name is the `latest` tag
-    ("library/qwen3:4b", "library/qwen3:4b"),  # an explicit namespace is kept as typed
+    ("library/qwen3:4b", "qwen3:4b"),          # `library/` is the default namespace
     ("qwen2.5-coder:1.5b", "qwen2.5-coder:1.5b"),
 ])
 def test_valid_model_names_are_normalized(raw, expected):
     assert validate_model_name(raw) == expected
 
 
-@pytest.mark.parametrize("raw", ["", "Qwen3:4B", "../evil", "a b", "model;rm -rf /", "x" * 200])
+@pytest.mark.parametrize("raw", ["", "../evil", "a b", "model;rm -rf /", "x" * 200,
+                                 "model:tag:extra", "host/ns/model/tag"])
 def test_invalid_model_names_are_refused_before_any_request(raw):
     with pytest.raises(ValueError):
         validate_model_name(raw)
@@ -69,6 +70,7 @@ def test_invalid_model_names_are_refused_before_any_request(raw):
 def test_namespace_and_tag_semantics():
     assert _same_model("qwen3", "qwen3:latest")
     assert _same_model("library/qwen3:4b", "qwen3:4b")   # `library/` is the default namespace
+    assert _same_model("Qwen3:4B", "qwen3:4b")           # the runtime compares case-insensitively
     assert not _same_model("qwen3:4b", "qwen3:latest")   # different tags are different models
     assert not _same_model("ns/qwen3:4b", "qwen3:4b")    # a non-default namespace is distinct
 

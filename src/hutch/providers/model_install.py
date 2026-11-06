@@ -23,7 +23,6 @@ instead of implementing resume itself.
 from __future__ import annotations
 
 import json
-import re
 import threading
 import time
 from dataclasses import dataclass, field
@@ -32,14 +31,13 @@ from typing import Any, Iterator, Optional
 from ..models import iso, utcnow
 from .base import ProviderError
 from .locality import CLOUD_TAG
+from .model_names import parse_model_name, same_model
 
 #: Two installs at once is plenty for a person on one machine, and bounds both memory
 #: and the runtime's own download queue.
 MAX_CONCURRENT_INSTALLS = 2
 #: A finished job is kept so the UI can read the outcome; older ones are dropped.
 MAX_RETAINED_JOBS = 32
-#: Model names are `name`, `name:tag` or `namespace/name:tag`, lowercase, no spaces.
-_MODEL_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}(?:/[a-z0-9][a-z0-9._-]{0,63})?(?::[a-z0-9][a-z0-9._-]{0,63})?$")
 #: A progress line repeats the same digest many times; only state changes are worth keeping.
 _MAX_STATUS_CHARS = 200
 
@@ -47,37 +45,21 @@ _MAX_STATUS_CHARS = 200
 def validate_model_name(name: str, *, allow_cloud: bool = False) -> str:
     """Return the canonical model name or refuse it before any request is made.
 
-    A cloud-tagged model runs on someone else's computer, so pulling one is a data-sharing choice: it is refused
-    unless the caller passes ``allow_cloud`` after an explicit confirmation.
+    The grammar is the runtime's own (see ``model_names``), so real Hugging Face names and
+    mixed-case quant tags are accepted. A cloud-tagged model runs on someone else's
+    computer, so pulling one is a data-sharing choice: it is refused unless the caller
+    passes ``allow_cloud`` after an explicit confirmation.
     """
-    candidate = (name or "").strip()
-    if not candidate:
-        raise ValueError("a model name is required, for example qwen3:4b")
-    if len(candidate) > 128:
-        raise ValueError("model name is too long")
-    # `qwen3` is the same model as `qwen3:latest`; normalize so duplicate detection works.
-    if ":" not in candidate.rsplit("/", 1)[-1]:
-        candidate += ":latest"
-    if not _MODEL_NAME.match(candidate):
-        raise ValueError(f"'{name}' is not a valid model name: use lowercase letters, digits, '.', '_', '-' "
-                         "and an optional ':tag'")
-    if not allow_cloud and CLOUD_TAG.search(candidate):
+    parsed = parse_model_name(name)
+    canonical = parsed.canonical()
+    if not allow_cloud and CLOUD_TAG.search(f"{parsed.model}:{parsed.tag}"):
         raise ValueError(f"'{name}' is a cloud model: it runs on a remote service, not this computer. "
                          "Confirm the data-sharing choice before adding it.")
-    return candidate
-
-
-def _split_name(name: str) -> tuple[str, str]:
-    """(namespace-stripped name, tag). ``library/`` is Ollama's default namespace."""
-    base = name[len("library/"):] if name.startswith("library/") else name
-    head, sep, tag = base.rpartition(":")
-    if not sep:
-        return base, "latest"
-    return head, tag
+    return canonical
 
 
 def _same_model(a: str, b: str) -> bool:
-    return _split_name(a) == _split_name(b)
+    return same_model(a, b)
 
 
 @dataclass
