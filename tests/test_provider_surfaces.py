@@ -155,6 +155,15 @@ def test_provider_and_connection_pages_show_expired_and_revoked_credentials(stat
     assert "revoked - sign in again" in client.get("/legacy/connections").text
 
 
+def test_connections_page_has_one_add_form_and_a_template_reference(state):
+    client, _ = state
+    html = client.get("/legacy/connections").text
+    assert html.count('action="/connections/add"') == 1
+    assert 'id="connection-template"' in html
+    assert "Template reference (37)" in html
+    assert html.count("Template reference") == 1
+
+
 def test_account_actions_require_csrf(state):
     client, _ = state
     response = client.post("/providers/account/anything/rename", data={"title": "x"})

@@ -196,6 +196,14 @@
 .hutch-actions .btn {
   min-height: var(--hutch-form-height-button);
 }
+/* Inline form rows place a button beside a 44px field. A compact button there
+   reads as a 12px step down from the field it submits; use the routine height. */
+.hutch-form.hutch-inline .btn.small {
+  min-height: var(--hutch-form-height-button);
+}
+@media (max-width: 720px) {
+  .hutch-form.hutch-inline .btn { min-height: var(--hutch-form-height); }
+}
 .hutch-form :where(button, .btn):disabled,
 .hutch-form :where(button, .btn)[aria-disabled="true"] {
   opacity: var(--hutch-form-disabled-opacity);

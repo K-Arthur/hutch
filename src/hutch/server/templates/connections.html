@@ -7,7 +7,7 @@
 {% block content %}
 <div class="page-head"><div>
   <p class="sub">Hosted endpoints and subscription plans, each with its own key. Use one in an assistant as <span class="mono">&lt;name&gt;/&lt;model&gt;</span>, for example <span class="mono">opencode-go/glm-5.3</span>.</p>
-  <p class="hint"><a href="/providers">Provider catalogue, account states, capability evidence and runtime boundaries</a></p></div></div>
+  <p class="hint"><a href="/providers">Provider catalogue and account states</a> - integration status, capability evidence and runtime boundaries.</p></div></div>
 
 <div class="banner wait">{{ icon("lock", 18) }}<div class="banner-body">
   <p><strong>Keys stay on this machine.</strong> A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.</p>
@@ -20,7 +20,7 @@
   <p class="hint">The current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the <a href="https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations" rel="noopener noreferrer" target="_blank">preview limits</a> before connecting.</p>
   {% if chatgpt_remote %}
   <p class="hint">Sign in with ChatGPT needs a 127.0.0.1 callback on the Hutch host. This dashboard is remote, so the loopback flow cannot complete here. Run Hutch on the host, use an API key, or use the official Codex CLI with its own sign-in. OpenAI does not document a device-code flow for this client, so Hutch does not implement one.</p>
-  <button class="btn primary small" disabled>Continue with ChatGPT</button>
+  <button class="btn ghost small" disabled>Continue with ChatGPT</button>
   {% elif chatgpt_enabled %}
   <form method="post" action="/connections/chatgpt/sign-in" class="hutch-form hutch-inline">
     <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -28,7 +28,7 @@
   </form>
   {% else %}
   <p class="hint">Preview sign-in is disabled. Set <code>HUTCH_ENABLE_CHATGPT_PLAN=1</code> only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.</p>
-  <button class="btn primary small" disabled>Continue with ChatGPT</button>
+  <button class="btn ghost small" disabled>Continue with ChatGPT</button>
   {% endif %}
   {% if chatgpt_accounts %}<div class="plain-list" aria-label="Saved ChatGPT accounts">
     {% for account in chatgpt_accounts %}
@@ -43,7 +43,7 @@
         {% elif account.plan_usage %}Route: <code>chatgpt-{{ account.account_id.removeprefix('acct_') }}/&lt;model&gt;</code>
         {% elif account.connected %}Sign-in succeeded, but model access was not granted. Reauthorize plan use to add a model route.
         {% else %}Local credentials are cleared. The saved registration can be reauthorized.{% endif %}</p></div>
-      <div class="card-actions">
+      <div class="card-actions account-actions">
         {% if chatgpt_enabled %}<form method="post" action="/connections/chatgpt/sign-in" class="hutch-form hutch-inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="account_id" value="{{ account.account_id }}">
           <button class="btn small ghost">{% if account.plan_usage %}Reconnect{% else %}Authorize plan use{% endif %}</button></form>{% endif %}
         {{ confirm_form("chatgpt-disconnect-form-" ~ loop.index, "chatgpt-disconnect-confirm-" ~ loop.index, "/connections/chatgpt/disconnect",
@@ -149,21 +149,47 @@
 <div class="empty panel">{{ icon("layers", 28) }}<p>No connections yet.</p><p class="hint">Add a plan or endpoint below. Local models (Ollama) need no connection.</p></div>
 {% endfor %}
 
-<h2 class="section">Add a connection</h2>
-<div class="card-grid">
-  {% for key, t in templates %}
-  <article class="card">
-    <h3 class="card-title">{{ t.title }}</h3>
-    <div class="tags"><span class="tag">{{ t.billing | replace("_", " ") }}</span><span class="tag">{{ t.protocol }}</span></div>
-    <p class="hint mono">{{ t.base_url }}</p>
-    {% if t.terms and t.terms.requires_ack %}<p class="hint">{{ icon("alert", 13) }} Has a terms notice you must acknowledge.</p>{% endif %}
-    <form method="post" action="/connections/add" class="hutch-form"><input type="hidden" name="csrf" value="{{ csrf }}">
-      <input type="hidden" name="template" value="{{ key }}">
-      <div class="hutch-field"><input class="hutch-input" type="text" name="name" value="{{ key if key not in have else '' }}" placeholder="name (used in model specs)" aria-label="Connection name" pattern="[a-z0-9][a-z0-9-]{1,40}"></div>
-      {% if key.startswith('custom') %}<div class="hutch-field"><input class="hutch-input" type="text" name="base_url" placeholder="https://your-endpoint/v1" aria-label="Base URL"></div>
-      <div class="hutch-field"><input class="hutch-input" type="text" name="api_key_env" placeholder="ENV_VAR_WITH_KEY" aria-label="Environment variable"></div>{% endif %}
-      {% call form_actions() %}<button class="btn small primary">{{ icon("plus", 14) }} Add</button>{% endcall %}</form>
-  </article>
-  {% endfor %}
+<h2 class="section" id="add-connection-h">Add a connection</h2>
+<div class="panel">
+  <p class="hint">Pick a template and name the account. A model spec uses <span class="mono">name/model</span>, so this name is the account you choose later.</p>
+  <form method="post" action="/connections/add" class="hutch-form hutch-cols-2" aria-labelledby="add-connection-h">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="hutch-field">
+      <label class="hutch-label" for="connection-template">Template</label>
+      <select class="hutch-select" id="connection-template" name="template">
+        {% for key, t in templates %}<option value="{{ key }}">{{ t.title }} - {{ t.billing | replace("_", " ") }} / {{ t.protocol }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="hutch-field">
+      <label class="hutch-label" for="connection-name">Connection name <span class="hutch-optional">(optional)</span></label>
+      <input class="hutch-input" id="connection-name" type="text" name="name" placeholder="defaults to the template name" pattern="[a-z0-9][a-z0-9-]{1,40}">
+    </div>
+    <div class="hutch-field">
+      <label class="hutch-label" for="connection-base-url">Base URL <span class="hutch-optional">(custom endpoints)</span></label>
+      <input class="hutch-input" id="connection-base-url" type="text" name="base_url" placeholder="https://your-endpoint/v1">
+    </div>
+    <div class="hutch-field">
+      <label class="hutch-label" for="connection-key-env">Key environment variable <span class="hutch-optional">(custom endpoints)</span></label>
+      <input class="hutch-input" id="connection-key-env" type="text" name="api_key_env" placeholder="ENV_VAR_WITH_KEY">
+    </div>
+    <div class="hutch-actions hutch-actions--end">
+      <button class="btn primary">{{ icon("plus", 14) }} Add connection</button>
+    </div>
+  </form>
+  <details class="conn-more">
+    <summary>Template reference ({{ templates | length }})</summary>
+    <ul class="template-reference">
+      {% for key, t in templates %}
+      <li>
+        <strong>{{ t.title }}</strong>
+        <span class="tag mono">{{ key }}</span>
+        <span class="tag">{{ t.billing | replace("_", " ") }}</span>
+        <span class="tag">{{ t.protocol }}</span>
+        {% if t.terms and t.terms.requires_ack %}<span class="chip st-waiting_approval">terms notice</span>{% endif %}
+        <span class="hint mono">{{ t.base_url }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </details>
 </div>
 {% endblock %}

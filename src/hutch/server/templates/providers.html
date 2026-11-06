@@ -8,9 +8,9 @@
   <div>
     <p class="sub">Every provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.</p>
   </div>
-  <div class="card-actions">
-    <a href="/legacy/connections" class="btn small primary">{{ icon("layers", 14) }}<span>Add or repair an account</span></a>
-    <a href="/models" class="btn small ghost">{{ icon("cpu", 14) }}<span>Model routes</span></a>
+  <div class="page-actions">
+    <a href="/legacy/connections" class="btn primary">{{ icon("layers", 14) }}<span>Add or repair an account</span></a>
+    <a href="/models" class="btn ghost">{{ icon("cpu", 14) }}<span>Model routes</span></a>
   </div>
 </div>
 
@@ -47,15 +47,15 @@
           <p class="hint">{{ row.readiness.detail }}</p>
           {% if row.readiness.next_action %}<p class="hint">{{ row.readiness.next_action }}</p>{% endif %}
         </div>
-        <div class="card-actions">
+        <div class="card-actions account-actions account-rename-actions">
           <form method="post" action="/providers/account/{{ row.profile.name }}/rename" class="hutch-form hutch-inline">
             <input type="hidden" name="csrf" value="{{ csrf }}">
             <div class="hutch-field"><input class="hutch-input" type="text" name="title" value="{{ row.profile.title }}" maxlength="120" aria-label="Account label for {{ row.profile.name }}"></div>
-            <button class="btn small ghost">Rename</button>
+            <button class="btn ghost">Rename</button>
           </form>
           <form method="post" action="/providers/account/{{ row.profile.name }}/disconnect" class="hutch-form hutch-inline">
             <input type="hidden" name="csrf" value="{{ csrf }}">
-            <button class="btn small danger">Remove local key</button>
+            <button class="btn danger">Remove local key</button>
           </form>
         </div>
       </div>

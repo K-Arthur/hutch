@@ -126,6 +126,33 @@ p.hint, p.muted { max-width: 72ch; }
 .two-col .panel { margin-bottom: 0; }
 .tags { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
 
+/* Server-page action rows. These class names are used by the provider and
+   connection templates; without these rules the content and actions stack
+   with no shared edge or height. */
+.page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.panel .plain-list { display: flex; flex-direction: column; }
+.panel .list-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--border); }
+.panel .plain-list > .list-row:first-child { border-top: 0; padding-top: 0; }
+.panel .plain-list > .list-row:last-child { padding-bottom: 0; }
+.panel .list-row > :first-child { flex: 1 1 16rem; min-width: 0; }
+.panel .list-row > .card-actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin: 0; padding: 0; }
+.panel .account-actions .hutch-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+.panel .account-rename-actions .hutch-field { flex: 0 1 11rem; min-width: 9rem; }
+.panel .account-actions .hutch-input { width: 100%; }
+.template-reference { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 0; }
+.template-reference li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 0.875rem; }
+.template-reference li:first-child { border-top: 0; }
+.template-reference .hint { flex-basis: 100%; margin: 0; }
+@media (max-width: 720px) {
+  .page-actions { width: 100%; flex-direction: column; align-items: stretch; }
+  .page-actions .btn { width: 100%; justify-content: flex-start; }
+  .panel .list-row { flex-direction: column; gap: 12px; }
+  .panel .list-row > .card-actions { width: 100%; justify-content: flex-start; }
+  .panel .account-rename-actions .hutch-form:first-child { flex: 1 1 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .panel .account-rename-actions .hutch-field { min-width: 0; }
+  .panel .account-rename-actions .hutch-form:last-child { margin-left: auto; }
+}
+
 .tag { display: inline-flex; align-items: center; gap: 4px; font: 11.5px var(--mono); color: var(--dim); background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 1px 8px; }
 .tag.warn, .tag.risk-medium { color: var(--amber); border-color: rgba(251, 191, 36, .35); }
 .tag.ok { color: var(--success); border-color: color-mix(in oklab, var(--success) 35%, transparent); }
