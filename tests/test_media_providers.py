@@ -89,16 +89,11 @@ def test_openai_images_fetch_consumes_an_expiring_url_exactly_once(monkeypatch):
 
     downloads: list[str] = []
 
-    def fake_get(url, timeout=None, headers=None):
+    def fake_download(url, **_kwargs):
         downloads.append(url)
+        return PNG
 
-        class R:
-            status_code = 200
-            content = PNG
-
-        return R()
-
-    monkeypatch.setattr("httpx.get", fake_get)
+    monkeypatch.setattr("hutch.media.providers.openai_images.download", fake_download)
     backend = OpenAIImagesBackend(
         api_key="unit-key", base_url="http://unit.test/v1",
         http_client=httpx.Client(transport=httpx.MockTransport(handler)))

@@ -1,9 +1,10 @@
 """Speech synthesis transport: one connection's declared route as a ``MediaBackend``.
 
-Synthesis is synchronous: ``submit`` performs the work and caches the validated bytes under
-a handle. ``poll``/``fetch`` only read that cache; a process that dies between submit and
-fetch leaves a job whose reconciliation says the provider may have billed and the audio was
-never stored. Nothing is regenerated automatically, because that would pay twice.
+Synthesis is synchronous: ``submit`` performs the work and holds the validated bytes under a
+handle. With a spool (:mod:`hutch.media.spool`) the hold is on disk, so a process that dies
+between submit and fetch can finalize the job after a restart; without one the bytes are in
+memory and reconciliation says the provider may have billed and the audio was never stored.
+Nothing is regenerated automatically, because that would pay twice.
 
 The key travels only to the configured endpoint, and redirects are refused because the bearer
 token would follow the ``Location`` header to another host.
@@ -17,10 +18,10 @@ selected. The pure route/wire rules live in :mod:`hutch.media.providers.speech_w
 
 from __future__ import annotations
 
-import secrets
 from typing import Any, Optional
 
 from ...connection_endpoints import redirect_refusal
+from ..spool import MediaSpool, ResultHold, SpoolError
 from .base import VERIFICATION_TAG
 from .speech_wire import (MAX_TEXT_CHARS, SpeechError, SpeechResult, SpeechRoute,
                           build_payload, parse_speech_response, route_from_template,
@@ -38,7 +39,7 @@ class SpeechBackend:
     def __init__(self, *, connection: str, base_url: str, api_key: str, route: SpeechRoute,
                  provider: str = "", billing: str = "",
                  headers: Optional[dict[str, str]] = None, timeout: float = 180.0,
-                 http_client: Any = None):
+                 http_client: Any = None, spool: Optional[MediaSpool] = None):
         if not connection or not str(connection).strip():
             raise SpeechError("a speech backend needs the connection name it bills to")
         if not str(base_url or "").strip():
@@ -54,6 +55,7 @@ class SpeechBackend:
         self.timeout = max(5.0, min(float(timeout), 600.0))
         self._http_client = http_client
         self._results: dict[str, SpeechResult] = {}
+        self._hold = ResultHold(spool)
 
     # ---------------------------------------------------------------- protocol
 
@@ -130,22 +132,28 @@ class SpeechBackend:
         except ValueError as exc:
             raise SpeechError("the speech endpoint returned a non-JSON body") from exc
         result = parse_speech_response(body, self.route)
-        handle = f"speech-{secrets.token_hex(8)}"
+        try:
+            handle = self._hold.put(result.audio, meta=_result_meta(result))
+        except SpoolError as exc:
+            raise SpeechError(f"the audio was synthesized but could not be held ({exc}); the "
+                              "provider may have billed this request") from exc
         self._results[handle] = result
         return handle
 
     def poll(self, job: dict[str, Any]) -> dict[str, Any]:
         handle = str(job.get("upstream_job_id") or "")
-        if handle and handle in self._results:
+        if handle and (handle in self._results or self._hold.has(handle)):
             return {"status": "succeeded"}
         return {"status": "failed",
                 "error": ("the process that submitted this speech job is gone; the provider "
                           "may have billed the request and the audio was never stored. "
                           "Hutch does not regenerate it automatically")}
 
+    def can_recover(self, job: dict[str, Any]) -> bool:
+        return self._hold.durable and self._hold.has(str(job.get("upstream_job_id") or ""))
+
     def fetch(self, job: dict[str, Any]) -> bytes:
-        handle = str(job.get("upstream_job_id") or "")
-        result = self._results.get(handle)
+        result = self.result_for(job)
         if result is None:
             raise SpeechError("the synthesized audio is no longer held by this process")
         return result.audio
@@ -157,7 +165,16 @@ class SpeechBackend:
     # ------------------------------------------------------------------ extras
 
     def result_for(self, job: dict[str, Any]) -> Optional[SpeechResult]:
-        return self._results.get(str(job.get("upstream_job_id") or ""))
+        handle = str(job.get("upstream_job_id") or "")
+        if handle in self._results:
+            return self._results[handle]
+        if not self._hold.has(handle):
+            return None
+        try:
+            audio, meta = self._hold.get(handle), self._hold.meta(handle)
+        except SpoolError:
+            return None
+        return _result_from_meta(audio, meta)
 
     def duration_seconds(self, job: dict[str, Any]) -> Optional[float]:
         result = self.result_for(job)
@@ -183,3 +200,20 @@ class SpeechBackend:
         if status == 429:
             return f"{self.provider} rate-limited the speech request: {detail}"
         return f"{self.provider} returned HTTP {status} for speech synthesis: {detail}"
+
+
+def _result_meta(result: SpeechResult) -> dict[str, Any]:
+    return {"model": result.model, "requested_model": result.requested_model,
+            "format": result.format, "duration_seconds": result.duration_seconds,
+            "prompt_tokens": result.prompt_tokens, "completion_tokens": result.completion_tokens,
+            "audio_tokens": result.audio_tokens}
+
+
+def _result_from_meta(audio: bytes, meta: dict[str, Any]) -> SpeechResult:
+    return SpeechResult(
+        audio=audio, model=str(meta.get("model") or ""),
+        requested_model=str(meta.get("requested_model") or ""),
+        format=str(meta.get("format") or "wav"), duration_seconds=meta.get("duration_seconds"),
+        prompt_tokens=int(meta.get("prompt_tokens") or 0),
+        completion_tokens=int(meta.get("completion_tokens") or 0),
+        audio_tokens=int(meta.get("audio_tokens") or 0))

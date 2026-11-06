@@ -26,6 +26,13 @@ from typing import Any, Protocol, runtime_checkable
 VERIFICATION_TAG = "protocol-verified, live-unverified"
 
 
+class MediaRefused(RuntimeError):
+    """The provider declined the request on content-policy grounds.
+
+    Raised from ``submit`` (or reported by ``poll`` as ``{"status": "failed", "refused": True}``)
+    so the ledger records a refusal, not a crash. The message is the provider's own reason."""
+
+
 @runtime_checkable
 class MediaBackend(Protocol):
     """The five calls MediaJobService may make. ``submit`` is billable; every

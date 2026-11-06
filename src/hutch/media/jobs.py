@@ -47,6 +47,8 @@ from typing import Any, Callable, Iterable, Optional
 from ..store import IdempotencyConflict, Store
 from . import validate as media_validate
 from .providers.base import MediaBackend
+from .status import CANCEL_UNCONFIRMED_PREFIX as _CANCEL_UNCONFIRMED_PREFIX
+from .status import failure_cost_note, failure_text, service_status, submit_failure
 from .storage import (MAX_MEDIA_BYTES, MediaStorage, MediaStorageError,
                       new_job_id, new_media_id)
 
@@ -56,7 +58,6 @@ MEDIA_KINDS = ("image", "video", "animation", "audio")
 #: service-level terminal statuses
 TERMINAL_STATUSES = ("succeeded", "failed", "cancelled")
 
-_CANCEL_UNCONFIRMED_PREFIX = "cancel_unconfirmed:"
 _ORPHAN_SUBMITTING_PREFIX = "orphaned_submitting:"
 _ORPHAN_RUNNING_PREFIX = "orphaned_running:"
 
@@ -76,17 +77,6 @@ class MediaJobError(ValueError):
 
 class MediaUnavailableError(MediaJobError):
     """No configured backend is capable of this kind. Reported, never substituted."""
-
-
-def service_status(row: dict[str, Any]) -> str:
-    """The service-level status of a stored job row (see module docstring)."""
-    status = row.get("status")
-    error = row.get("error") or ""
-    if status == "queued":
-        return "submitting"
-    if status == "failed" and error.startswith(_CANCEL_UNCONFIRMED_PREFIX):
-        return "cancel_unconfirmed"
-    return str(status)
 
 
 def _canonical_requested(kind: str, prompt: str, *, backend_hint: Optional[str],
@@ -221,11 +211,7 @@ class MediaJobService:
                     raise MediaJobError("the backend accepted the request but returned no "
                                         "upstream job id")
             except Exception as exc:
-                return self.store.transition_media_job(
-                    job_id, "failed",
-                    error=f"upstream submit failed: {exc}",
-                    cost_note="no upstream job was accepted, so no provider charge "
-                              "should exist — verify against the backend account")
+                return self.store.transition_media_job(job_id, "failed", **submit_failure(exc))
             # IMMEDIATELY after accept: from here on, reconciliation has evidence.
             self.store.record_upstream_job(job_id, upstream_id)
             return self.store.transition_media_job(job_id, "running")
@@ -253,9 +239,9 @@ class MediaJobService:
         upstream_status = str(state.get("status", "running"))
         if upstream_status == "failed":
             return self.store.transition_media_job(
-                job_id, "failed", error=str(state.get("error") or "the upstream job failed"),
-                cost_note="the upstream job failed; whether the provider charged for the "
-                          "attempt depends on the backend account")
+                job_id, "failed", error=failure_text(state),
+                cost_note=failure_cost_note(state, "the upstream job failed; whether the provider "
+                                            "charged for the attempt depends on the backend account"))
         if upstream_status == "cancelled":
             return self.store.transition_media_job(
                 job_id, "cancelled",
@@ -301,7 +287,7 @@ class MediaJobService:
                     cost_note="the backend confirmed the cancellation via poll")
             if observed == "failed":
                 return self.store.transition_media_job(
-                    job_id, "failed", error=str(state.get("error") or "the upstream job failed"),
+                    job_id, "failed", error=failure_text(state),
                     cost_note="the job failed before the cancellation took effect")
             if observed == "succeeded":
                 return self._mark_upstream_succeeded_unfetched(
@@ -545,14 +531,17 @@ class MediaJobService:
                         continue
                     if observed == "failed":
                         self.store.transition_media_job(
-                            row["id"], "failed",
-                            error=str(state.get("error") or "the upstream job failed"),
-                            cost_note="reconcile: the upstream job failed; the charge, if "
-                                      "any, depends on the backend account")
+                            row["id"], "failed", error=failure_text(state),
+                            cost_note=failure_cost_note(state, "reconcile: the upstream job failed; "
+                                                        "the charge, if any, depends on the account"))
                         summary["resolved"] += 1
                         summary["jobs"].append({"id": row["id"], "resolution": "failed"})
                         continue
                     if observed == "succeeded":
+                        if getattr(backend, "can_recover", lambda _row: False)(row):
+                            summary["recoverable"] = summary.get("recoverable", 0) + 1
+                            summary["jobs"].append({"id": row["id"], "resolution": "recoverable"})
+                            continue
                         self._mark_upstream_succeeded_unfetched(row, "reconcile")
                         summary["resolved"] += 1
                         summary["jobs"].append({"id": row["id"],
