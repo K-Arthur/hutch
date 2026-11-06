@@ -60,7 +60,7 @@ def download(url: str, *, max_bytes: int = MAX_MEDIA_BYTES, timeout: float = 60.
                     raise FetchError(
                         f"the result URL answered HTTP {status}; it may have expired "
                         "(result URLs are short-lived and are not retried)")
-                return _read_bounded(response, max_bytes)
+                return read_bounded(response, max_bytes)
         except EndpointRefused as exc:
             raise FetchError(f"the result address was refused: {exc}") from exc
         except httpx.TimeoutException as exc:
@@ -73,7 +73,8 @@ def download(url: str, *, max_bytes: int = MAX_MEDIA_BYTES, timeout: float = 60.
     raise FetchError(f"the result URL redirected more than {_MAX_REDIRECTS} times")
 
 
-def _read_bounded(response: Any, max_bytes: int) -> bytes:
+def read_bounded(response: Any, max_bytes: int, *, allow_empty: bool = False) -> bytes:
+    """Stream a response body, stopping the moment it passes ``max_bytes``."""
     declared = response.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > max_bytes:
         raise FetchError(f"the result is {int(declared)} bytes, over the {max_bytes} byte limit")
@@ -84,7 +85,7 @@ def _read_bounded(response: Any, max_bytes: int) -> bytes:
         if total > max_bytes:
             raise FetchError(f"the result passed the {max_bytes} byte limit while downloading")
         chunks.append(chunk)
-    if total == 0:
+    if total == 0 and not allow_empty:
         raise FetchError("the result URL returned an empty body")
     return b"".join(chunks)
 
