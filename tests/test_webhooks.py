@@ -274,3 +274,125 @@ def test_migration_v94(store):
         assert "webhook_sources" in tables
         assert "webhook_deliveries" in tables
 
+
+def test_webhook_api_routes(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from hutch.server.app import create_app
+
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    with TestClient(create_app()) as client:
+        store = client.app.state.store
+        _seed_bot(store, "bot_api_1", "API Bot")
+
+        # 1. Create webhook source
+        create_resp = client.post(
+            "/api/v1/webhook-sources",
+            json={
+                "bot_id": "bot_api_1",
+                "name": "API Webhook",
+                "prompt_template": "Event: {payload}",
+                "cooldown_seconds": 0.0,
+                "max_per_hour": 100,
+            },
+        )
+        assert create_resp.status_code == 200
+        create_data = create_resp.json()
+        source_id = create_data["source"]["id"]
+        token = create_data["token"]
+        assert token.startswith("whsec_")
+        assert create_data["source"]["revision"] == 1
+
+        # 2. Get single source
+        get_resp = client.get(f"/api/v1/webhook-sources/{source_id}")
+        assert get_resp.status_code == 200
+        assert get_resp.json()["name"] == "API Webhook"
+
+        # 3. List sources
+        list_resp = client.get("/api/v1/webhook-sources")
+        assert list_resp.status_code == 200
+        assert any(s["id"] == source_id for s in list_resp.json())
+
+        # 4. Ingress: success
+        ing_resp = client.post(
+            f"/api/v1/webhooks/{token}",
+            headers={"Content-Type": "application/json", "Idempotency-Key": "test_api_key_1"},
+            content=b'{"action": "ping"}',
+        )
+        assert ing_resp.status_code == 200
+        assert ing_resp.json()["status"] == "admitted"
+        run_id = ing_resp.json()["run_id"]
+
+        # 5. Ingress: idempotency replay
+        ing_dup = client.post(
+            f"/api/v1/webhooks/{token}",
+            headers={"Content-Type": "application/json", "Idempotency-Key": "test_api_key_1"},
+            content=b'{"action": "ping"}',
+        )
+        assert ing_dup.status_code == 200
+        assert ing_dup.json()["status"] == "duplicate"
+        assert ing_dup.json()["run_id"] == run_id
+
+        # 6. Ingress: invalid token -> 401
+        bad_token_resp = client.post(
+            "/api/v1/webhooks/whsec_wrongtoken0000000000000000",
+            headers={"Content-Type": "text/plain"},
+            content=b"hello",
+        )
+        assert bad_token_resp.status_code == 401
+
+        # 7. Ingress: oversize -> 413
+        big_body = b"x" * (64 * 1024 + 10)
+        oversize_resp = client.post(
+            f"/api/v1/webhooks/{token}",
+            headers={"Content-Type": "text/plain"},
+            content=big_body,
+        )
+        assert oversize_resp.status_code == 413
+
+        # 8. Ingress: unsupported MIME -> 415
+        bad_mime_resp = client.post(
+            f"/api/v1/webhooks/{token}",
+            headers={"Content-Type": "application/xml"},
+            content=b"<xml></xml>",
+        )
+        assert bad_mime_resp.status_code == 415
+
+        # 9. Rotate secret
+        rotate_resp = client.post(
+            f"/api/v1/webhook-sources/{source_id}/rotate-secret",
+            json={"overlap_hours": 12, "expected_revision": 1},
+        )
+        assert rotate_resp.status_code == 200
+        new_token = rotate_resp.json()["token"]
+        assert new_token != token
+        assert rotate_resp.json()["source"]["revision"] == 2
+
+        # 10. Pause source & ingress returns 409
+        pause_resp = client.post(f"/api/v1/webhook-sources/{source_id}/pause")
+        assert pause_resp.status_code == 200
+        assert pause_resp.json()["enabled"] is False
+
+        paused_ing = client.post(
+            f"/api/v1/webhooks/{new_token}",
+            headers={"Content-Type": "text/plain"},
+            content=b"paused test",
+        )
+        assert paused_ing.status_code == 409
+
+        # 11. Resume source
+        resume_resp = client.post(f"/api/v1/webhook-sources/{source_id}/resume")
+        assert resume_resp.status_code == 200
+        assert resume_resp.json()["enabled"] is True
+
+        # 12. Deliveries log
+        deliv_resp = client.get(f"/api/v1/webhook-sources/{source_id}/deliveries")
+        assert deliv_resp.status_code == 200
+        deliveries = deliv_resp.json()
+        assert len(deliveries) >= 3  # admitted, duplicate, rejected (paused)
+
+        # 13. Delete source
+        del_resp = client.delete(f"/api/v1/webhook-sources/{source_id}")
+        assert del_resp.status_code == 200
+        assert del_resp.json()["deleted"] is True
+
+

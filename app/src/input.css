@@ -31,6 +31,8 @@
 @import "../../src/hutch/web/styles/hutch-theme-overrides.css";
 /* Phase 2 schedules surfaces: roll call, attention filter and history. */
 @import "./schedules.css";
+/* Phase 3 webhooks surfaces: source management, deliveries and secret rotation. */
+@import "./webhooks.css";
 @source "../../src/hutch/server/static/*.html";
 @source "../../src/hutch/server/static/*.js";
 @source "../../src/hutch/server/templates";

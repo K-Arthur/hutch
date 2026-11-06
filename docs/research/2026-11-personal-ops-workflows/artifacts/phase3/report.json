@@ -1,0 +1,113 @@
+{
+  "base_url": "http://127.0.0.1:37295",
+  "captures": [
+    {
+      "view": "default",
+      "width": 360,
+      "height": 800,
+      "scheme": "dark",
+      "overflow": 0,
+      "errors": [],
+      "file": "webhooks-default-360-dark.png"
+    },
+    {
+      "view": "default",
+      "width": 360,
+      "height": 800,
+      "scheme": "light",
+      "overflow": 0,
+      "errors": [],
+      "file": "webhooks-default-360-light.png"
+    },
+    {
+      "view": "default",
+      "width": 768,
+      "height": 1024,
+      "scheme": "dark",
+      "overflow": 0,
+      "errors": [],
+      "file": "webhooks-default-768-dark.png"
+    },
+    {
+      "view": "default",
+      "width": 768,
+      "height": 1024,
+      "scheme": "light",
+      "overflow": 0,
+      "errors": [],
+      "file": "webhooks-default-768-light.png"
+    },
+    {
+      "view": "default",
+      "width": 1280,
+      "height": 800,
+      "scheme": "dark",
+      "overflow": 0,
+      "errors": [],
+      "file": "webhooks-default-1280-dark.png"
+    },
+    {
+      "view": "default",
+      "width": 1280,
+      "height": 800,
+      "scheme": "light",
+      "overflow": 0,
+      "errors": [],
+      "file": "webhooks-default-1280-light.png"
+    },
+    {
+      "view": "default",
+      "width": 1920,
+      "height": 1080,
+      "scheme": "dark",
+      "overflow": 0,
+      "errors": [],
+      "file": "webhooks-default-1920-dark.png"
+    },
+    {
+      "view": "default",
+      "width": 1920,
+      "height": 1080,
+      "scheme": "light",
+      "overflow": 0,
+      "errors": [],
+      "file": "webhooks-default-1920-light.png"
+    },
+    {
+      "view": "deliveries",
+      "width": 1280,
+      "height": 800,
+      "scheme": "dark",
+      "overflow": 0,
+      "errors": [],
+      "file": "webhooks-deliveries-1280-dark.png"
+    },
+    {
+      "view": "deliveries",
+      "width": 1280,
+      "height": 800,
+      "scheme": "light",
+      "overflow": 0,
+      "errors": [],
+      "file": "webhooks-deliveries-1280-light.png"
+    },
+    {
+      "view": "deliveries",
+      "width": 1920,
+      "height": 1080,
+      "scheme": "dark",
+      "overflow": 0,
+      "errors": [],
+      "file": "webhooks-deliveries-1920-dark.png"
+    },
+    {
+      "view": "deliveries",
+      "width": 1920,
+      "height": 1080,
+      "scheme": "light",
+      "overflow": 0,
+      "errors": [],
+      "file": "webhooks-deliveries-1920-light.png"
+    }
+  ]
+}

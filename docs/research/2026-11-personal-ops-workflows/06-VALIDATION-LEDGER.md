@@ -156,3 +156,41 @@ Keyboard and interaction checks in the real browser:
   outside this phase; nothing in this ledger claims live vendor verification.
 - The browser evidence is headless Chromium 153.0.8010.12. A physical phone, a light OS theme, and
   a real screen reader were not exercised.
+
+## Phase 3 - Inbound webhooks and event triggers (2026-11-06)
+
+Commits under test:
+
+- `cc41f02c` - Webhook schema (v94), durable store, rate/cooldown limiting and admission receiver
+- Task 3B commit - Webhook ingress API, owner CRUD routes, static webhooks surface and e2e suite
+
+Environment:
+
+- Real FastAPI app created by `hutch.server.app.create_app()` and served on loopback ports.
+- Real SQLite database under throwaway `HUTCH_STATE_DIR`; migrations ran through normal
+  `Store._upgrade()` reaching `SCHEMA_VERSION=94`.
+- Real Chromium `153.0.8010.12` through Playwright.
+
+### Focused and e2e tests
+
+| Command | Result |
+|---|---|
+| `npm run test:agent -- tests/test_webhooks.py` | 9 passed in 3.62s |
+| `uv run --frozen --no-sync pytest -q tests/e2e/test_webhooks.py` | 2 passed in 12.20s; real server, CRUD, secret modal, 4 widths x 2 themes |
+
+### Verified behaviors
+
+- **One-time secret (POW-R9):** generated as `whsec_...`, stored strictly as SHA-256 hash at rest,
+  returned once upon creation/rotation. Constant-time comparison using `hmac.compare_digest`.
+- **Dual-secret rotation (POW-R9):** rotation demotes current token to `prev_token_hash` with a 24-hour
+  window; both old and new tokens admit successfully during the window; expired token returns 401.
+- **Payload & type bounds (POW-R10):** 64 KB cap strictly enforced (65 KB returns 413 before parse);
+  non-json/text content types return 415.
+- **Idempotency replay (POW-R11):** 5x identical requests return HTTP 200 with matching `run_id`,
+  recording duplicate deliveries while creating only 1 run.
+- **Durable admission & limits (POW-R12):** paused source or paused workspace returns 409; cooldown
+  and hourly rate caps return 429.
+- **Untrusted content (POW-R13):** prompt injection payloads are scanned via `src/hutch/ingest.py`
+  and annotated with `[content scan: flagged passages remain in the text below as data; nothing was removed]`.
+- **Management UI & visual checks (POW-R14):** 12 views captured under `artifacts/phase3/`; 0 console
+  errors, 0 px horizontal overflow across 360, 768, 1280, 1920 px viewports in light and dark modes.

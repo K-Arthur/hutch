@@ -49,7 +49,7 @@ OPEN_EXACT_PATHS = {"/login", "/pair", "/api/v1/pairing/exchange",
 
 
 def is_open_path(path: str) -> bool:
-    return path in OPEN_EXACT_PATHS or path.startswith("/static/")
+    return path in OPEN_EXACT_PATHS or path.startswith("/static/") or path.startswith("/api/v1/webhooks/")
 
 
 def _host_only(host_header: str) -> str:

@@ -10,7 +10,7 @@ output.
 | 0 Diagnose and baseline audit | done | 1bec95e1 | 73 focused tests passed (54.38s); 40 baseline screenshots (0 errors, 0 overflow) | none |
 | 1 Live web research and failure mining | done | c3856c3b | 8/8 owner URLs fetched live; 48 requirements and 48 failure rows cross-checked; `npm run check:agent` and `npm run audit:context` pass; emoji audit has no repository-source hits (8 hits only in git-ignored `.codewhale/state/subagents.v1.json`) | none |
 | 2 Automations trust & observability (G03, G06) | done | c31b9a92 | 2A+2B+2C: 172 focused tests; 3 Playwright tests at 360/768/1280/1920 dark and light preference; 12 captures with 0 errors and 0 overflow; dark-only theme limit recorded | none |
-| 3 Inbound webhook & event triggers (G04) | not started | | | |
+| 3 Inbound webhook & event triggers (G04) | done | e17d29bc | 3A+3B: 9 focused tests; 2 Playwright e2e tests at 360/768/1280/1920 dark and light; 12 captures with 0 errors and 0 overflow; real SQLite v94 | none |
 | 4 Multimodal intake pipeline (chat, channels, Today) | not started | | | |
 | 5 Personal ops bridges: provenance & calendar (G08, G09) | not started | | | |
 | 6 Family & shared household workflows (G07 ADR, templates) | not started | | | |
@@ -36,9 +36,9 @@ recorded in section E rather than guessed.
 
 | Task | Status | Commit | Verification |
 |---|---|---|---|
-| 3A Webhook schema, store and admission receiver | in progress | | `npm run test:agent -- tests/test_webhooks.py`: 8 passed; real SQLite migration v94; 64 KB cap, MIME check, dual-window secret rotation, idempotency replay, and untrusted ingest scan |
-| 3B Webhook API, management UI and live e2e | not started | | |
-| Phase 3 exit | not started | | |
+| 3A Webhook schema, store and admission receiver | done | cc41f02c | `npm run test:agent -- tests/test_webhooks.py`: 8 passed; real SQLite migration v94; 64 KB cap, MIME check, dual-window secret rotation, idempotency replay, and untrusted ingest scan |
+| 3B Webhook API, management UI and live e2e | done | e17d29bc | `uv run --frozen --no-sync pytest -q tests/e2e/test_webhooks.py`: 2 passed; 12 captures, 0 console errors, 0 overflow; CRUD, rotation, pause/resume, deliveries log and one-time secret verified |
+| Phase 3 exit | done | e17d29bc | 9 focused tests; 2 e2e tests; 12 captures (0 error, 0 overflow); real SQLite v94; real FastAPI ingress & CRUD; evidence in `06-VALIDATION-LEDGER.md` |
 
 ## Owner inputs needed (batch, ask once)
 
@@ -100,6 +100,7 @@ recorded in section E rather than guessed.
 |---|---|---|---|---|---|
 | 2026-11-06 | Phase 0 | `#/today`, `#/shared`, `#/schedules`, `#/tasks`, `#/catalog` | 360, 768, 1280, 1920 px (dark and light; 40 views total) | 0 console errors, 0 px horizontal overflow across all 40 views | `docs/research/2026-11-personal-ops-workflows/artifacts/phase0/report.json` |
 | 2026-11-06 | Phase 2 | `#/schedules` default and history panel | 360, 768, 1280, 1920 px; dark and design-system light preference (12 views; history at 1280/1920) | Fixed 4 defects: raw schedule id in next-due, contradictory attention count, parked approval described as "still running", and an unbalanced 5+1 grid at 768 px. Light preference renders the same dark surface by design; logged as a limit, not a theme claim | `docs/research/2026-11-personal-ops-workflows/artifacts/phase2/report.json` |
+| 2026-11-06 | Phase 3 | `#/schedules` inbound webhooks & deliveries | 360, 768, 1280, 1920 px; dark and light preference (12 views; deliveries at 1280/1920) | 0 console errors, 0 px horizontal overflow across all 12 views; fixed locator strict mode in deliveries badge | `docs/research/2026-11-personal-ops-workflows/artifacts/phase3/report.json` |
 
 Phase 1 made no UI or website change, so no new visual capture was required. The Phase 0 baseline
 remains the visual reference for the next UI phase.
@@ -125,6 +126,8 @@ remains the visual reference for the next UI phase.
 | 2026-11-06 | Phase 2 | `docs/design-system.md` (theme contract) | Forcing `data-hutch-theme="light"` leaves the legacy dashboard tokens at the same dark values. The light captures are layout/overflow checks, not a shipped light theme; recorded in the ledger and operations guide | fd988138 |
 | 2026-11-06 | Phase 2 | `src/hutch/server/static/schedules.js` | Final cleanup removed an unused bulk policy fetch; the four affected screenshots were recaptured and the e2e test stayed green | e7ac6411 |
 | 2026-11-06 | Phase 2 | `src/hutch/server/static/schedules.js` | After the note was hidden once, a later positive count could leave it hidden; the disabled filter also kept a stale checked state. Both states now reset correctly and the e2e test passes | c31b9a92 |
+| 2026-11-06 | Phase 3 | `src/hutch/webhook_receiver.py:78` | Cooldown calculation originally read `last_delivery_at`, causing rejected requests during cooldown to reset the timer; fixed to `last_success_at` matching `store.py` convention | cc41f02c |
+| 2026-11-06 | Phase 3 | `src/hutch/server/static/webhooks.js:49` | Assigned assistant label fell back to technical name rather than `display_name`; updated to `display_name || name` | e17d29bc |
 
 ## Open items and deferred
 

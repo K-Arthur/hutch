@@ -1,0 +1,25 @@
+/* Phase 3 webhooks surfaces: source management, one-time secret modal, deliveries log.
+ *
+ * Compiled into static/ui.css via npm run build:css.
+ */
+.webhook-management-section { display: grid; gap: var(--s-3); margin-top: var(--s-6); padding: var(--s-4); border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--panel); }
+.webhook-management-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); flex-wrap: wrap; }
+.webhook-management-head h2 { margin: 0; font-size: var(--fs-lg); }
+.webhook-warning-banner { padding: var(--s-3); background: var(--sunken); border-left: 3px solid var(--warn, #f59e0b); border-radius: var(--r-ctl); color: var(--text-2); font-size: var(--fs-xs); line-height: 1.5; }
+.webhook-sources-grid { display: grid; gap: var(--s-3); }
+.webhook-source-card { display: grid; gap: var(--s-2); padding: var(--s-3); background: var(--sunken); border: 1px solid var(--line); border-radius: var(--r-ctl); }
+.webhook-source-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); flex-wrap: wrap; }
+.webhook-source-head h3 { margin: 0; font-size: var(--fs-md); }
+.webhook-source-meta { display: flex; gap: var(--s-3); flex-wrap: wrap; color: var(--text-2); font-size: var(--fs-xs); }
+.webhook-source-actions { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-top: var(--s-1); }
+.webhook-secret-callout { display: grid; gap: var(--s-2); padding: var(--s-3); background: rgba(59, 130, 246, 0.1); border: 1px solid var(--brand); border-radius: var(--r-ctl); }
+.webhook-secret-callout code { font-family: var(--mono); font-size: var(--fs-xs); word-break: break-all; color: var(--text); }
+.webhook-deliveries-list { display: grid; gap: var(--s-2); margin: 0; padding: 0; list-style: none; font-size: var(--fs-xs); }
+.webhook-delivery-item { padding: var(--s-2); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-ctl); display: flex; justify-content: space-between; gap: var(--s-2); flex-wrap: wrap; }
+.webhook-delivery-item span { color: var(--text-2); }
+.webhook-badge { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.webhook-badge--active { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.webhook-badge--paused { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
+.webhook-badge--processed { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.webhook-badge--rejected { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.webhook-badge--duplicate { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }

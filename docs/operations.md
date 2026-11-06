@@ -100,6 +100,25 @@ tier, but the legacy dashboard does not switch themes; `prefers-color-scheme: li
 `data-hutch-theme="light"` both render the same dark surface. Do not describe the dashboard as
 having a light theme until the token migration lands.
 
+### Inbound webhooks: ingress, secrets and deduplication
+
+Inbound webhooks (`#/schedules`, under Inbound Webhooks) trigger assistant runs from external events
+or local scripts via `POST /api/v1/webhooks/{token}`:
+
+- **One-time secret:** generated once (`whsec_...`), stored only as a SHA-256 hash with a prefix id,
+  and shown once at creation. Verification uses `hmac.compare_digest` in constant time.
+- **Dual-secret rotation:** rotating a secret preserves the retiring token for a 24-hour overlap window,
+  preventing dropped in-flight deliveries from provider retry queues.
+- **Payload and type bounds:** bodies over 64 KB are rejected with HTTP 413 before parsing; only
+  `application/json` and `text/plain` are accepted (HTTP 415 on other MIME types).
+- **Idempotency deduplication:** `Idempotency-Key` or `X-Idempotency-Key` headers (or payload field)
+  are claimed atomically in the database transaction. Replayed deliveries return HTTP 200 without
+  creating a duplicate run.
+- **Untrusted-content scan:** all payload text passes `src/hutch/ingest.py` before model admission.
+  Flagged directives or invisible formatting characters are annotated in the run prompt as untrusted.
+- **Loopback isolation:** webhooks listen on loopback (`127.0.0.1`) by default. External services require
+  a secure tunnel or TLS reverse proxy.
+
 ## Linux shell requirements
 
 `sandbox: strict` needs bubblewrap, util-linux `prlimit`, a working user `systemd-run --user --scope`, and permission to create
