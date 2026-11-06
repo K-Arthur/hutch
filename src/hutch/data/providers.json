@@ -48,7 +48,7 @@
       "regions": [
         "global"
       ],
-      "notes": "Platform API billing and ChatGPT plan allowance stay separate routes. The ChatGPT preview is opt-in and eligibility-gated."
+      "notes": "Platform API billing and ChatGPT plan allowance stay separate routes. The ChatGPT preview is opt-in and eligibility-gated. GPT Image (route openai-image) and text to speech (openai-speech) are protocol-tested only. The Sora 2 models and the Videos API were shut down on 2026-09-24 with no replacement."
     },
     {
       "id": "anthropic",
@@ -144,7 +144,7 @@
       "regions": [
         "global"
       ],
-      "notes": "The native generateContent route is implemented; no live Gemini key has exercised it. Thinking stays at the model default. Media, speech, video and provider-native search are documented only. Consumer CLI sign-in is blocked: Google replaced Gemini CLI with Antigravity CLI on 2026-06-18 and treats third-party use of those OAuth tokens as a terms violation, so Hutch offers no Google coding-CLI route. Vertex AI is a separate catalogue identity."
+      "notes": "The native generateContent route is implemented; no live Gemini key has exercised it. Thinking stays at the model default. Image and speech use the Interactions API (routes google-image and google-speech, protocol-tested only). Video: the Veo preview models were shut down on 2026-10-22 and Gemini Omni Flash is documented, not built. Provider-native search and grounding are documented only. Consumer CLI sign-in is blocked: Google replaced Gemini CLI with Antigravity CLI on 2026-06-18 and treats third-party use of those OAuth tokens as a terms violation, so Hutch offers no Google coding-CLI route. Vertex AI is a separate catalogue identity."
     },
     {
       "id": "minimax",
@@ -192,7 +192,7 @@
         "global",
         "cn"
       ],
-      "notes": "International and China endpoints are distinct; region switching, refresh expiry and account mismatch need explicit recovery."
+      "notes": "International and China endpoints are distinct; region switching, refresh expiry and account mismatch need explicit recovery. Routes minimax-image and minimax-speech are protocol-tested only; failures arrive inside HTTP 200 bodies. Hailuo video is documented, not built (the query and file-retrieve pages were not read). Music is not built."
     },
     {
       "id": "moonshot",
@@ -392,7 +392,7 @@
       "regions": [
         "global"
       ],
-      "notes": "Provider-side search and code execution are separately billed tools; they must be shown as such, not folded into model price."
+      "notes": "Provider-side search and code execution are separately billed tools; they must be shown as such, not folded into model price. Routes xai-image, xai-video and xai-speech are protocol-tested only; the vendor documents no video cancel call. Grok OAuth and speech-to-text are not built."
     },
     {
       "id": "zai",
@@ -2159,11 +2159,10 @@
       "id": "fal",
       "title": "fal",
       "category": "media_platform",
-      "summary": "",
+      "summary": "Queue API for image and video generation, credentialed by the FAL_KEY environment variable.",
       "services": [
         "images",
-        "video",
-        "audio_generation"
+        "video"
       ],
       "protocols": [
         "custom"
@@ -2174,25 +2173,27 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "deferred",
+      "integration_status": "implemented-unverified",
       "connection_templates": [],
       "regions": [
         "global"
-      ]
+      ],
+      "notes": "Routes fal-image and fal-video are protocol-tested only: submit, poll owner/app status URLs, fetch, and a cancel that is confirmed only on HTTP 200 (202 means requested). X-Fal-No-Retry stops fal re-queuing billable work. The key is read from FAL_KEY and labeled ambient; there is no connection template yet. Prices differ per model and are not tabulated. Music models are not built."
     },
     {
       "id": "comfyui",
       "title": "ComfyUI",
       "category": "local_runtime",
-      "summary": "",
+      "summary": "A local ComfyUI server driven by a caller-supplied workflow graph, through HUTCH_COMFYUI_URL.",
       "services": [
         "images",
-        "image_editing"
+        "image_editing",
+        "video"
       ],
       "protocols": [
         "custom"
@@ -2213,7 +2214,7 @@
       "regions": [
         "local"
       ],
-      "notes": "No built-in authentication is documented; Hutch must not expose an unauthenticated ComfyUI instance."
+      "notes": "No built-in authentication is documented; Hutch must not expose an unauthenticated ComfyUI instance. Cancel reads the queue and interrupts only a prompt that is ours; outputs of type video, gif and audio are found; downloads are bounded and pass the address policy. Comfy Cloud is not built."
     },
     {
       "id": "runway",
@@ -2242,16 +2243,16 @@
       "connection_templates": [],
       "regions": [
         "global"
-      ]
+      ],
+      "notes": "Documented only. The base URL, key-header auth, the X-Runway-Version header, task polling and 24 to 48 hour output expiry are read, but the request body fields and status list come from third-party summaries, so no route is built."
     },
     {
       "id": "pixverse",
       "title": "PixVerse",
       "category": "media_platform",
-      "summary": "",
+      "summary": "Text-to-video through the platform API v2, credentialed by the PIXVERSE_API_KEY environment variable.",
       "services": [
-        "video",
-        "images"
+        "video"
       ],
       "protocols": [
         "custom"
@@ -2262,24 +2263,24 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
+      "integration_status": "implemented-unverified",
       "connection_templates": [],
       "regions": [
         "global"
-      ]
+      ],
+      "notes": "Route pixverse-video is protocol-tested only. International host only: keys are regional and a China key does not work here. Moderation status 7 is reported as a refusal. Image-to-video and templates are not built."
     },
     {
       "id": "deepgram",
       "title": "Deepgram",
       "category": "media_platform",
-      "summary": "",
+      "summary": "Aura text to speech, credentialed by the DEEPGRAM_API_KEY environment variable.",
       "services": [
-        "transcription",
         "speech"
       ],
       "protocols": [
@@ -2291,26 +2292,25 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
+      "integration_status": "implemented-unverified",
       "connection_templates": [],
       "regions": [
         "global"
-      ]
+      ],
+      "notes": "Route deepgram-speech is protocol-tested only: 2,000 characters per request, wav output. Transcription is not built through this provider."
     },
     {
       "id": "elevenlabs",
       "title": "ElevenLabs",
       "category": "media_platform",
-      "summary": "",
+      "summary": "Text to speech, credentialed by the ELEVENLABS_API_KEY environment variable.",
       "services": [
-        "speech",
-        "music",
-        "transcription"
+        "speech"
       ],
       "protocols": [
         "custom"
@@ -2321,17 +2321,17 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
+      "integration_status": "implemented-unverified",
       "connection_templates": [],
       "regions": [
         "global"
       ],
-      "notes": "Voice cloning needs clear consent and abuse safeguards before Hutch exposes it."
+      "notes": "Route elevenlabs-speech is protocol-tested only. Music, sound effects, transcription and voice cloning are not built; voice cloning needs clear consent and abuse safeguards before Hutch exposes it."
     }
   ]
 }
