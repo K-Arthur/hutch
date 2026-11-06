@@ -130,8 +130,9 @@ def roll_call(store, scheduler) -> dict[str, Any]:
             "needs_attention": sum(1 for row in routines if row["needs_attention"]),
             "pending_approvals": len(pending_ids),
             "failed_last_24h": sum(1 for row in routines if _failed_within(row["last_occurrence"], now)),
-            "next_due": ({"bot_name": next_due["bot_name"], "schedule_id": next_due["schedule_id"],
-                          "at": next_due["next_fire"]} if next_due else None),
+            "next_due": ({"bot_name": next_due["bot_name"], "name": next_due["name"],
+                          "schedule_id": next_due["schedule_id"], "at": next_due["next_fire"]}
+                         if next_due else None),
             "spend": _budget_summary(store, bots),
         },
         "routines": routines,

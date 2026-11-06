@@ -55,3 +55,26 @@ Revert branch commits; schema additive only in later slices. Marker values remai
 ## Numeric validation gaps until run
 
 Live provider, paid APIs, overnight soak, physical phone — mark blocked when reached.
+
+## Phase 2 update (2026-11-06)
+
+Shipped on `main` for the personal-ops initiative:
+
+- **Revision journal** (schema v92): `schedule_revisions` plus SQL triggers on the assistant
+  document; append-only, no-op saves write zero rows, and `GET .../schedules/{id}/revisions`
+  returns bounded field diffs and hashes. Prompt and workflow-input values are hash-only.
+- **Policy sidecar** (schema v93): `schedule_policies` with its own revision and a cleanup trigger;
+  `schedule_approval_requests` maps a parked run to exactly one approval.
+- **Pre-run approval**: a due prompt schedule with `approval_required` is inserted as
+  `waiting_approval` before any model/tool call. Approval releases it to `pending`; denial or expiry
+  skips it. Reconciliation is immediate and retried on the next scheduler beat; an orphaned parked
+  run fails closed with `schedule_approval_missing`.
+- **Bounded conditions**: eight literal comparisons over allowlisted schedule/occurrence facts, no
+  expression language. False conditions skip the window with `condition_not_met` and create no run.
+- **`#/schedules`**: fleet roll call, needs-attention filter, per-routine history/policy disclosure,
+  linked workflow-run status, and a policy toggle. The surface is dark-only by design.
+- **Limit**: linked saved workflows keep their own per-step approvals; a schedule-level pre-check
+  returns 422 with an explicit reason.
+
+Evidence: `docs/research/2026-11-personal-ops-workflows/06-VALIDATION-LEDGER.md` and
+`docs/research/2026-11-personal-ops-workflows/artifacts/phase2/report.json`.

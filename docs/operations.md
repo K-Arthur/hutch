@@ -64,6 +64,42 @@ one bounded lookup per listed routine, and no prompt, error body, or credential.
 covers each state through the real API; `tests/e2e/test_schedules_attention.py` checks the rendered
 result at 1440, 834, 390 and 320 pixels.
 
+### Revision journal, pre-run approvals and conditions
+
+Every change to a routine's JSON is recorded in the append-only `schedule_revisions` table by a
+SQL trigger on the assistant document (schema v92). A no-op save writes no row, and the journal
+cannot be updated or deleted. `GET /api/v1/bots/{ref}/schedules/{id}/revisions` returns the changed
+fields, bounded before/after values and SHA-256 hashes; `prompt` and `workflow_inputs` are hash-only.
+The `#/schedules` history panel reads the same route, so a change is visible without a terminal.
+
+A schedule policy lives in `schedule_policies` (schema v93) with its own revision. Two options:
+
+- `approval_required`: each due occurrence is inserted as `waiting_approval` before any model or
+  tool call. One approval request is created; approval moves the run back to `pending`, while a
+  denial or expiry moves it to `skipped`. The decision is reconciled immediately and retried on the
+  next scheduler beat if the process stops in between.
+- `conditions`: up to eight literal comparisons over allowlisted schedule/occurrence facts (name,
+  timezone, trigger, enabled, assistant, paused, weekday, hour, missed windows). There is no
+  expression language, regex or `eval`. A false condition claims the window as skipped with reason
+  `condition_not_met` and creates no run.
+
+`PUT /api/v1/bots/{ref}/schedules/{id}/policy` requires the current `expected_revision` for a
+compare-and-swap edit. A linked saved workflow returns 422: it keeps its own per-step approvals, and
+a second schedule-level gate is not implemented.
+
+### Roll call, attention filter and honest status
+
+The top of `#/schedules` shows a fleet roll call from persisted rows: routines, active, blocked,
+needs attention, pending approvals, failures in the last 24 hours, next due, and measured/reserved
+spend against configured daily caps. The "Needs attention only" filter uses that same set. A parked
+pre-run approval is described as "waiting for your approval" rather than "still running", and the
+row links to both the run and the approvals inbox.
+
+Hutch ships a fixed dark dashboard. The design-system light scope exists for the `--hutch-*` alias
+tier, but the legacy dashboard does not switch themes; `prefers-color-scheme: light` and
+`data-hutch-theme="light"` both render the same dark surface. Do not describe the dashboard as
+having a light theme until the token migration lands.
+
 ## Linux shell requirements
 
 `sandbox: strict` needs bubblewrap, util-linux `prlimit`, a working user `systemd-run --user --scope`, and permission to create

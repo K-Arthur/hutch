@@ -1,0 +1,45 @@
+/* Phase 2 schedules surfaces: roll call, attention filter, history and policy.
+ *
+ * Compiled into static/ui.css. Existing schedule layout stays in static/style.css;
+ * these selectors are additive and use the shipped operator tokens.
+ */
+.schedule-roll-call { display: grid; gap: var(--s-2); padding: var(--s-4); border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--panel); }
+.schedule-roll-call-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); flex-wrap: wrap; }
+.schedule-roll-call-head h2 { margin: 0; font-size: var(--fs-lg); }
+.schedule-roll-call-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--s-2); }
+.schedule-roll-call-stat { display: grid; gap: 2px; min-width: 0; padding: var(--s-2) var(--s-3); background: var(--sunken); border-radius: var(--r-ctl); }
+.schedule-roll-call-stat span { color: var(--text-2); font-size: var(--fs-xs); }
+.schedule-roll-call-stat strong { font-size: var(--fs-md); font-variant-numeric: tabular-nums; }
+.schedule-roll-call-next, .schedule-roll-call-spend { margin: 0; color: var(--text-2); font-size: var(--fs-xs); overflow-wrap: anywhere; }
+.schedule-roll-call-spend-over { color: var(--danger); }
+.schedule-attention-filter { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); flex-wrap: wrap; }
+.schedule-attention-toggle { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px; color: var(--text-2); font-size: var(--fs-sm); cursor: pointer; }
+.schedule-attention-toggle input { width: 18px; height: 18px; accent-color: var(--brand); }
+.schedule-overview-row[hidden] { display: none !important; }
+.schedule-history { margin-top: var(--s-2); }
+.schedule-history > summary { display: inline-flex; align-items: center; min-height: 36px; color: var(--text-2); font-size: var(--fs-xs); cursor: pointer; }
+.schedule-history > summary:hover { color: var(--text); }
+.schedule-history > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-ctl); }
+.schedule-history-body { display: grid; gap: var(--s-3); min-width: 0; margin-top: var(--s-2); padding: var(--s-3); background: var(--sunken); border-radius: var(--r-ctl); }
+.schedule-history-section { display: grid; gap: var(--s-2); min-width: 0; }
+.schedule-history-section h3 { margin: 0; font-size: var(--fs-sm); }
+.schedule-history-list { display: grid; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
+.schedule-history-item { min-width: 0; padding-left: var(--s-3); border-left: 2px solid var(--line-strong); overflow-wrap: anywhere; }
+.schedule-history-line { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); flex-wrap: wrap; font-size: var(--fs-xs); }
+.schedule-history-line b { font-weight: 650; }
+.schedule-history-line span { color: var(--text-2); }
+.schedule-history-links { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-top: 2px; font-size: var(--fs-xs); }
+.schedule-history-workflow { color: var(--text-2); font-family: var(--mono); overflow-wrap: anywhere; }
+.schedule-history-changes { display: grid; gap: 2px; margin: 4px 0 0; padding-left: 1.1em; color: var(--text-2); font-size: var(--fs-xs); }
+.schedule-history-changes code { color: var(--text); font: 500 var(--fs-xs)/1.4 var(--mono); }
+.schedule-policy-toggle { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px; font-size: var(--fs-sm); cursor: pointer; }
+.schedule-policy-toggle input { width: 18px; height: 18px; accent-color: var(--brand); }
+.schedule-history-body .hint { margin: 0; }
+@media (max-width: 1100px) {
+  .schedule-roll-call-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .schedule-roll-call { padding: var(--s-3); }
+  .schedule-roll-call-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .schedule-attention-filter { align-items: flex-start; flex-direction: column; }
+}

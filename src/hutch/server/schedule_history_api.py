@@ -80,8 +80,10 @@ def _register_history_routes(app, store, bot_or_404) -> None:
     def schedule_history(ref: str, schedule_id: str, limit: int = Query(20, ge=1, le=50)) -> dict[str, Any]:
         bot = bot_or_404(ref)
         _require_schedule(bot, schedule_id, store)
+        scheduled = _schedule_for(bot, schedule_id)
         return {
             "schedule_id": schedule_id,
+            "workflow_linked": bool(scheduled and scheduled.workflow_definition_id),
             "policy": get_policy(store, bot.id, schedule_id).as_dict(),
             "revisions": list_revisions(store, bot.id, schedule_id, limit=limit),
             "occurrences": list_occurrences(store, schedule_id, limit=limit),
