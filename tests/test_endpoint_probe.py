@@ -178,5 +178,5 @@ def test_connections_test_passes_and_flags_ollama_behind_v1(tmp_path, monkeypatc
         result = check_connection(book, "mine")
     finally:
         ollama.shutdown()
-    assert result.ok and result.verified and "num_ctx" in result.detail
+    assert result.ok and not result.verified and "num_ctx" in result.detail and "NOT verified" in result.detail
     assert ollama.seen == [("/v1/models", "Bearer sk-test-secret"), ("/api/version", None)]   # the key goes out once

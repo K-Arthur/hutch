@@ -99,7 +99,7 @@ def check_connection(book: ConnectionBook, name: str) -> ConnectionCheck:
     if not ok and conn.protocol == "openai-chat":
         detail = _failed_layer(book, conn, name) or detail
     elif ok and conn.template.startswith("custom-"):
-        detail += _engine_note(conn)
+        return ConnectionCheck(True, _unverified_key(detail) + _engine_note(conn), models, verified=False)
     if ok and _template_value(book, conn, "models_list_ignores_key", False):
         return ConnectionCheck(True, f"the model list is public and answered without checking the key, so the key was "
                                      f"NOT verified ({len(models)} model(s) listed). Run a normal bot request to "
@@ -116,6 +116,13 @@ def _failed_layer(book: ConnectionBook, conn: Connection, name: str) -> str:
     return f"{bad.name} layer: {bad.detail}" if bad else ""
 
 
+def _unverified_key(detail: str) -> str:
+    """A user-run server (Ollama, LM Studio without a token, a vLLM box) answers its model list with any key or none,
+    so a 200 proves the server is there, not that the key is right. Under-claim, as for the public-list hosts."""
+    return (detail.replace("authenticated;", "the server answered;", 1) + ". A user-run server may not check keys, "
+            "so the key itself was NOT verified")
+
+
 def _engine_note(conn: Connection) -> str:
     """A custom endpoint that identifies itself as Ollama behind /v1 gets the context-window advice. The one extra
     request is a keyless GET of the same origin's /api/version; the key is still sent exactly once."""
@@ -123,7 +130,7 @@ def _engine_note(conn: Connection) -> str:
     from .endpoint_probe import identify_engine
     parts = urlsplit(conn.base_url)
     advice = identify_engine(f"{parts.scheme}://{parts.netloc}")[1]
-    return f" Note: {advice}" if advice else ""
+    return f". Note: {advice}" if advice else ""
 
 
 # ----------------------------------------------------------------- typed probe

@@ -120,7 +120,7 @@ def _models_layer(report: ProbeReport, client: Any, base: str, models_url: str, 
         report.layers.append(Layer("key", False, "reachable, but the API key was rejected (or the server needs one: a "
                                                  "protected server answers 401/403 on /v1/models)"))
         return report
-    report.layers.append(Layer("key", True, "no key rejected" if not key else "the key was accepted"))
+    report.layers.append(Layer("key", True, "no key sent" if not key else "the server did not refuse the key (a server that does not check keys answers the same way)"))
     ids = _model_ids(response) if status == 200 else None
     if ids is not None:
         report.models = ids
