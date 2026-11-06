@@ -9,6 +9,12 @@ from .auth_headers import bind_key_headers, uses_key_header
 from .base import Provider, ProviderError
 
 
+def _dropped_schema_keywords(conn: Connection) -> frozenset[str]:
+    """Tool-schema keywords the template says its host rejects (empty for almost every template)."""
+    from ..connections import load_templates
+    return frozenset(load_templates().get(conn.template, {}).get("tool_schema_unsupported_keywords", ()))
+
+
 def provider_for_connection(book: ConnectionBook, name: str, model: str, *, resolved_key: str | None = None) -> Provider:
     conn: Connection | None = book.get(name)
     if conn is None:
@@ -35,9 +41,14 @@ def provider_for_connection(book: ConnectionBook, name: str, model: str, *, reso
         return OpenAIResponsesProvider(key, base_url=base)
     if protocol == "openai-chat":
         from .openai_compat import OpenAICompatProvider
-        return OpenAICompatProvider(base, key, provider_name=name, headers=headers, session_header=conn.session_header,
-                                    openrouter=conn.template == "openrouter", routing_policy=conn.openrouter_policy,
-                                    catalog_url=conn.models_base_url)
+        cls, extra = OpenAICompatProvider, {}
+        dropped = _dropped_schema_keywords(conn)
+        if dropped:
+            from .schema_trim import SchemaTrimmedProvider
+            cls, extra = SchemaTrimmedProvider, {"dropped_keywords": dropped}
+        return cls(base, key, provider_name=name, headers=headers, session_header=conn.session_header,
+                   openrouter=conn.template == "openrouter", routing_policy=conn.openrouter_policy,
+                   catalog_url=conn.models_base_url, **extra)
     if protocol == "anthropic":
         from .claude import ClaudeProvider
         return ClaudeProvider(api_key=key, base_url=base, provider_name=name, headers=headers,

@@ -735,6 +735,7 @@
       "auth_method": "api_key",
       "protocol": "openai-chat",
       "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "tool_schema_unsupported_keywords": ["minLength", "maxLength", "minItems", "maxItems", "minContains", "maxContains"],
       "api_key_env": "ARK_API_KEY",
       "billing": "per_token",
       "models_endpoint": true,
