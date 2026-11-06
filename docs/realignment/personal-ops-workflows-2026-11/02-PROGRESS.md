@@ -9,7 +9,7 @@ output.
 |---|---|---|---|---|
 | 0 Diagnose and baseline audit | done | 1bec95e1 | 73 focused tests passed (54.38s); 40 baseline screenshots (0 errors, 0 overflow) | none |
 | 1 Live web research and failure mining | done | c3856c3b | 8/8 owner URLs fetched live; 48 requirements and 48 failure rows cross-checked; `npm run check:agent` and `npm run audit:context` pass; emoji audit has no repository-source hits (8 hits only in git-ignored `.codewhale/state/subagents.v1.json`) | none |
-| 2 Automations trust & observability (G03, G06) | in progress | 69b2637b | 2A+2B: 172 focused tests passed; schema v93; journal append-only; approval parks before execution and survives deny/expiry; conditions skip without a run | none |
+| 2 Automations trust & observability (G03, G06) | done | e7ac6411 | 2A+2B+2C: 172 focused tests; 3 Playwright tests at 360/768/1280/1920 dark and light preference; 12 captures with 0 errors and 0 overflow; dark-only theme limit recorded | none |
 | 3 Inbound webhook & event triggers (G04) | not started | | | |
 | 4 Multimodal intake pipeline (chat, channels, Today) | not started | | | |
 | 5 Personal ops bridges: provenance & calendar (G08, G09) | not started | | | |
@@ -29,7 +29,8 @@ recorded in section E rather than guessed.
 |---|---|---|---|
 | 2A Schedule revision journal | done | 817c3942 | `npm run test:agent -- tests/test_schedule_history.py`: 7 passed; real SQLite migration v92; update/delete refused; no-op save writes zero rows |
 | 2B Approval checkpoints and bounded conditions | done | 69b2637b | `npm run test:agent -- tests/test_schedule_conditions.py tests/test_schedule_policy.py tests/test_schedule_approvals.py tests/test_schedule_history.py tests/test_scheduler.py tests/test_schedule_outcomes.py tests/test_schedule_durability.py tests/test_lifecycle.py tests/test_approval_cas.py`: 172 passed; real approval parks, approve releases, deny/expire skips, one notification |
-| 2C Schedules surface (filter, history, roll-call) | in progress | | |
+| 2C Schedules surface (filter, history, roll-call) | done | fd988138 (cleanup e7ac6411) | `uv run --frozen --no-sync pytest -q tests/e2e/test_schedule_history.py`: 3 passed; 12 captures, 0 console errors, 0 overflow; roll call, filter, keyboard history, policy save verified |
+| Phase 2 exit | done | e7ac6411 | 172 focused tests; real SQLite v93; real FastAPI statuses 200/409/422/404; real Chromium 153.0.8010.12; evidence in `06-VALIDATION-LEDGER.md` |
 
 ## Owner inputs needed (batch, ask once)
 
@@ -81,12 +82,16 @@ recorded in section E rather than guessed.
 | 2026-11-06 | Phase 2 | Schedule policy lives in a sidecar table with its own revision (POW-D17) | `models.py` is frozen; the sidecar also gives CAS edits and cleanup without rewriting the bot document |
 | 2026-11-06 | Phase 2 | A pre-run approval applies to prompt schedules; linked saved workflows keep their own step approvals and return 422 for a schedule-level pre-check | The workflow engine already gates its steps; a second half-implemented gate would be less trustworthy than an explicit limit |
 | 2026-11-06 | Phase 2 | Approved decisions are reconciled immediately and retried on every scheduler beat | A crash between the approval commit and the run transition must not strand a parked run |
+| 2026-11-06 | Phase 2 | The schedules surface observes `#view` from a new module instead of editing frozen `app.js` | Native details/summary and checkbox controls keep the keyboard path; the enhancement is isolated and testable |
+| 2026-11-06 | Phase 2 | One needs-attention set drives the roll-call, filter and the older attention note | Two different counts on one page undermine trust; the note is rewritten from the same totals |
+| 2026-11-06 | Phase 2 | Keep the dashboard dark-only and do not claim a light theme | `docs/design-system.md` defines a fixed dark dashboard; forcing the light scope leaves the legacy tokens unchanged |
 
 ## Visual validation log
 
 | Date | Phase | Surface | Widths & themes | Defects found & fixed | Evidence path |
 |---|---|---|---|---|---|
 | 2026-11-06 | Phase 0 | `#/today`, `#/shared`, `#/schedules`, `#/tasks`, `#/catalog` | 360, 768, 1280, 1920 px (dark and light; 40 views total) | 0 console errors, 0 px horizontal overflow across all 40 views | `docs/research/2026-11-personal-ops-workflows/artifacts/phase0/report.json` |
+| 2026-11-06 | Phase 2 | `#/schedules` default and history panel | 360, 768, 1280, 1920 px; dark and design-system light preference (12 views; history at 1280/1920) | Fixed 4 defects: raw schedule id in next-due, contradictory attention count, parked approval described as "still running", and an unbalanced 5+1 grid at 768 px. Light preference renders the same dark surface by design; logged as a limit, not a theme claim | `docs/research/2026-11-personal-ops-workflows/artifacts/phase2/report.json` |
 
 Phase 1 made no UI or website change, so no new visual capture was required. The Phase 0 baseline
 remains the visual reference for the next UI phase.
@@ -106,6 +111,11 @@ remains the visual reference for the next UI phase.
 | 2026-11-06 | Phase 1 | `01-SOURCES.md` E1-E2 | `ocr.direct` returned 504 and the OpenAI PDF thread returned an empty page; recorded as unreachable instead of guessing | c3856c3b |
 | 2026-11-06 | Phase 2 | `src/hutch/lifecycle.py:32` | Initial smoke test showed denial and expiry left runs in `waiting_approval`: the lifecycle table did not allow `waiting_approval -> skipped`. Added the transition and a visible reconciliation error event; regression test covers deny and expiry | 69b2637b |
 | 2026-11-06 | Phase 2 | `src/hutch/schedule_admission.py:38-44` | Reconciliation failures were swallowed. They now append a bounded log event to the run so a stuck parked run is visible instead of silent | 69b2637b |
+| 2026-11-06 | Phase 2 | `src/hutch/schedule_history.py:140` | Commit `69b2637b` omitted the new `list_occurrences` function while committing its callers, so that checkpoint could not import the history API. Fixed forward; the working tree was green only because the omission was still uncommitted | 99ec03fc |
+| 2026-11-06 | Phase 2 | `src/hutch/server/static/schedules.js` | The first visual pass showed a raw `schedule_...` id in the next-due line, a contradictory attention count, a parked approval described as "still running", and an unbalanced 5+1 grid at 768 px. Fixed in the enhancement and recaptured | fd988138 |
+| 2026-11-06 | Phase 2 | `src/hutch/server/static/schedules.js` | The MutationObserver rewrote the same attention note and parked-run text on every mutation, risking a self-trigger loop. Added idempotence guards; the e2e test still passes | fd988138 |
+| 2026-11-06 | Phase 2 | `docs/design-system.md` (theme contract) | Forcing `data-hutch-theme="light"` leaves the legacy dashboard tokens at the same dark values. The light captures are layout/overflow checks, not a shipped light theme; recorded in the ledger and operations guide | fd988138 |
+| 2026-11-06 | Phase 2 | `src/hutch/server/static/schedules.js` | Final cleanup removed an unused bulk policy fetch; the four affected screenshots were recaptured and the e2e test stayed green | e7ac6411 |
 
 ## Open items and deferred
 
@@ -118,3 +128,5 @@ remains the visual reference for the next UI phase.
 | Telegram local Bot API server | Not stood up or tested | Do not claim its 2 GB ceiling; the standard Bot API 20 MiB download cap is the verified limit |
 | Marketing website claim sync | Phase 1 is research only; site claims must follow live-verified behavior, not plans | Phase 9 Task 9B, after Phases 2-8 are live-verified |
 | Schedule-level pre-approval for linked saved workflows | The workflow engine already has per-step approvals; a schedule-level gate needs a workflow parking state and a retry policy | A later phase can add it with workflow-engine tests; until then the policy API returns 422 and the UI must say why |
+| Light dashboard theme | The design system ships a fixed dark theme; the derived light scope does not change the legacy dashboard tokens | A token migration that maps the dashboard's `--text`/`--line`/`--panel` family into the `--hutch-*` light scope, followed by contrast measurements |
+| Physical phone or screen-reader validation | The browser evidence is headless Chromium 153.0.8010.12; no physical device or screen reader was available | A physical Android/iOS pass and a screen-reader session on `#/schedules` |

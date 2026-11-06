@@ -10,7 +10,9 @@ Commits under test:
 
 - `817c3942` - append-only schedule revision journal (schema v92)
 - `69b2637b` - schedule approval checkpoints, bounded conditions, policy sidecar (schema v93)
-- Phase 2C UI commit is recorded in `02-PROGRESS.md` when it lands.
+- `99ec03fc` - the occurrence read used by the history API (fix forward for an omitted file in 2B)
+- `fd988138` - fleet roll call, attention filter, history/policy disclosure and visual evidence
+- `e7ac6411` - remove the unused bulk policy fetch and recapture the four affected screenshots
 
 Environment:
 
