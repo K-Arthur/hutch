@@ -781,7 +781,9 @@ Still open (ask at the phase that needs it):
   via local runtime / Hosted) with a privacy label per group, adds a locality
   tag per row, shows capability chips (or "unknown" when the runtime did not
   report), exposes the "cannot run" reason in words, and labels runtime values
-  as measured. Commit 24be8a4c plus the final-pass commit.
+  as measured. The runtimes section moved to `_models_runtimes.html` (85 lines)
+  so `models.html` shrank from 606 to 573 lines instead of growing. Commit
+  24be8a4c plus the final-pass commits.
 - 2026-11-06, Phase 7.1/7.2 final-pass fixes found by running the real stack:
   - A renamed cloud copy (`my-local-copy:latest`) was grouped under "On this
     machine" because the grouping used the name only. It now passes the
