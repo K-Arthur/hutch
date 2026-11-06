@@ -354,19 +354,16 @@ def _probe_offline_egress() -> OfflineStatus:
     if not resource_status.ok:
         return OfflineStatus(False, reason=f"worker resource limits are unavailable: {resource_status.reason}")
     addresses = _local_non_loopback_addresses()
-    if not any(addresses.values()):
-        return OfflineStatus(False, reason="no local non-loopback interface is available for the network-namespace check")
-
     listeners: list[socket.socket] = []
     tcp_targets: list[tuple[int, str, int]] = []
     broker_listener: socket.socket | None = None
     broker_thread: threading.Thread | None = None
     try:
-        loopbacks = {socket.AF_INET: "127.0.0.1", socket.AF_INET6: "::1"}
-        for family, host_addresses in addresses.items():
-            if not host_addresses:
-                continue
-            loop_host = loopbacks[family]
+        # A loopback-only host is already offline; still prove the worker cannot reach its loopback.
+        loopbacks = [(socket.AF_INET, "127.0.0.1")]
+        if addresses.get(socket.AF_INET6):
+            loopbacks.append((socket.AF_INET6, "::1"))
+        for family, loop_host in loopbacks:
             loop_listener = socket.socket(family, socket.SOCK_STREAM)
             loop_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
@@ -376,6 +373,9 @@ def _probe_offline_egress() -> OfflineStatus:
                 loop_listener.close()
                 return OfflineStatus(False, reason=f"could not open a loopback TCP test listener: {exc}")
             port = loop_listener.getsockname()[1]
+            listeners.append(loop_listener)
+            tcp_targets.append((family, loop_host, port))
+            host_addresses = addresses.get(family, [])
             host_listener = None
             for address in host_addresses:
                 candidate = socket.socket(family, socket.SOCK_STREAM)
@@ -388,12 +388,11 @@ def _probe_offline_egress() -> OfflineStatus:
                     break
                 except OSError:
                     candidate.close()
-            if host_listener is None:
-                loop_listener.close()
+            if host_addresses and host_listener is None:
                 return OfflineStatus(False, reason=f"could not open a local {family} interface TCP test listener")
-            listeners.extend((loop_listener, host_listener))
-            tcp_targets.extend(((family, loop_host, port),
-                               (family, host_listener.getsockname()[0], port)))
+            if host_listener is not None:
+                listeners.append(host_listener)
+                tcp_targets.append((family, host_listener.getsockname()[0], port))
         if not tcp_targets:
             return OfflineStatus(False, reason="no local TCP address family could be tested")
         # Honor TMPDIR: on hosts whose /tmp is a small full tmpfs, creating the
