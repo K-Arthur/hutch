@@ -12,7 +12,8 @@ import sqlite3
 
 import pytest
 
-from hutch.store import SCHEMA_VERSION, Store
+from hutch import vault as vault_package
+from hutch.store import _MIGRATIONS, SCHEMA_VERSION, Store
 from hutch.vault import Principal, vault_for
 from hutch.vault.crypto import ScryptParams
 from hutch.vault.refs import Permission
@@ -24,11 +25,14 @@ def test_a_database_created_before_the_table_gains_it_on_reopen(store, config):
     vault.create("a-long-enough-vault-passphrase")
     meta = vault.put_secret(scope="workspace", category="api_key", name="api", value=CANARY)
 
-    # Put the database back exactly where an installation of the previous build would be: the old
-    # schema version and no destinations table.
+    # Put the database back exactly where an installation of the previous build would be: the schema
+    # version just before the destinations migration and no destinations table. Later migrations
+    # (other work appends them) are not the point, so the version is derived from the migration's
+    # position instead of assuming it is the last one.
+    before_destinations = _MIGRATIONS.index(vault_package.migrate_destinations) + 1
     with store._lock:
         store._db.execute("DROP TABLE vault_destinations")
-        store._db.execute(f"PRAGMA user_version = {SCHEMA_VERSION - 1}")
+        store._db.execute(f"PRAGMA user_version = {before_destinations}")
         store._db.commit()
     store.close()
 
