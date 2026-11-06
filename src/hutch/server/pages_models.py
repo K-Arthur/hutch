@@ -219,7 +219,8 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
             if secret:
                 detail = detail.replace(secret, "[redacted]")
             if res.ok:
-                return go("/models", notice=f"{provider}: connection verified ({detail}).")
+                state = "verified" if res.verified else "checked, not verified"
+                return go("/models", notice=f"{provider}: connection {state} ({detail}).")
             return go("/models", error=f"{provider}: connection test failed ({detail}).")
         return go("/models", error=f"{provider} is not a configured connection, so Hutch cannot test it. Add the provider in Apps & AI first.")
 

@@ -9,10 +9,15 @@ from .auth_headers import bind_key_headers, uses_key_header
 from .base import Provider, ProviderError
 
 
-def _dropped_schema_keywords(conn: Connection) -> frozenset[str]:
-    """Tool-schema keywords the template says its host rejects (empty for almost every template)."""
+def _template_value(conn: Connection, field_name: str, default=None):
+    """A template-only setting the Connection record does not carry (data drives it; empty for most templates)."""
     from ..connections import load_templates
-    return frozenset(load_templates().get(conn.template, {}).get("tool_schema_unsupported_keywords", ()))
+    return load_templates().get(conn.template, {}).get(field_name, default)
+
+
+def _dropped_schema_keywords(conn: Connection) -> frozenset[str]:
+    """Tool-schema keywords the template says its host rejects."""
+    return frozenset(_template_value(conn, "tool_schema_unsupported_keywords", ()))
 
 
 def provider_for_connection(book: ConnectionBook, name: str, model: str, *, resolved_key: str | None = None) -> Provider:
@@ -87,6 +92,10 @@ def check_connection(book: ConnectionBook, name: str) -> ConnectionCheck:
                                      "so it was not verified. Run a normal bot request to check model behavior through "
                                      "Hutch's usage and approval controls.", verified=False)
     ok, detail, models = provider.probe_models()
+    if ok and _template_value(conn, "models_list_ignores_key", False):
+        return ConnectionCheck(True, f"the model list is public and answered without checking the key, so the key was "
+                                     f"NOT verified ({len(models)} model(s) listed). Run a normal bot request to "
+                                     "check it through Hutch's usage and approval controls.", models, verified=False)
     return ConnectionCheck(ok, detail, models, verified=ok)
 
 
