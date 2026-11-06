@@ -62,14 +62,16 @@ def broker_socket_path(directory: str | Path, endpoint: str) -> str:
 
 
 def httpx_offline_options(base_url: str, provider: str) -> tuple[str, object | None, bool]:
-    """Return canonical URL, a UDS transport, and trust_env for a worker provider.
+    """Return canonical URL, a transport, and trust_env for a provider's HTTP client.
 
-    Outside an Offline worker this is a no-op. Inside one, there is deliberately
-    no fallback to a direct TCP transport if the broker is missing.
+    Outside an Offline worker the transport is the address-pinning one (``providers.pinned_transport``, ADR-0034).
+    Inside one it is the loopback broker, with deliberately no fallback to a direct TCP transport if the broker
+    is missing.
     """
     directory = os.environ.get("HUTCH_OFFLINE_BROKER_DIR")
     if not directory:
-        return base_url, None, True
+        from .providers.pinned_transport import guarded_options
+        return guarded_options(base_url)
     from .providers.registry import loopback_endpoint
 
     canonical = loopback_endpoint(provider, base_url)
