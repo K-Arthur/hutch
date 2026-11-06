@@ -444,6 +444,25 @@ Still open (ask at the phase that needs it):
   103, `providers/ollama.py` 400, `providers/openai_compat.py` 450; no frozen file grew.
   The new tests are under 400 lines.
 
+- 2026-11-06, Phase 7 review: the configured-route grouping used the model name only, so
+  the renamed cloud copy `my-local-copy:latest` showed under "On this machine" while the
+  route-readiness panel said cloud-routed. Fixed by passing the runtime's `/api/tags` row
+  to `locality_for_route` (server signal first). Verified live: the same model now groups
+  under "Cloud via local runtime".
+- 2026-11-06, Phase 7 review: a real llama.cpp server answering 503 on `/v1/models` during
+  load was reported as `unknown`; discovery now falls through to the native `/health` and
+  reports `loading` with the runtime's sentence. `tests/test_provider_discovery.py`.
+- 2026-11-06, Phase 7 review: the llama.cpp and OpenAI-generic adapters used the default
+  `confidence="strong"` on an `unknown` identity. Fixed to `unknown`; no status inflation.
+- 2026-11-06, Phase 7 review: a saved Ollama route showed `ready` with Ollama down. It now
+  shows `cannot run` and the reason in visible text (`tests/test_model_locality_view.py`).
+- 2026-11-06, Phase 7 review: `models.html` reached 657 lines while the phase said to split
+  before adding. The runtimes section moved to `_models_runtimes.html`; the page is 573
+  lines (below its 606-line start). No behavior change; page and e2e tests re-run.
+- 2026-11-06, Phase 7 review: the private-address branch in `locality_for_route` used
+  string prefixes (`172.2` matched public 172.200+ addresses). Replaced with
+  `ipaddress.ip_address(...).is_private`/`is_loopback`; unused card fields removed.
+
 ## Open items and deferred
 
 - G2, G3, G4 and G7 fixes: Phases 1 and 2. G1 and G6 are closed in Phase 4.
