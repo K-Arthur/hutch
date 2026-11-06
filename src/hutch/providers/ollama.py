@@ -106,8 +106,8 @@ class OllamaProvider(OllamaExtras, Provider):
     def _http(self):
         if self._client is None:
             from ..offline import httpx_offline_options
-            self.base_url, transport, trust_env = httpx_offline_options(self.base_url, self.name)
-            options = {"base_url": self.base_url, "trust_env": trust_env}
+            canonical, transport, trust_env = httpx_offline_options(self.base_url, self.name)
+            options = {"base_url": canonical, "trust_env": trust_env}
             if transport is not None:
                 options["transport"] = transport
             self._client = _httpx().Client(**options)

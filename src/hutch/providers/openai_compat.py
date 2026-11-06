@@ -82,8 +82,8 @@ class OpenAICompatProvider(Provider):
             headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
             headers.update(self.extra_headers)
             from ..offline import httpx_offline_options
-            self.base_url, transport, trust_env = httpx_offline_options(self.base_url, self.name)
-            options = {"base_url": self.base_url, "headers": headers, "trust_env": trust_env}
+            canonical, transport, trust_env = httpx_offline_options(self.base_url, self.name)
+            options = {"base_url": canonical, "headers": headers, "trust_env": trust_env}
             if transport is not None:
                 options["transport"] = transport
             self._client = _httpx().Client(**options)
