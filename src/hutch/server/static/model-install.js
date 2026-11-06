@@ -16,8 +16,30 @@
   const gib = bytes => (bytes / GIB).toFixed(1);
   const mb = rate => (rate / (1024 * 1024)).toFixed(1);
 
+  function styleCell(el) {
+    const cell = el?.closest("td");
+    if (!cell || cell.dataset.installCellStyled) return;
+    // The install column is narrow and nowrap; progress and the pull hint are longer.
+    cell.style.whiteSpace = "normal";
+    cell.style.overflowWrap = "anywhere";
+    cell.querySelectorAll(".mono, code").forEach(node => {
+      node.style.whiteSpace = "normal";
+      node.style.overflowWrap = "anywhere";
+    });
+    cell.dataset.installCellStyled = "1";
+  }
+
   function stateEl(tag) {
-    return document.querySelector(`[data-install-state="${CSS.escape(tag)}"]`);
+    const el = document.querySelector(`[data-install-state="${CSS.escape(tag)}"]`);
+    if (el && !el.dataset.installStyled) {
+      el.style.display = "block";
+      el.style.whiteSpace = "normal";
+      el.style.overflowWrap = "anywhere";
+      el.style.maxWidth = "260px";
+      el.dataset.installStyled = "1";
+    }
+    styleCell(el);
+    return el;
   }
 
   function setState(tag, text, kind) {
@@ -53,12 +75,9 @@
     return `about ${(minutes / 60).toFixed(1)} h`;
   }
 
-  function planPanel(tag, plan, button) {
-    const panel = document.createElement("div");
-    panel.dataset.installPlanFor = tag;
+  function planFacts(plan) {
     const facts = [];
-    if (plan.size_bytes) facts.push(`${gib(plan.size_bytes)} GiB download`);
-    else facts.push("download size unknown");
+    facts.push(plan.size_bytes ? `${gib(plan.size_bytes)} GiB download` : "download size unknown");
     if (plan.free_bytes !== null && plan.free_bytes !== undefined) {
       facts.push(`${gib(plan.free_bytes)} GiB free on ${plan.model_dir}`);
     } else if (plan.model_dir_source === "unknown") {
@@ -71,24 +90,57 @@
       const when = plan.speed_measured_at ? ` (measured ${plan.speed_measured_at.slice(0, 10)})` : "";
       facts.push(`estimated time ${duration(plan.eta_seconds)} at ${mb(plan.speed_bytes_per_s)} MB/s${when}`);
     } else {
-      facts.push("download time unknown");
+      facts.push("download time unknown (no measured transfer yet)");
     }
-
     const summary = document.createElement("p");
     summary.className = "muted small";
+    summary.style.overflowWrap = "anywhere";
     summary.textContent = facts.join(" · ");
-    panel.append(summary);
+    return summary;
+  }
 
-    if (plan.warnings?.length) {
-      const list = document.createElement("ul");
-      list.className = "muted small";
-      for (const warning of plan.warnings) {
-        const item = document.createElement("li");
-        item.textContent = warning;
-        list.append(item);
-      }
-      panel.append(list);
+  function planWarnings(plan) {
+    if (!plan.warnings?.length) return null;
+    const list = document.createElement("ul");
+    list.className = "muted small";
+    list.style.overflowWrap = "anywhere";
+    for (const warning of plan.warnings) {
+      const item = document.createElement("li");
+      item.textContent = warning;
+      list.append(item);
     }
+    return list;
+  }
+
+  function insertPlanRow(tag, button, panel) {
+    const row = button.closest("tr");
+    if (!row?.parentElement) {
+      stateEl(tag)?.after(panel);
+      return;
+    }
+    // The install column is narrow and nowrap; a full-width row lets the facts and
+    // the long model-directory path wrap instead of being clipped.
+    const holder = document.createElement("tr");
+    holder.dataset.installPlanRow = tag;
+    const cell = document.createElement("td");
+    cell.colSpan = row.children.length || 1;
+    cell.style.whiteSpace = "normal";
+    cell.style.padding = "8px 0 12px";
+    cell.append(panel);
+    holder.append(cell);
+    row.after(holder);
+  }
+
+  function planPanel(tag, plan, button) {
+    const panel = document.createElement("div");
+    panel.dataset.installPlanFor = tag;
+    panel.setAttribute("role", "group");
+    panel.setAttribute("aria-label", `Download preflight for ${tag}`);
+    panel.style.whiteSpace = "normal";
+    panel.style.maxWidth = "min(720px, calc(100vw - 150px))";
+    panel.append(planFacts(plan));
+    const warnings = planWarnings(plan);
+    if (warnings) panel.append(warnings);
 
     const actions = document.createElement("div");
     actions.className = "card-actions";
@@ -100,25 +152,26 @@
     back.type = "button";
     back.className = "btn small ghost";
     back.textContent = "Back";
-    actions.append(confirm, back);
-    panel.append(actions);
-
     confirm.addEventListener("click", () => {
-      panel.remove();
+      removePlan(tag);
       void begin(tag, button);
     });
     back.addEventListener("click", () => {
-      panel.remove();
+      removePlan(tag);
       setState(tag, "", "");
       reset(tag);
     });
-    stateEl(tag)?.after(panel);
+    actions.append(confirm, back);
+    panel.append(actions);
+    insertPlanRow(tag, button, panel);
     button.disabled = true;
     button.textContent = "Reviewing…";
     setState(tag, "Review the download before confirming.", "busy");
+    confirm.focus();
   }
 
   function removePlan(tag) {
+    document.querySelector(`[data-install-plan-row="${CSS.escape(tag)}"]`)?.remove();
     document.querySelector(`[data-install-plan-for="${CSS.escape(tag)}"]`)?.remove();
   }
 
@@ -276,5 +329,6 @@
     void review(tag, button);
   });
 
+  document.querySelectorAll("[data-install-state]").forEach(el => styleCell(el));
   void restore();
 })();

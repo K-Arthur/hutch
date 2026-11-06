@@ -72,6 +72,28 @@ def test_the_button_shows_the_size_and_install_finishes_with_the_model_in_the_ru
         page.context.close()
 
 
+def test_the_preflight_is_keyboard_operable(browser, live):
+    base, runtime = live
+    page = browser.new_context(viewport={"width": 1280, "height": 900}).new_page()
+    try:
+        page.goto(f"{base}/models#models-advanced", wait_until="domcontentloaded")
+        button = _first_install_button(page)
+        tag = button.get_attribute("data-install-model")
+        button.focus()
+        page.keyboard.press("Enter")
+        panel = page.locator(f'[data-install-plan-for="{tag}"]')
+        panel.wait_for(timeout=10_000)
+        assert page.evaluate("document.activeElement?.textContent") == "Confirm download"
+        page.keyboard.press("Tab")
+        assert page.evaluate("document.activeElement?.textContent") == "Back"
+        page.keyboard.press("Enter")
+        panel.wait_for(state="detached", timeout=5_000)
+        expect(button).to_be_enabled()
+        assert tag not in runtime.models, "backing out starts nothing"
+    finally:
+        page.context.close()
+
+
 def test_a_running_download_can_be_cancelled_and_installs_nothing(browser, live):
     base, runtime = live
     runtime.pull_delay, runtime.pull_events = 0.5, 20          # slow enough to cancel mid-flight

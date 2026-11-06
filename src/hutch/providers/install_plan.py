@@ -216,8 +216,6 @@ def build_plan(model: str, *, base_url: str = "", state_dir: Optional[Path] = No
                                  "if the disk fills.")
     elif size is None:
         plan.warnings.append(f"the download size is unknown; {_gib(plan.free_bytes)} is free on {plan.model_dir}.")
-    if plan.eta_seconds is None:
-        plan.warnings.append("download time is unknown until a transfer has been measured.")
     if parsed.host.casefold() in ("hf.co", "huggingface.co"):
         plan.warnings.append("a gated Hugging Face repo needs the runtime's own token; "
                              "Hutch never puts a token in a URL.")
