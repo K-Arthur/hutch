@@ -9,7 +9,7 @@ covers before relying on it.
 | Phase | Status | Last commit | Live-verified | Blocked on |
 |---|---|---|---|---|
 | 0 Diagnose | done | 33bf8a61 | 2026-11-06: Ollama 0.40.13/0.40.15, llama.cpp b12144 CPU+Vulkan, LM Studio llmster 0.0.27-1, Chromium captures | — |
-| 1 Locality truth | in progress (1.1, 1.2 committed; 1.3 offline-readiness, live Ollama run, EC-02/28 evidence open) | | unit + loopback HTTP only; not yet against real Ollama | |
+| 1 Locality truth | done (1.1, 1.2, 1.3) | see git log | 2026-11-06: real Ollama 0.40.13 rows (cloud stub, renamed cloud copy, local, missing model) | EC-02 second-interface run not run |
 | 2 Native runtime introspection | not started | | | |
 | 3 Lifecycle states and errors | not started | | | |
 | 4 Get a model (install, import, guide) | not started | | | |
@@ -42,9 +42,9 @@ owner questions answered (LM Studio: yes; download budget: not exceeded).
 Track by ID from `03-EDGE-CASES.md`: tested-real, tested-fault-injected, documented, not-run (reason),
 or out-of-scope (reason). One line per ID once touched.
 
-- EC-01: tested-real (classification is wrong today; evidence in `00-BASELINE.md`). Fix Phase 1.
-- EC-02: not-run (needs a second interface or hosts entry); design recorded in Phase 1.1.
-- EC-03: documented (vendor docs: Ollama cloud/remotes, LM Studio catalog/JIT, llama.cpp `-hf`).
+- EC-01: tested-real; fixed Phase 1: real Ollama refuses `gpt-oss:20b-cloud` and renamed copy `my-local-copy` via `remote_host`.
+- EC-02: fault-injected/unit only (addresses resolved, not spelling; `tests/test_locality.py`); not-run live: no second interface or hosts entry. Address is checked at validation, not pinned at connect time (open, Phase 6).
+- EC-03: documented; llama.cpp `--offline` found, launch flags invisible so readiness is `unknown`, never a pass (vendor docs: Ollama cloud/remotes, LM Studio catalog/JIT, llama.cpp `-hf`).
 - EC-04: not-run (Phase 6).
 - EC-05: tested-real for Ollama (`/api/ps.context_length`), llama.cpp (`/props`, `/slots`), LM Studio (JIT config); fix Phase 2.2.
 - EC-06: documented for llama.cpp (`--context-shift` default disabled) and LM Studio (`truncateMiddle`); test Phase 2.2.
@@ -61,7 +61,7 @@ or out-of-scope (reason). One line per ID once touched.
 - EC-23: reproduced as a missing capability (no disk preflight). Fix Phase 4.
 - EC-25: not-run (network-dependent tag check; Phase 4).
 - EC-27: documented (llama.cpp accepts `input_audio`; no local audio run yet).
-- EC-28: not-run (Phase 1).
+- EC-28: tested-real for Strict Offline fallback rungs (cloud copy refused live) and unit-tested. Not covered: non-offline silent fallback; Phase 7 confirmation UI.
 
 ## Evidence ledger (real runs only)
 
@@ -129,3 +129,9 @@ Still open (ask at the phase that needs it):
   `validate_offline_route`, `OllamaProvider.data_stays_local(model)`, `validate_model_name(allow_cloud=False)`.
   Cloud-install confirmation UI deferred to Phase 7. Tests: `tests/test_locality.py` (12), plus offline/install/privacy suites 146 pass.
   Process note: do not `git stash` in this shared checkout (it briefly swept another session's CSS edit; restored intact).
+- 2026-11-06, Phase 1.3: `providers/offline_readiness.py` (Ollama: model on disk, not remote, nonzero size; llama.cpp:
+  `/health` 503 is not ready, 200 is `unknown` with an `--offline` note). Wired into `validate_offline_route`.
+  `tests/conftest.py` autouse fixture disables the probe for other tests (a running dev Ollama broke 6 of them;
+  that was the check working). Live run: `~/.hutch-tmp/offline-models-2026-11/evidence/p1-live-readiness.txt`.
+  Gates: 68 focused tests pass, `check:agent` pass. Open: LM Studio/vLLM readiness (Phase 2), connect-time address pinning,
+  cloud opt-in UI (Phase 7), compat.json/docs wording (Phase 8).

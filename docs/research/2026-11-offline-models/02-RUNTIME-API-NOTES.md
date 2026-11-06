@@ -208,3 +208,13 @@ Sources: https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/serve
 - **D7 competing apps** — recorded in `01-FAILURE-MINING.md`; the common failure is
   classifying by the endpoint URL or model name and never reading the runtime's own
   signal (IncarnaMind #174 is the clearest public example).
+
+## Phase 1 addendum (2026-11-06): offline readiness
+
+- llama.cpp `tools/server/README.md` (read 2026-11-06, https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md):
+  `--offline` (env `LLAMA_ARG_OFFLINE`) forces cache use and blocks network; `/props.model_path` mirrors `-m`;
+  `-hf` downloads at start. Launch flags are not exposed over HTTP. Class: configuration. Decision: readiness for
+  llama.cpp is `unknown` with the words "start it with --offline", never a pass; `/health` 503 is "not ready".
+- Ollama: a model absent from `/api/tags` makes a chat request contact the registry; a cloud row needs sign-in.
+  Class: integration. Decision: Strict Offline refuses absent, remote and zero-size rows early (live on 0.40.13).
+- Evidence: `~/.hutch-tmp/offline-models-2026-11/evidence/p1-live-readiness.txt`.

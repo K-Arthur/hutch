@@ -80,20 +80,29 @@ def endpoint_locality(base_url: str) -> Locality:
     return Locality(False, "endpoint", f"{host} resolves to {', '.join(addresses) or 'nothing'}, not loopback")
 
 
-def fetch_ollama_entry(base_url: str, model: str, timeout: float = _PROBE_TIMEOUT) -> Optional[dict[str, Any]]:
-    """The model's row from the runtime's own `/api/tags`, or None if the runtime is down or lacks the model."""
+def fetch_ollama_rows(base_url: str, timeout: float = _PROBE_TIMEOUT) -> Optional[list[dict[str, Any]]]:
+    """The runtime's own `/api/tags` rows, or None when the runtime did not answer."""
     try:
         import httpx
         r = httpx.get(base_url.rstrip("/") + "/api/tags", timeout=timeout)
         r.raise_for_status()
-        rows = r.json().get("models", [])
+        return list(r.json().get("models", []))
     except Exception:
         return None
+
+
+def find_row(rows: list[dict[str, Any]], model: str) -> Optional[dict[str, Any]]:
     wanted = _with_tag(model)
     for row in rows:
         if _with_tag(row.get("name") or row.get("model") or "") == wanted:
             return row
     return None
+
+
+def fetch_ollama_entry(base_url: str, model: str, timeout: float = _PROBE_TIMEOUT) -> Optional[dict[str, Any]]:
+    """The model's row from the runtime's own `/api/tags`, or None if the runtime is down or lacks the model."""
+    rows = fetch_ollama_rows(base_url, timeout)
+    return find_row(rows, model) if rows is not None else None
 
 
 def _with_tag(name: str) -> str:

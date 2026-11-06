@@ -205,6 +205,10 @@ def validate_offline_route(spec: str, base_url: Optional[str] = None) -> None:
     verdict = route_locality(provider, model, endpoint)
     if verdict.local is False:
         raise ValueError(f"{spec} is not a local inference route: {verdict.reason}")
+    from .offline_readiness import route_readiness
+    ready = route_readiness(provider, model, endpoint)
+    if ready.ready is False:
+        raise ValueError(f"{spec} is not ready for Strict Offline: {ready.reason}")
 
 
 def offline_endpoints_for_bot(bot, *, model_override: str = "") -> list[str]:

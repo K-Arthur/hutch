@@ -67,3 +67,13 @@ def store(config) -> Store:
     s = Store(config)
     yield s
     s.close()
+
+
+@pytest.fixture(autouse=True)
+def _no_live_runtime_readiness_probe(request, monkeypatch):
+    """Strict Offline readiness asks the runtime on loopback; a developer's running Ollama must not change other
+    tests' outcomes. tests/test_offline_readiness.py exercises the real check."""
+    if request.module.__name__.endswith("test_offline_readiness"):
+        return
+    from hutch.providers import offline_readiness
+    monkeypatch.setattr(offline_readiness, "_CHECKS", {})
