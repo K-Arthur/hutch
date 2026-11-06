@@ -77,6 +77,7 @@ from .security import (DEVICE_COOKIE, ENROLLMENT_COOKIE, FLOW_COOKIE, SESSION_CO
                        MAX_PASSKEY_CREDENTIAL_BYTES, SecurityMiddleware, allowed_hosts_from_env)
 from .sse import (global_event_stream, phone_change_page, resource_change_stream,
                   resume_cursor, run_event_stream)
+from .schedule_history_api import register_schedule_routes
 
 _STATIC = Path(__file__).parent / "static"
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")
@@ -3203,6 +3204,8 @@ def create_app() -> FastAPI:
                          "account_daily_cost_reserved_usd": account_cost_reserved,
                          "models_endpoint": conn.models_endpoint})
         return rows
+
+    register_schedule_routes(app, store, bot_or_404)
 
     @app.get("/api/v1/schedules/control", response_model=ScheduleControlResource)
     def get_schedule_control() -> dict:
