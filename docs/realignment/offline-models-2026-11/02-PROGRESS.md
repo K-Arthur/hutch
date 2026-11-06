@@ -11,7 +11,7 @@ covers before relying on it.
 | 0 Diagnose | done | 33bf8a61 | 2026-11-06: Ollama 0.40.13/0.40.15, llama.cpp b12144 CPU+Vulkan, LM Studio llmster 0.0.27-1, Chromium captures | — |
 | 1 Locality truth | done (1.1, 1.2, 1.3) | see git log | 2026-11-06: real Ollama 0.40.13 rows (cloud stub, renamed cloud copy, local, missing model) | EC-02 second-interface run not run |
 | 2 Native runtime introspection | done (2.1, 2.2, 2.3, 2.4) | d057cc95..7c53c59e | 2026-11-06: llama.cpp b12144 9931 (4096 per slot with `-c 8192 --parallel 2`), LM Studio applied 8192, discovery fingerprints both, squatter unknown, `--api-key` needs_key then a keyed chat, needle self-check at 4096 | vLLM/SGLang not installed; LM Studio API-token mode not enabled live (401 path tested with a real key-protected llama-server) |
-| 3 Lifecycle states and errors | done (3.1, 3.2, 3.3) | 4d8b2ce3 + evidence commit | 2026-11-06: real Ollama cold load, real llama.cpp 503, real LM Studio unload/reload, real runner kill and llama-server restart | EC-09 4 GB model not downloaded (budget); old-version gate not live-tested |
+| 3 Lifecycle states and errors | done (3.1, 3.2, 3.3) | bfcfaaf9..23ed98a3 | 2026-11-06: real Ollama cold load, real llama.cpp 503, real LM Studio unload/reload, real runner kill and llama-server restart | EC-09 4 GB model not downloaded (budget); old-version gate not live-tested |
 | 4 Get a model (install, import, guide) | not started | | | |
 | 5 Multimodal and tool reliability | not started | | | |
 | 6 Strict Offline live, boundary ADR | not started | | | Owner decision on the boundary (Phase 6.3) |
@@ -259,7 +259,7 @@ Still open (ask at the phase that needs it):
   wait, `load_fixed_runtime`), `RuntimeState.sleeping` from llama.cpp `/props.is_sleeping`,
   admission passes `load_ms`/`sleeping`, and the run records the measured load in the existing
   `model_load:` key and `load` event. A LOADING state is no longer cached, so the poll sees the
-  transition. Tests: `tests/test_local_lifecycle.py` (9); focused local suites 41 pass.
+  transition. Tests: `tests/test_local_lifecycle.py` (8); focused local suites 41 pass.
   `check:agent` passes. Live cold-load evidence pending.
 - 2026-11-06, Phase 3.1 review: moved `_exit_reason` to `runtime/outcomes.py` to keep
   `runtime/builtin.py` at its 1,955-line cap; the call site now reads the runtime's state via
@@ -271,7 +271,7 @@ Still open (ask at the phase that needs it):
   `lifecycle.ensure_loaded`/`refresh_local_route` re-read the runtime before every local call
   (fixed routes are no longer assumed resident) and reload once; `admission_memory` moved with
   the same measured-allocation rule. `runtime/builtin.py` now 1,942 lines (was 1,955): the
-  Ollama-only refresh and memory helpers moved out. Tests: `test_local_failure.py` (12),
+  Ollama-only refresh and memory helpers moved out. Tests: `test_local_failure.py` (17),
   `test_local_lifecycle.py`; focused suites 369 pass. Live kill/restart evidence is below.
 - 2026-11-06, Phase 3.3: `providers/local/versions.py` gates Ollama (tools 0.3.0,
   structured outputs 0.5.0, thinking 0.9.0, measured window 0.10.0) and LM Studio (tools
@@ -295,12 +295,13 @@ Still open (ask at the phase that needs it):
   `cannot connect` classified `reload`, restarted server detected, answer `restarted`.
   Evidence JSON under `~/.hutch-tmp/offline-models-2026-11/evidence/p3-*.json`; services
   stopped and ports 11434, 1234, 9931 and 8080 verified free.
-- 2026-11-06, Phase 3 gates: focused suite (19 files) 369 passed; `tests/test_local_failure.py`
-  17 passed after the real-wrapper fix; `npm run check:agent` passed (context hygiene, tool
-  contracts, constitution, agent map); `scripts/audit_emoji.py` reports only the pre-existing
-  `.codewhale/state` file, not a Phase 3 file. No UI or website change, so the visual gate does
-  not apply; no screenshots are claimed. `/code-review` and `/simplify` are not available in
-  this session; the phase diff was re-read manually and the findings above were fixed.
+- 2026-11-06, Phase 3 gates: the 19-file focused suite passed 369 before the final real-wrapper
+  marker fix; after it, the 7-file runtime set passed 201 and `tests/test_local_failure.py`
+  passed 17. `npm run check:agent` passed (context hygiene, tool contracts, constitution, agent
+  map); `scripts/audit_emoji.py` reports only the pre-existing `.codewhale/state` file, not a
+  Phase 3 file. No UI or website change, so the visual gate does not apply; no screenshots are
+  claimed. `/code-review` and `/simplify` are not available in this session; the phase diff was
+  re-read manually and the findings above were fixed.
 - Phase 3 exit checks: EC-09, EC-10, EC-11 and EC-22 are recorded above with real evidence or
   an exact not-run reason; the only deviation is the 4 GB model (budget) and the old-runtime
   upgrade path (no old runtime installed). Phase 3 is done.
