@@ -179,3 +179,17 @@ Two request-shaping rules are data on the template, not provider-specific code, 
 2026-11-06 (Hugging Face, Kilo, Novita, NVIDIA, Ollama Cloud, Synthetic, Venice); a listing there is not a key
 check. The Tencent Token Plan is blocked by its terms and has no template (ADR-0033). The research record is
 `docs/research/2026-11-provider-expansion/05-HOSTED-AND-GATEWAYS.md`.
+
+## Phase 5 routes (2026-11-06): local and custom endpoints, identities not verified behavior
+
+- **vLLM, SGLang.** OpenAI chat over `/v1`; the served window is `max_model_len` from `/v1/models` when `owned_by`
+  names the server. Implemented-unverified: neither is installed on the validation host, and the stand-in servers in
+  `tests/test_local_window.py` prove Hutch's reading of the documented shape only.
+- **LM Studio, llama.cpp, Ollama.** Unchanged from the offline-models work; re-exercised 2026-11-06 on LM Studio
+  0.0.27-1 (cold `qwen3-0.6b` loaded at 16384 by a real `hutch run`, and a named custom connection streamed through
+  the pinned transport). Ollama 0.40.13 was identified from its own `/api/version` behind `/v1` (GET only).
+- **inferrs, ds4.** Documented only. inferrs is an OpenAI-compatible server at `:8080/v1` that may need string-only
+  message content; ds4 is Metal-only. Both are reachable through the generic OpenAI-compatible route; neither has a
+  template or a live check.
+- **Custom OpenAI/Anthropic endpoints.** ADR-0034 address policy, pinned transport, layered test. Statuses are
+  unchanged (implemented-unverified).

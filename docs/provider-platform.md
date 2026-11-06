@@ -165,10 +165,13 @@ covers tool calling (two calls in one turn, dispatched and answered from), the s
 with no non-streaming retry, and speech-to-text on `mimo-v2.5-asr` through `transcribe_audio`. Every other
 hosted provider remains unverified, and vision, cancellation mid-stream and progressive token rendering
 were not exercised anywhere.
-- Custom endpoints keep Hutch's existing credential scoping (ambient keys go only to official hosts,
-  embedded URL credentials are refused, Strict Offline requires loopback). Outside Strict Offline a
-  private-range allowlist and redirect/DNS pinning are not implemented in the provider layer: reviewed
-  and recorded, not silently assumed safe.
+- Custom endpoints keep Hutch's credential scoping (ambient keys go only to official hosts, embedded URL
+  credentials are refused, Strict Offline requires loopback) and, since ADR-0034, are judged by the address they
+  reach: link-local and metadata addresses are refused for every scheme, a public-looking name must resolve to a
+  public address (or be listed in `HUTCH_PRIVATE_HOSTS`), httpx connections are pinned to the validated address, plain
+  HTTP is limited to loopback and private addresses, and a key is never sent in clear text off loopback. Limits: the
+  Anthropic SDK path is checked before each call but not pinned; an environment proxy resolves the name itself;
+  vendor hosts are exempt from the name rule; the private-address path was not run live (no LAN peer).
 - Media expansion is partly shipped: speech-to-text and connection-scoped speech synthesis are
   implemented and live-verified against one account, and the synthesized clip was round-trip
   transcribed. The two-host audio-overview pipeline remains for podcast rendering. Provider-native

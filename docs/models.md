@@ -432,8 +432,10 @@ model is loaded with a fitted window and the applied value is read back from `lo
 Hutch refuses an over-long prompt before sending and lets compaction run first where enabled. A
 key-protected server answers 401/403: the Models page and discovery say `needs_key`, and a key
 stored on a connection is sent only to that connection's exact loopback origin. vLLM and SGLang
-do not report the window they serve over `/v1/models`; Hutch says unknown and makes no truncation
-claim. Live evidence: llama.cpp b12144 and LM Studio 0.0.27-1, 2026-11-06, in
+put `max_model_len` on every `/v1/models` entry (their `ModelCard`, checked 2026-11-06); Hutch reads
+it as the applied window only when `owned_by` names the server, and says unknown for any other
+OpenAI-compatible server. No vLLM or SGLang was installed to run live, so that path is
+implemented-unverified (ADR-0034). Live evidence: llama.cpp b12144 and LM Studio 0.0.27-1, 2026-11-06, in
 `docs/realignment/offline-models-2026-11/02-PROGRESS.md`.
 
 ### Loading, sleeping and eviction (2026-11-06)

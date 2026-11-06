@@ -113,8 +113,9 @@ The maintenance preflight and concurrent configuration behavior were checked aga
   `~/.cache/huggingface/hub`; `--offline` keeps a started server from fetching anything.
   This is a guided command, not a Hutch job.
 - **vLLM and SGLang.** Launch them with their own CLI and point a connection at the
-  served `/v1` endpoint. Hutch has no install surface for either; their `/v1/models`
-  response does not report a served context window, so Hutch treats the window as unknown.
+  served `/v1` endpoint. Hutch has no install surface for either. Their `/v1/models` entries carry
+  `max_model_len`, which Hutch reads as the window when `owned_by` names the server (not run live on this
+  host); any other OpenAI-compatible server keeps an unknown window.
 - **Gated or private repositories.** A Hugging Face token is the runtime's credential
   (Ollama's own sign-in/key, llama.cpp's `-hft`/`HF_TOKEN`). Hutch never asks for it in a
   URL and never logs it.

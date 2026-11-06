@@ -659,6 +659,29 @@ and shared usage reservations; approved OpenCode tools run with the user's OS au
 shell sandbox. Pi remains disabled. The separate reviewed OpenCode coding handoff is an
 owner-launched terminal workflow and is not a runtime adapter.
 
+## Endpoint addresses and the connection test (2026-11-06, ADR-0034)
+
+- **Which addresses are allowed.** Hutch judges the address a URL reaches, not its spelling. Loopback, private
+  (RFC 1918, IPv6 ULA, `100.64.0.0/10` for tailnets) and public addresses are allowed; link-local, unspecified,
+  multicast and reserved ranges, which include cloud metadata at `169.254.169.254`, are refused for every scheme and
+  every spelling (`2852039166`, `0xa9.0xfe.0xa9.0xfe`). Plain HTTP is for loopback and private addresses only, and a
+  key is never sent over plain HTTP off loopback.
+- **Names.** A name that looks public must resolve to a public address. A local-style name (`localhost`, a
+  single label, `.lan`, `.local`, `.home.arpa`, `.internal`, `.ts.net`) may resolve to your own network. For anything
+  else that resolves privately, such as a company gateway behind split-horizon DNS, list the exact name in
+  `HUTCH_PRIVATE_HOSTS` (comma separated) in the environment that starts Hutch, or use the address. The connection is
+  pinned to the address that passed, with the original name kept for the certificate.
+- **Pasted URLs.** `.../v1/chat/completions`, `.../v1/models` and a trailing slash are reduced to the root at save
+  time. Hutch never adds `/v1` for you; the test tells you when the server wants it.
+- **`hutch connections test`** (and the Models page test) names the layer that failed: `address`, `dns`, `connect`,
+  `tls`, `key` or `models`, with what it means (HTTPS to a plain-HTTP port, a self-signed certificate and
+  `SSL_CERT_FILE`, a 401 from a protected server, a root URL that needs `/v1`, a redirect that was not followed). It
+  sends no inference request. A custom endpoint that is a user-run server is reported as not key-verified, because
+  such servers answer their model list with any key or none; Ollama behind `/v1` is named from its own
+  `/api/version` and flagged, since `/v1` cannot set its context window (use the Ollama route).
+- **Keyless local servers.** Use `vllm/<model>`, `lmstudio/<model>` or `openai-compatible/<model>` with the bot's base
+  URL. That route sends no key unless `HUTCH_API_KEY` is set, and it is under the same address policy.
+
 ## Limits worth knowing
 
 - **Compatibility is route-level.** `GET /api/v1/compatibility` lists the HTTP shape, fields Hutch sends or omits,
