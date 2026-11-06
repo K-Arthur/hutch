@@ -83,3 +83,34 @@ Order by user harm, as the master prompt requires:
 
 Phase 0 decisions recorded: the sibling package keeps hosted providers; this package owns
 Ollama, llama.cpp, LM Studio, vLLM and SGLang (as stated in `02-PROGRESS.md`).
+
+## Phase 5 addendum (2026-11-06)
+
+Failure classes for multimodal, tools and reasoning. Sources were opened; see
+`06-PHASE5-MULTIMODAL.md` for the per-source detail.
+
+| ID | Complaint | Source | Class | Who can fix | Hutch response | Test idea |
+|---|---|---|---|---|---|---|
+| F12 | Thinking plus tools can return an empty answer and no tool call, with all generation in the reasoning block. | https://github.com/ollama/ollama/issues/10976 | model-specific + integration | Ollama, mitigated by Hutch | Send `think=False` for tool probes; a reasoning-only turn is classified and explained, never counted as a silent success. | Real qwen3-family model with thinking on, tools and a small cap. |
+| F13 | A vision-thinking model can spend `num_predict` inside `think`, return `done_reason: length` and no content. | https://github.com/ollama/ollama/issues/17978 | model-specific | Ollama, mitigated by Hutch | `length` plus thinking plus no answer is its own note naming the budget and the fix. No automatic second call. | Real local thinking model at a 64-token cap. |
+| F14 | llama-server can return an empty tool-call id; echoing it back breaks strict clients. | https://github.com/ggml-org/llama.cpp/issues/11992 | integration/protocol | llama.cpp, mitigated by Hutch | Deterministic ids for missing ids and a rejection of duplicate ids (already in `_normalize_call_ids`); bench records the cause. | Real llama.cpp call with no id, replayed through a tool result. |
+| F15 | A wrong or missing chat template hides tool calls inside reasoning or plain content. | https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/function-calling.md and https://lmstudio.ai/docs/developer/openai-compat/tools | model-specific + integration | runtime, model author, mitigated by Hutch | Bench counts "reasoning only", "call-shaped prose" and "no call"; Hutch never promotes prose to a call. | Bench three local models per runtime; keep the reasons. |
+| F16 | LM Studio's parser can enter `<think>` blocks and treat reasoning prose as tool-call markers. | https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1592 | model-specific + integration | LM Studio, mitigated by Hutch | Do not enable thinking for probes; classify reasoning-only outcomes per model. | Bench on LM Studio with a reasoning model at a small cap. |
+| F17 | LM Studio rejected a base64 data URI in `image_url` (WebP reported); PNG or JPEG worked in a workaround. | https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1752 | integration/protocol | LM Studio, mitigated by Hutch | Live-test PNG and WebP; if WebP is refused, say so before sending rather than converting silently. | Real PNG and WebP through the app to LM Studio. |
+| F18 | Ollama GGUF import does not accept a separate mmproj, so a text GGUF import cannot become a vision model. | https://docs.ollama.com/import and the live attempt in this phase | integration/protocol | Ollama | The import path does not promise vision; the guide says to pull a vision-capable model. | Import the retained Qwen2.5-VL GGUF and check `/api/show`. |
+
+| ID | Source (accessed 2026-11-06) | Fact taken | Decision it changed |
+|---|---|---|---|
+| R42 | https://docs.ollama.com/capabilities/vision | `/api/chat` images are base64 strings in a message's `images` array; `/api/show` reports `vision`. | Keep the native image conversion and the capability gate. |
+| R43 | https://docs.ollama.com/import | GGUF import takes one file or a shard wildcard; no mmproj field is documented. | Do not offer imported-GGUF vision as a supported path; test it and record the result. |
+| R44 | https://github.com/ollama/ollama/issues/10976 | `think: true` plus tools with qwen3 produced empty content and no call; `think: false` produced the call. `/v1` may force thinking when no preference is sent. | Tool probes send `think=False`; classify reasoning-only turns. |
+| R45 | https://github.com/ollama/ollama/issues/17978 | qwen3-vl-thinking can consume the whole `num_predict` in `think`, return `done_reason: length` and empty content. | A `length` plus reasoning-only result gets its own note and fix. |
+| R46 | https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/multimodal.md | Vision requires `--mmproj` (or `-hf` with the projector); image, audio and video go through the OpenAI chat API. | The retained Qwen2.5-VL GGUF + Q8_0 projector is the real vision stack. |
+| R47 | https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/function-calling.md | Tool calling depends on the Jinja template; `parallel_tool_calls` is opt-in; reasoning and tool calls can coexist. | Bench classification separates template/format causes; Hutch does not opt into parallel calls. |
+| R48 | https://github.com/ggml-org/llama.cpp/issues/11992 | Tool-call ids can be empty in server responses. | Keep deterministic id assignment; record empty ids as a cause. |
+| R49 | https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1592 | LM Studio's parser scans inside `<think>` blocks and can leave `content` empty with `finish_reason: stop`. | Reasoning-only outcomes are distinct; no thinking-enabled tool probes. |
+| R50 | https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1752 | LM Studio 0.4.9+ rejected a base64 image data URI (WebP report); PNG/JPEG were used as workarounds. | Live-test PNG and WebP before claiming LM Studio vision; refuse WebP only if confirmed. |
+| R51 | https://lmstudio.ai/docs/developer/openai-compat/tools | Native tool use depends on a supported template; unparsed calls stay in `content`; `finish_reason` is `tool_calls` on success. | Bench counts call-shaped prose separately; no text-to-call repair. |
+| R52 | https://lmstudio.ai/docs/developer/openai-compat/chat-completions | The endpoint accepts text and images; the documented payload has no thinking toggle. | Hutch cannot disable LM Studio thinking per request; disclose that in the route notes. |
+| R53 | https://docs.ollama.com/capabilities/speech | Ollama exposes `/v1/audio/speech` with speech models, WAV/PCM output and a 4,096-character input limit. | Speech is documented as deferred; no speech model was retained or downloaded. |
+| R54 | https://lmstudio.ai/docs/developer/openai-compat | LM Studio exposes `/v1/embeddings` and lists embedding models. | No Hutch feature needs a local embedding route for this phase; the audit records that no hosted embedding call exists. |
