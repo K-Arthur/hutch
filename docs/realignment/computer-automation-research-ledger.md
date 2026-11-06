@@ -144,3 +144,44 @@ Physical phones, live Telegram and live hosted-provider calls are not available 
 - The owner's existing (non-Hutch) desktop and portal consent flow; not implemented.
 - Non-KDE toolkits under AT-SPI (GTK, LibreOffice) and their tokenizers.
 - Full native and browser e2e runs: they are the evidence for P3, P5 and P7, not for this phase.
+
+## Phase log
+
+| Phase | Status | Commit | Evidence | Notes |
+|---|---|---|---|---|
+| P0 research and design | Complete | `58c45c45` | this ledger; `docs/realignment/computer-automation-design.md` | Two real reproductions recorded: CU-01 and CU-02. All other findings are source-confirmed; each fixing phase starts with its own real reproduction. |
+
+Verification actually run for P0:
+
+```bash
+npm run check:agent
+# Context hygiene check passed (1040 source files; 117 frozen over-cap files).
+# Tool contract check passed (47 registered tools; canonical schemas certifiable; specs match).
+# Constitution check passed (3 roles, 14 rules; every rule maps to existing enforcement).
+# Agent map check passed (119 lines; 2471 tracked files scanned).
+
+.venv/bin/python - <<'PY'
+from types import SimpleNamespace
+from hutch.tools.computer import ComputerTool
+print(ComputerTool().run({"action": "close"}, SimpleNamespace(dry_run=False)))
+from hutch.tools import _CATALOG
+_CATALOG["computer"]  # KeyError
+PY
+# CU-01 close-first: False | computer error: 'ComputerTool' object has no attribute '_budget'
+# CU-02 catalog computer: KeyError 'computer'
+
+uv run --frozen --no-sync python scripts/audit_emoji.py --root docs/realignment
+# audit:emoji - clean (scanned 668 files, 0 waiver(s)).
+```
+
+Environment probe results are in the Environment table above; they were measured on this host, not
+inferred from the repository.
+
+Next phase: P1, scheduler claim truth. It starts with the real SQLite marker-rendering
+reproduction and must not begin until a fresh session.
+
+Open questions carried forward:
+
+1. P2 assumes schedule-linked Auto also requires `approval_mode == "ask"`. Settle before P2.
+2. P9 will append to `docs/realignment/claims-audit.md` rather than rewrite the dated findings.
+3. Phase IDs are P1-P9 because the originating prompt's section 3 was truncated.
