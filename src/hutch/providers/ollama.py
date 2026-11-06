@@ -23,12 +23,12 @@ import json
 import time
 from typing import Any, Optional
 
-from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall, Watchdog, abort_response,
-                   parse_tool_args, parse_tool_args_state, record_adapter_receipt)
-from .ollama_extras import OllamaExtras, split_leaked_reasoning
+from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, Watchdog, abort_response,
+                   parse_tool_args, record_adapter_receipt)
+from .ollama_extras import OllamaExtras
+from .ollama_result import fold_ollama_chunks
 
 DEFAULT_BASE_URL = "http://localhost:11434"
-TRUNCATION_RATIO = 0.98
 
 
 def _httpx():
@@ -330,7 +330,7 @@ class OllamaProvider(OllamaExtras, Provider):
             r = self._http().post("/api/chat", json=body, timeout=self._timeout(req))
             if r.status_code >= 400:
                 raise self._error_from_response(r, req.model)
-            return self._fold([r.json()], req, streamed=False)
+            return fold_ollama_chunks([r.json()], req, streamed=False)
         except Exception as exc:
             raise self._wrap_exc(exc)
 
@@ -367,39 +367,7 @@ class OllamaProvider(OllamaExtras, Provider):
                 unregister()
         if not chunks or not chunks[-1].get("done"):
             raise ProviderError("stream", "the stream ended before Ollama said it was done", provider=self.name)
-        return self._fold(chunks, req, streamed=True)
-
-    def _fold(self, chunks: list[dict[str, Any]], req: ChatRequest, streamed: bool) -> ChatResult:
-        content, thinking, calls = [], [], []
-        for c in chunks:
-            msg = c.get("message") or {}
-            if msg.get("content"):
-                content.append(msg["content"])
-            if msg.get("thinking"):
-                thinking.append(msg["thinking"])
-            for tc in msg.get("tool_calls") or []:
-                fn = tc.get("function", {})
-                args, err, state, double = parse_tool_args_state(fn.get("arguments"))
-                raw = fn.get("arguments") if isinstance(fn.get("arguments"), str) else (
-                    json.dumps(fn.get("arguments"), ensure_ascii=False) if fn.get("arguments") is not None else "")
-                calls.append(ToolCall(id=tc.get("id") or "", name=fn.get("name", ""),
-                                      arguments=args, raw=raw or "", parse_error=err,
-                                      arguments_state=state, double_decoded=double))
-        last = chunks[-1]
-        p, e = int(last.get("prompt_eval_count") or 0), int(last.get("eval_count") or 0)
-        ev_ns = last.get("eval_duration") or 0
-        res = ChatResult(
-            content=(split := split_leaked_reasoning("".join(content), "".join(thinking)))[0], thinking=split[1], tool_calls=calls, prompt_tokens=p,
-            completion_tokens=e, model=last.get("model", req.model), streamed=streamed,
-            load_ms=(last.get("load_duration") or 0) / 1e6, total_ms=(last.get("total_duration") or 0) / 1e6,
-            tokens_per_sec=(e / (ev_ns / 1e9)) if ev_ns and e else None,
-            context_window=int(req.num_ctx or 0),
-            finish_reason="tool_calls" if calls else ("length" if last.get("done_reason") == "length" else "stop"))
-        if req.num_ctx and p >= int(req.num_ctx * TRUNCATION_RATIO):
-            res.prompt_truncated = True
-            res.notes.append(f"prompt evaluated {p} tokens against a {req.num_ctx}-token window: it was almost "
-                             "certainly truncated from the front")
-        return res
+        return fold_ollama_chunks(chunks, req, streamed=True)
 
 
 def _params_b(text: Any) -> Optional[float]:
