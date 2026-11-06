@@ -163,5 +163,5 @@ Real server on a throwaway `HUTCH_STATE_DIR`; tools in `docs/research/2026-11-va
 `uv run --frozen --no-sync python docs/research/2026-11-vault-signin/tools/webauthn_localhost_prf.py OUT.json`
 (starts its own throwaway static server, needs the installed Playwright Chromium; result committed at
 `docs/research/2026-11-vault-signin/artifacts/phase1/webauthn-localhost-prf.json`). The KDF timing
-run was a scratch script (scrypt 2^17/8/1 against Argon2id at 19, 64 and 128 MiB, median of 5, one
-machine); its numbers are recorded in `01-SOURCES.md` B17 and are not a general performance claim.
+run is `docs/research/2026-11-vault-signin/tools/kdf_bench.py` (scrypt 2^17/8/1 against Argon2id at
+19, 64 and 128 MiB, median of 5, one machine); its numbers are recorded in `01-SOURCES.md` B17 and are not a general performance claim.
