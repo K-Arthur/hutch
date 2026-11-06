@@ -530,7 +530,7 @@
       "quick_setup": true,
       "source": "https://docs.openclaw.ai/providers/stepfun.md",
       "quota_hint": "Per-token billing on the provider account. Hutch's currency admission needs a reviewed price row in Settings > Prices; the provider's own billing remains authoritative.",
-      "model_protocol_hint": "China host. The global host is api.stepfun.ai and keys are matched to their region. Step Plan uses a different path and is not this template."
+      "model_protocol_hint": "China host (api.stepfun.com). The global host has its own template, stepfun-global, with its own key variable, because keys are matched to their region. Step Plan uses a different path and is not offered."
     },
     "groq": {
       "title": "Groq",
@@ -663,14 +663,15 @@
       "provider": "synthetic",
       "auth_method": "api_key",
       "protocol": "openai-chat",
-      "base_url": "https://api.synthetic.new/v1",
+      "base_url": "https://api.synthetic.new/openai/v1",
+      "anthropic_base_url": "https://api.synthetic.new/anthropic",
       "api_key_env": "SYNTHETIC_API_KEY",
       "billing": "per_token",
       "models_endpoint": true,
       "quick_setup": true,
       "source": "https://dev.synthetic.new/docs/api/overview",
       "quota_hint": "Per-token billing on the provider account. Hutch's currency admission needs a reviewed price row in Settings > Prices; the provider's own billing remains authoritative.",
-      "model_protocol_hint": "syn: aliases route to an upstream model; Hutch records the model the provider reports back."
+      "model_protocol_hint": "syn: aliases route to an upstream model; Hutch records the model the provider reports back. OpenAI chat is the default; the documented Anthropic base is recorded for a per-model override."
     },
     "venice": {
       "title": "Venice",
@@ -740,7 +741,7 @@
       "quick_setup": true,
       "source": "https://ark.volcengine.com/region:cn-beijing/docs/base-url-and-authentication.md",
       "quota_hint": "Per-token billing on the provider account. Hutch's currency admission needs a reviewed price row in Settings > Prices; the provider's own billing remains authoritative.",
-      "model_protocol_hint": "ARK model ids are the account's own endpoint/model ids. The data-plane URL is not interchangeable with the control plane or the Coding Plan URL."
+      "model_protocol_hint": "ARK model ids are the account's own endpoint/model ids. The data-plane URL is not interchangeable with the control plane. This is the pay-as-you-go endpoint: a Volcengine Coding Plan uses /api/coding/v3 and this endpoint does not draw from its quota, so calls here are billed at pay-as-you-go rates. Hutch offers no Coding Plan template because the plan lists the tools it supports and Hutch is not one of them."
     },
     "tencent-cloud": {
       "title": "Tencent Cloud TokenHub",
@@ -754,7 +755,7 @@
       "quick_setup": true,
       "source": "https://cloud.tencent.cn/document/product/1823/130078",
       "quota_hint": "Per-token billing on the provider account. Hutch's currency admission needs a reviewed price row in Settings > Prices; the provider's own billing remains authoritative.",
-      "model_protocol_hint": "Region-scoped: a key is valid only on its own TokenHub site, and no cross-region or cross-site call is made. TokenPlan uses a different base URL and is not this template."
+      "model_protocol_hint": "Region-scoped: a key is valid only on its own TokenHub site, and no cross-region or cross-site call is made. TokenPlan uses a different base URL and is not this template; the Token Plan forbids automated and non-interactive use, so Hutch blocks it."
     },
     "kilocode": {
       "title": "Kilocode / Kilo Gateway",
@@ -782,7 +783,132 @@
       "quick_setup": true,
       "source": "https://docs.openclaw.ai/concepts/model-providers/custom-providers.md",
       "quota_hint": "Per-token billing on the provider account. Hutch's currency admission needs a reviewed price row in Settings > Prices; the provider's own billing remains authoritative.",
-      "model_protocol_hint": "BytePlus ModelArk is the international ARK sibling; its region base URL is not interchangeable with Volcengine's."
+      "model_protocol_hint": "BytePlus ModelArk is the international ARK sibling; its region base URL is not interchangeable with Volcengine's. This template is billed per token; a coding-plan endpoint exists at /api/coding/v3 and is not offered."
+    },
+    "vercel-ai-gateway": {
+      "title": "Vercel AI Gateway",
+      "provider": "vercel-ai-gateway",
+      "auth_method": "api_key",
+      "protocol": "openai-chat",
+      "base_url": "https://ai-gateway.vercel.sh/v1",
+      "anthropic_base_url": "https://ai-gateway.vercel.sh",
+      "api_key_env": "AI_GATEWAY_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": true,
+      "quick_setup": true,
+      "get_key_url": "https://vercel.com/docs/ai-gateway/authentication-and-byok/api-keys",
+      "source": "https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions",
+      "terms": {
+        "url": "https://vercel.com/docs/ai-gateway/authentication-and-byok/byok",
+        "requires_ack": true,
+        "notice": "With bring-your-own-key, Vercel retries a failed request with its own system credentials and bills that retry to your AI Gateway credits balance. Hutch cannot turn that off over the OpenAI wire, BYOK spend is not counted in Vercel budgets, and a provider restriction does not disable the fallback. Acknowledge only if you accept that a failed request can be paid for by the gateway account."
+      },
+      "quota_hint": "Billed in Vercel AI Gateway credits. Model ids are provider/model, and a listed model can still be refused for your key. Hutch needs a reviewed price row in Settings > Prices; the gateway's own billing remains authoritative.",
+      "model_protocol_hint": "One key reaches many upstream providers; the served provider and model can differ per request, so Hutch records the model the gateway reports. The Anthropic-compatible base is recorded for a per-model override."
+    },
+    "litellm": {
+      "title": "LiteLLM proxy (self-hosted)",
+      "provider": "litellm",
+      "auth_method": "custom_endpoint",
+      "protocol": "openai-chat",
+      "base_url": "http://localhost:4000/v1",
+      "api_key_env": "LITELLM_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": true,
+      "quick_setup": false,
+      "source": "https://docs.openclaw.ai/providers/litellm",
+      "quota_hint": "Billing depends on the upstreams the proxy fronts; spend, budgets and fallbacks are configured in the proxy, not in Hutch. Add a price row only for a model whose real price you know.",
+      "model_protocol_hint": "Model ids are proxy aliases (model_name) and /v1/models lists aliases, so the served upstream model can differ from the id you chose and can change when the proxy config changes. Hutch records the model the response reports. Use the proxy's own virtual or master key; a key sent to a LAN or remote proxy goes to that host."
+    },
+    "clawrouter": {
+      "title": "ClawRouter (managed gateway)",
+      "provider": "clawrouter",
+      "auth_method": "api_key",
+      "protocol": "openai-chat",
+      "base_url": "https://clawrouter.openclaw.ai/v1",
+      "api_key_env": "CLAWROUTER_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": true,
+      "quick_setup": false,
+      "source": "https://docs.openclaw.ai/providers/clawrouter",
+      "quota_hint": "Budget is set by the administrator's key policy and shared with every other client on that policy. Hutch does not read the gateway's usage endpoint.",
+      "model_protocol_hint": "Keys are issued by an administrator and scoped to a policy. The model list shows what the key may use, but a cached list is not authorization: a listed model can still be refused when the request is dispatched. Upstream model identity is the gateway's."
+    },
+    "bedrock-runtime": {
+      "title": "Amazon Bedrock (API key, OpenAI-compatible runtime)",
+      "provider": "bedrock",
+      "auth_method": "api_key",
+      "protocol": "openai-chat",
+      "base_url": "https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1",
+      "api_key_env": "AWS_BEARER_TOKEN_BEDROCK",
+      "billing": "per_token",
+      "models_endpoint": false,
+      "quick_setup": false,
+      "get_key_url": "https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html",
+      "source": "https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-mantle.html",
+      "quota_hint": "Per-token billing on the AWS account. A short-term Bedrock API key lasts at most 12 hours and is the recommended production form; a long-term key is for exploration only and belongs to an IAM user. Hutch needs a reviewed price row in Settings > Prices; AWS billing remains authoritative.",
+      "model_protocol_hint": "Bedrock API key (bearer) on the OpenAI-compatible bedrock-runtime endpoint. IAM credentials, SigV4 and the native Converse API are not implemented. The Region is part of the host, and a long-term key works only in the Region it was created in (another Region fails with 'Credential should be scoped to a valid region'). Model ids are foundation models or system inference profile ids with a us., eu., apac. or global. prefix; a bare id for a profile-only model fails with 'on-demand throughput isn't supported'. This endpoint has no model list, so enter the id from the model card. Hutch never adds or strips a prefix."
+    },
+    "bedrock-mantle": {
+      "title": "Amazon Bedrock Mantle (API key, OpenAI-compatible)",
+      "provider": "bedrock-mantle",
+      "auth_method": "api_key",
+      "protocol": "openai-chat",
+      "base_url": "https://bedrock-mantle.us-east-1.api.aws/v1",
+      "api_key_env": "AWS_BEARER_TOKEN_BEDROCK",
+      "billing": "per_token",
+      "models_endpoint": true,
+      "quick_setup": false,
+      "get_key_url": "https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html",
+      "source": "https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-mantle.html",
+      "quota_hint": "Per-token billing on the AWS account. Short-term Bedrock API keys last at most 12 hours; long-term keys are for exploration only. Hutch needs a reviewed price row in Settings > Prices; AWS billing remains authoritative.",
+      "model_protocol_hint": "Most models are served under /v1 and some under /openai/v1; a wrong prefix is refused with 'model ... isn't supported on this route', so change the base URL for those models. The Region is part of the host and a long-term key works only in its own Region. Model ids and inference profile ids are not interchangeable with the bedrock-runtime endpoint. Claude on Mantle uses an Anthropic Messages path that this template does not offer."
+    },
+    "microsoft-foundry": {
+      "title": "Microsoft Foundry / Azure OpenAI (v1 API, resource key)",
+      "provider": "microsoft-foundry",
+      "auth_method": "api_key",
+      "protocol": "openai-chat",
+      "base_url": "https://",
+      "headers": {
+        "api-key": "{api_key}"
+      },
+      "api_key_env": "AZURE_OPENAI_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": false,
+      "quick_setup": false,
+      "signin_guidance": "In the Azure portal open your Foundry or Azure OpenAI resource and copy a key and its endpoint. Add the connection with --base-url https://RESOURCE.openai.azure.com/openai/v1 . Hutch sends the key in the api-key header. Microsoft Entra ID tokens are not implemented.",
+      "source": "https://learn.microsoft.com/en-us/azure/foundry/openai/api-version-lifecycle",
+      "quota_hint": "Per-token billing on the Azure subscription. Hutch needs a reviewed price row in Settings > Prices; Azure billing remains authoritative.",
+      "model_protocol_hint": "The model field is the deployment name, exact and case-sensitive, and is not necessarily a public model id. The v1 API needs no api-version. Chat Completions is offered here; the Responses API is not. There is no model list to read."
+    },
+    "qianfan": {
+      "title": "Baidu Qianfan",
+      "provider": "qianfan",
+      "auth_method": "api_key",
+      "protocol": "openai-chat",
+      "base_url": "https://qianfan.baidubce.com/v2",
+      "api_key_env": "QIANFAN_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": false,
+      "quick_setup": true,
+      "source": "https://docs.openclaw.ai/providers/qianfan",
+      "quota_hint": "Per-token billing on the provider account. Hutch's currency admission needs a reviewed price row in Settings > Prices; the provider's own billing remains authoritative.",
+      "model_protocol_hint": "Keys start with bce-v3/ALTAK-. Qianfan's catalogue is static and the unauthenticated list endpoint refuses clients, so Hutch reads no model list: enter the model id from the Qianfan console. The service must be activated on the account first."
+    },
+    "stepfun-global": {
+      "title": "StepFun (global)",
+      "provider": "stepfun",
+      "auth_method": "api_key",
+      "protocol": "openai-chat",
+      "base_url": "https://api.stepfun.ai/v1",
+      "api_key_env": "STEPFUN_GLOBAL_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": true,
+      "quick_setup": true,
+      "source": "https://docs.openclaw.ai/providers/stepfun",
+      "quota_hint": "Per-token billing on the provider account. Hutch's currency admission needs a reviewed price row in Settings > Prices; the provider's own billing remains authoritative.",
+      "model_protocol_hint": "Global host (api.stepfun.ai). A key is valid only in the region it was issued for; the China host has its own template and key variable. Step Plan uses a different path and is not offered."
     }
   }
 }

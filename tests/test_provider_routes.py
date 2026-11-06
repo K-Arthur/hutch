@@ -52,6 +52,11 @@ ROUTES = {
 }
 
 
+#: Templates moved to a vendor-documented path after the 2026-10-31 reachability evidence was recorded. The
+#: recorded probe still describes the legacy URL (both answer HTTP 200); the new path was probed 2026-11-06.
+MOVED = {"synthetic": "https://api.synthetic.new/openai/v1"}
+
+
 @pytest.fixture()
 def catalogue():
     return bundled_catalog()
@@ -63,7 +68,7 @@ def test_each_route_is_a_real_openai_compatible_connection(tmp_path, monkeypatch
         template = templates[provider]
         assert template["provider"] == provider
         assert template["protocol"] == "openai-chat"
-        assert template["base_url"] == base_url
+        assert template["base_url"] == MOVED.get(provider, base_url)
         assert template["models_endpoint"] is True
         assert template["auth_method"] == "api_key"
 
@@ -74,7 +79,7 @@ def test_each_route_is_a_real_openai_compatible_connection(tmp_path, monkeypatch
 
         conn = provider_for_connection(book, f"acct-{provider}", "some-model")
         assert isinstance(conn, OpenAICompatProvider)
-        assert conn.base_url == base_url
+        assert conn.base_url == MOVED.get(provider, base_url)
 
 
 def test_a_route_never_uses_another_providers_ambient_key(tmp_path, monkeypatch):
@@ -114,7 +119,7 @@ def test_templates_match_the_recorded_reachability_evidence():
     templates = load_templates()
     for provider, base_url in ROUTES.items():
         assert probed[provider]["url"] == base_url + "/models"
-        assert templates[provider]["base_url"] == base_url
+        assert templates[provider]["base_url"] == MOVED.get(provider, base_url)
         # A probe that never reached the host (0) or failed server-side cannot back a template.
         assert probed[provider]["status"] not in (0,), provider
         assert probed[provider]["status"] < 500, provider

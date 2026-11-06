@@ -160,7 +160,7 @@ def test_connections_page_has_one_add_form_and_a_template_reference(state):
     html = client.get("/legacy/connections").text
     assert html.count('action="/connections/add"') == 1
     assert 'id="connection-template"' in html
-    assert "Template reference (43)" in html
+    assert "Template reference (51)" in html
     assert html.count("Template reference") == 1
 
 

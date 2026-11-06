@@ -767,7 +767,8 @@
       "docs": [],
       "integration_status": "implemented-unverified",
       "connection_templates": [
-        "stepfun"
+        "stepfun",
+        "stepfun-global"
       ],
       "regions": [
         "global",
@@ -796,6 +797,20 @@
           "billing": "per_token",
           "status": "implemented",
           "docs": []
+        },
+        {
+          "id": "coding-plan",
+          "type": "api_key",
+          "label": "Volcengine Coding Plan key",
+          "billing": "subscription",
+          "status": "documented",
+          "docs": [
+            {
+              "title": "Volcengine Coding Plan: other tools",
+              "url": "https://docs.volcengine.com/docs/ark/coding-plan-personal-ai-other-tools",
+              "observed_on": "2026-11-06"
+            }
+          ]
         }
       ],
       "docs": [],
@@ -805,7 +820,8 @@
       ],
       "regions": [
         "cn"
-      ]
+      ],
+      "notes": "The pay-as-you-go /api/v3 endpoint does not draw from a Coding Plan and is billed per token. The plan endpoint /api/coding/v3 is not offered: the vendor lists supported tools and Hutch is not one of them."
     },
     {
       "id": "tencent-cloud",
@@ -827,6 +843,20 @@
           "billing": "credits",
           "status": "implemented",
           "docs": []
+        },
+        {
+          "id": "token-plan",
+          "type": "api_key",
+          "label": "Tencent Cloud Token Plan key",
+          "billing": "subscription",
+          "status": "blocked",
+          "docs": [
+            {
+              "title": "Tencent Cloud Token Plan overview",
+              "url": "https://www.tencentcloud.com/document/product/1300/81315",
+              "observed_on": "2026-11-06"
+            }
+          ]
         }
       ],
       "docs": [],
@@ -837,7 +867,7 @@
       "regions": [
         "cn"
       ],
-      "notes": "TokenPlan entitlement is distinct from general Tencent API access."
+      "notes": "TokenPlan entitlement is distinct from general Tencent API access. The Token Plan forbids automated scripts, application backends and non-interactive batch use; Hutch bots run unattended, so it is blocked. Pay-as-you-go TokenHub is separate."
     },
     {
       "id": "qianfan",
@@ -850,7 +880,7 @@
         "images"
       ],
       "protocols": [
-        "custom"
+        "openai-chat"
       ],
       "auth": [
         {
@@ -858,7 +888,7 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         },
         {
@@ -871,11 +901,14 @@
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "qianfan"
+      ],
       "regions": [
         "cn"
-      ]
+      ],
+      "notes": "OpenAI-compatible v2 endpoint with a bce-v3/ALTAK- key; the OAuth route is documented only."
     },
     {
       "id": "cohere",
@@ -1101,6 +1134,7 @@
         "tools"
       ],
       "protocols": [
+        "openai-chat",
         "custom"
       ],
       "auth": [
@@ -1111,17 +1145,33 @@
           "billing": "per_token",
           "status": "documented",
           "docs": []
+        },
+        {
+          "id": "bedrock-api-key",
+          "type": "api_key",
+          "label": "Bedrock API key",
+          "billing": "per_token",
+          "status": "implemented",
+          "docs": [
+            {
+              "title": "Amazon Bedrock API keys",
+              "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html",
+              "observed_on": "2026-11-06"
+            }
+          ]
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "bedrock-runtime"
+      ],
       "regions": [
         "us-east-1",
         "eu-west-1",
         "ap-northeast-1"
       ],
-      "notes": "Authentication is the AWS credential chain (SigV4) or short- and long-term Bedrock API keys, not a generic provider API key."
+      "notes": "Authentication is the AWS credential chain (SigV4) or short- and long-term Bedrock API keys, not a generic provider API key. A Bedrock API key is the only implemented credential. IAM credentials, SigV4 and the native Converse API are documented only. Probed without a key on 2026-11-06."
     },
     {
       "id": "bedrock-mantle",
@@ -1133,7 +1183,7 @@
         "tools"
       ],
       "protocols": [
-        "custom"
+        "openai-chat"
       ],
       "auth": [
         {
@@ -1143,14 +1193,31 @@
           "billing": "per_token",
           "status": "documented",
           "docs": []
+        },
+        {
+          "id": "bedrock-api-key",
+          "type": "api_key",
+          "label": "Bedrock API key",
+          "billing": "per_token",
+          "status": "implemented",
+          "docs": [
+            {
+              "title": "Amazon Bedrock API keys",
+              "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html",
+              "observed_on": "2026-11-06"
+            }
+          ]
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "bedrock-mantle"
+      ],
       "regions": [
         "us-east-1"
-      ]
+      ],
+      "notes": "A Bedrock API key is the only implemented credential. IAM credentials, SigV4 and the native Converse API are documented only. Probed without a key on 2026-11-06."
     },
     {
       "id": "google-vertex",
@@ -1271,17 +1338,19 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "vercel-ai-gateway"
+      ],
       "regions": [
         "global"
       ],
-      "notes": "A unified gateway; a single price or capability claim cannot apply to every model behind it. BYOK requests can fall back to gateway system credentials and bill Vercel credits; routing metadata records the final provider, model and credential type, so it must be captured."
+      "notes": "A unified gateway; a single price or capability claim cannot apply to every model behind it. BYOK requests can fall back to gateway system credentials and bill Vercel credits; routing metadata records the final provider, model and credential type, so it must be captured. BYOK failures fall back to Vercel system credentials billed to the gateway account."
     },
     {
       "id": "openrouter",
@@ -1332,16 +1401,19 @@
           "type": "api_key",
           "label": "API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "clawrouter"
+      ],
       "regions": [
         "global"
-      ]
+      ],
+      "notes": "Hosted default clawrouter.openclaw.ai; keys are issued by an administrator."
     },
     {
       "id": "litellm",
@@ -1362,7 +1434,7 @@
           "type": "api_key",
           "label": "Gateway key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         },
         {
@@ -1370,13 +1442,15 @@
           "type": "custom_endpoint",
           "label": "Self-hosted endpoint",
           "billing": "unknown",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "litellm"
+      ],
       "regions": [
         "self-hosted"
       ],
@@ -1403,7 +1477,7 @@
           "type": "api_key",
           "label": "Foundry API key",
           "billing": "per_token",
-          "status": "documented",
+          "status": "implemented",
           "docs": []
         },
         {
@@ -1416,12 +1490,14 @@
         }
       ],
       "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "microsoft-foundry"
+      ],
       "regions": [
         "global"
       ],
-      "notes": "The model field is a deployment name and auth is an API key or Entra ID; the deployment may not match a public model id."
+      "notes": "The model field is a deployment name and auth is an API key or Entra ID; the deployment may not match a public model id. Resource API key through the v1 API (api-key header) is implemented; Microsoft Entra ID is documented only."
     },
     {
       "id": "groq",
@@ -1776,6 +1852,20 @@
           "billing": "per_token",
           "status": "implemented",
           "docs": []
+        },
+        {
+          "id": "coding-plan",
+          "type": "api_key",
+          "label": "BytePlus ModelArk coding plan key",
+          "billing": "subscription",
+          "status": "documented",
+          "docs": [
+            {
+              "title": "BytePlus coding models (OpenClaw custom providers)",
+              "url": "https://docs.openclaw.ai/concepts/model-providers/custom-providers",
+              "observed_on": "2026-11-06"
+            }
+          ]
         }
       ],
       "docs": [],
@@ -1786,7 +1876,8 @@
       "regions": [
         "global",
         "cn"
-      ]
+      ],
+      "notes": "The pay-as-you-go /api/v3 endpoint is billed per token. A coding-plan endpoint exists at /api/coding/v3 and is not offered until the plan's terms for unlisted tools are confirmed."
     },
     {
       "id": "ollama-cloud",

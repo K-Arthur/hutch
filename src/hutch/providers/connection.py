@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..connections import Connection, ConnectionBook
+from .auth_headers import bind_key_headers, uses_key_header
 from .base import Provider, ProviderError
 
 
@@ -21,7 +22,11 @@ def provider_for_connection(book: ConnectionBook, name: str, model: str, *, reso
             "auth", f"no API key for connection '{name}': set {conn.api_key_env or 'an environment variable'} in the "
                     f"environment that starts hutch, or run `hutch connections set-key {name}`", provider=name)
     protocol, base = conn.endpoint_for(model)
-    headers = {"User-Agent": conn.user_agent, **conn.headers}
+    key_in_header = uses_key_header(conn.headers)
+    if key_in_header and protocol != "openai-chat":
+        raise ProviderError("bad_request", f"connection '{name}' sends its key in a vendor header, which is "
+                            f"available only on the OpenAI chat protocol, not '{protocol}'", provider=name)
+    headers, key = bind_key_headers({"User-Agent": conn.user_agent, **conn.headers}, key)
     if conn.auth_type == "chatgpt-siws":
         if protocol != "openai-responses":
             raise ProviderError("bad_request", "Sign in with ChatGPT is available only through its Responses API route",
