@@ -85,3 +85,68 @@ existence only; it proves nothing about chat, tools or entitlement.
 | Entra ID for Foundry | Token mint plus refresh; API-key route is the supported minimum. |
 | Cloudflare AI Gateway | See decision 3. |
 | Step Plan, Volcengine/BytePlus Coding Plan, Qwen Token Plan | Plan terms unconfirmed or restrictive. |
+
+## Result
+
+### What changed (commits on `main`)
+
+- Eight templates and their catalogue identities: `vercel-ai-gateway`, `litellm`, `clawrouter`,
+  `bedrock-runtime`, `bedrock-mantle`, `microsoft-foundry`, `qianfan`, `stepfun-global`. All
+  `implemented-unverified`. Catalogue: 64 identities (unchanged), 51 templates in the reference list.
+- `providers/auth_headers.py` (key in a named header) wired in `providers/connection.py`; Foundry uses it.
+- `providers/schema_trim.py` and the Volcengine `tool_schema_unsupported_keywords` declaration.
+- `models_list_ignores_key` on seven templates; `check_connection` and the Models page stop calling an
+  unchecked key authenticated. This came from the live run below, not from the plan.
+- `connection_endpoints.validate_endpoints` names `--base-url` when a host-less template is added bare.
+- Synthetic moved to `/openai/v1` with its Anthropic base recorded; Tencent Token Plan blocked; Volcengine,
+  BytePlus and StepFun notices; Volcengine/BytePlus Coding Plan documented, not offered.
+
+### Live checks and real-stack validation
+
+- **No account or paid call.** No credential for any Phase 4 provider exists (owner inputs: only OpenAI,
+  Anthropic and Google Gemini). Every route here is `blocked: no credential` for live inference. The three
+  provisioned providers are Phase 3 and were not re-run; their variables are still unset in this shell.
+- **Unauthenticated probes** of 49 endpoint rows plus candidates (table above): all hosts reachable.
+- **Measured key behavior.** `GET {base}/models` with `Authorization: Bearer placeholder-not-a-key` (a made-up
+  value, not a credential): HTTP 200 for huggingface, kilocode, novita, nvidia, ollama-cloud, openrouter,
+  synthetic, venice (key ignored); 200 without a key but rejected with the placeholder for chutes, deepinfra,
+  opencode-go, opencode-zen, vercel-ai-gateway (key validated); 26 hosts need a key to list.
+- **Real server, isolated state.** `hutch init`, ten `hutch connections add` calls and `hutch serve --port 18892`
+  on a temporary `HUTCH_STATE_DIR`. `hutch connections test` failed fast and named the right variable for all
+  nine new connections. `/api/v1/providers` showed the new rows and statuses.
+  `/api/v1/provider-resolution` mapped each spec to its provider, named connection, billing, endpoint and
+  `needs_authentication` with `substituted: false`. Against the real hosts with the placeholder value,
+  `connections test vercel` reported "reachable, but the API key was rejected" and `connections test synth`
+  listed 13 models and reported the key as not verified (before the fix it said "authenticated").
+- **Wire test.** Foundry's `api-key` header was asserted on a local HTTP server: header present, no
+  `Authorization`, no placeholder. Volcengine trimming asserted on the same kind of server. Azure and
+  Volcengine themselves were not called.
+- **Not run:** no real LiteLLM proxy (it is not installed and installing a large third-party package into the
+  owner's environment was not taken for a gateway test), no real Ollama, llama.cpp, vLLM or LM Studio (none
+  installed), no Bedrock, Foundry, Vercel or ClawRouter inference.
+- **Visual validation:** `docs/realignment/capture_provider_pages.py` captured Providers, Models, Connections
+  and first-run at 360, 768, 1280 and 1920 px in light and dark, twice (before and after shortening the titles):
+  32/32 status 200, 0 px overflow, 0 console errors, 0 failed requests
+  (`docs/realignment/artifacts/provider-expansion-2026-11/phase4/`). Cropped views of the Providers page at
+  1280 and at 360 and of the Connections page at 360 were inspected. Light and dark are identical (G16).
+  Keyboard traversal was not re-run: no markup or CSS changed, and Phase 3 recorded the traversal of the same
+  components.
+
+### Review findings (skeptical re-read of the phase diff)
+
+- Defect found by the live run: seven hosts made `connections test` claim authentication it never performed
+  (status inflation). Fixed with a measured flag and a real-route test that was shown to fail without the fix.
+- Defect found in review: the Models page printed "connection verified" for any `ok` check, including checks
+  that explicitly verified nothing. Fixed in the same series.
+- Defect found by inspection: long template titles wrapped and truncated in the rename field; shortened.
+- Review change: template-only settings are read from the already-loaded `ConnectionBook`, not by re-reading
+  the templates file on every provider build.
+- Checked and left: key redaction is done by callers from the stored key, so an empty provider `api_key` for a
+  header-key connection does not weaken it; a header-key connection is refused on non-OpenAI protocols; no
+  function exceeds the limits (the largest new function is `trim_schema`, 18 lines); no dead code.
+- Test hygiene: the source-grep test I first wrote for the Models page was replaced by a real form post. The
+  new wire and route tests were written before the code; the honesty and Models page tests were observed
+  failing without the fix. The first tests for the key-header seam and trimming were written in the same step
+  as their implementation and not run red on their own.
+- Left open: the Providers page prints each account's "no local credential" detail and a near-identical
+  next-action sentence (duplicate copy, pre-existing); queued for Phase 7.
