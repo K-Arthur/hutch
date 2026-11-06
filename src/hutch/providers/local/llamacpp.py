@@ -241,4 +241,4 @@ class LlamaCppRuntime:
                 return Identity("unknown", f"/v1/models answered but owned_by is {sorted(map(str, owners))!r}", "", "unknown")
         if models:
             return Identity("llamacpp", "/v1/models listed models without a runtime owner", "", "weak")
-        return Identity("unknown", "no identifying field was returned")
+        return Identity("unknown", "no identifying field was returned", "", "unknown")

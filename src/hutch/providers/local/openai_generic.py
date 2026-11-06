@@ -115,7 +115,7 @@ class OpenAIGenericRuntime:
         elif state.models:
             state.identity = Identity("unknown", "/v1/models listed models without an owner", "", "weak")
         else:
-            state.identity = Identity("unknown", "/v1/models returned no models")
+            state.identity = Identity("unknown", "/v1/models returned no models", "", "unknown")
         state.state = READY if state.models else UNKNOWN
         state.policy, state.policy_detail = "unknown", POLICY_NOTE
         if state.identity.runtime in WINDOW_SERVERS and state.identity.confidence == "strong":

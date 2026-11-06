@@ -18,7 +18,7 @@ from typing import Any, Callable, Iterable, Optional
 from urllib.parse import urlsplit
 
 from .local import DEFAULT_TIMEOUT, ProbeError, get_json, introspect, verified_loopback_url
-from .local.base import NEEDS_KEY, READY, UNREACHABLE, UNKNOWN
+from .local.base import LOADING, NEEDS_KEY, READY, UNREACHABLE, UNKNOWN
 
 MAX_RESPONSE_BYTES = 256 * 1024
 MAX_MODELS = 500
@@ -100,12 +100,13 @@ def _result(endpoint: LocalEndpoint, url: str) -> dict[str, Any]:
             "reachable": False, "models": [], "model_meta": [], "error": "", "state": UNREACHABLE,
             "runtime": "unknown", "version": "", "confidence": "unknown", "evidence": "",
             "applied_context": {}, "parallel": None, "policy": "unknown", "policy_detail": "",
-            "fix": ""}
+            "fix": "", "detail": ""}
 
 
 def _merge_state(result: dict[str, Any], state: Any) -> None:
     """Copy one adapter's report into the discovery row without inventing missing values."""
     result["state"] = state.state
+    result["detail"] = state.detail
     result["version"] = state.version
     result["models"] = [model.name for model in state.models] or result["models"]
     result["model_meta"] = [asdict(model) for model in state.models]
@@ -148,6 +149,18 @@ def probe_service(endpoint: LocalEndpoint, *, timeout: float = 0.5,
             result["evidence"] = f"/v1/models answered HTTP {response.status}"
             return result
         if response.status != 200:
+            # llama.cpp answers 503 "Loading model" on /v1/models while the weights
+            # are still coming up. That is a state, not an unidentified endpoint:
+            # ask the native surface (/health) so the panel can say "loading".
+            if response.status == 503 and endpoint.style == "openai":
+                try:
+                    state = introspect(endpoint.provider_id, _origin_url(url), credential, timeout=timeout, http=get)
+                except ProbeError:
+                    state = None
+                if state is not None and state.reachable and state.state == LOADING:
+                    _merge_state(result, state)
+                    result["error"] = ""
+                    return result
             result["state"] = UNKNOWN
             result["error"] = f"the service answered HTTP {response.status}"
             continue

@@ -63,6 +63,7 @@ class ModelsView:
     price_errors: list[str]
     swaps: list[dict]
     notes: list[str] = field(default_factory=list)
+    local_runtimes: list[dict[str, Any]] = field(default_factory=list)
     configured_routes: list[ConfiguredModelRoute] = field(default_factory=list)
     available_bots: list[tuple[str, str]] = field(default_factory=list)
     default_model: str = ""
@@ -103,19 +104,19 @@ _PRIVACY_LABELS = {
 }
 
 
-def locality_for_route(spec: str, is_local: bool, conn_base_url: str = "") -> str:
+def locality_for_route(spec: str, is_local: bool, conn_base_url: str = "",
+                       entry: Optional[dict[str, Any]] = None) -> str:
     if is_local:
         if spec.startswith("ollama/"):
             name = spec.split("/", 1)[-1]
-            if name.endswith("-cloud") or ":cloud" in name:
-                return "cloud_via_local"
-        try:
-            from .providers.locality import model_locality
-            verdict = model_locality("ollama", spec.split("/", 1)[-1])
-            if verdict.local is False:
-                return "cloud_via_local"
-        except Exception:
-            pass
+            try:
+                from .providers.locality import model_locality
+                verdict = model_locality("ollama", name, entry)
+                if verdict.local is False:
+                    return "cloud_via_local"
+            except Exception:
+                if name.endswith("-cloud") or ":cloud" in name:
+                    return "cloud_via_local"
         return "machine"
     host = ""
     if conn_base_url:
@@ -138,19 +139,26 @@ def privacy_label_for(locality: str) -> str:
     return _PRIVACY_LABELS.get(locality, _PRIVACY_LABELS["cloud"])
 
 
-def local_window_notes(state_dir: Any = None) -> list[str]:
+def _local_service_rows(state_dir: Any = None) -> dict[str, dict[str, Any]]:
+    from .providers.discovery import ENDPOINTS, probe_local_services
+    from .providers.local.credentials import runtime_credentials
+    credential_for = runtime_credentials(state_dir) if state_dir else None
+    return probe_local_services(timeout=0.4,
+                                endpoints=[e for e in ENDPOINTS if e.provider_id != "ollama"],
+                                credential_for=credential_for)
+
+
+def local_window_notes(state_dir: Any = None, *,
+                       probed: Optional[dict[str, dict[str, Any]]] = None) -> list[str]:
     """Measured windows from non-Ollama runtimes that answer.
 
     The hardware probe checks llama.cpp's old 8080, so this uses the same candidate list as
     discovery and never infers a window from the hardware snapshot. A stored key is supplied only
     for its matching connection origin.
     """
-    from .providers.discovery import ENDPOINTS, probe_local_services
-    from .providers.local.credentials import runtime_credentials
-    credential_for = runtime_credentials(state_dir) if state_dir else None
+    probed = probed if probed is not None else _local_service_rows(state_dir)
     notes: list[str] = []
-    for row in probe_local_services(timeout=0.4, endpoints=[e for e in ENDPOINTS if e.provider_id != "ollama"],
-                                    credential_for=credential_for).values():
+    for row in probed.values():
         if not row.get("reachable"):
             continue
         windows = row.get("applied_context") or {}
@@ -168,6 +176,40 @@ def local_window_notes(state_dir: Any = None) -> list[str]:
         elif not windows and row.get("models"):
             notes.append(f"{row['title']} reports no applied window; Hutch will not assume one")
     return notes
+
+
+def local_runtime_cards(state_dir: Any = None, *,
+                        probed: Optional[dict[str, dict[str, Any]]] = None) -> list[dict[str, Any]]:
+    """One card per detected non-Ollama local runtime, from the same discovery probes the notes use.
+
+    Ollama has its own richer health card (version and loaded models from /api/ps). A runtime
+    that is not reachable is not a card; the section's empty state says so. `state` is the
+    runtime's own word (ready, loading, needs_key, unknown) and values it did not report stay
+    None so the page can say unknown rather than guess.
+    """
+    probed = probed if probed is not None else _local_service_rows(state_dir)
+    cards: list[dict[str, Any]] = []
+    for provider_id, row in probed.items():
+        if not row.get("reachable"):
+            continue
+        cards.append({
+            "provider": provider_id,
+            "title": row.get("title") or provider_id,
+            "state": row.get("state") or "unknown",
+            "detail": row.get("detail") or "",
+            "runtime": row.get("runtime") or "unknown",
+            "confidence": row.get("confidence") or "unknown",
+            "version": row.get("version") or "",
+            "models": list(row.get("models") or []),
+            "applied_context": dict(row.get("applied_context") or {}),
+            "parallel": row.get("parallel"),
+            "policy": row.get("policy") or "unknown",
+            "policy_detail": row.get("policy_detail") or "",
+            "fix": row.get("fix") or "",
+            "url": row.get("url") or "",
+        })
+    cards.sort(key=lambda card: card["title"].lower())
+    return cards
 
 
 def installed(provider: Any) -> dict[str, ModelMeta]:
@@ -192,6 +234,13 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
         provider = get_provider("ollama", None)
     ollama_up = any(r.name == "ollama" and r.reachable for r in hw.runtimes) if hw.runtimes else bool(provider.health().ok)
     inst = installed(provider) if ollama_up else {}
+    tags_rows: list[dict[str, Any]] = []
+    if ollama_up:
+        try:
+            from .providers.locality import fetch_ollama_rows
+            tags_rows = fetch_ollama_rows(getattr(provider, "base_url", "http://127.0.0.1:11434")) or []
+        except Exception:
+            tags_rows = []
     bots = store.list_bots()
     used_by: dict[str, list[str]] = {}
     by_provider: dict[str, list[str]] = {}
@@ -225,7 +274,8 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
             sugg.append((tag, estimate_fit(meta, hw, REFERENCE_WINDOWS[0]), meta))
     sugg.sort(key=lambda t: (t[1].status == "wont_fit", t[2].params_b or 0))
     book = PriceBook(config.state_dir / "prices.json")
-    notes = list(hw.notes) + (local_window_notes(config.state_dir) if with_runtimes else [])
+    local_rows = _local_service_rows(config.state_dir) if with_runtimes else None
+    notes = list(hw.notes) + (local_window_notes(probed=local_rows) if local_rows is not None else [])
     if not ollama_up:
         notes.append("Ollama is not running, so installed models cannot be listed. Start it with `ollama serve`; "
                      "suggestions below are estimates from the catalog.")
@@ -254,7 +304,12 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
             if b_name not in assigned:
                 assigned.append(b_name)
         is_def = spec == saved_default
-        _loc = locality_for_route(spec, True)
+        try:
+            from .providers.locality import find_row
+            _entry = find_row(tags_rows, name)
+        except Exception:
+            _entry = None
+        _loc = locality_for_route(spec, True, entry=_entry)
         configured_routes.append(ConfiguredModelRoute(
             spec=spec, provider="ollama", model_id=name, label=store.kv_get(f"model_label:{spec}") or name,
             status="ready", is_default=is_def, bots=assigned, has_key=True, is_local=True,
@@ -297,7 +352,11 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
                     base_url = ""
             problem = model_route_problem(bot_spec)
             usable = any(usable_bots.get(name, False) for name in b_names)
-            status = "unusable" if problem and not usable else ("ready" if has_k else "needs_key")
+            if prov == "ollama" and not ollama_up:
+                problem = problem or "Ollama is not running, so this route cannot run"
+                status = "unusable"
+            else:
+                status = "unusable" if problem and not usable else ("ready" if has_k else "needs_key")
             is_loc = prov in LOCAL_PROVIDERS
             _loc = locality_for_route(bot_spec, is_loc, base_url)
             configured_routes.append(ConfiguredModelRoute(
@@ -312,5 +371,7 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
                                                       used_by=by_provider)
                       if with_runtimes else [], ollama_up=ollama_up, rows=rows, presets=presets,
                       suggestions=sugg, prices=book.rows(), price_errors=book.errors, swaps=recorded_swaps(store),
-                      notes=notes, configured_routes=configured_routes, available_bots=available_bots,
+                      notes=notes, local_runtimes=local_runtime_cards(probed=local_rows)
+                      if local_rows is not None else [],
+                      configured_routes=configured_routes, available_bots=available_bots,
                       default_model=default_spec)

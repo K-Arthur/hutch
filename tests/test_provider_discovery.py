@@ -145,6 +145,22 @@ def test_a_decoy_answering_v1_models_is_not_labelled_llama_cpp():
     assert result["models"] == ["not-a-model-server"]
 
 
+def test_a_503_v1_models_is_loading_when_health_confirms_it():
+    """llama.cpp answers 503 while the weights load; that is a state, not an unknown service."""
+    fake = Fake({
+        "http://127.0.0.1:9931/v1/models": HttpResult(503, b'{"error":"Loading model"}'),
+        "http://127.0.0.1:9931/health": HttpResult(503, b'{"error":{"message":"Loading model"}}'),
+        "http://127.0.0.1:9931/props": HttpResult(503, b""),
+        "http://127.0.0.1:9931/slots": HttpResult(503, b""),
+    })
+    result = probe_service(ENDPOINTS[-1], get=fake)
+    assert result["reachable"] is True
+    assert result["state"] == "loading"
+    assert result["runtime"] == "unknown"
+    assert result["confidence"] == "unknown"
+    assert "loading" in result["detail"].lower()
+
+
 def test_a_401_is_needs_key_not_a_dead_port():
     fake = Fake({"http://127.0.0.1:1234/v1/models": HttpResult(401, b'{"error":"token required"}')})
     result = probe_service(ENDPOINTS[1], get=fake)
