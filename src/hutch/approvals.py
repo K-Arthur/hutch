@@ -260,6 +260,8 @@ def resolve_approval_ex(store: Store, approval_id: str, approve: bool, by: str =
     req, outcome = store.decide_approval(
         approval_id, ApprovalStatus.approved if approve else ApprovalStatus.denied, by, expected_hash=expected_hash,
         sticky=sticky, idem_key=idem_key, request_hash=request_hash)
+    from .schedule_admission import reconcile_decision
+    reconcile_decision(store, req)
     return Resolution(req, outcome)
 
 
@@ -285,4 +287,6 @@ def expire_stale_approvals(store: Store, ttl_seconds: int = 600) -> list[Approva
             done, outcome = store.decide_approval(req.id, ApprovalStatus.expired, "timeout")
             if outcome == "won" and done is not None:
                 expired.append(done)
+                from .schedule_admission import reconcile_decision
+                reconcile_decision(store, done)
     return expired

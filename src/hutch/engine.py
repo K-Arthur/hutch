@@ -1465,76 +1465,13 @@ class Engine:
         self.store.flush_events()
 
     def scheduler_claims(self) -> list[Run]:
-        """Claim every due schedule occurrence and create its run. Safe to call from several processes: each occurrence is won
-        by exactly one (``Store.submit_scheduled``), and the run is created in the same transaction as the claim."""
-        created: list[Run] = []
-        for due in self.scheduler.due_claims():
-            if due.schedule.workflow_definition_id:
-                from .workflow import persistence as wfstore
-                from .workflow import submit as wfsubmit
+        """Claim due occurrences through the schedule admission module.
 
-                definition = wfstore.definition(self.store, due.schedule.workflow_definition_id)
-                revision = wfstore.revision(self.store, due.schedule.workflow_revision_id or "")
-                if (definition is None or not definition.get("active") or revision is None
-                        or str(revision["definition_id"]) != str(definition["id"])):
-                    reason = "the linked saved workflow is missing or inactive"
-                    self.scheduler._note_blocked(due.schedule, "workflow_not_ready", reason)
-                    self.scheduler._note_skipped(due.bot, 1, due.schedule, reason="workflow_not_ready")
-                    self.scheduler.mark_dispatched(due.bot, due.occurrence, due.schedule)
-                    continue
-                occurrence = iso(due.occurrence)
-                request_data = {
-                    "schedule_id": due.schedule.id,
-                    "workflow_definition_id": due.schedule.workflow_definition_id,
-                    "workflow_revision_id": due.schedule.workflow_revision_id,
-                    "workflow_inputs": due.schedule.workflow_inputs,
-                    "occurrence": occurrence,
-                }
-                request_hash = hashlib.sha256(json.dumps(
-                    request_data, sort_keys=True, ensure_ascii=False, separators=(",", ":")
-                ).encode("utf-8")).hexdigest()
-                schedule_claim = {
-                    "schedule_id": due.schedule.id,
-                    "occurrence": occurrence,
-                    "expected_marker": due.marker,
-                    "claimed_by": self.owner_id,
-                    "missed_windows": due.missed,
-                }
-                try:
-                    submission = wfsubmit.submit_workflow(
-                        self.store, bot=due.bot, plan=revision["plan"], inputs=due.schedule.workflow_inputs,
-                        save_definition=False, revision_id=str(revision["id"]), origin="schedule",
-                        schedule_id=due.schedule.id,
-                        idem_key=f"schedule:{due.schedule.id}:{occurrence}",
-                        request_hash=request_hash, schedule_claim=schedule_claim,
-                    )
-                except wfstore.ScheduleClaimLost:
-                    continue
-                except (wfsubmit.PlanInputError, wfsubmit.PlanNotSubmittable, KeyError, ValueError) as exc:
-                    reason = str(exc)[:300]
-                    self.scheduler._note_blocked(due.schedule, "workflow_not_ready", reason)
-                    self.scheduler._note_skipped(due.bot, 1, due.schedule, reason="workflow_not_ready")
-                    self.scheduler.mark_dispatched(due.bot, due.occurrence, due.schedule)
-                    continue
-                run = self.store.get_run(submission.attempt_run_id)
-                if run is not None:
-                    created.append(run)
-                continue
-            run = Run(bot_id=due.bot.id, prompt=bot_prompt_for_schedule(due.bot, due.schedule),
-                      missed_windows=due.missed, origin="schedule", schedule_id=due.schedule.id)
-            task = Task(bot_id=due.bot.id, kind="scheduled", prompt=run.prompt)
-            occurrence_marker = iso(due.occurrence)
-            won = self.store.submit_scheduled(
-                run, task, occurrence=occurrence_marker, expected_marker=due.marker,
-                new_marker=occurrence_marker,
-                claimed_by=self.owner_id, schedule_id=due.schedule.id,
-                note={"scheduled_run": run.id, "schedule_id": due.schedule.id,
-                      "missed_windows": due.missed,
-                      "missed_uncertain": due.missed_uncertain,
-                      "occurrence": occurrence_marker})
-            if won is not None:
-                created.append(won)
-        return created
+        The move keeps the frozen engine file small and puts condition and
+        approval policy next to the occurrence claim it governs.
+        """
+        from .schedule_admission import claim_due_schedules
+        return claim_due_schedules(self.store, self.scheduler, self.owner_id)
 
     def run_schedule_now(self, bot: Bot, schedule, *, idem_key: str = "",
                          request_hash: str = "") -> Run:

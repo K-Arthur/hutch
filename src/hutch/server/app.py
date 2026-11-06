@@ -3205,7 +3205,7 @@ def create_app() -> FastAPI:
                          "models_endpoint": conn.models_endpoint})
         return rows
 
-    register_schedule_routes(app, store, bot_or_404)
+    register_schedule_routes(app, store, bot_or_404, scheduler)
 
     @app.get("/api/v1/schedules/control", response_model=ScheduleControlResource)
     def get_schedule_control() -> dict:
