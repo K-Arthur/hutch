@@ -18,6 +18,11 @@ output.
 | 8 Deliverables library, semantic checks & purge (G10, G12, G14) | not started | | | |
 | 9 Paired-phone surface, website, docs & final review (G13) | not started | | | |
 
+Phase 1 is documentation only. It changed no source file, so focused product tests, real-stack e2e
+and browser capture are not applicable. The live verification for this phase is the source fetch
+ledger (`01-SOURCES.md`): 8/8 owner URLs returned readable content, and the two unreachable pages are
+recorded in section E rather than guessed.
+
 ## Owner inputs needed (batch, ask once)
 
 - Live Google Calendar / Gmail or Telegram credentials if live external vendor verification (beyond
@@ -98,3 +103,4 @@ remains the visual reference for the next UI phase.
 | `ocr.direct` receipt-validation guide | HTTP 504 on 2026-11-06 | Not needed; C14 (ExpenSheet) covers the same rules and no requirement depends on the missing page |
 | OpenAI Developer Community PDF-export thread | Returned an empty body on 2026-11-06 | C16 and C17 carry the deliverable-loss evidence; recheck only if a primary OpenAI statement is needed |
 | Telegram local Bot API server | Not stood up or tested | Do not claim its 2 GB ceiling; the standard Bot API 20 MiB download cap is the verified limit |
+| Marketing website claim sync | Phase 1 is research only; site claims must follow live-verified behavior, not plans | Phase 9 Task 9B, after Phases 2-8 are live-verified |
