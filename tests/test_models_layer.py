@@ -133,10 +133,10 @@ def test_all_six_task_presets_exist_with_caps_and_a_hosted_pick():
 
 def test_resolution_scales_with_hardware_and_prefers_installed():
     p = load_presets()["research"]
-    assert resolve_preset(p, hw_with(24), {}).local_model == "qwen3:14b"          # large tier
-    assert resolve_preset(p, hw_with(48), {}).local_model == "qwen3:32b"          # xl tier
+    assert resolve_preset(p, hw_with(24), {}).local_model == "qwen3.5:4b-q4_K_M"  # large tier
+    assert resolve_preset(p, hw_with(48), {}).local_model == "qwen3.5:4b-q4_K_M"  # xl tier
     r = resolve_preset(p, hw_with(24), {})
-    assert not r.installed and r.install_hint == "ollama pull qwen3:14b"
+    assert not r.installed and r.install_hint == "ollama pull qwen3.5:4b-q4_K_M"
     have = {"qwen3:8b": ModelMeta("qwen3:8b", params_b=8.2, size_bytes=int(5.2 * GIB), n_layers=36, n_kv_heads=8,
                                   head_dim=128, max_context=40960, capabilities=["tools"])}
     r2 = resolve_preset(p, hw_with(24), have)
