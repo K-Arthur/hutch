@@ -230,7 +230,7 @@ Still open (ask at the phase that needs it):
   redacted, and the import response contains no token. The endpoint requires CSRF and
   rejects non-GGUF, split, missing and cloud-tagged inputs before touching the runtime.
 - 2026-11-06, Phase 4 gates: the 7-file unit/API set passed 145; `tests/e2e/test_model_install.py`
-  passed 3 (install, cancel, keyboard preflight); `npm run check:agent` passed (context
+  passed 3 (install, cancel, keyboard preflight with a visible 2 px focus ring); `npm run check:agent` passed (context
   hygiene, tool contracts, constitution, agent map); `npm run audit:context` passed;
   `scripts/audit_emoji.py` reports only the pre-existing `.codewhale/state` file, not a
   Phase 4 file. `/code-review` and `/simplify` are not available in this session; the phase

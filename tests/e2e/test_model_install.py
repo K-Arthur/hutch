@@ -84,6 +84,11 @@ def test_the_preflight_is_keyboard_operable(browser, live):
         panel = page.locator(f'[data-install-plan-for="{tag}"]')
         panel.wait_for(timeout=10_000)
         assert page.evaluate("document.activeElement?.textContent") == "Confirm download"
+        focus = page.evaluate("""() => {
+            const style = getComputedStyle(document.activeElement);
+            return {outline: style.outlineStyle, width: style.outlineWidth};
+        }""")
+        assert focus["outline"] == "solid" and focus["width"] == "2px", focus
         page.keyboard.press("Tab")
         assert page.evaluate("document.activeElement?.textContent") == "Back"
         page.keyboard.press("Enter")
