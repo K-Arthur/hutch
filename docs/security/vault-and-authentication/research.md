@@ -327,3 +327,18 @@ What the pattern says:
 - Infisical #3148 §4 → import/export is explicit and confirmed; plaintext export is never casual.
 - KeepassXC #1724 §4 → documentation states exactly what is and is not protected.
 - HashiCorp #6046 §4 → a recovery key exists from the first release.
+
+---
+
+## 9. Pass 3 research (2026-11-06)
+
+Pass 3 extended this document and did not replace it. Sections 1 to 8 above stand as written, except
+that decision D1 (scrypt) was re-tested and is now an open owner question.
+
+- Sources, with access dates and what each changed: `docs/research/2026-11-vault-signin/01-SOURCES.md`.
+- Failure and complaint mining: `docs/research/2026-11-vault-signin/02-FAILURES-AND-COMPLAINTS.md`.
+- Requirements (`VS-R1` to `VS-R32`), decisions and owner questions:
+  `docs/research/2026-11-vault-signin/03-LESSONS-AND-DECISIONS.md`.
+- Two local experiments, with scripts under `docs/research/2026-11-vault-signin/tools/` and results
+  under `.../artifacts/phase1/`: a WebAuthn ceremony on `http://localhost` with a virtual
+  authenticator (works; an IP-literal origin does not) and a scrypt versus Argon2id timing run.

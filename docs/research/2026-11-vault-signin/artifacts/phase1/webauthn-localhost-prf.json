@@ -1,0 +1,58 @@
+{
+  "chromium": "153.0.8010.12",
+  "results": [
+    {
+      "case": "localhost rp, UV on",
+      "origin": "localhost",
+      "rp_id": "localhost",
+      "uv_required": true,
+      "authenticator_verified": true,
+      "has_prf": true,
+      "create": "ok",
+      "prfEnabledAtCreate": true,
+      "prfLength": 32,
+      "sameSaltSameOutput": true,
+      "otherSaltOtherOutput": true
+    },
+    {
+      "case": "localhost rp, UV required, authenticator cannot verify",
+      "origin": "localhost",
+      "rp_id": "localhost",
+      "uv_required": true,
+      "authenticator_verified": false,
+      "has_prf": true,
+      "error": "NotAllowedError: The operation either timed out or was not allowed. See: https://www.w3.org/TR/webauthn-2/#sctn-privacy-considerations-cl"
+    },
+    {
+      "case": "localhost rp, PRF unsupported by authenticator",
+      "origin": "localhost",
+      "rp_id": "localhost",
+      "uv_required": false,
+      "authenticator_verified": true,
+      "has_prf": false,
+      "create": "ok",
+      "prfEnabledAtCreate": false,
+      "prfLength": null,
+      "sameSaltSameOutput": false,
+      "otherSaltOtherOutput": false
+    },
+    {
+      "case": "IP origin, IP rp id",
+      "origin": "127.0.0.1",
+      "rp_id": "127.0.0.1",
+      "uv_required": true,
+      "authenticator_verified": true,
+      "has_prf": true,
+      "error": "SecurityError: This is an invalid domain."
+    },
+    {
+      "case": "IP origin, localhost rp id",
+      "origin": "127.0.0.1",
+      "rp_id": "localhost",
+      "uv_required": true,
+      "authenticator_verified": true,
+      "has_prf": true,
+      "error": "SecurityError: This is an invalid domain."
+    }
+  ]
+}
