@@ -41,6 +41,18 @@ refused by the provider because the account's web-search plugin is not activated
 live-verified; `live_search` remains Hutch's own grounding path and needs no provider entitlement.
 Research and dated sources: docs/research/2026-10-provider-platform/. See ADR-0026.
 
+### Explicit route resolution (2026-11-06)
+
+`GET /api/v1/provider-resolution?spec=...&runtime=...` resolves a saved spec to one provider, account,
+account source, billing relationship, model, runtime, protocol, endpoint and readiness state from local
+facts only. A provider prefix with two matching accounts returns `needs_configuration` rather than
+choosing a payer; an ambient key is named as the source only when it may reach the official host.
+A fallback or escalation from a subscription primary to per-token/credits billing is refused before the
+call, so a route never changes who pays without an explicit decision. Schema 91 writes the implicit
+`openai-compatible/` prefix into saved route fields without changing the route that runs. This does not
+alter any row in the route matrix above; it makes the existing interpretation explicit. See ADR-0028 and
+`docs/research/2026-11-provider-expansion/02-ROUTE-RESOLUTION.md`.
+
 ### Hosted OpenAI-compatible routes (2026-10-31)
 
 Twenty-five further connections ship on the "Named OpenAI-compatible connection" row above. They share

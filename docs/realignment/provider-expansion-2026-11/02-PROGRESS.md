@@ -51,6 +51,10 @@ Update at every checkpoint. Keep entries short and factual.
   per-token/credits before the call.
 - `docs/research/2026-11-provider-expansion/02-ROUTE-RESOLUTION.md` records the research, design,
   real-stack output and limits.
+- Design docs updated in the same series: `docs/provider-platform.md` (resolver and billing
+  boundary), `docs/models.md` (resolution API and refusal rules),
+  `docs/realignment/provider-compatibility.md` (resolution subsection), and ADR-0028.
+  `docs/runtime-setup.md` is unchanged because this phase did not change runtime behavior.
 
 ## Owner inputs (batch, answered 2026-11-06)
 
@@ -95,6 +99,8 @@ Update at every checkpoint. Keep entries short and factual.
   `route_spec_schema.py` and is appended without growing the file.
 - 2026-11-06, Phase 1, the surface test asserted the obsolete hardcoded banner; it now asserts the
   derived routes and status counts.
+- 2026-11-06, Phase 1, the main design docs and ADR were not updated with the code in the first
+  pass; corrected in the same series with ADR-0028 and the three design-doc updates.
 
 ## Open items and deferred
 

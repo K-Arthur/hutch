@@ -15,6 +15,7 @@ docs/adr/0026-provider-identity-accounts-capabilities-and-runtimes.md.
 | Execution runtime | What executes the work, under which permissions and budget? | src/hutch/runtime/registry.py plus the existing runtime switch |
 | Capability evidence | How is a capability known, at what scope, from which dated source? | src/hutch/providers/capabilities.py |
 | Readiness | Would this account or route work now, and what is missing? | src/hutch/providers/readiness.py |
+| Route resolution | Which provider, account, billing relationship, runtime and model a spec resolves to now | src/hutch/providers/routing.py |
 | Media / search | Which complementary service produces or grounds content? | existing media job/storage/validation lifecycle, the grounding plane, and the governed transcription tool |
 
 A provider entry is not a support claim. Integration status uses a closed vocabulary: implemented,
@@ -32,6 +33,25 @@ because its adapter exists.
 - Renaming an account changes its local label only; the connection name used in model specs is stable.
 - "Remove local key" removes Hutch's copy. It does not claim provider-side revocation; where an
   official revoke endpoint exists, the provider's own flow reports the result separately.
+
+## Route resolution and the billing boundary
+
+Added 2026-11-06 (ADR-0028). `GET /api/v1/provider-resolution?spec=...&runtime=...` returns the
+resolved tuple: provider, account, account source, billing, model, runtime, protocol, endpoint and
+readiness state. It reads local configuration only and never substitutes a choice.
+
+- A spec that names a provider while two or more named accounts map to it resolves to
+  `needs_configuration` with no account. Hutch does not choose who pays, and an ambient key does not
+  break the tie.
+- An ambient key that may be used is named as the account source (`ambient environment
+  (OPENAI_API_KEY)`). A key aimed at a non-official endpoint is withheld and reported as needing
+  authentication.
+- A fallback or escalation from a subscription primary to per-token/credits billing is refused
+  before the call. Making the metered route primary is the explicit decision.
+- Schema 91 writes the provider prefix the runtime already applied to a bare model name into saved
+  `model`, `fallbacks`, `escalation.to` and `task_routes`; billing and fallback order are unchanged.
+- The Providers page banner is generated from the recorded live evidence and catalogue status counts,
+  so it cannot drift from the ledger without a test failing.
 
 ## Capability and readiness rules
 
@@ -89,6 +109,9 @@ were not exercised anywhere.
   different capabilities with different evidence. Nothing upgrades one from the other: the local
   fan-out needs no provider entitlement, and the provider route stays unverified until an account
   with the plugin runs it.
+- Route resolution is exposed through `/api/v1/provider-resolution`. The dashboard picker does not
+  yet show the resolved tuple before the first send (Phase 7), and the resolver is read-only: it
+  does not persist a per-run route snapshot.
 
 ## Live evidence (2026-10-30 and 2026-10-31)
 

@@ -340,6 +340,14 @@ the readiness panel says which account exists and shows a resolving spec such as
 you, because that choice decides who pays. The same applies when an ambient key and a named account are
 both present: the detail names the key variable and asks you to choose.
 
+`GET /api/v1/provider-resolution?spec=provider/model&runtime=builtin` returns the explicit tuple Hutch
+would use: provider, account and account source (named connection, ambient variable, local service or
+none), billing relationship, model, runtime, protocol, endpoint and readiness state. It reads local
+configuration only. A named account is reached by naming it (`account/model`); a provider prefix with
+two matching accounts returns `needs_configuration` instead of choosing. A fallback or escalation from a
+subscription primary to a per-token model is refused before the call; making the metered route primary is
+the explicit decision. See ADR-0028.
+
 ### Twenty-five hosted routes, no live inference (2026-10-31)
 
 The Models page and the switcher can now list models for 25 more providers, because each has a real
