@@ -14,7 +14,7 @@ covers before relying on it.
 | 3 Lifecycle states and errors | done (3.1, 3.2, 3.3) | bfcfaaf9..23ed98a3 | 2026-11-06: real Ollama cold load, real llama.cpp 503, real LM Studio unload/reload, real runner kill and llama-server restart | EC-09 4 GB model not downloaded (budget); old-version gate not live-tested |
 | 4 Get a model (install, import, guide) | done (4.1-4.5) | see git log (b32a5e47..) | 2026-11-06: real 1.9 GiB pull cancelled/resumed through the page; real disk-full and no-route pulls; real GGUF import (reuse and upload); four-width captures | Gated HF pull not run (no token); LM Studio/vLLM/SGLang install guided only |
 | 5 Multimodal and tool reliability | done (5.1-5.5) | 3a789476..a08009f6 + current-model comparison | 2026-11-06: real Ollama 0.40.13, llama.cpp b12144 + Qwen2.5-VL/Qwen3.5/Gemma 4 projectors, LM Studio 0.0.27-1, real cat photo and Playwright screenshot, sixteen model/runtime benches (2025 baseline and current Qwen3.5/Gemma 4), full-app current-model comparison | Ollama app-level vision blocked for the 2K moondream only; audio/speech not run; vLLM/SGLang not installed; Gemma 4 e4b/12b/26b and Qwen3.5 122B not run |
-| 6 Strict Offline live, boundary ADR | not started | | | Owner decision on the boundary (Phase 6.3) |
+| 6 Strict Offline live, boundary ADR | in progress | feb3e464, e26241e4 | 2026-11-06: airplane egress probe now passes inside `unshare -rn`; live tool-and-image run pending | Owner decision on the boundary (Phase 6.3) |
 | 7 Frontend | not started | | | |
 | 8 Website and docs | not started | | | |
 | 9 Final review and merge | not started | | | |
@@ -623,9 +623,22 @@ Still open (ask at the phase that needs it):
   needed for them. Services started for evidence are stopped after the final gates; ports 8765,
   9931, 9932, 11434 and 1234 are verified free. Phase 5 is done.
 
-Next phase: Phase 6, Strict Offline with a live model and the boundary decision. It needs
-the owner's choice on 6.3 (status-quo wording, a user-run offline profile, or a
-Hutch-managed model process); do not implement the managed process without approval. The
-airplane test and the isolated-worker evidence are the remaining MUST items (G5, EC-04,
-EC-19).
+### Phase 6 checkpoints
+
+- 2026-11-06, Phase 6 research: `docs/research/2026-11-offline-models/07-PHASE6-OFFLINE.md`
+  (P6-1 to P6-10) and R57-R66 plus F19-F24 in `01-FAILURE-MINING.md`; sources opened
+  2026-11-06. Design in `08-PHASE6-DESIGN.md` (five tasks). Commit feb3e464.
+- 2026-11-06, Phase 6.1 blocker found by the airplane setup: inside `unshare -rn` with only
+  `lo` up, `offline_egress_status(refresh=True)` returned `ok=False` with
+  `no local non-loopback interface is available for the network-namespace check`, so Strict
+  Offline refused to start on an already air-gapped host. The probe now always opens a
+  loopback listener and adds non-loopback targets only when interfaces exist; the worker
+  must still fail to reach the host's loopback. Fixed in e26241e4 with
+  `tests/test_offline_airgap.py`; `sandbox.py` stays at 640 lines against its 641-line
+  baseline. Focused `test_offline_airgap.py` + `test_offline_mode.py` = 40 passed;
+  `npm run check:agent` passed; the same probe now returns `ok=True` inside
+  `unshare -rn`. The live governed tool-and-image run is next.
+
+Next phase: Phase 6 remains in progress. The airplane test and the isolated-worker tool run
+are the remaining MUST items (G5, EC-04, EC-19), then the owner's boundary choice in 6.3.
 
