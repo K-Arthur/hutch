@@ -75,6 +75,28 @@ Update at every checkpoint. Keep entries short and factual.
 - Real UI observation: three synthetic ChatGPT accounts (active, expired, revoked) on an isolated
   server; API states matched; 32/32 captures clean at four widths in light and dark.
 
+## UI correction pass (2026-11-06, after Phase 2)
+
+- Root cause: the server templates used `.list-row`, `.plain-list` and `.card-actions`,
+  but those classes were only defined in `style.css`, which these pages do not load. Rows
+  had no alignment primitive, so content and actions stacked wherever the browser put them.
+- Inline form buttons were 32px beside 44px fields: `.hutch-actions .btn` already used the
+  routine height, but `.hutch-inline` did not. Inline actions are now 40px (44px at phone
+  width), and the page header actions are 40px rather than 32px.
+- The Connections "Add a connection" gallery was 37 cards each with an always-visible
+  primary Add button. It is now one form with a template select, optional custom endpoint
+  fields, and a collapsed template reference. The page is 4,219px tall at 1280 (was 7,658).
+- Provider account actions now share a trailing edge: label input, Rename and Remove local
+  key in one row on desktop; on phones the input and Rename share a row and Remove aligns
+  to the same right edge.
+- The disabled ChatGPT sign-in action is a ghost button, not a green primary; mobile page
+  actions are equal-width full-row buttons.
+- Validation: 32/32 captures at 360/768/1280/1920 in light and dark, 0 console errors, 0
+  failed requests, 0 px overflow; keyboard order for the add form is template, name, base
+  URL, key variable, Add, template reference, each with a 2px focus outline; 54 focused
+  tests passed. Baseline browser failures (assistant settings tabs, first-run readiness,
+  phone pairing confirm) reproduce at HEAD without these changes and are not caused here.
+
 ## Owner inputs (batch, answered 2026-11-06)
 
 - Provisioned credentials: OpenAI, Anthropic, Google Gemini. Every other paid route is

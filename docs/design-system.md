@@ -329,6 +329,12 @@ local-host access, or fixture-only states in public flows.
 - Use the 4px spacing rhythm, preserving compact field groups and clear space
   between separate sections. Share alignment edges across repeated cards and
   page headings.
+- Server-page row lists use the shared `.panel .list-row`, `.plain-list` and
+  `.card-actions` primitives: content takes the free space, actions share one
+  trailing edge, and the row stacks at 720px. Do not add a page-local layout
+  copy. Inline form actions use the routine 40px height beside 44px fields and
+  match the field height on phones. A repeated add flow is one form with a
+  template picker, not one primary button per card.
 - Repeated settings rows and collapsible sections use the shared disclosure-row
   skeleton (`.summary-row` / `.summary-row-sm` in `style.css`): one grid of
   icon slot, copy, and trailing action, so peer rows keep identical left
