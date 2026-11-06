@@ -95,6 +95,21 @@ class PinnedTransport:
         self.close()
 
 
+def precheck(base_url: str, key: str = "") -> None:
+    """Judge an endpoint for a client that makes its own connections (the Anthropic SDK uses a different HTTP stack
+    than httpx's transports here). This is a check, not a pin: the SDK resolves the name itself a moment later."""
+    from .endpoint_policy import literal_refusal
+    parts = urlsplit(base_url)
+    host = parts.hostname or ""
+    if proxied(base_url):                                  # the proxy resolves the name; only a literal can be judged
+        reason = literal_refusal(host)
+        if reason:
+            raise EndpointRefused(reason)
+        return
+    vetted = vet(host, parts.port or (443 if parts.scheme == "https" else 80), vendor=host.lower() in vendor_hosts())
+    refuse_unsafe_transport(parts.scheme, vetted[0][1], {"x-api-key": key} if key else {})
+
+
 def guarded_options(base_url: str) -> tuple[str, Any, bool]:
     """``(base_url, transport, trust_env)`` for a client talking to a user-supplied model endpoint."""
     parts = urlsplit(base_url)

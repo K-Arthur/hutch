@@ -141,3 +141,16 @@ def test_with_an_environment_proxy_the_address_cannot_be_pinned_but_a_blocked_li
     assert guarded_options("https://api.example.test/v1") == ("https://api.example.test/v1", None, True)
     with pytest.raises(EndpointRefused):
         guarded_options("https://169.254.169.254/v1")
+
+
+def test_the_anthropic_sdk_client_is_pinned_too_and_the_refusal_keeps_its_words():
+    pytest.importorskip("anthropic")
+    from hutch.providers.claude import ClaudeProvider
+    from hutch.providers.base import ProviderError
+    provider = ClaudeProvider(api_key="sk-secret", base_url="https://169.254.169.254")
+    with pytest.raises(ProviderError) as raised:
+        provider.list_models()
+    assert "never a model endpoint" in str(raised.value) and "sk-secret" not in str(raised.value)
+    clear = ClaudeProvider(api_key="sk-secret", base_url="http://192.168.1.50:9000")
+    with pytest.raises(ProviderError, match="never sent in clear text"):
+        clear.list_models()

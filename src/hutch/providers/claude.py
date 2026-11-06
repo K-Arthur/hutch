@@ -26,6 +26,7 @@ from typing import Any, Optional
 
 from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall, Watchdog,
                    abort_response, record_adapter_receipt)
+from .pinned_transport import precheck
 
 #: models that accept an ``effort`` level (others error if it is sent)
 EFFORT_PREFIXES = ("claude-opus-5", "claude-sonnet-5", "claude-fable", "claude-mythos", "claude-opus-4-8",
@@ -134,6 +135,8 @@ class ClaudeProvider(Provider):
         if not self.api_key:
             why = self.key_withheld or "set ANTHROPIC_API_KEY (Hutch uses API keys only and never reads login tokens)"
             raise ProviderError("auth", f"no API key for '{self.name}': {why}", provider=self.name)
+        if self.base_url:
+            precheck(self.base_url, self.api_key)                   # every call: an address check, not a pin (SDK stack)
         if self._client is None:
             sdk = _sdk()
             kw: dict[str, Any] = {"api_key": self.api_key, "max_retries": 0}
