@@ -50,8 +50,11 @@ class OpenAICompatProvider(Provider):
     supports_media_input = True
 
     def supports_vision(self, model: str) -> bool:
-        return self._official_openai and (model in _VISION_MODELS or any(
-            re.fullmatch(re.escape(name) + r"-\d{4}-\d{2}-\d{2}", model) for name in _VISION_MODELS))
+        if self._official_openai and (model in _VISION_MODELS or any(
+                re.fullmatch(re.escape(name) + r"-\d{4}-\d{2}-\d{2}", model) for name in _VISION_MODELS)):
+            return True
+        from .local.vision import local_vision_supported
+        return local_vision_supported(self.name, self.base_url, model, self.api_key) is True
 
     def __init__(self, base_url: str, api_key: str = "", provider_name: str = "openai-compatible",
                  headers: Optional[dict[str, str]] = None, session_header: str = "", auth_hint: str = "",
