@@ -100,7 +100,10 @@ def test_providers_page_renders_catalogue_accounts_and_local_services(state):
     response = client.get("/providers")
     assert response.status_code == 200
     html = response.text
-    assert "Two owner-authorized routes were live-verified on 2026-10-30" in html
+    assert "Live-verified in this build" in html
+    assert "deepseek/deepseek-flash" in html and "xiaomi/mimo-v2.6-flash" in html
+    assert "Two owner-authorized routes were live-verified" not in html
+    assert "Catalogue status:" in html and "implemented-unverified" in html
     assert "Your provider accounts" in html
     assert "Execution runtimes" in html
     assert "Local inference on this machine" in html

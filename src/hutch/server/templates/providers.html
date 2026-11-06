@@ -15,7 +15,11 @@
 </div>
 
 <div class="banner wait">{{ icon("alert", 18) }}<div class="banner-body">
-  <p><strong>Two owner-authorized routes were live-verified on 2026-10-30:</strong> the direct DeepSeek route through the built-in runtime and the managed OpenCode runtime with a DeepSeek model. Both were text only. Every other hosted route remains implemented-unverified, and no local inference service is running here. The catalogue is reviewed on {{ reviewed_on }}; evidence and sources are in docs/research/2026-10-provider-platform/.</p>
+  <p><strong>Live-verified in this build:</strong>
+  {% for route in live_summary.routes %}{{ route.scope }} - {{ route.capabilities | join(", ") }} ({{ route.observed_on }}){% if not loop.last %}; {% endif %}{% endfor %}.</p>
+  <p>Those are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status:
+  {% for row in status_counts %}{{ row.count }} {{ row.status }}{% if not loop.last %}, {% endif %}{% endfor %}.</p>
+  <p class="hint">A status is not a support claim. The catalogue was reviewed on {{ reviewed_on }}; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.</p>
 </div></div>
 
 <section class="panel" aria-labelledby="your-accounts-h">

@@ -256,6 +256,36 @@ def _observed_evidence(provider_id: str, model: str, store: Any) -> list[Capabil
     return out
 
 
+@dataclass(frozen=True)
+class LiveRoute:
+    scope: str
+    observed_on: str
+    capabilities: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class LiveSummary:
+    """Live evidence grouped by route and date, for pages that must state it exactly."""
+
+    routes: tuple[LiveRoute, ...]
+
+    @property
+    def dates(self) -> tuple[str, ...]:
+        return tuple(sorted({route.observed_on for route in self.routes}))
+
+
+def live_summary() -> LiveSummary:
+    """Group the live dataset by (route, date). Nothing is inferred beyond recorded entries."""
+    grouped: dict[tuple[str, str], set[str]] = {}
+    for entry in LIVE_VERIFIED_EVIDENCE:
+        grouped.setdefault((entry.scope, entry.observed_on), set()).add(entry.capability)
+    routes = tuple(
+        LiveRoute(scope=scope, observed_on=day, capabilities=tuple(sorted(capabilities)))
+        for (scope, day), capabilities in sorted(grouped.items(), key=lambda item: (item[0][1], item[0][0]))
+    )
+    return LiveSummary(routes=routes)
+
+
 def live_verified_evidence() -> tuple[CapabilityEvidence, ...]:
     """The live dataset for this build: only routes a dated owner-authorized run exercised."""
     return LIVE_VERIFIED_EVIDENCE

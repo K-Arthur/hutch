@@ -15,8 +15,9 @@ from fastapi.responses import HTMLResponse
 
 from ..connections import ConnectionBook
 from ..providers.accounts import disconnect_local, provider_groups, rename_account
-from ..providers.capabilities import CAPABILITIES, capability_matrix, capability_report, report_json
-from ..providers.catalog import CATEGORIES, bundled_catalog
+from ..providers.capabilities import (CAPABILITIES, capability_matrix, capability_report, live_summary,
+                                      report_json)
+from ..providers.catalog import CATEGORIES, INTEGRATION_STATUSES, STATUS_TEXT, bundled_catalog
 from ..providers.discovery import probe_local_services, services_json
 from ..providers.readiness import account_readiness, provider_readiness, readiness_json, route_readiness
 from ..runtime.registry import registry_json
@@ -34,6 +35,16 @@ CATEGORY_LABELS = {
 
 _RUNTIME_CACHE_SECONDS = 60.0
 _runtime_cache: dict[str, Any] = {"at": 0.0, "value": None}
+
+
+def _status_counts(catalog) -> list[dict]:
+    """Catalogue entries per integration status, in the declared vocabulary order."""
+    return [
+        {"status": status, "label": STATUS_TEXT.get(status, (status, ""))[0],
+         "count": sum(1 for provider in catalog.providers if provider.integration_status == status)}
+        for status in INTEGRATION_STATUSES
+        if any(provider.integration_status == status for provider in catalog.providers)
+    ]
 
 
 def runtime_catalog() -> dict:
@@ -110,6 +121,7 @@ def register_provider_pages(app: FastAPI, page: Callable, go: Callable, read_for
                                   "providers": providers})
         return page(request, "providers.html", nav="connections", groups=accounts, ecosystem=ecosystem,
                     reviewed_on=catalog.reviewed_on, provider_count=len(catalog.providers),
+                    live_summary=live_summary(), status_counts=_status_counts(catalog),
                     local_services=services_json(local_services()), runtime_catalog=runtime_catalog())
 
     # ------------------------------------------------------------------- APIs
