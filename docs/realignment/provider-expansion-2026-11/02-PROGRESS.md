@@ -10,7 +10,7 @@ Update at every checkpoint. Keep entries short and factual.
 | 1 Route resolution | done 2026-11-06 | 9f0fa4ed | none this phase; no provider call | - |
 | 2 Credential lifecycle | done 2026-11-06 | Phase 2 commit | fixture lifecycle; no provider call | - |
 | 3 Flagship providers | done 2026-11-06 | 88edb95d | unauthenticated GET opencode.ai/inference/v1/models (200); no paid call | shell env lacks OPENAI/ANTHROPIC/GEMINI keys |
-| 4 Hosted and gateways | not started | | | |
+| 4 Hosted and gateways | done 2026-11-06 | 47067fc6 | unauthenticated probes of 49 hosts; real server + CLI on isolated state; no keyed call | no credential for any Phase 4 provider |
 | 5 Local and custom | not started | | | |
 | 6 Media, speech, search | not started | | | |
 | 7 Frontend | not started | | | |
@@ -121,6 +121,35 @@ Update at every checkpoint. Keep entries short and factual.
 - `docs/research/2026-11-provider-expansion/04-FLAGSHIP-ROUTES.md`, ADR-0032, and updates to
   `docs/connections.md`, `docs/provider-platform.md` and `docs/realignment/provider-compatibility.md`.
 
+## Phase 4 outputs (2026-11-06)
+
+- `95d67ea1` eight `implemented-unverified` templates and identities (`vercel-ai-gateway`, `litellm`,
+  `clawrouter`, `bedrock-runtime`, `bedrock-mantle`, `microsoft-foundry`, `qianfan`, `stepfun-global`);
+  Synthetic moved to its documented `/openai/v1` path with its Anthropic base recorded; Tencent Token Plan
+  `blocked` with a cited source; Volcengine and BytePlus Coding Plan `documented` and not offered; pay-as-you-go
+  notices on Volcengine, BytePlus and StepFun. New seam `providers/auth_headers.py`: a header value of
+  `{api_key}` carries the key and suppresses the Bearer (Foundry `api-key`).
+- `b7dc5774` `providers/schema_trim.py` and `tool_schema_unsupported_keywords` (Volcengine only): the wire copy
+  of each tool schema loses bound keywords; `Tool.parameters` and `validate_call` are unchanged.
+- `27363e55` a host-less template added without a host now names `--base-url`.
+- `6dfdb24a` found by the live run, not planned: seven public-list hosts made `connections test` claim a key
+  was authenticated. `models_list_ignores_key` (measured 2026-11-06) makes the check list the models and say
+  the key was not verified; the Models page no longer prints "connection verified" for an unverified check.
+- `47067fc6` the OpenAI chat provider construction moved to a helper (`provider_for_connection` 43 to 35 lines).
+- Docs in the same series: `docs/research/2026-11-provider-expansion/05-HOSTED-AND-GATEWAYS.md` (sources,
+  probes, failure classes, decisions, results), ADR-0033, `provider-platform.md`, `connections.md`, `models.md`,
+  `provider-compatibility.md`. `runtime-setup.md` is unchanged: no runtime behavior changed.
+- Validation: 633 focused tests passed (provider, catalogue, compat, media, route, connection, doctor,
+  builtin runtime, plus `test_hosted_routes.py`, `test_schema_trim.py`, `test_connection_check_honesty.py`);
+  `npm run check:agent` and `npm run audit:context` passed; 32/32 captures at 360/768/1280/1920 clean
+  (`artifacts/provider-expansion-2026-11/phase4/`), cropped views inspected.
+- Real stack: `hutch init`, ten `hutch connections add`, `hutch serve --port 18892` on a temporary state dir.
+  Every new connection failed fast naming its key variable; `/api/v1/provider-resolution` mapped each spec to
+  provider, connection, billing, endpoint, `needs_authentication`, `substituted: false`. Against real hosts with
+  a made-up placeholder value: Vercel rejected it, Synthetic listed 13 models and was reported as not verified.
+- Not run: any keyed or paid call (no credential), a real LiteLLM proxy, a real local engine, keyboard
+  traversal (no markup changed), light theme (G16).
+
 ## Owner inputs (batch, answered 2026-11-06)
 
 - Provisioned credentials: OpenAI, Anthropic, Google Gemini. Every other paid route is
@@ -167,6 +196,22 @@ Update at every checkpoint. Keep entries short and factual.
   requires a governed executor contract (approvals, spend, cancellation, session isolation) larger
   than a 3-file task plus an interactive local CLI sign-in.
 
+- 2026-11-06: Phase 4 ships no cloud request signer. Bedrock API keys (bearer) and Azure resource keys are plain
+  header credentials, so both approved dependency families stay unused and no dependency was added. AWS IAM and
+  SigV4 with the Converse event stream, Google service accounts (Gemini and Claude on Vertex) and Entra ID need a
+  signer or token mint and an account to verify; they stay `documented` with the design in `05-HOSTED-AND-GATEWAYS.md`.
+- 2026-11-06: A public model list is reachability evidence, never key evidence. Seven templates carry
+  `models_list_ignores_key`; the check under-claims if a vendor later starts validating keys (ADR-0033).
+- 2026-11-06: Cloudflare AI Gateway stays `documented`: account and gateway ids live in the URL, authentication
+  needs a second header, and the vendor deprecated `/compat` for single-model chat (page updated 2026-11-04).
+- 2026-11-06: Tencent Token Plan is blocked (forbids automated and non-interactive use). Volcengine and BytePlus
+  Coding Plan are not offered: the vendor lists supported tools, Hutch is not listed, and no sentence permits
+  unlisted tools.
+- 2026-11-06: Gateways are their own identities; Vercel's BYOK fallback to Vercel credentials is an
+  acknowledged notice, not a hint, because the payer can differ from the key's owner.
+- 2026-11-06: Volcengine tool-schema trimming rests on one aggregator report and is not reproduced against an
+  account; it is applied to the wire copy only and not extended to BytePlus.
+
 ## Review findings log
 
 - 2026-11-06, Phase 0, baseline test hashed lifecycle state (`archived`) as preset content; fixed
@@ -198,6 +243,16 @@ Update at every checkpoint. Keep entries short and factual.
   in the `kimi-coding` terms notice that Hutch sends its own `User-Agent`, and pinned that wire
   behavior in `test_flagship_routes.py`.
 
+- 2026-11-06, Phase 4, the live run showed `connections test` reporting "authenticated" for seven hosts that
+  ignore the key; fixed with a measured flag and tests that fail without it.
+- 2026-11-06, Phase 4, the Models page printed "connection verified" for any `ok` check, including ones that
+  verified nothing; fixed and covered by a real form-post test shown to fail without the fix.
+- 2026-11-06, Phase 4, the first Models page test grepped source text; replaced by a real route test.
+- 2026-11-06, Phase 4, long template titles wrapped and truncated in the rename field; shortened.
+- 2026-11-06, Phase 4, `provider_for_connection` grew to 43 lines; the OpenAI chat construction moved to a helper.
+- 2026-11-06, Phase 4, the seam and trimming tests were written in the same step as their code and not run red
+  on their own; the honesty and Models page tests were run red first.
+
 ## Open items and deferred
 
 - Claude CLI delegate and Codex native runtime remain `documented` (G4, G5); Grok OAuth and MiniMax
@@ -217,3 +272,13 @@ Update at every checkpoint. Keep entries short and factual.
   exercised. The route is eligibility-gated.
 - Remote/WSL loopback sign-in is documented as unavailable, not implemented. OpenCode's official
   device/OAuth flow was not exercised interactively in this environment.
+- Phase 4: AWS IAM/SigV4 and Converse, Vertex (Gemini and Claude), Entra ID, Cloudflare AI Gateway, Alibaba
+  workspace endpoints, Step Plan, Volcengine/BytePlus Coding Plan, Qwen Token Plan remain `documented` or
+  blocked. No Phase 4 route has a keyed call; OpenAI, Anthropic and Google Gemini remain the only providers with an
+  owner credential, and none of them is a Phase 4 route.
+- Phase 4: the Providers page repeats each account's "no local credential" detail and a near-identical next
+  action (pre-existing duplicate copy); the page is 17,523 px tall at 1280 (G17). Both are Phase 7.
+- Phase 4: whether Mistral's reasoning `high` with `temperature: 0` returns HTTP 400 was not tested; it is a
+  recorded vendor quirk, not a Hutch rule.
+- Phase 4: the two Tencent host spellings (`tencentmaas.com`, `tencentcloudmaas.com`) both answer HTTP 401;
+  Hutch keeps the one in its recorded vendor source. Re-check when a Tencent account exists.
