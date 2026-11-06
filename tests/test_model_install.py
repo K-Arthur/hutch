@@ -20,6 +20,7 @@ import time
 import pytest
 
 from hutch.providers.base import ModelMeta, ProviderError
+from hutch.providers.install_plan import InstallPlan
 from hutch.providers.model_install import (
     MAX_CONCURRENT_INSTALLS, ModelInstaller, _same_model, validate_model_name,
 )
@@ -114,14 +115,36 @@ def test_install_refuses_a_model_that_is_already_present(fake):
     assert "already installed" in str(excinfo.value)
 
 
-def test_install_refuses_a_duplicate_while_one_is_running(fake):
+def test_start_refuses_a_blocked_plan_before_a_job_exists(fake, monkeypatch):
+    installer = ModelInstaller(provider_for(fake))
+    monkeypatch.setattr(installer, "plan", lambda model: InstallPlan(model=model, blocked="not enough room"))
+    with pytest.raises(ProviderError) as excinfo:
+        installer.start("blocked:1b")
+    assert "not enough room" in str(excinfo.value)
+    assert installer.jobs() == []
+
+
+def test_the_job_carries_the_preflight_facts(fake, monkeypatch):
+    installer = ModelInstaller(provider_for(fake))
+    plan = InstallPlan(model="new:1b", size_bytes=123, size_source="catalog", free_bytes=456,
+                       model_dir="/models", model_dir_source="default", fit_status="fits",
+                       fit_label="fits", fit_reason="ok", warnings=["a warning"])
+    monkeypatch.setattr(installer, "plan", lambda model: plan)
+    job = wait_done(installer.start("new:1b"))
+    payload = job.to_json()
+    assert payload["size_bytes"] == 123 and payload["free_bytes"] == 456
+    assert payload["warnings"] == ["a warning"] and payload["fit_label"] == "fits"
+
+
+def test_a_duplicate_start_joins_the_running_job(fake):
+    """A double click or a second tab must not start a second download or show an error."""
     fake.pull_delay = 0.05
     fake.pull_events = 20
     installer = ModelInstaller(provider_for(fake))
     job = installer.start("dup:1b")
-    with pytest.raises(ProviderError) as excinfo:
-        installer.start("library/dup:1b")     # same model, different spelling
-    assert "already being installed" in str(excinfo.value)
+    again = installer.start("library/dup:1b")     # same model, different spelling
+    assert again.id == job.id
+    assert len(installer.jobs()) == 1
     installer.cancel(job.id)
     wait_done(job)
 
@@ -140,17 +163,24 @@ def test_install_bounds_concurrent_downloads(fake):
 
 
 def test_cancel_stops_the_download_and_leaves_the_model_absent(fake):
-    fake.pull_delay = 0.05
+    fake.pull_delay = 0.02
     fake.pull_events = 200
     installer = ModelInstaller(provider_for(fake))
     job = installer.start("partial:3b")
-    time.sleep(0.05)
+    for _ in range(200):
+        if job.received_bytes:
+            break
+        time.sleep(0.01)
+    assert job.received_bytes > 0, "the cancellation must land after real bytes arrived"
     assert installer.cancel(job.id)
     wait_done(job)
     assert job.state == "cancelled"
+    assert job.error_code == "cancelled"
     assert "partial:3b" not in installer.installed()
-    # Nothing is left running: the model can be offered again immediately.
+    # Nothing is left running: the model can be offered again immediately, and the new
+    # job says it is resuming rather than pretending the previous attempt never happened.
     again = installer.start("partial:3b")
+    assert again.resumed is True
     installer.cancel(again.id)
     wait_done(again)
 
@@ -167,7 +197,8 @@ def test_a_stream_that_ends_without_success_is_a_failure(fake):
     fake_provider.pull_events = truncated_pull
     job = wait_done(ModelInstaller(fake_provider).start("truncated:1b"))
     assert job.state == "failed"
-    assert "before the runtime reported success" in job.error
+    assert job.error_code == "interrupted"
+    assert "ended early" in job.error_message
 
 
 def test_success_without_the_model_in_the_registry_is_a_failure(fake):
@@ -180,7 +211,8 @@ def test_success_without_the_model_in_the_registry_is_a_failure(fake):
     fake_provider.pull_events = lying_pull
     job = wait_done(ModelInstaller(fake_provider).start("ghost:1b"))
     assert job.state == "failed"
-    assert "does not list the model" in job.error
+    assert job.error_code == "unconfirmed"
+    assert "does not list the model" in job.error_message
 
 
 def test_an_error_event_fails_the_job(fake):
@@ -193,7 +225,25 @@ def test_an_error_event_fails_the_job(fake):
     fake_provider.pull_events = failing_pull
     job = wait_done(ModelInstaller(fake_provider).start("toobig:70b"))
     assert job.state == "failed"
+    assert job.error_code == "disk_full"
+    assert job.action == "free_space"
     assert "no space left" in job.error
+
+
+def test_a_failure_redacts_a_sign_in_key(fake):
+    fake_provider = provider_for(fake)
+
+    def unauthorised_pull(model, **_kwargs):
+        yield {"status": "pulling manifest"}
+        yield {"error": "unauthorized https://ollama.com/connect?name=x&key=SUPERSECRET123"}
+
+    fake_provider.pull_events = unauthorised_pull
+    job = wait_done(ModelInstaller(fake_provider).start("cloudy:1b"))
+    assert job.state == "failed"
+    assert job.error_code == "needs_auth"
+    assert "SUPERSECRET123" not in job.error
+    assert "SUPERSECRET123" not in job.error_message
+    assert "[redacted]" in job.error
 
 
 def test_remove_deletes_from_the_runtime(fake):

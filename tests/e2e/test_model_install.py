@@ -57,6 +57,11 @@ def test_the_button_shows_the_size_and_install_finishes_with_the_model_in_the_ru
         assert "GiB" in button.inner_text() or not button.get_attribute("data-install-size"), "the size is on the button before the click"
         assert page.locator(f'[data-install-state="{tag}"]').inner_text() == "", "nothing starts until the button is pressed"
         button.click()
+        panel = page.locator(f'[data-install-plan-for="{tag}"]')
+        panel.wait_for(timeout=10_000)
+        assert "GiB free" in panel.inner_text() or "free disk" in panel.inner_text(), "the plan shows the disk before the download"
+        assert tag not in runtime.models, "reviewing the plan does not start a download"
+        panel.get_by_role("button", name="Confirm download").click()
         for _ in range(60):
             if tag in runtime.models:
                 break
@@ -76,6 +81,9 @@ def test_a_running_download_can_be_cancelled_and_installs_nothing(browser, live)
         button = _first_install_button(page)
         tag = button.get_attribute("data-install-model")
         button.click()
+        panel = page.locator(f'[data-install-plan-for="{tag}"]')
+        panel.wait_for(timeout=10_000)
+        panel.get_by_role("button", name="Confirm download").click()
         cancel = page.locator(f'[data-install-cancel-for="{tag}"]')
         cancel.wait_for(timeout=15_000)
         cancel.click()

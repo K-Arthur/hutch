@@ -63,6 +63,24 @@ def test_a_bad_model_name_is_refused_before_anything_is_requested(env, bad):
     assert not any(name not in ("fake:4b",) for name in runtime.models)
 
 
+def test_the_plan_endpoint_reports_catalog_size_and_the_runtime_directory(env):
+    client, _, _ = env
+    plan = client.get("/api/models/install/plan", params={"model": "qwen3:4b"}).json()
+    assert plan["model"] == "qwen3:4b"
+    assert plan["size_source"] == "catalog" and plan["size_bytes"] > 0
+    assert plan["model_dir"] and plan["model_dir_source"] in ("default", "OLLAMA_MODELS")
+    assert plan["free_bytes"] is not None
+    assert plan["blocked"] == ""
+    assert plan["fit_label"]
+
+
+def test_the_plan_endpoint_refuses_a_bad_name_before_a_download(env):
+    client, runtime, _ = env
+    response = client.get("/api/models/install/plan", params={"model": "has space"})
+    assert response.status_code == 422
+    assert "has space" not in runtime.models
+
+
 def test_remove_deletes_an_installed_model_and_refuses_one_that_is_missing(env):
     client, runtime, headers = env
     assert client.post("/api/models/remove", json={"model": "fake:4b"}, headers=headers).status_code == 200

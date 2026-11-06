@@ -29,7 +29,7 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
         existing = getattr(app.state, "model_installer", None)
         if existing is None:
             from ..runtime.ladder import get_provider
-            existing = ModelInstaller(get_provider("ollama", None))
+            existing = ModelInstaller(get_provider("ollama", None), config.state_dir)
             app.state.model_installer = existing
         return existing
 
@@ -58,6 +58,17 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
     def model_install_list() -> dict:
         """Every install this process knows about, newest first."""
         return {"jobs": [job.to_json() for job in installer().jobs()]}
+
+    @app.get("/api/models/install/plan")
+    def model_install_plan(model: str) -> dict:
+        """Size, free disk, fit and measured-rate ETA before anything is downloaded.
+
+        This is a read; the write below re-runs the same plan, so a client cannot skip it.
+        """
+        try:
+            return installer().plan(model).to_json()
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
 
     @app.post("/api/models/install")
     async def model_install_start(request: Request) -> dict:

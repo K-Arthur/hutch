@@ -26,10 +26,14 @@ import json
 import threading
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Iterator, Optional
 
 from ..models import iso, utcnow
 from .base import ProviderError
+from .install_errors import (InstallFailure, cancelled_failure, classify_install_error,
+                             interrupted_failure, unconfirmed_failure)
+from .install_plan import InstallPlan, build_plan, record_rate
 from .locality import CLOUD_TAG
 from .model_names import parse_model_name, same_model
 
@@ -62,6 +66,25 @@ def _same_model(a: str, b: str) -> bool:
     return same_model(a, b)
 
 
+def _apply_plan(job: InstallJob, plan: InstallPlan) -> None:
+    """Copy the preflight facts onto the job without turning an unknown into a zero."""
+    job.size_bytes = plan.size_bytes
+    job.size_source = plan.size_source
+    job.model_dir = plan.model_dir
+    job.model_dir_source = plan.model_dir_source
+    job.free_bytes = plan.free_bytes
+    job.reserve_bytes = plan.reserve_bytes
+    job.fit_status = plan.fit_status
+    job.fit_label = plan.fit_label
+    job.fit_reason = plan.fit_reason
+    job.fit_effective_ctx = plan.fit_effective_ctx
+    job.fit_estimated = plan.fit_estimated
+    job.planned_eta_seconds = plan.eta_seconds
+    job.speed_bytes_per_s = plan.speed_bytes_per_s
+    job.speed_measured_at = plan.speed_measured_at
+    job.warnings = list(plan.warnings)
+
+
 @dataclass
 class InstallJob:
     id: str
@@ -72,11 +95,36 @@ class InstallJob:
     total: int = 0
     digest: str = ""
     error: str = ""
+    error_code: str = ""
+    error_message: str = ""
+    action: str = ""
     resumed: bool = False
+    received_bytes: int = 0
     started_at: str = field(default_factory=lambda: iso(utcnow()))
     updated_at: str = field(default_factory=lambda: iso(utcnow()))
     finished_at: str = ""
     cancel_requested: bool = False
+    # Preflight facts (unknowns stay empty/None) and the live measured rate.
+    size_bytes: Optional[int] = None
+    size_source: str = "unknown"
+    model_dir: str = ""
+    model_dir_source: str = "unknown"
+    free_bytes: Optional[int] = None
+    reserve_bytes: int = 0
+    fit_status: str = ""
+    fit_label: str = ""
+    fit_reason: str = ""
+    fit_effective_ctx: int = 0
+    fit_estimated: bool = False
+    planned_eta_seconds: Optional[float] = None
+    speed_bytes_per_s: Optional[float] = None
+    speed_measured_at: str = ""
+    bytes_per_second: Optional[float] = None
+    eta_seconds: Optional[float] = None
+    warnings: list[str] = field(default_factory=list)
+    _blob_digest: str = ""
+    _blob_started: float = 0.0
+    _blob_base: int = 0
 
     @property
     def percent(self) -> Optional[float]:
@@ -89,10 +137,21 @@ class InstallJob:
         return {
             "id": self.id, "model": self.model, "state": self.state, "status": self.status,
             "completed": self.completed, "total": self.total, "percent": self.percent,
-            "digest": self.digest, "error": self.error, "resumed": self.resumed,
+            "digest": self.digest, "error": self.error, "error_code": self.error_code,
+            "error_message": self.error_message, "action": self.action,
+            "resumed": self.resumed, "received_bytes": self.received_bytes,
             "started_at": self.started_at, "updated_at": self.updated_at,
             "finished_at": self.finished_at,
             "cancel_requested": self.cancel_requested,
+            "size_bytes": self.size_bytes, "size_source": self.size_source,
+            "model_dir": self.model_dir, "model_dir_source": self.model_dir_source,
+            "free_bytes": self.free_bytes, "reserve_bytes": self.reserve_bytes,
+            "fit_status": self.fit_status, "fit_label": self.fit_label, "fit_reason": self.fit_reason,
+            "fit_effective_ctx": self.fit_effective_ctx, "fit_estimated": self.fit_estimated,
+            "planned_eta_seconds": self.planned_eta_seconds,
+            "speed_bytes_per_s": self.speed_bytes_per_s, "speed_measured_at": self.speed_measured_at,
+            "bytes_per_second": self.bytes_per_second, "eta_seconds": self.eta_seconds,
+            "warnings": list(self.warnings),
         }
 
 
@@ -110,21 +169,52 @@ def _read_events(resp: Any) -> Iterator[dict[str, Any]]:
 
 
 def _apply(job: InstallJob, event: dict[str, Any]) -> None:
-    """Fold one runtime event into the job. Unknown keys are ignored, not guessed at."""
+    """Fold one runtime event into the job. Unknown keys are ignored, not guessed at.
+
+    A pull stream reports one blob at a time, so ``total``/``completed`` describe the
+    current blob, not the whole model. The live rate is therefore measured from the first
+    byte this attempt received for that blob; a resumed blob starts at a nonzero count and
+    does not make the rate look faster than the link.
+    """
+    now = time.monotonic()
     status = str(event.get("status") or "")
     if status:
         job.status = status[:_MAX_STATUS_CHARS]
-    if isinstance(event.get("digest"), str) and event["digest"]:
-        job.digest = event["digest"]
+    digest = event.get("digest")
+    new_blob = bool(isinstance(digest, str) and digest and digest != job._blob_digest)
+    if isinstance(digest, str) and digest:
+        job.digest = digest
+        if new_blob:
+            job._blob_digest = digest
+
     total = event.get("total")
-    completed = event.get("completed")
     if isinstance(total, (int, float)) and total > 0:
         # A new blob restarts the byte counters; showing 100% of the old one would lie.
         if job.total and job.completed >= job.total and total != job.total:
             job.completed = 0
-        job.total = int(total)
+        if int(total) != job.total:
+            job.total = int(total)
+            new_blob = True
+
+    completed = event.get("completed")
     if isinstance(completed, (int, float)) and completed >= 0:
+        if job.completed and int(completed) < job.completed:
+            new_blob = True          # the same blob restarted; measure the new attempt
         job.completed = int(completed)
+        job.received_bytes = max(job.received_bytes, job.completed)
+
+    if new_blob:
+        job._blob_started = now
+        job._blob_base = job.completed
+        job.bytes_per_second = None
+        job.eta_seconds = None
+    elif job._blob_started and job.completed > job._blob_base:
+        elapsed = now - job._blob_started
+        if elapsed >= 1.0:
+            rate = (job.completed - job._blob_base) / elapsed
+            job.bytes_per_second = rate
+            job.eta_seconds = max(0.0, (job.total - job.completed) / rate) if job.total else None
+
     if event.get("error"):
         job.error = str(event["error"])[:_MAX_STATUS_CHARS * 2]
     job.updated_at = iso(utcnow())
@@ -138,8 +228,9 @@ class ModelInstaller:
     the runtime before it is reported as finished, and a restart loses jobs but not truth.
     """
 
-    def __init__(self, provider: Any):
+    def __init__(self, provider: Any, state_dir: Optional[Path] = None):
         self.provider = provider
+        self.state_dir = Path(state_dir) if state_dir is not None else None
         self._lock = threading.Lock()
         self._jobs: dict[str, InstallJob] = {}
         self._threads: dict[str, threading.Thread] = {}
@@ -162,6 +253,12 @@ class ModelInstaller:
         except Exception:
             return {}
 
+    def plan(self, model: str) -> InstallPlan:
+        """What is known before a pull, for the page and for ``start``'s own check."""
+        name = validate_model_name(model)
+        return build_plan(name, base_url=str(getattr(self.provider, "base_url", "") or ""),
+                          state_dir=self.state_dir)
+
     def _active_for(self, model: str) -> Optional[InstallJob]:
         with self._lock:
             for job in self._jobs.values():
@@ -181,20 +278,27 @@ class ModelInstaller:
         name = validate_model_name(model)
         active = self._active_for(name)
         if active is not None:
-            raise ProviderError("bad_request", f"{name} is already being installed ({active.state}); "
-                                              f"wait for it or cancel it first", provider="ollama")
+            # A double click or a second tab joins the one download instead of starting
+            # another or showing a spurious error.
+            return active
         if not allow_existing:
             for installed_name in self.installed():
                 if _same_model(installed_name, name):
                     raise ProviderError("bad_request", f"{name} is already installed", provider="ollama")
+        preflight = self.plan(name)
+        if preflight.blocked:
+            raise ProviderError("bad_request", preflight.blocked, provider="ollama")
         with self._lock:
             running = sum(1 for j in self._jobs.values() if j.state in ("starting", "running"))
             if running >= MAX_CONCURRENT_INSTALLS:
                 raise ProviderError("bad_request",
                                     f"{running} installs are already running; finish or cancel one first",
                                     provider="ollama")
+            resumed = any(_same_model(j.model, name) and j.state in ("cancelled", "failed")
+                          and j.received_bytes > 0 for j in self._jobs.values())
             self._counter += 1
-            job = InstallJob(id=f"install-{self._counter}", model=name)
+            job = InstallJob(id=f"install-{self._counter}", model=name, resumed=resumed)
+            _apply_plan(job, preflight)
             # An interrupted earlier attempt leaves verified blobs behind; say so rather
             # than implying the whole download will run again.
             self._jobs[job.id] = job
@@ -242,15 +346,26 @@ class ModelInstaller:
             self._jobs.pop(job.id, None)
             self._threads.pop(job.id, None)
 
-    def _finish(self, job: InstallJob, state: str, *, error: str = "") -> None:
+    def _finish(self, job: InstallJob, state: str, *,
+                failure: Optional[InstallFailure] = None) -> None:
+        rate = job.bytes_per_second
         with self._lock:
             job.state = state
-            job.error = error
+            if failure is not None:
+                job.error = failure.detail
+                job.error_code = failure.code
+                job.error_message = failure.message
+                job.action = failure.action
             job.finished_at = iso(utcnow())
             job.updated_at = job.finished_at
             if state == "done":
                 job.status = "success"
                 job.completed = job.total or job.completed
+        record_rate(self.state_dir, rate, job.model)
+
+    def _fail(self, job: InstallJob, text: str) -> None:
+        self._finish(job, "failed", failure=classify_install_error(
+            text, free_bytes=job.free_bytes, size_bytes=job.size_bytes))
 
     def _run(self, job: InstallJob) -> None:
         """Own one pull. Success is confirmed against the runtime, never assumed."""
@@ -258,10 +373,10 @@ class ModelInstaller:
             for event in self.provider.pull_events(job.model, should_stop=lambda: job.cancel_requested):
                 _apply(job, event)
                 if job.cancel_requested:
-                    self._finish(job, "cancelled", error="cancelled before the download finished")
+                    self._finish(job, "cancelled", failure=cancelled_failure())
                     return
                 if job.error:
-                    self._finish(job, "failed", error=job.error)
+                    self._fail(job, job.error)
                     return
                 if job.state == "starting":
                     job.state = "running"
@@ -270,23 +385,23 @@ class ModelInstaller:
             else:
                 # The stream ended without the runtime saying `success`.
                 if job.cancel_requested:
-                    self._finish(job, "cancelled", error="cancelled before the download finished")
+                    self._finish(job, "cancelled", failure=cancelled_failure())
                 else:
-                    self._finish(job, "failed", error="the download stream ended before the runtime reported success")
+                    self._finish(job, "failed", failure=interrupted_failure())
                 return
         except ProviderError as exc:
-            self._finish(job, "cancelled" if job.cancel_requested else "failed",
-                         error="cancelled" if job.cancel_requested else str(exc))
+            if job.cancel_requested:
+                self._finish(job, "cancelled", failure=cancelled_failure())
+            else:
+                self._fail(job, str(exc))
             return
         except Exception as exc:  # a runtime crash must not kill the server thread silently
-            self._finish(job, "failed", error=f"{type(exc).__name__}: {exc}")
+            self._fail(job, f"{type(exc).__name__}: {exc}")
             return
         # `success` from the runtime is necessary, not sufficient: confirm the model is
         # actually listed before telling anyone the install worked.
         present = any(_same_model(name, job.model) for name in self.installed())
         if not present:
-            self._finish(job, "failed",
-                         error="the runtime reported success but does not list the model; check `ollama list`")
+            self._finish(job, "failed", failure=unconfirmed_failure())
             return
-        job.resumed = False
         self._finish(job, "done")
