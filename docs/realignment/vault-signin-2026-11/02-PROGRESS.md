@@ -7,7 +7,7 @@ Update at every checkpoint. Keep entries short and factual.
 | Phase | Status | Last commit | Live-verified | Blocked on |
 |---|---|---|---|---|
 | 0 Diagnose | **done 2026-11-06** | `378d7e0b` (audit), `36600792` (test fix) | yes: real server, real Chromium with a virtual authenticator; scope and gaps in `00-GAP-AUDIT.md` sections 7 and 8 | |
-| 1 Research | **done 2026-11-06** | `07336d83` | partly: two local experiments in real Chromium 153 with a virtual authenticator (WebAuthn on `localhost`, PRF) and a KDF timing run; everything else is documents. Gaps in `03-LESSONS-AND-DECISIONS.md` section 6 | |
+| 1 Research | **done 2026-11-06** | `07336d83` (research), `74b61695` (KDF script), `89322921` (agent map) | partly: two local experiments in real Chromium 153 with a virtual authenticator (WebAuthn on `localhost`, PRF) and a KDF timing run; everything else is documents. Gaps in `03-LESSONS-AND-DECISIONS.md` section 6 | |
 | 2 Step-up and sign-in | not started (next) | | | |
 | 3 Lifecycle, unattended, backup | not started | | | |
 | 4 Vault UI | not started | | | |
@@ -107,9 +107,14 @@ Read `docs/research/2026-11-vault-signin/03-LESSONS-AND-DECISIONS.md` first: 32 
 - Scrypt measured 515 ms; Argon2id 40 ms to 194 ms, depending on memory. Argon2id needs the owner to
   raise the `cryptography` floor (Q3).
 
-Baseline for Phase 2 is unchanged from Phase 0 (check:agent 4/4; vault, native-credentials and
-migration suites 235 passed, 1 skipped). Phase 1 changed no source file, so those were not re-run;
-`scripts/audit_emoji.py` over a root holding only the files this phase added: clean (6 files).
+Baseline for Phase 2 is unchanged from Phase 0 (vault, native-credentials and migration suites 235
+passed, 1 skipped). Phase 1 changed no source file, so those were not re-run.
+`npm run check:agent` was 3 of 4 after the research commits: the agent map counts tracked files, and
+this phase added five under `docs/` (2582 to 2587). Regenerated with
+`python scripts/generate_agent_map.py --write` (`89322921`, one file, no other session had touched the
+map) and the check is 4 of 4 again. **Any phase that adds a tracked file must regenerate the map in
+the same commit series.** `scripts/audit_emoji.py` over roots holding only the files this phase
+added: clean.
 
 ## Ordered backlog
 
