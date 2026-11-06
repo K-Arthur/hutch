@@ -113,7 +113,13 @@
         </tr>
       </thead>
       <tbody>
-      {% for r in v.configured_routes %}
+      {% set _group_labels = {"machine": "On this machine", "network": "On your network", "cloud_via_local": "Cloud via local runtime", "cloud": "Hosted"} %}
+      {% set ns = namespace(cur="") %}
+      {% for r in v.configured_routes | sort(attribute="locality") %}
+        {% if r.locality != ns.cur %}
+          {% set ns.cur = r.locality %}
+          <tr class="group-row"><td colspan="4" class="muted small" style="font-weight:600;padding-top:12px;">{{ _group_labels.get(r.locality, r.locality) }}{% if r.privacy_label %} <span class="muted">— {{ r.privacy_label }}</span>{% endif %}</td></tr>
+        {% endif %}
         <tr>
           <td data-label="Model">
             <div class="model-name-group">
@@ -125,6 +131,7 @@
             <div class="model-meta-sub">
               <span class="tag mono">{{ r.provider }}</span>
               {% if r.is_local %}<span class="tag">local</span>{% else %}<span class="tag">hosted</span>{% endif %}
+              <span class="tag" title="{{ r.privacy_label }}">{{ r.locality | replace("_", " ") }}</span>
               {% if r.label and r.label != r.spec %}&middot; <span>{{ r.label }}</span>{% endif %}
             </div>
           </td>
@@ -269,7 +276,7 @@
   <div class="conn-head">
     <div>
       <h2 id="rt-h" class="card-title">{{ icon("cpu", 18) }} Runtimes and connections</h2>
-      <p class="hint">One failing runtime never stops the others: each run stands alone. This shows which ones need attention.</p>
+      <p class="hint">One failing runtime never stops the others: each run stands alone. Values reported by the runtime are measured; fit and window estimates are predicted; anything the runtime did not report is shown as unknown.</p>
     </div>
   </div>
   {% if v.runtimes %}
@@ -286,7 +293,9 @@
       </div>
       <div class="runtime-card-meta">
         <p class="muted" style="margin: 0 0 4px;">{{ h.detail }}</p>
-        {% if h.loaded %}<div class="tags"><span class="tag mono">loaded: {{ h.loaded | join(", ") }}</span></div>{% endif %}
+        {% if h.version %}<div class="small muted">Version {{ h.version }} (reported by the runtime)</div>{% endif %}
+        {% if h.loaded %}<div class="tags"><span class="tag mono">loaded: {{ h.loaded | join(", ") }}</span> <span class="muted small">(measured)</span></div>{% endif %}
+        {% if not h.loaded and h.state == "healthy" %}<div class="small muted">No model loaded right now (measured)</div>{% endif %}
         <div class="small">
           {% if h.used_by %}
             <span class="muted">Used by: </span>
@@ -337,6 +346,7 @@
           <td>
             <span class="mono bold">{{ r.name }}</span>
             <div class="muted small">{{ r.meta.params_b or "?" }}B, {{ r.meta.quant or "?" }}, trained for up to {{ r.meta.max_context | tokens if r.meta.max_context else "?" }} tokens{% if r.load_ms %}; last cold load {{ (r.load_ms / 1000) | round(1) }}s{% endif %}</div>
+            {% if r.meta.capabilities %}<div class="tags small">{% for c in r.meta.capabilities %}<span class="tag">{{ c }}</span>{% endfor %} <span class="muted small">(reported)</span></div>{% else %}<div class="muted small">capabilities: unknown (runtime did not report)</div>{% endif %}
           </td>
           <td class="mono">{{ r.fits[16384].weights_gib | round(1) }} GiB</td>
           {% set f16 = r.fits[16384] %}{% set f32 = r.fits[32768] %}
@@ -464,7 +474,7 @@
             {% if v.ollama_up %}
             <button class="btn small" type="button" data-install-model="{{ tag }}"
                     data-install-size="{{ '%.1f' | format(m.size_bytes / 1073741824) if m.size_bytes else '' }}">Install{% if m.size_bytes %} ({{ '%.1f' | format(m.size_bytes / 1073741824) }} GiB){% endif %}</button>
-            <span class="install-state small" data-install-state="{{ tag }}" role="status" aria-live="polite"></span>
+            <span class="install-state small" data-install-state="{{ tag }}" role="status" aria-live="polite" aria-atomic="true"></span>
             <div class="muted small mono">or run <code>ollama pull {{ tag }}</code></div>
             {% else %}
             <span class="mono small">ollama pull {{ tag }}</span>

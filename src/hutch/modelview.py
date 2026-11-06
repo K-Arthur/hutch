@@ -34,6 +34,8 @@ class ConfiguredModelRoute:
     bots: list[str]
     has_key: bool
     is_local: bool
+    locality: str = "cloud"   # machine | network | cloud_via_local | cloud
+    privacy_label: str = ""
     problem: Optional[str] = None
 
 
@@ -91,6 +93,49 @@ def residency_note(meta: ModelMeta) -> str:
     if meta.vram_bytes is not None:
         parts.append("on the GPU" if meta.vram_bytes > 0 else "entirely on the CPU")
     return ", ".join(parts)
+
+
+_PRIVACY_LABELS = {
+    "machine": "Data stays on this machine.",
+    "network": "Data leaves this machine to a service you control.",
+    "cloud_via_local": "Data is forwarded to a cloud service through the local runtime.",
+    "cloud": "Data is sent to a hosted service.",
+}
+
+
+def locality_for_route(spec: str, is_local: bool, conn_base_url: str = "") -> str:
+    if is_local:
+        if spec.startswith("ollama/"):
+            name = spec.split("/", 1)[-1]
+            if name.endswith("-cloud") or ":cloud" in name:
+                return "cloud_via_local"
+        try:
+            from .providers.locality import model_locality
+            verdict = model_locality("ollama", spec.split("/", 1)[-1])
+            if verdict.local is False:
+                return "cloud_via_local"
+        except Exception:
+            pass
+        return "machine"
+    host = ""
+    if conn_base_url:
+        try:
+            from urllib.parse import urlparse
+            host = (urlparse(conn_base_url).hostname or "").lower()
+        except Exception:
+            host = ""
+    if host in ("localhost", "127.0.0.1", "::1") or host.endswith(".local"):
+        return "machine"
+    if (host.startswith("10.") or host.startswith("192.168.") or
+            host.startswith("172.16.") or host.startswith("172.17.") or host.startswith("172.18.") or
+            host.startswith("172.19.") or host.startswith("172.2") or host.startswith("172.30.") or
+            host.startswith("172.31.")):
+        return "network"
+    return "cloud"
+
+
+def privacy_label_for(locality: str) -> str:
+    return _PRIVACY_LABELS.get(locality, _PRIVACY_LABELS["cloud"])
 
 
 def local_window_notes(state_dir: Any = None) -> list[str]:
@@ -209,9 +254,11 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
             if b_name not in assigned:
                 assigned.append(b_name)
         is_def = spec == saved_default
+        _loc = locality_for_route(spec, True)
         configured_routes.append(ConfiguredModelRoute(
             spec=spec, provider="ollama", model_id=name, label=store.kv_get(f"model_label:{spec}") or name,
-            status="ready", is_default=is_def, bots=assigned, has_key=True, is_local=True
+            status="ready", is_default=is_def, bots=assigned, has_key=True, is_local=True,
+            locality=_loc, privacy_label=privacy_label_for(_loc)
         ))
 
     for c_name, conn in conn_book.configured().items():
@@ -221,10 +268,12 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
                 seen_specs.add(bot_spec)
                 m_id = bot_spec.split("/", 1)[1]
                 is_def = bot_spec == saved_default
+                _loc = locality_for_route(bot_spec, False, conn.base_url)
                 configured_routes.append(ConfiguredModelRoute(
                     spec=bot_spec, provider=c_name, model_id=m_id, label=store.kv_get(f"model_label:{bot_spec}") or f"{conn.title}: {m_id}",
                     status="ready" if has_k else "needs_key", is_default=is_def,
-                    bots=b_names, has_key=has_k, is_local=False
+                    bots=b_names, has_key=has_k, is_local=False,
+                    locality=_loc, privacy_label=privacy_label_for(_loc)
                 ))
 
     extra_specs = set(used_by.keys())
@@ -239,15 +288,22 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
             prov, mid = bot_spec.split("/", 1) if "/" in bot_spec else ("custom", bot_spec)
             is_def = bot_spec == saved_default
             has_k = True
+            base_url = ""
             if prov in conn_book.names():
                 has_k = bool(conn_book.key(prov))
+                try:
+                    base_url = conn_book.get(prov).base_url if conn_book.get(prov) else ""
+                except Exception:
+                    base_url = ""
             problem = model_route_problem(bot_spec)
             usable = any(usable_bots.get(name, False) for name in b_names)
             status = "unusable" if problem and not usable else ("ready" if has_k else "needs_key")
+            is_loc = prov in LOCAL_PROVIDERS
+            _loc = locality_for_route(bot_spec, is_loc, base_url)
             configured_routes.append(ConfiguredModelRoute(
                 spec=bot_spec, provider=prov, model_id=mid, label=store.kv_get(f"model_label:{bot_spec}") or bot_spec,
-                status=status, is_default=is_def, bots=b_names, has_key=has_k, is_local=prov in LOCAL_PROVIDERS,
-                problem=problem,
+                status=status, is_default=is_def, bots=b_names, has_key=has_k, is_local=is_loc,
+                locality=_loc, privacy_label=privacy_label_for(_loc), problem=problem,
             ))
 
     default_spec = saved_default
