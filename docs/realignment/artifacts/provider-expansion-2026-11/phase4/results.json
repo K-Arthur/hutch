@@ -1,0 +1,973 @@
+{
+  "captured_at": "2026-11-06T18:08:17.783713+00:00",
+  "origin": "http://127.0.0.1:18892",
+  "browser": {
+    "name": "chromium",
+    "version": "153.0.8010.12"
+  },
+  "git_revision": "6dfdb24ae3695e06ae232e80e305e7d2c6949695",
+  "source_sha256": "44ff8e733901940d44510365723ee783a6832a852bf22a6c026e035edc370f21",
+  "records": [
+    {
+      "page": "providers",
+      "scheme": "light",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18892/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Amazon Bedrock enterprise cloud route only, untested",
+        "Amazon Bedrock Mantle enterprise cloud route only, untested",
+        "Baidu Qianfan serving platform route only, untested",
+        "ClawRouter gateway route only, untested",
+        "LiteLLM gateway route only, untested",
+        "Microsoft Foundry enterprise cloud route only, untested",
+        "StepFun vendor route only, untested",
+        "Synthetic serving platform route only, untested",
+        "Tencent Cloud enterprise cloud route only, untested"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 45 implemented-unverified, 1 experimental, 12 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nAmazon Bedrock enterprise cloud route only, untested\nAmazon Bedrock (API key) bedrock-rt\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nAmazon Bedrock Mantle enterprise cloud route only, untested\nAmazon Bedrock Mantle (API key) bedrock-mantle\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nBaidu Qianfan serving platform route only, untested\nBaidu Qianfan qianfan\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set QIANFAN_API_KEY where Hutch starts, or store a key on Connections.\n\nSet QIANFAN_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nClawRouter gateway route only, untested\nClawRouter (managed gateway) claw\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set CLAWROUTER_API_KEY where Hutch starts, or store a key on Connections.\n\nSet CLAWROUTER_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLiteLLM gateway route only, untested\nLiteLLM proxy (self-hosted) litellm\nSelf-hosted endpoint\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set LITELLM_API_KEY where Hutch starts, or store a key on Connections.\n\nSet LITELLM_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nMicrosoft Foundry enterprise cloud route only, untested\nMicrosoft Foundry (resource key) foundry\nFoundry API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AZURE_OPENAI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet AZURE_OPENAI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nStepFun vendor route only, untested\nStepFun (global) stepfun-global\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on Connections.\n\nSet STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nSynthetic serving platform route only, untested\nSynthetic synth\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set SYNTHETIC_API_KEY where",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-light-360.png",
+      "sha256": "cc4aa7a4b8b93f5afafa35bfd9c29219e4e1556db66d1430978ebf38a3aa90c2"
+    },
+    {
+      "page": "providers",
+      "scheme": "light",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18892/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Amazon Bedrock enterprise cloud route only, untested",
+        "Amazon Bedrock Mantle enterprise cloud route only, untested",
+        "Baidu Qianfan serving platform route only, untested",
+        "ClawRouter gateway route only, untested",
+        "LiteLLM gateway route only, untested",
+        "Microsoft Foundry enterprise cloud route only, untested",
+        "StepFun vendor route only, untested",
+        "Synthetic serving platform route only, untested",
+        "Tencent Cloud enterprise cloud route only, untested"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 45 implemented-unverified, 1 experimental, 12 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nAmazon Bedrock enterprise cloud route only, untested\nAmazon Bedrock (API key) bedrock-rt\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nAmazon Bedrock Mantle enterprise cloud route only, untested\nAmazon Bedrock Mantle (API key) bedrock-mantle\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nBaidu Qianfan serving platform route only, untested\nBaidu Qianfan qianfan\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set QIANFAN_API_KEY where Hutch starts, or store a key on Connections.\n\nSet QIANFAN_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nClawRouter gateway route only, untested\nClawRouter (managed gateway) claw\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set CLAWROUTER_API_KEY where Hutch starts, or store a key on Connections.\n\nSet CLAWROUTER_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLiteLLM gateway route only, untested\nLiteLLM proxy (self-hosted) litellm\nSelf-hosted endpoint\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set LITELLM_API_KEY where Hutch starts, or store a key on Connections.\n\nSet LITELLM_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nMicrosoft Foundry enterprise cloud route only, untested\nMicrosoft Foundry (resource key) foundry\nFoundry API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AZURE_OPENAI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet AZURE_OPENAI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nStepFun vendor route only, untested\nStepFun (global) stepfun-global\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on Connections.\n\nSet STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nSynthetic serving platform route only, untested\nSynthetic synth\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set SYNTHETIC_API_KEY where",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-light-768.png",
+      "sha256": "8763d5842b510ab373e4b65e5b67f5fbb815ebe7db6c0f2d4b882160fad12349"
+    },
+    {
+      "page": "providers",
+      "scheme": "light",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18892/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Amazon Bedrock enterprise cloud route only, untested",
+        "Amazon Bedrock Mantle enterprise cloud route only, untested",
+        "Baidu Qianfan serving platform route only, untested",
+        "ClawRouter gateway route only, untested",
+        "LiteLLM gateway route only, untested",
+        "Microsoft Foundry enterprise cloud route only, untested",
+        "StepFun vendor route only, untested",
+        "Synthetic serving platform route only, untested",
+        "Tencent Cloud enterprise cloud route only, untested"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 45 implemented-unverified, 1 experimental, 12 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nAmazon Bedrock enterprise cloud route only, untested\nAmazon Bedrock (API key) bedrock-rt\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nAmazon Bedrock Mantle enterprise cloud route only, untested\nAmazon Bedrock Mantle (API key) bedrock-mantle\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nBaidu Qianfan serving platform route only, untested\nBaidu Qianfan qianfan\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set QIANFAN_API_KEY where Hutch starts, or store a key on Connections.\n\nSet QIANFAN_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nClawRouter gateway route only, untested\nClawRouter (managed gateway) claw\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set CLAWROUTER_API_KEY where Hutch starts, or store a key on Connections.\n\nSet CLAWROUTER_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLiteLLM gateway route only, untested\nLiteLLM proxy (self-hosted) litellm\nSelf-hosted endpoint\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set LITELLM_API_KEY where Hutch starts, or store a key on Connections.\n\nSet LITELLM_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nMicrosoft Foundry enterprise cloud route only, untested\nMicrosoft Foundry (resource key) foundry\nFoundry API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AZURE_OPENAI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet AZURE_OPENAI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nStepFun vendor route only, untested\nStepFun (global) stepfun-global\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on Connections.\n\nSet STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nSynthetic serving platform route only, untested\nSynthetic synth\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set SYNTHETIC_API_KEY where",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-light-1280.png",
+      "sha256": "c6e993e7cca956125bc99137e83e2502e662e9a2a32173305bf2dd1f7d9f227c"
+    },
+    {
+      "page": "providers",
+      "scheme": "light",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18892/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Amazon Bedrock enterprise cloud route only, untested",
+        "Amazon Bedrock Mantle enterprise cloud route only, untested",
+        "Baidu Qianfan serving platform route only, untested",
+        "ClawRouter gateway route only, untested",
+        "LiteLLM gateway route only, untested",
+        "Microsoft Foundry enterprise cloud route only, untested",
+        "StepFun vendor route only, untested",
+        "Synthetic serving platform route only, untested",
+        "Tencent Cloud enterprise cloud route only, untested"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 45 implemented-unverified, 1 experimental, 12 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nAmazon Bedrock enterprise cloud route only, untested\nAmazon Bedrock (API key) bedrock-rt\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nAmazon Bedrock Mantle enterprise cloud route only, untested\nAmazon Bedrock Mantle (API key) bedrock-mantle\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nBaidu Qianfan serving platform route only, untested\nBaidu Qianfan qianfan\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set QIANFAN_API_KEY where Hutch starts, or store a key on Connections.\n\nSet QIANFAN_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nClawRouter gateway route only, untested\nClawRouter (managed gateway) claw\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set CLAWROUTER_API_KEY where Hutch starts, or store a key on Connections.\n\nSet CLAWROUTER_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLiteLLM gateway route only, untested\nLiteLLM proxy (self-hosted) litellm\nSelf-hosted endpoint\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set LITELLM_API_KEY where Hutch starts, or store a key on Connections.\n\nSet LITELLM_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nMicrosoft Foundry enterprise cloud route only, untested\nMicrosoft Foundry (resource key) foundry\nFoundry API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AZURE_OPENAI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet AZURE_OPENAI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nStepFun vendor route only, untested\nStepFun (global) stepfun-global\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on Connections.\n\nSet STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nSynthetic serving platform route only, untested\nSynthetic synth\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set SYNTHETIC_API_KEY where",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-light-1920.png",
+      "sha256": "a107e6e0b8ee94dc27a235e49f53065c5e23fd060ea736c4f68ef459fc48af59"
+    },
+    {
+      "page": "providers",
+      "scheme": "dark",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18892/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Amazon Bedrock enterprise cloud route only, untested",
+        "Amazon Bedrock Mantle enterprise cloud route only, untested",
+        "Baidu Qianfan serving platform route only, untested",
+        "ClawRouter gateway route only, untested",
+        "LiteLLM gateway route only, untested",
+        "Microsoft Foundry enterprise cloud route only, untested",
+        "StepFun vendor route only, untested",
+        "Synthetic serving platform route only, untested",
+        "Tencent Cloud enterprise cloud route only, untested"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 45 implemented-unverified, 1 experimental, 12 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nAmazon Bedrock enterprise cloud route only, untested\nAmazon Bedrock (API key) bedrock-rt\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nAmazon Bedrock Mantle enterprise cloud route only, untested\nAmazon Bedrock Mantle (API key) bedrock-mantle\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nBaidu Qianfan serving platform route only, untested\nBaidu Qianfan qianfan\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set QIANFAN_API_KEY where Hutch starts, or store a key on Connections.\n\nSet QIANFAN_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nClawRouter gateway route only, untested\nClawRouter (managed gateway) claw\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set CLAWROUTER_API_KEY where Hutch starts, or store a key on Connections.\n\nSet CLAWROUTER_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLiteLLM gateway route only, untested\nLiteLLM proxy (self-hosted) litellm\nSelf-hosted endpoint\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set LITELLM_API_KEY where Hutch starts, or store a key on Connections.\n\nSet LITELLM_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nMicrosoft Foundry enterprise cloud route only, untested\nMicrosoft Foundry (resource key) foundry\nFoundry API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AZURE_OPENAI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet AZURE_OPENAI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nStepFun vendor route only, untested\nStepFun (global) stepfun-global\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on Connections.\n\nSet STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nSynthetic serving platform route only, untested\nSynthetic synth\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set SYNTHETIC_API_KEY where",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-dark-360.png",
+      "sha256": "cc4aa7a4b8b93f5afafa35bfd9c29219e4e1556db66d1430978ebf38a3aa90c2"
+    },
+    {
+      "page": "providers",
+      "scheme": "dark",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18892/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Amazon Bedrock enterprise cloud route only, untested",
+        "Amazon Bedrock Mantle enterprise cloud route only, untested",
+        "Baidu Qianfan serving platform route only, untested",
+        "ClawRouter gateway route only, untested",
+        "LiteLLM gateway route only, untested",
+        "Microsoft Foundry enterprise cloud route only, untested",
+        "StepFun vendor route only, untested",
+        "Synthetic serving platform route only, untested",
+        "Tencent Cloud enterprise cloud route only, untested"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 45 implemented-unverified, 1 experimental, 12 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nAmazon Bedrock enterprise cloud route only, untested\nAmazon Bedrock (API key) bedrock-rt\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nAmazon Bedrock Mantle enterprise cloud route only, untested\nAmazon Bedrock Mantle (API key) bedrock-mantle\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nBaidu Qianfan serving platform route only, untested\nBaidu Qianfan qianfan\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set QIANFAN_API_KEY where Hutch starts, or store a key on Connections.\n\nSet QIANFAN_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nClawRouter gateway route only, untested\nClawRouter (managed gateway) claw\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set CLAWROUTER_API_KEY where Hutch starts, or store a key on Connections.\n\nSet CLAWROUTER_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLiteLLM gateway route only, untested\nLiteLLM proxy (self-hosted) litellm\nSelf-hosted endpoint\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set LITELLM_API_KEY where Hutch starts, or store a key on Connections.\n\nSet LITELLM_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nMicrosoft Foundry enterprise cloud route only, untested\nMicrosoft Foundry (resource key) foundry\nFoundry API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AZURE_OPENAI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet AZURE_OPENAI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nStepFun vendor route only, untested\nStepFun (global) stepfun-global\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on Connections.\n\nSet STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nSynthetic serving platform route only, untested\nSynthetic synth\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set SYNTHETIC_API_KEY where",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-dark-768.png",
+      "sha256": "8763d5842b510ab373e4b65e5b67f5fbb815ebe7db6c0f2d4b882160fad12349"
+    },
+    {
+      "page": "providers",
+      "scheme": "dark",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18892/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Amazon Bedrock enterprise cloud route only, untested",
+        "Amazon Bedrock Mantle enterprise cloud route only, untested",
+        "Baidu Qianfan serving platform route only, untested",
+        "ClawRouter gateway route only, untested",
+        "LiteLLM gateway route only, untested",
+        "Microsoft Foundry enterprise cloud route only, untested",
+        "StepFun vendor route only, untested",
+        "Synthetic serving platform route only, untested",
+        "Tencent Cloud enterprise cloud route only, untested"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 45 implemented-unverified, 1 experimental, 12 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nAmazon Bedrock enterprise cloud route only, untested\nAmazon Bedrock (API key) bedrock-rt\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nAmazon Bedrock Mantle enterprise cloud route only, untested\nAmazon Bedrock Mantle (API key) bedrock-mantle\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nBaidu Qianfan serving platform route only, untested\nBaidu Qianfan qianfan\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set QIANFAN_API_KEY where Hutch starts, or store a key on Connections.\n\nSet QIANFAN_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nClawRouter gateway route only, untested\nClawRouter (managed gateway) claw\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set CLAWROUTER_API_KEY where Hutch starts, or store a key on Connections.\n\nSet CLAWROUTER_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLiteLLM gateway route only, untested\nLiteLLM proxy (self-hosted) litellm\nSelf-hosted endpoint\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set LITELLM_API_KEY where Hutch starts, or store a key on Connections.\n\nSet LITELLM_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nMicrosoft Foundry enterprise cloud route only, untested\nMicrosoft Foundry (resource key) foundry\nFoundry API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AZURE_OPENAI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet AZURE_OPENAI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nStepFun vendor route only, untested\nStepFun (global) stepfun-global\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on Connections.\n\nSet STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nSynthetic serving platform route only, untested\nSynthetic synth\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set SYNTHETIC_API_KEY where",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-dark-1280.png",
+      "sha256": "c6e993e7cca956125bc99137e83e2502e662e9a2a32173305bf2dd1f7d9f227c"
+    },
+    {
+      "page": "providers",
+      "scheme": "dark",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18892/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Amazon Bedrock enterprise cloud route only, untested",
+        "Amazon Bedrock Mantle enterprise cloud route only, untested",
+        "Baidu Qianfan serving platform route only, untested",
+        "ClawRouter gateway route only, untested",
+        "LiteLLM gateway route only, untested",
+        "Microsoft Foundry enterprise cloud route only, untested",
+        "StepFun vendor route only, untested",
+        "Synthetic serving platform route only, untested",
+        "Tencent Cloud enterprise cloud route only, untested"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 45 implemented-unverified, 1 experimental, 12 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nAmazon Bedrock enterprise cloud route only, untested\nAmazon Bedrock (API key) bedrock-rt\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nAmazon Bedrock Mantle enterprise cloud route only, untested\nAmazon Bedrock Mantle (API key) bedrock-mantle\nBedrock API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on Connections.\n\nSet AWS_BEARER_TOKEN_BEDROCK where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nBaidu Qianfan serving platform route only, untested\nBaidu Qianfan qianfan\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set QIANFAN_API_KEY where Hutch starts, or store a key on Connections.\n\nSet QIANFAN_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nClawRouter gateway route only, untested\nClawRouter (managed gateway) claw\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set CLAWROUTER_API_KEY where Hutch starts, or store a key on Connections.\n\nSet CLAWROUTER_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLiteLLM gateway route only, untested\nLiteLLM proxy (self-hosted) litellm\nSelf-hosted endpoint\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set LITELLM_API_KEY where Hutch starts, or store a key on Connections.\n\nSet LITELLM_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nMicrosoft Foundry enterprise cloud route only, untested\nMicrosoft Foundry (resource key) foundry\nFoundry API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set AZURE_OPENAI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet AZURE_OPENAI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nStepFun vendor route only, untested\nStepFun (global) stepfun-global\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on Connections.\n\nSet STEPFUN_GLOBAL_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nSynthetic serving platform route only, untested\nSynthetic synth\nAPI key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set SYNTHETIC_API_KEY where",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-dark-1920.png",
+      "sha256": "a107e6e0b8ee94dc27a235e49f53065c5e23fd060ea736c4f68ef459fc48af59"
+    },
+    {
+      "page": "models",
+      "scheme": "light",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18892/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-light-360.png",
+      "sha256": "8aee653ccdaab0499bd28eb18ebf4781aa2a866446e7f7d6d6a82021940903fb"
+    },
+    {
+      "page": "models",
+      "scheme": "light",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18892/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-light-768.png",
+      "sha256": "3eb4043eff31dcccb1f091fb517f2fa5779a9ac4f2a0b2becd962bb43161c636"
+    },
+    {
+      "page": "models",
+      "scheme": "light",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18892/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-light-1280.png",
+      "sha256": "ab08e5557bdc82f447d68c6928f489b5a49539e82cb5e287253bdd983b17d9a5"
+    },
+    {
+      "page": "models",
+      "scheme": "light",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18892/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-light-1920.png",
+      "sha256": "f87894eec1e6ea2d94bb5e6d2ee188df17d2822763b6e17e585b3815451a46a1"
+    },
+    {
+      "page": "models",
+      "scheme": "dark",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18892/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-dark-360.png",
+      "sha256": "8aee653ccdaab0499bd28eb18ebf4781aa2a866446e7f7d6d6a82021940903fb"
+    },
+    {
+      "page": "models",
+      "scheme": "dark",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18892/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-dark-768.png",
+      "sha256": "3eb4043eff31dcccb1f091fb517f2fa5779a9ac4f2a0b2becd962bb43161c636"
+    },
+    {
+      "page": "models",
+      "scheme": "dark",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18892/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-dark-1280.png",
+      "sha256": "ab08e5557bdc82f447d68c6928f489b5a49539e82cb5e287253bdd983b17d9a5"
+    },
+    {
+      "page": "models",
+      "scheme": "dark",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18892/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Detected AI service",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Need another AI service?",
+        "Hardware, installed models, task presets and prices",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nDetected AI service\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nReview it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs.\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nReview Crouton Alpha Free in Settings\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nNo model routes saved yet\n\nHutch needs a saved model route to power your assistants. If an AI service was detected, review it above; otherwise connect a provider in Apps & AI, then set the default in Settings.\n\nAdd or repair a service \nSet the default in Settings\nNeed another AI service?\n\nAccounts, keys, endpoints and terms are added or repaired in Apps & AI. The route new built-in assistants start from is set in Settings; choosing it here never changes an existing assistant.\n\nAdd or repair a service\n\nModels only shows what can run and which assistant uses what. Per-assistant routes (including fallbacks and escalation) stay in that assistant's settings.\n\nHardware, installed models, task presets and prices\nhutch 0.1.0 \u00b7 local-first",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-dark-1920.png",
+      "sha256": "f87894eec1e6ea2d94bb5e6d2ee188df17d2822763b6e17e585b3815451a46a1"
+    },
+    {
+      "page": "connections",
+      "scheme": "light",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18892/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Microsoft Foundry (resource key)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Vercel AI Gateway",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nMicrosoft Foundry (resource key)\nfoundry\nper token\nopenai-chat\naccount foundry\nhttps://example-res.openai.azure.com/openai/v1\nRemove\nAPI key\n\nmissing set $AZURE_OPENAI_API_KEY where hutch starts, or store one below\n\nStore\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPer-token billing on the Azure subscription. Hutch needs a reviewed price row in Settings > Prices; Azure billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to foundry; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nPer-model protocol\nVercel AI Gateway\nvercel\nper token\nopenai-chat\naccount vercel\nhttps://ai-gateway.vercel.sh/v1\nRemove\nAPI key\n\nmissing set $AI_GATEWAY_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nBilled in Vercel AI Gateway credits. Model ids are provider/model, and a listed model can still be refused for your key. Hutch needs a reviewed price row in Settings > Prices; the gateway's own billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to vercel; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nWith bring-your-own-key, Vercel retries a failed request with its own system credentials and bills that retry to your AI Gateway credits balance. Hutch cannot turn that off over the OpenAI wire, BYOK spend is not counted in Vercel budgets, and a provider restriction does not disable the fallback. Acknowledge only if you accept that a failed request can be paid for by the gateway acc",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-light-360.png",
+      "sha256": "2805686108a10326f83298f66ee9802eae8f8ff03cdc8eaf7778664e16a474ca"
+    },
+    {
+      "page": "connections",
+      "scheme": "light",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18892/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Microsoft Foundry (resource key)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Vercel AI Gateway",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nMicrosoft Foundry (resource key)\nfoundry\nper token\nopenai-chat\naccount foundry\nhttps://example-res.openai.azure.com/openai/v1\nRemove\nAPI key\n\nmissing set $AZURE_OPENAI_API_KEY where hutch starts, or store one below\n\nStore\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPer-token billing on the Azure subscription. Hutch needs a reviewed price row in Settings > Prices; Azure billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to foundry; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nPer-model protocol\nVercel AI Gateway\nvercel\nper token\nopenai-chat\naccount vercel\nhttps://ai-gateway.vercel.sh/v1\nRemove\nAPI key\n\nmissing set $AI_GATEWAY_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nBilled in Vercel AI Gateway credits. Model ids are provider/model, and a listed model can still be refused for your key. Hutch needs a reviewed price row in Settings > Prices; the gateway's own billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to vercel; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nWith bring-your-own-key, Vercel retries a failed request with its own system credentials and bills that retry to your AI Gateway credits balance. Hutch cannot turn that off over the OpenAI wire, BYOK spend is not counted in Vercel budgets, and a provider restriction does not disable the fallback. Acknowledge only if you accept that a failed request can be paid for by the gateway acc",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-light-768.png",
+      "sha256": "f709b29950494e46d5cb2da9229273c3cc738b3ff429c5f2de6a077015e6c9b8"
+    },
+    {
+      "page": "connections",
+      "scheme": "light",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18892/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Microsoft Foundry (resource key)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Vercel AI Gateway",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nMicrosoft Foundry (resource key)\nfoundry\nper token\nopenai-chat\naccount foundry\nhttps://example-res.openai.azure.com/openai/v1\nRemove\nAPI key\n\nmissing set $AZURE_OPENAI_API_KEY where hutch starts, or store one below\n\nStore\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPer-token billing on the Azure subscription. Hutch needs a reviewed price row in Settings > Prices; Azure billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to foundry; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nPer-model protocol\nVercel AI Gateway\nvercel\nper token\nopenai-chat\naccount vercel\nhttps://ai-gateway.vercel.sh/v1\nRemove\nAPI key\n\nmissing set $AI_GATEWAY_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nBilled in Vercel AI Gateway credits. Model ids are provider/model, and a listed model can still be refused for your key. Hutch needs a reviewed price row in Settings > Prices; the gateway's own billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to vercel; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nWith bring-your-own-key, Vercel retries a failed request with its own system credentials and bills that retry to your AI Gateway credits balance. Hutch cannot turn that off over the OpenAI wire, BYOK spend is not counted in Vercel budgets, and a provider restriction does not disable the fallback. Acknowledge only if you accept that a failed request can be paid for by the gateway acc",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-light-1280.png",
+      "sha256": "dfa7292ca3876f4f66f9a0d6fdf9ad8cf45ac8216658989f0dce33505ac52633"
+    },
+    {
+      "page": "connections",
+      "scheme": "light",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18892/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Microsoft Foundry (resource key)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Vercel AI Gateway",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nMicrosoft Foundry (resource key)\nfoundry\nper token\nopenai-chat\naccount foundry\nhttps://example-res.openai.azure.com/openai/v1\nRemove\nAPI key\n\nmissing set $AZURE_OPENAI_API_KEY where hutch starts, or store one below\n\nStore\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPer-token billing on the Azure subscription. Hutch needs a reviewed price row in Settings > Prices; Azure billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to foundry; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nPer-model protocol\nVercel AI Gateway\nvercel\nper token\nopenai-chat\naccount vercel\nhttps://ai-gateway.vercel.sh/v1\nRemove\nAPI key\n\nmissing set $AI_GATEWAY_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nBilled in Vercel AI Gateway credits. Model ids are provider/model, and a listed model can still be refused for your key. Hutch needs a reviewed price row in Settings > Prices; the gateway's own billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to vercel; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nWith bring-your-own-key, Vercel retries a failed request with its own system credentials and bills that retry to your AI Gateway credits balance. Hutch cannot turn that off over the OpenAI wire, BYOK spend is not counted in Vercel budgets, and a provider restriction does not disable the fallback. Acknowledge only if you accept that a failed request can be paid for by the gateway acc",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-light-1920.png",
+      "sha256": "034cb8f8a9eb88f99f4e6f6ca9d277336fd85b021750504e7c443ce06e8dd632"
+    },
+    {
+      "page": "connections",
+      "scheme": "dark",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18892/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Microsoft Foundry (resource key)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Vercel AI Gateway",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nMicrosoft Foundry (resource key)\nfoundry\nper token\nopenai-chat\naccount foundry\nhttps://example-res.openai.azure.com/openai/v1\nRemove\nAPI key\n\nmissing set $AZURE_OPENAI_API_KEY where hutch starts, or store one below\n\nStore\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPer-token billing on the Azure subscription. Hutch needs a reviewed price row in Settings > Prices; Azure billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to foundry; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nPer-model protocol\nVercel AI Gateway\nvercel\nper token\nopenai-chat\naccount vercel\nhttps://ai-gateway.vercel.sh/v1\nRemove\nAPI key\n\nmissing set $AI_GATEWAY_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nBilled in Vercel AI Gateway credits. Model ids are provider/model, and a listed model can still be refused for your key. Hutch needs a reviewed price row in Settings > Prices; the gateway's own billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to vercel; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nWith bring-your-own-key, Vercel retries a failed request with its own system credentials and bills that retry to your AI Gateway credits balance. Hutch cannot turn that off over the OpenAI wire, BYOK spend is not counted in Vercel budgets, and a provider restriction does not disable the fallback. Acknowledge only if you accept that a failed request can be paid for by the gateway acc",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-dark-360.png",
+      "sha256": "2805686108a10326f83298f66ee9802eae8f8ff03cdc8eaf7778664e16a474ca"
+    },
+    {
+      "page": "connections",
+      "scheme": "dark",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18892/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Microsoft Foundry (resource key)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Vercel AI Gateway",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nMicrosoft Foundry (resource key)\nfoundry\nper token\nopenai-chat\naccount foundry\nhttps://example-res.openai.azure.com/openai/v1\nRemove\nAPI key\n\nmissing set $AZURE_OPENAI_API_KEY where hutch starts, or store one below\n\nStore\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPer-token billing on the Azure subscription. Hutch needs a reviewed price row in Settings > Prices; Azure billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to foundry; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nPer-model protocol\nVercel AI Gateway\nvercel\nper token\nopenai-chat\naccount vercel\nhttps://ai-gateway.vercel.sh/v1\nRemove\nAPI key\n\nmissing set $AI_GATEWAY_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nBilled in Vercel AI Gateway credits. Model ids are provider/model, and a listed model can still be refused for your key. Hutch needs a reviewed price row in Settings > Prices; the gateway's own billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to vercel; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nWith bring-your-own-key, Vercel retries a failed request with its own system credentials and bills that retry to your AI Gateway credits balance. Hutch cannot turn that off over the OpenAI wire, BYOK spend is not counted in Vercel budgets, and a provider restriction does not disable the fallback. Acknowledge only if you accept that a failed request can be paid for by the gateway acc",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-dark-768.png",
+      "sha256": "f709b29950494e46d5cb2da9229273c3cc738b3ff429c5f2de6a077015e6c9b8"
+    },
+    {
+      "page": "connections",
+      "scheme": "dark",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18892/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Microsoft Foundry (resource key)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Vercel AI Gateway",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nMicrosoft Foundry (resource key)\nfoundry\nper token\nopenai-chat\naccount foundry\nhttps://example-res.openai.azure.com/openai/v1\nRemove\nAPI key\n\nmissing set $AZURE_OPENAI_API_KEY where hutch starts, or store one below\n\nStore\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPer-token billing on the Azure subscription. Hutch needs a reviewed price row in Settings > Prices; Azure billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to foundry; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nPer-model protocol\nVercel AI Gateway\nvercel\nper token\nopenai-chat\naccount vercel\nhttps://ai-gateway.vercel.sh/v1\nRemove\nAPI key\n\nmissing set $AI_GATEWAY_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nBilled in Vercel AI Gateway credits. Model ids are provider/model, and a listed model can still be refused for your key. Hutch needs a reviewed price row in Settings > Prices; the gateway's own billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to vercel; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nWith bring-your-own-key, Vercel retries a failed request with its own system credentials and bills that retry to your AI Gateway credits balance. Hutch cannot turn that off over the OpenAI wire, BYOK spend is not counted in Vercel budgets, and a provider restriction does not disable the fallback. Acknowledge only if you accept that a failed request can be paid for by the gateway acc",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-dark-1280.png",
+      "sha256": "dfa7292ca3876f4f66f9a0d6fdf9ad8cf45ac8216658989f0dce33505ac52633"
+    },
+    {
+      "page": "connections",
+      "scheme": "dark",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18892/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Microsoft Foundry (resource key)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Vercel AI Gateway",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nMicrosoft Foundry (resource key)\nfoundry\nper token\nopenai-chat\naccount foundry\nhttps://example-res.openai.azure.com/openai/v1\nRemove\nAPI key\n\nmissing set $AZURE_OPENAI_API_KEY where hutch starts, or store one below\n\nStore\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPer-token billing on the Azure subscription. Hutch needs a reviewed price row in Settings > Prices; Azure billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to foundry; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nPer-model protocol\nVercel AI Gateway\nvercel\nper token\nopenai-chat\naccount vercel\nhttps://ai-gateway.vercel.sh/v1\nRemove\nAPI key\n\nmissing set $AI_GATEWAY_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nBilled in Vercel AI Gateway credits. Model ids are provider/model, and a listed model can still be refused for your key. Hutch needs a reviewed price row in Settings > Prices; the gateway's own billing remains authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to vercel; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nWith bring-your-own-key, Vercel retries a failed request with its own system credentials and bills that retry to your AI Gateway credits balance. Hutch cannot turn that off over the OpenAI wire, BYOK spend is not counted in Vercel budgets, and a provider restriction does not disable the fallback. Acknowledge only if you accept that a failed request can be paid for by the gateway acc",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-dark-1920.png",
+      "sha256": "034cb8f8a9eb88f99f4e6f6ca9d277336fd85b021750504e7c443ce06e8dd632"
+    },
+    {
+      "page": "first-run",
+      "scheme": "light",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18892/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nNeeds attention\n\n22 things need attention\n\nRuntime: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nRuntime: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nRuntime: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nRuntime: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nRuntime: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nRuntime: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nRuntime: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nRuntime: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nRuntime: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nRuntime: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nRuntime: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nConnection: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nConnection: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nConnection: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nConnection: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nConnection: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nConnection: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nConnection: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nConnection: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nConnection: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nConnection: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nConnection: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-light-360.png",
+      "sha256": "6210f4a6f493b918da9e3c6797d55dabea9c9353466309cacfb13793435ae3b2"
+    },
+    {
+      "page": "first-run",
+      "scheme": "light",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18892/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nNeeds attention\n\n22 things need attention\n\nRuntime: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nRuntime: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nRuntime: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nRuntime: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nRuntime: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nRuntime: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nRuntime: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nRuntime: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nRuntime: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nRuntime: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nRuntime: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nConnection: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nConnection: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nConnection: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nConnection: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nConnection: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nConnection: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nConnection: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nConnection: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nConnection: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nConnection: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nConnection: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-light-768.png",
+      "sha256": "eca81f3d629177917e44a456bd706d902c1f3eec22248e25c548e8bfbdc934c1"
+    },
+    {
+      "page": "first-run",
+      "scheme": "light",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18892/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nNeeds attention\n\n22 things need attention\n\nRuntime: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nRuntime: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nRuntime: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nRuntime: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nRuntime: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nRuntime: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nRuntime: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nRuntime: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nRuntime: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nRuntime: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nRuntime: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nConnection: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nConnection: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nConnection: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nConnection: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nConnection: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nConnection: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nConnection: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nConnection: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nConnection: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nConnection: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nConnection: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-light-1280.png",
+      "sha256": "99e1c282af898b49c3a336cdf9fbfa0cc87fe75777e14a760de37fa83e96f897"
+    },
+    {
+      "page": "first-run",
+      "scheme": "light",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18892/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nNeeds attention\n\n22 things need attention\n\nRuntime: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nRuntime: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nRuntime: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nRuntime: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nRuntime: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nRuntime: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nRuntime: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nRuntime: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nRuntime: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nRuntime: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nRuntime: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nConnection: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nConnection: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nConnection: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nConnection: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nConnection: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nConnection: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nConnection: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nConnection: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nConnection: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nConnection: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nConnection: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-light-1920.png",
+      "sha256": "8037e7f566e54643562f7823b18eeff8211d58cd338f1d02ce044454f80977d1"
+    },
+    {
+      "page": "first-run",
+      "scheme": "dark",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18892/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nNeeds attention\n\n22 things need attention\n\nRuntime: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nRuntime: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nRuntime: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nRuntime: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nRuntime: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nRuntime: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nRuntime: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nRuntime: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nRuntime: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nRuntime: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nRuntime: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nConnection: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nConnection: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nConnection: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nConnection: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nConnection: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nConnection: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nConnection: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nConnection: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nConnection: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nConnection: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nConnection: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-dark-360.png",
+      "sha256": "6210f4a6f493b918da9e3c6797d55dabea9c9353466309cacfb13793435ae3b2"
+    },
+    {
+      "page": "first-run",
+      "scheme": "dark",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18892/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nNeeds attention\n\n22 things need attention\n\nRuntime: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nRuntime: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nRuntime: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nRuntime: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nRuntime: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nRuntime: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nRuntime: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nRuntime: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nRuntime: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nRuntime: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nRuntime: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nConnection: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nConnection: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nConnection: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nConnection: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nConnection: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nConnection: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nConnection: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nConnection: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nConnection: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nConnection: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nConnection: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-dark-768.png",
+      "sha256": "eca81f3d629177917e44a456bd706d902c1f3eec22248e25c548e8bfbdc934c1"
+    },
+    {
+      "page": "first-run",
+      "scheme": "dark",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18892/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nNeeds attention\n\n22 things need attention\n\nRuntime: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nRuntime: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nRuntime: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nRuntime: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nRuntime: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nRuntime: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nRuntime: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nRuntime: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nRuntime: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nRuntime: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nRuntime: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nConnection: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nConnection: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nConnection: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nConnection: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nConnection: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nConnection: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nConnection: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nConnection: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nConnection: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nConnection: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nConnection: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-dark-1280.png",
+      "sha256": "99e1c282af898b49c3a336cdf9fbfa0cc87fe75777e14a760de37fa83e96f897"
+    },
+    {
+      "page": "first-run",
+      "scheme": "dark",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18892/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOpenCode is ready with 10 model options. Its available models can be used without a separate account.\n\nopencode/opencode/crouton-alpha-free\n\nFree starter model, hosted by OpenCode\n\nWhatever you send it leaves this computer, and free hosted models can keep or learn from it. It is a good way to try Hutch with nothing private. Before you share sensitive messages or files, switch to a model on this computer or to your own provider.\n\nChange it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.\n\nOpenCode settings\nUse another provider\nSETUP CHECK\nNeeds attention\n\n22 things need attention\n\nRuntime: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nRuntime: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nRuntime: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nRuntime: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nRuntime: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nRuntime: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nRuntime: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nRuntime: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nRuntime: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nRuntime: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nRuntime: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nConnection: foundry: no API key Fix: set $AZURE_OPENAI_API_KEY or run `hutch connections set-key foundry`\nConnection: vercel: no API key Fix: set $AI_GATEWAY_API_KEY or run `hutch connections set-key vercel`\nConnection: litellm: no API key Fix: set $LITELLM_API_KEY or run `hutch connections set-key litellm`\nConnection: claw: no API key Fix: set $CLAWROUTER_API_KEY or run `hutch connections set-key claw`\nConnection: bedrock-rt: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-rt`\nConnection: bedrock-mantle: no API key Fix: set $AWS_BEARER_TOKEN_BEDROCK or run `hutch connections set-key bedrock-mantle`\nConnection: qianfan: no API key Fix: set $QIANFAN_API_KEY or run `hutch connections set-key qianfan`\nConnection: stepfun-global: no API key Fix: set $STEPFUN_GLOBAL_API_KEY or run `hutch connections set-key stepfun-global`\nConnection: synth: no API key Fix: set $SYNTHETIC_API_KEY or run `hutch connections set-key synth`\nConnection: volc: no API key Fix: set $ARK_API_KEY or run `hutch connections set-key volc`\nConnection: tencent: no API key Fix: set $TENCENT_API_KEY or run `hutch connections set-key tencent`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-dark-1920.png",
+      "sha256": "8037e7f566e54643562f7823b18eeff8211d58cd338f1d02ce044454f80977d1"
+    }
+  ],
+  "scope": "first-run empty state; no provider calls, credentials or external effects"
+}
