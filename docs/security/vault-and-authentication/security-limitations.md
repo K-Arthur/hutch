@@ -15,8 +15,16 @@ dependency.
 ## 2. A process running as the same OS user can read the unlocked vault
 
 Existing mechanism: the agent's shell tools run as the same user. If such a tool can reach Hutch's
-memory or call its HTTP API with the owner's cookie, it can read secrets while the vault is unlocked.
-Only process-level isolation would change this.
+memory or call its HTTP API, it can read secrets while the vault is unlocked.
+
+A default `hutch serve` has **no owner credential at all**: with `HUTCH_AUTH_TOKEN` unset, every
+loopback request is the owner (`security.py:338-343`), so any local process as any OS user can call
+every owner route, including reveal, while the vault is unlocked. Verified 2026-11-06 against a real
+server: a request with no cookie, bearer or Origin revealed a generated canary. The desktop host
+mints a per-launch token and is not affected the same way. Whether a given bot tool can reach the
+port depends on that tool's confinement, which has not been tested. See
+`docs/research/2026-11-vault-signin/00-GAP-AUDIT.md` F-02. An owner credential for vault routes,
+and process-level isolation, would change this; neither exists yet.
 
 ## 3. `use` reaches one shape of egress, and nothing else
 
@@ -42,9 +50,15 @@ The limits of that are specific, and each is a real gap:
   response body and headers. A service that echoes it transformed — base64, URL-encoded, split across
   fields, hashed — would not be caught. Scrubbing is a defence against an honest service leaking an
   Authorization header, not against a hostile one.
-- **A process-executed run has no unlocked vault.** A delegated or strictly-offline run runs with its
-  own `Store`, so `vault_for` gives it a locked vault and a mediated use fails with `VaultLocked`.
-  This fails closed; it also means those runs cannot use the vault at all yet.
+- **A process-executed run has no unlocked vault, and that is every shipped launch path.** `hutch
+  serve`, the desktop host, the systemd unit and the CLI all set `HUTCH_EXECUTOR=process`
+  (`cli.py:2544`, `desktop.py:45`, `service.py:112`). Each run is a worker that opens its own
+  `Store` (`worker.py:39`), so `vault_for` gives it a locked vault and a mediated use fails with
+  `VaultLocked`. This fails closed, and it means a bot started from the dashboard cannot use the vault
+  today. Verified 2026-11-06 with a second process on one database (`unlocked=False` while the
+  dashboard's vault was unlocked); a full dashboard run through a provider was not exercised. The
+  in-process agent-turn test passes because the test engine uses the thread executor. Closing
+  this is Phase 3 of pass 3 (`00-GAP-AUDIT.md` F-01).
 
 **Not claimed:** "agents are sandboxed away from credentials", or that a bot with a shell and a
 reveal grant cannot exfiltrate a value.
@@ -69,14 +83,19 @@ versioned per wrap so this can change without re-encrypting data.
 
 ## 7. No reauthentication before a reveal
 
-The owner's session cookie is enough to reveal a secret. A stolen session on an unlocked vault can
-read values. A reauthentication step is a listed follow-up, not an implemented control.
+An unlocked vault plus the `X-Hutch-Request: 1` header is enough to reveal a secret, and any
+non-browser client can send that header. With no owner token configured (the default for `hutch
+serve`) no credential is needed at all (limitation 2). A reauthentication step is a listed
+follow-up, not an implemented control.
 
 ## 8. Existing plaintext credentials remain
 
-Model-provider API keys (`$STATE_DIR/keys/*.key`) and ChatGPT tokens (`$STATE_DIR/chatgpt/*.json`)
-are still plaintext files readable by any agent with file access. The vault does not yet replace
-them; see `migration.md`.
+Model-provider API keys (`$STATE_DIR/keys/<name>.key`) and ChatGPT tokens
+(`$STATE_DIR/chatgpt/accounts.json` and `chatgpt/pending/*.json`) are still plaintext files, mode
+0600, readable by any agent with file access. An environment variable for a provider key wins over
+the stored file unless the owner chose the stored one (`connections.py:279`). The vault does not
+yet replace any of them; see `migration.md`. Google, Outlook, Notion and Telegram credentials are
+not in this list: they already live in the operating system's credential store.
 
 ## 9. No external providers
 
@@ -96,22 +115,40 @@ There is one vault per database. Losing both the passphrase and the recovery key
 there is no per-secret recovery, no escrow, and no administrative override. This is a design choice,
 not an oversight.
 
+What is missing is the explicit way out. There is **no reset operation** today (not in `VaultBook`,
+not in the API), so a vault whose passphrase and recovery key are both lost can be neither reopened
+nor recreated through Hutch: `create` answers 409. Using the recovery key unlocks the vault but does
+not force a new passphrase or a new recovery key. Both are open items (`00-GAP-AUDIT.md` F-04).
+
 ## 12. Best-effort memory zeroing
 
 `crypto.zero` overwrites mutable key buffers, but Python cannot guarantee that no copy of a value
 exists in an allocator, a traceback or swap. It shortens the window; it is not guaranteed memory
 cleansing.
 
-## 13. Throttling is per process
+## 13. Throttling is global, and it can lock the owner out
 
-Unlock throttling lives in the database but the delay is evaluated per process, and a restart clears
-the in-memory portion. It slows online guessing; the KDF is what answers offline guessing.
+Unlock throttling is stored in the database (`vault_unlock_failures`), keyed by vault, and survives a
+restart. It is not keyed by caller: three free failures, then a delay that doubles to 300 seconds, for
+everyone. Because vault routes trust any local request (limitation 2), any local caller can keep the
+owner out of unlock, and the owner's correct passphrase is refused while the delay runs. Verified
+2026-11-06: five wrong passphrases from an unauthenticated caller, then the correct passphrase
+returned 429 (the delay at that point was about two seconds; the 300 second ceiling is computed
+from the code, not run). The 429 carries no `Retry-After` header, because the global error handler
+(`pages.py:162-169`) rebuilds the response and drops it, and the message names no number of
+seconds. It slows online guessing; the KDF is what answers offline guessing. See `00-GAP-AUDIT.md` F-03.
 
 ## 14. Audit completeness depends on callers
 
 Anything that calls `VaultBook` directly writes audit rows, but a future code path that reads the
 database without going through `VaultBook` would not be audited. The audit is only as complete as the
 discipline of the code that uses the vault, and that is enforced by review, not by the type system.
+
+## 15. The vault never locks itself
+
+There is no idle timeout. An unlocked vault stays unlocked until someone locks it or the process
+restarts (a restarted process is always locked; verified 2026-11-06). Combined with limitation 2,
+an unlock left open stays open to every local caller. Open item (`00-GAP-AUDIT.md` F-05).
 
 ---
 

@@ -5,6 +5,23 @@ verified, not only what was written.
 
 ---
 
+## Pass 3 — started 2026-11-06
+
+The prompt pack is `docs/realignment/vault-signin-2026-11/`; its ledger is `02-PROGRESS.md`.
+
+### Phase 0 (diagnose, no feature code): done
+
+`docs/research/2026-11-vault-signin/00-GAP-AUDIT.md` re-verified every "Still not done" item and
+every limitation against `a08009f6` and ran a real server and a real browser with a virtual
+authenticator. It found, among others: the headline claim does not work in any shipped launch path
+because bots run as worker processes with a locked vault; a default `hutch serve` has no owner
+credential, so reveal needed none; any local caller can lock the owner out of unlock; there is no
+vault reset; and the paired-device row shows `expires 31/12/1969`. `security-limitations.md` was
+corrected for entries 2, 3, 7, 8, 11 and 13 and gained entry 15. The one code change is a stale
+test premise in `tests/test_vault_migration.py`.
+
+---
+
 ## Pass 2 — 2026-10-31
 
 Goal of this pass: make the central product claim true — a bot uses a credential it cannot read —

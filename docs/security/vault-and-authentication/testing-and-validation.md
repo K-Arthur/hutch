@@ -107,6 +107,21 @@ agent-turn test runs the real `Engine`.
 6. `test_values_never_reach_the_log` and the event/transcript scans cover the leakage path that
    matters most for an agent platform.
 
+## Pass 3, Phase 0: real-setup observations (2026-11-06)
+
+Real `hutch serve` processes on throwaway state directories, generated canaries, real Chromium. The
+reproduction tools are in `docs/research/2026-11-vault-signin/tools/`; the findings are in
+`docs/research/2026-11-vault-signin/00-GAP-AUDIT.md`. These are observations of the shipped system,
+not new guarantees.
+
+| Run | Route or flow | Exercised | Not exercised |
+|---|---|---|---|
+| `probe_vault_live.py` | `/api/v1/vault/create`, `/secrets`, `/secrets/{id}/reveal`, `/lock`, `/unlock`; a second process opening the same database | reveal with no credential returned the canary (200, `no-store`); a second process saw `unlocked=False`; five wrong passphrases then 429 on the correct one | the 300 s throttle ceiling; a full run through a provider |
+| `webauthn_baseline.py` | `/pair`, `/login`, `/api/v1/session`, `/api/v1/vault`, `/api/v1/devices`, Apps & AI device list | pairing, passkey sign-in with user verification on and off, paired principal refused on vault routes, device row rendering | replay, RP or origin mismatch, wrong proxy headers, idle expiry, two tabs, the Tauri webview |
+| `capture_vault_signin_baseline.py` | `/`, `/#/settings`, `/connectors`, `/connections`, `/login`, `/pair` at 360, 768, 1280, 1920 px, plus an emulated light scheme | 30 views, 0 console errors, 0 horizontal overflow | keyboard traversal, screen reader, 200 percent zoom |
+
+The secret-leak sweep (gate 4) was not run: no phase has changed how a value is handled yet.
+
 ## How to reproduce the KDF cost
 
 ```
