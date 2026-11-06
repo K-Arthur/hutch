@@ -20,6 +20,7 @@ from ..providers.capabilities import (CAPABILITIES, capability_matrix, capabilit
 from ..providers.catalog import CATEGORIES, INTEGRATION_STATUSES, STATUS_TEXT, bundled_catalog
 from ..providers.discovery import probe_local_services, services_json
 from ..providers.readiness import account_readiness, provider_readiness, readiness_json, route_readiness
+from ..providers.routing import resolve_route
 from ..runtime.registry import registry_json
 
 CATEGORY_LABELS = {
@@ -185,6 +186,12 @@ def register_provider_pages(app: FastAPI, page: Callable, go: Callable, read_for
         return {"providers": [provider_readiness(current, provider.id, catalog=catalog)
                               for provider in catalog.providers],
                 "local_services": services_json(local_services())}
+
+    @app.get("/api/v1/provider-resolution")
+    def provider_resolution_api(spec: str = Query(default="", max_length=300),
+                                runtime: str = Query(default="builtin", max_length=40)):
+        return {"resolution": resolve_route(book(), spec, runtime=runtime,
+                                            local_services=local_services()).json()}
 
     @app.get("/api/v1/runtime-catalog")
     def runtime_catalog_api() -> dict:

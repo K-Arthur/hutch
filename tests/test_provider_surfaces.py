@@ -81,6 +81,24 @@ def test_readiness_api_explains_route_states(state):
     assert len(local["local_services"]) == 5
 
 
+def test_resolution_api_names_the_account_source_and_refuses_ambiguity(state, monkeypatch):
+    client, directory = state
+    monkeypatch.setenv("OPENAI_API_KEY", "placeholder")
+    ambient = client.get("/api/v1/provider-resolution",
+                         params={"spec": "openai/gpt-4o"}).json()["resolution"]
+    assert ambient["account"] == "openai"
+    assert "ambient environment (OPENAI_API_KEY)" == ambient["account_source"]
+    assert ambient["substituted"] is False
+    book = ConnectionBook(directory)
+    book.add("openai-api", "openai-personal")
+    book.add("openai-api", "openai-work")
+    ambiguous = client.get("/api/v1/provider-resolution",
+                           params={"spec": "openai/gpt-4o"}).json()["resolution"]
+    assert ambiguous["account"] == ""
+    assert ambiguous["status"] == "needs_configuration"
+    assert ambiguous["substituted"] is False
+
+
 def test_runtime_catalog_separates_execution_from_providers(state):
     client, _ = state
     body = client.get("/api/v1/runtime-catalog").json()
