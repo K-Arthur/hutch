@@ -36,8 +36,13 @@ def estimate_tokens(text: str) -> int:
 IMAGE_TOKEN_ESTIMATE = 800
 
 
-def _content_tokens(content: Any) -> int:
-    """Estimate one message body: text by chars, image parts by a flat conservative block."""
+def content_tokens(content: Any) -> int:
+    """Estimate one message body: text by chars, image parts by a flat conservative block.
+
+    A list body must never be measured by ``str(content)``: that turns base64 image data into
+    tens of thousands of fake text tokens. Every estimator (context planning and compaction)
+    uses this function so the two cannot disagree about an image.
+    """
     if isinstance(content, str):
         return estimate_tokens(content)
     if isinstance(content, list):
@@ -64,7 +69,7 @@ def _message_tokens(message: dict[str, Any]) -> int:
     calls = message.get("tool_calls")
 
     def compute() -> int:
-        return (_content_tokens(content) + PER_MESSAGE_OVERHEAD
+        return (content_tokens(content) + PER_MESSAGE_OVERHEAD
                 + sum(estimate_tokens(json.dumps(tc)) for tc in (calls or [])))
 
     return _MESSAGE_TOKENS.get(message, content, calls, compute)

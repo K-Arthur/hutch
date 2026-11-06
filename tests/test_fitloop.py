@@ -139,6 +139,35 @@ def test_an_impossible_fit_stops_after_the_bounded_attempts():
     assert "attempt budget" in result.note
 
 
+def test_an_image_part_is_not_counted_as_its_base64_text():
+    """A 1.5 MB image is a bounded image cost, never ~500k fake text tokens."""
+    data = "data:image/jpeg;base64," + ("A" * 200_000)
+    message = {"role": "user", "content": [{"type": "text", "text": "Describe this."},
+                                           {"type": "image_url", "image_url": {"url": data}}]}
+    assert count_tokens([message]) < 1_000
+
+
+def test_a_fitting_request_with_an_image_is_not_compacted():
+    data = "data:image/jpeg;base64," + ("A" * 200_000)
+    messages = [{"role": "system", "content": "You are helpful."},
+                {"role": "user", "content": [{"type": "text", "text": "Describe this."},
+                                             {"type": "image_url", "image_url": {"url": data}}]}]
+    result = fit_or_compact(messages, Destination("llamacpp", "vision", 8192, 1024, tool_tokens=500))
+    assert result.status == "ok"
+    assert result.before_tokens < 2_000
+
+
+def test_protected_anchors_keep_user_words_not_image_bytes():
+    from hutch.runtime.fitloop import _protected_user_anchors
+
+    data = "data:image/jpeg;base64," + ("A" * 200_000)
+    messages = [{"role": "user", "content": [{"type": "text", "text": "Keep the red line."},
+                                             {"type": "image_url", "image_url": {"url": data}}]}]
+    anchors, total = _protected_user_anchors(messages)
+    assert anchors == [{"source": "user message 1", "content": "Keep the red line."}]
+    assert total < 100
+
+
 def test_count_tokens_includes_tool_definitions():
     messages = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
     assert count_tokens(messages, 1_000) == count_tokens(messages) + 1_000

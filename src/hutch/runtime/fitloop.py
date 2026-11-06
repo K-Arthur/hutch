@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
 from ..token_cache import MessageTokenCache
-from ..context import estimate_tokens
+from ..context import content_tokens, estimate_tokens
 
 MAX_COMPACT_ATTEMPTS = 2
 MIN_REDUCTION = 0.10          # each attempt must remove at least this share or it counts as a failure
@@ -97,7 +97,7 @@ def _message_tokens(message: dict[str, Any]) -> int:
     calls = message.get("tool_calls")
 
     def compute() -> int:
-        tokens = estimate_tokens(str(content or "")) + 6
+        tokens = content_tokens(content) + 6
         for call in calls or []:
             tokens += estimate_tokens(json.dumps(call, separators=(",", ":")))
         return tokens
@@ -133,6 +133,20 @@ def split_units(messages: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
     return units
 
 
+def _anchor_text(content: Any) -> str:
+    """The user's words, never the wire bytes of an image part.
+
+    Compaction preserves user *text*; a base64 data URL is reference material that the
+    tail unit already keeps and must not consume the bounded anchor budget.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(str(part.get("text") or "") for part in content
+                         if isinstance(part, dict) and part.get("type") == "text").strip()
+    return json.dumps(content, ensure_ascii=False, sort_keys=True, default=str)
+
+
 def _protected_user_anchors(messages: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
     """Retain the initial user request and exact user corrections/constraints as bounded JSON data.
 
@@ -146,8 +160,9 @@ def _protected_user_anchors(messages: list[dict[str, Any]]) -> tuple[list[dict[s
     for index, message in enumerate(messages):
         if message.get("role") != "user":
             continue
-        raw = message.get("content")
-        content = raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False, sort_keys=True, default=str)
+        content = _anchor_text(message.get("content"))
+        if not content:
+            continue
         if content.startswith(COMPACTED_OPEN):
             match = re.search(re.escape(PROTECTED_OPEN) + r"(.*?)" + re.escape(PROTECTED_CLOSE),
                               content, flags=re.DOTALL)
