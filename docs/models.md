@@ -249,8 +249,20 @@ Native Ollama fit checks use current measured RAM/GPU headroom before generation
 after an approval wait. Unknown free GPU memory fails closed; measured zero is never replaced
 with total capacity. A model's reported resident allocation is credited against the physical
 free-memory snapshot, capped by totals; multi-GPU placement is not inferred. Footprint and KV
-cache fit remain estimates, not an OOM guarantee. Other local protocols have queue limits but
-lack validated memory admission. No real model was exercised here.
+cache fit remain estimates, not an OOM guarantee. Other local protocols have queue limits; their
+window admission is now measured (ADR-0030), while Ollama remains the only runtime with validated
+resident-memory admission. llama.cpp b12144 and LM Studio 0.0.27-1 were exercised on 2026-11-06.
+
+Fixed-window runtimes are read, not assumed (ADR-0030). llama.cpp reports its per-request window
+in `/slots[].n_ctx`; with `-c 8192 --parallel 2` that is 4096, not 8192. LM Studio reports
+`loaded_instances[].config.context_length`, which can be far below `max_context_length`; a cold
+model is loaded with a fitted window and the applied value is read back from `load_config`.
+Hutch refuses an over-long prompt before sending and lets compaction run first where enabled. A
+key-protected server answers 401/403: the Models page and discovery say `needs_key`, and a key
+stored on a connection is sent only to that connection's exact loopback origin. vLLM and SGLang
+do not report the window they serve over `/v1/models`; Hutch says unknown and makes no truncation
+claim. Live evidence: llama.cpp b12144 and LM Studio 0.0.27-1, 2026-11-06, in
+`docs/realignment/offline-models-2026-11/02-PROGRESS.md`.
 
 Run details separate recorded inference admission waits from model/tool time and Hutch overhead.
 Step timing covers recorded steps; startup admission waits are included in the run's `queue_ms`

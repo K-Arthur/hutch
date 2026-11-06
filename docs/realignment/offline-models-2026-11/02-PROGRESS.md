@@ -10,7 +10,7 @@ covers before relying on it.
 |---|---|---|---|---|
 | 0 Diagnose | done | 33bf8a61 | 2026-11-06: Ollama 0.40.13/0.40.15, llama.cpp b12144 CPU+Vulkan, LM Studio llmster 0.0.27-1, Chromium captures | — |
 | 1 Locality truth | done (1.1, 1.2, 1.3) | see git log | 2026-11-06: real Ollama 0.40.13 rows (cloud stub, renamed cloud copy, local, missing model) | EC-02 second-interface run not run |
-| 2 Native runtime introspection | in progress (2.1-2.4 implemented; live checks running) | see git log | 2026-11-06: llama.cpp b12144 9931 (4096 per slot with `-c 8192 --parallel 2`), LM Studio applied 8192, discovery fingerprints both, over-long llama.cpp request 400 | needle self-check at 4096 running separately |
+| 2 Native runtime introspection | done (2.1, 2.2, 2.3, 2.4) | see git log | 2026-11-06: llama.cpp b12144 9931 (4096 per slot with `-c 8192 --parallel 2`), LM Studio applied 8192, discovery fingerprints both, squatter unknown, `--api-key` needs_key then a keyed chat, needle self-check at 4096 | vLLM/SGLang not installed; LM Studio API-token mode not enabled live (401 path tested with a real key-protected llama-server) |
 | 3 Lifecycle states and errors | not started | | | |
 | 4 Get a model (install, import, guide) | not started | | | |
 | 5 Multimodal and tool reliability | not started | | | |
@@ -169,8 +169,17 @@ Still open (ask at the phase that needs it):
   names the endpoint); the default llama.cpp route endpoint is still 8080 while the stock server is
   9931. Both are Phase 7's picker work. The hardware probe still checks 8080; local choices probe the
   discovery endpoints directly with a 5-second cache.
-- Live: real llama.cpp b12144 and LM Studio 0.0.27-1 adapter/discovery/admission runs above. The
-  key-protected server and the decoy checks are recorded below when run.
+- Credential store: a local runtime key uses the existing connection key file (0600), the same store
+  as provider keys, scoped by origin. The passphrase `VaultBook` is for tool secrets and is not
+  used for runtime credentials. No key is written to the database, a URL, a result or a page.
+- `src/hutch/data/compat.json` rows for llama.cpp/LM Studio are deferred to Phase 8: adding a
+  catalogue row is a public compatibility claim, and Phase 2's evidence is one build on one host.
+  The honest documentation lives in `docs/models.md` and `docs/runtime-setup.md` (ADR-0030).
+- Phase 2 exit checks: window read equals `/slots` (4096) and LM Studio
+  `loaded_instances.config.context_length` (8192); an over-long prompt is refused by `check_prompt`
+  and the real server's own 400 is recorded; the 8080 squatter is `runtime=unknown`; the
+  `--api-key` server reports `needs_key` and lists models only with the origin-scoped key. Phase 3
+  is next.
 - 2026-11-06, Phase 2.4 live: `llama-server --api-key-file` on 9933. Without a key discovery returns
   `reachable=true, state=needs_key`; with a key from a temporary connection whose base URL is
   `http://127.0.0.1:9933/v1`, discovery returns `ready`, the model list and runtime `llamacpp`; the

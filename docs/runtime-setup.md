@@ -58,7 +58,16 @@ The maintenance preflight and concurrent configuration behavior were checked aga
 - **Install:** install Ollama from <https://ollama.com> and start its local server. Hutch does not bundle the Ollama binary or model weights.
 - **Models:** pull a model with Ollama first. Hutch's model picker lists what the running server reports; a model name in a preset is a suggestion, not a promise that the weights are installed.
 - **Without Ollama:** local routes are unavailable. Choose OpenRouter, OpenAI, Anthropic, or an installed OpenCode provider. Hutch does not silently substitute a hosted model.
-- **Strict Offline:** requires a verified local route and the host's isolation checks. A hosted API key is not a Strict Offline fallback.
+- **llama.cpp:** `llama-server` binds 127.0.0.1:9931 by default. Hutch probes 9931 and the older
+  8080 and identifies the server from `/props` and `/v1/models`, not the port. `-c` is the total
+  context; when the KV cache is divided, `/slots[].n_ctx` is the per-request window Hutch uses. A
+  server started with `-m /path/model.gguf` is listed as the file's basename, which llama.cpp also
+  accepts. Launch flags are not exposed over HTTP; size deliberately.
+- **LM Studio:** start its server (default 127.0.0.1:1234). Hutch reads the applied
+  `loaded_instances[].config.context_length`, not the model's maximum, and can load a cold model at a
+  fitted window. If API tokens are enabled, store the token on a connection for that exact origin;
+  without it the server shows `needs_key`, not "dead".
+- **Strict Offline:** requires a verified local route and the host's isolation checks. A hosted API key is not a Strict Offline fallback. A key-protected local server is still local; its token is a bearer header, never a URL credential.
 
 ## Hardware and network checks
 
