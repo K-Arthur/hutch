@@ -843,7 +843,7 @@
       "model_protocol_hint": "Keys are issued by an administrator and scoped to a policy. The model list shows what the key may use, but a cached list is not authorization: a listed model can still be refused when the request is dispatched. Upstream model identity is the gateway's."
     },
     "bedrock-runtime": {
-      "title": "Amazon Bedrock (API key, OpenAI-compatible runtime)",
+      "title": "Amazon Bedrock (API key)",
       "provider": "bedrock",
       "auth_method": "api_key",
       "protocol": "openai-chat",
@@ -858,7 +858,7 @@
       "model_protocol_hint": "Bedrock API key (bearer) on the OpenAI-compatible bedrock-runtime endpoint. IAM credentials, SigV4 and the native Converse API are not implemented. The Region is part of the host, and a long-term key works only in the Region it was created in (another Region fails with 'Credential should be scoped to a valid region'). Model ids are foundation models or system inference profile ids with a us., eu., apac. or global. prefix; a bare id for a profile-only model fails with 'on-demand throughput isn't supported'. This endpoint has no model list, so enter the id from the model card. Hutch never adds or strips a prefix."
     },
     "bedrock-mantle": {
-      "title": "Amazon Bedrock Mantle (API key, OpenAI-compatible)",
+      "title": "Amazon Bedrock Mantle (API key)",
       "provider": "bedrock-mantle",
       "auth_method": "api_key",
       "protocol": "openai-chat",
@@ -873,7 +873,7 @@
       "model_protocol_hint": "Most models are served under /v1 and some under /openai/v1; a wrong prefix is refused with 'model ... isn't supported on this route', so change the base URL for those models. The Region is part of the host and a long-term key works only in its own Region. Model ids and inference profile ids are not interchangeable with the bedrock-runtime endpoint. Claude on Mantle uses an Anthropic Messages path that this template does not offer."
     },
     "microsoft-foundry": {
-      "title": "Microsoft Foundry / Azure OpenAI (v1 API, resource key)",
+      "title": "Microsoft Foundry (resource key)",
       "provider": "microsoft-foundry",
       "auth_method": "api_key",
       "protocol": "openai-chat",
