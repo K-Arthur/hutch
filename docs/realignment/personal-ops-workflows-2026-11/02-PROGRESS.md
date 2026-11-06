@@ -9,7 +9,7 @@ output.
 |---|---|---|---|---|
 | 0 Diagnose and baseline audit | done | 1bec95e1 | 73 focused tests passed (54.38s); 40 baseline screenshots (0 errors, 0 overflow) | none |
 | 1 Live web research and failure mining | done | c3856c3b | 8/8 owner URLs fetched live; 48 requirements and 48 failure rows cross-checked; `npm run check:agent` and `npm run audit:context` pass; emoji audit has no repository-source hits (8 hits only in git-ignored `.codewhale/state/subagents.v1.json`) | none |
-| 2 Automations trust & observability (G03, G06) | not started | | | |
+| 2 Automations trust & observability (G03, G06) | in progress | 69b2637b | 2A+2B: 172 focused tests passed; schema v93; journal append-only; approval parks before execution and survives deny/expiry; conditions skip without a run | none |
 | 3 Inbound webhook & event triggers (G04) | not started | | | |
 | 4 Multimodal intake pipeline (chat, channels, Today) | not started | | | |
 | 5 Personal ops bridges: provenance & calendar (G08, G09) | not started | | | |
@@ -22,6 +22,14 @@ Phase 1 is documentation only. It changed no source file, so focused product tes
 and browser capture are not applicable. The live verification for this phase is the source fetch
 ledger (`01-SOURCES.md`): 8/8 owner URLs returned readable content, and the two unreachable pages are
 recorded in section E rather than guessed.
+
+### Phase 2 checkpoints
+
+| Task | Status | Commit | Verification |
+|---|---|---|---|
+| 2A Schedule revision journal | done | 817c3942 | `npm run test:agent -- tests/test_schedule_history.py`: 7 passed; real SQLite migration v92; update/delete refused; no-op save writes zero rows |
+| 2B Approval checkpoints and bounded conditions | done | 69b2637b | `npm run test:agent -- tests/test_schedule_conditions.py tests/test_schedule_policy.py tests/test_schedule_approvals.py tests/test_schedule_history.py tests/test_scheduler.py tests/test_schedule_outcomes.py tests/test_schedule_durability.py tests/test_lifecycle.py tests/test_approval_cas.py`: 172 passed; real approval parks, approve releases, deny/expire skips, one notification |
+| 2C Schedules surface (filter, history, roll-call) | in progress | | |
 
 ## Owner inputs needed (batch, ask once)
 
@@ -70,6 +78,9 @@ recorded in section E rather than guessed.
 | 2026-11-06 | Phase 1 | A phone can view, complete and decide an existing approval; confirming a new obligation stays local-owner (POW-D13) | Preserves the local-first authority boundary while covering the away-from-desk need |
 | 2026-11-06 | Phase 1 | Telegram stays text-only by default with a visible notice; media intake is per-channel opt-in (POW-D14) | Silent drops are the current defect; default media widens attack surface and size failure modes |
 | 2026-11-06 | Phase 1 | No new dependency (POW-D15) | The standard library and existing stack cover every requirement; supply-chain cost is not justified |
+| 2026-11-06 | Phase 2 | Schedule policy lives in a sidecar table with its own revision (POW-D17) | `models.py` is frozen; the sidecar also gives CAS edits and cleanup without rewriting the bot document |
+| 2026-11-06 | Phase 2 | A pre-run approval applies to prompt schedules; linked saved workflows keep their own step approvals and return 422 for a schedule-level pre-check | The workflow engine already gates its steps; a second half-implemented gate would be less trustworthy than an explicit limit |
+| 2026-11-06 | Phase 2 | Approved decisions are reconciled immediately and retried on every scheduler beat | A crash between the approval commit and the run transition must not strand a parked run |
 
 ## Visual validation log
 
@@ -93,6 +104,8 @@ remains the visual reference for the next UI phase.
 | 2026-11-06 | Phase 1 | `03-REQUIREMENTS-AND-DECISIONS.md:123` | Sidecar schedule policy was not recorded as a decision; added POW-D17 to keep `models.py` frozen | c3856c3b |
 | 2026-11-06 | Phase 1 | `02-FAILURES-AND-COMPLAINTS.md` | Initial id cross-check found POW-R4 and POW-R13 defined but uncited; added them to F20 and F41 | c3856c3b |
 | 2026-11-06 | Phase 1 | `01-SOURCES.md` E1-E2 | `ocr.direct` returned 504 and the OpenAI PDF thread returned an empty page; recorded as unreachable instead of guessing | c3856c3b |
+| 2026-11-06 | Phase 2 | `src/hutch/lifecycle.py:32` | Initial smoke test showed denial and expiry left runs in `waiting_approval`: the lifecycle table did not allow `waiting_approval -> skipped`. Added the transition and a visible reconciliation error event; regression test covers deny and expiry | 69b2637b |
+| 2026-11-06 | Phase 2 | `src/hutch/schedule_admission.py:38-44` | Reconciliation failures were swallowed. They now append a bounded log event to the run so a stuck parked run is visible instead of silent | 69b2637b |
 
 ## Open items and deferred
 
@@ -104,3 +117,4 @@ remains the visual reference for the next UI phase.
 | OpenAI Developer Community PDF-export thread | Returned an empty body on 2026-11-06 | C16 and C17 carry the deliverable-loss evidence; recheck only if a primary OpenAI statement is needed |
 | Telegram local Bot API server | Not stood up or tested | Do not claim its 2 GB ceiling; the standard Bot API 20 MiB download cap is the verified limit |
 | Marketing website claim sync | Phase 1 is research only; site claims must follow live-verified behavior, not plans | Phase 9 Task 9B, after Phases 2-8 are live-verified |
+| Schedule-level pre-approval for linked saved workflows | The workflow engine already has per-step approvals; a schedule-level gate needs a workflow parking state and a retry policy | A later phase can add it with workflow-engine tests; until then the policy API returns 422 and the UI must say why |
