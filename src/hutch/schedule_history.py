@@ -135,3 +135,39 @@ def schedule_identity_exists(store, bot_id: str, schedule_id: str) -> bool:
             (schedule_id, bot_id),
         ).fetchone()
     return row is not None
+
+
+def list_occurrences(store, schedule_id: str, *, limit: int = 20) -> list[dict[str, Any]]:
+    """Claimed windows with the run status and linked workflow id, newest first.
+
+    The status column is authoritative; the document copy supplies only the
+    immutable workflow lineage. A missing run is reported as having no result.
+    """
+    limit = max(1, min(int(limit), 100))
+    with store._lock:
+        rows = store._db.execute(
+            "SELECT o.schedule_id, o.occurrence, o.bot_id, o.run_id, o.claimed_at, o.claimed_by, "
+            "r.status AS run_status, json_extract(r.doc, '$.workflow_run_id') AS workflow_run_id, "
+            "json_extract(r.doc, '$.exit_reason') AS exit_reason, "
+            "json_extract(r.doc, '$.missed_windows') AS missed_windows "
+            "FROM schedule_occurrences_v20 o LEFT JOIN runs r ON r.id = o.run_id "
+            "WHERE o.schedule_id = ? ORDER BY o.occurrence DESC LIMIT ?",
+            (schedule_id, limit),
+        ).fetchall()
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        status = str(row["run_status"] or "")
+        out.append({
+            "schedule_id": row["schedule_id"],
+            "occurrence": row["occurrence"],
+            "bot_id": row["bot_id"],
+            "run_id": row["run_id"],
+            "claimed_at": row["claimed_at"],
+            "claimed_by": row["claimed_by"],
+            "run_status": status,
+            "workflow_run_id": str(row["workflow_run_id"] or ""),
+            "exit_reason": str(row["exit_reason"] or ""),
+            "missed_windows": int(row["missed_windows"] or 0),
+            "needs_attention": not status or status in ("failed", "outcome_unknown"),
+        })
+    return out
