@@ -11,7 +11,7 @@ covers before relying on it.
 | 0 Diagnose | done | 33bf8a61 | 2026-11-06: Ollama 0.40.13/0.40.15, llama.cpp b12144 CPU+Vulkan, LM Studio llmster 0.0.27-1, Chromium captures | — |
 | 1 Locality truth | done (1.1, 1.2, 1.3) | see git log | 2026-11-06: real Ollama 0.40.13 rows (cloud stub, renamed cloud copy, local, missing model) | EC-02 second-interface run not run |
 | 2 Native runtime introspection | done (2.1, 2.2, 2.3, 2.4) | d057cc95..7c53c59e | 2026-11-06: llama.cpp b12144 9931 (4096 per slot with `-c 8192 --parallel 2`), LM Studio applied 8192, discovery fingerprints both, squatter unknown, `--api-key` needs_key then a keyed chat, needle self-check at 4096 | vLLM/SGLang not installed; LM Studio API-token mode not enabled live (401 path tested with a real key-protected llama-server) |
-| 3 Lifecycle states and errors | in progress (3.1, 3.2, 3.3) | see git log | pending live run | — |
+| 3 Lifecycle states and errors | done (3.1, 3.2, 3.3) | 4d8b2ce3 + evidence commit | 2026-11-06: real Ollama cold load, real llama.cpp 503, real LM Studio unload/reload, real runner kill and llama-server restart | EC-09 4 GB model not downloaded (budget); old-version gate not live-tested |
 | 4 Get a model (install, import, guide) | not started | | | |
 | 5 Multimodal and tool reliability | not started | | | |
 | 6 Strict Offline live, boundary ADR | not started | | | Owner decision on the boundary (Phase 6.3) |
@@ -50,9 +50,10 @@ or out-of-scope (reason). One line per ID once touched.
 - EC-06: tested-real for llama.cpp: an over-long request returns HTTP 400 `exceed_context_size_error` with `n_ctx=4096`; prompt truncation was removed for chat (R24). Hutch refuses before sending. LM Studio's `truncateMiddle`/`stopAtLimit` policy is not exposed by `/api/v1/models` (R20); Hutch sizes to the applied window and states the residual unknown.
 - EC-07: partially measured (Ollama `size`/`size_vram`); llama.cpp and LM Studio now report applied windows but not resident bytes over the fields Hutch reads. Full fit comparison remains Phase 2/5.
 - EC-08: tested-real: llama.cpp `-c 8192 --parallel 2` reports 4096 per slot in `/slots` and `/props`; LM Studio reports `parallel: 4` with an 8192 applied window. Both are shown as per-request values, not the headline.
-- EC-09: partially observed (Ollama cold load 1.56 s; llama.cpp loaded before the first 503 poll). Full cold 4 GB load in Phase 3.
-- EC-10: documented (LM Studio TTL 60 min, auto-evict; Ollama 5 min keep-alive, `OLLAMA_MAX_LOADED_MODELS`); test Phase 3.
-- EC-11: tested-real (0.40.13 vs 0.40.15 agree on the cloud fields; full feature matrix Phase 3).
+- EC-09: tested-real, Phase 3: a full app run showed `pending, running, loading_model, running, succeeded` and a measured 4.821 s cold Ollama load; a real llama.cpp 503 body was waited out in 3.553 s; a real LM Studio unload/reload measured 2.905 s. The 4 GB variant was not downloaded (budget: 4.1 GB of 10 GB used, Phase 4 needs room); the largest retained model is 2.5 GB.
+- EC-10: tested-real for explicit eviction, Phase 3: LM Studio `/api/v1/models/unload` then reload; a real Ollama runner kill and a real llama-server kill/restart. The 60-minute LM Studio TTL and 5-minute Ollama keep-alive were not waited out; the same absence-of-`loaded_instances` / `/api/ps` signal is what the tests exercise.
+- EC-11: tested-real for the current runtime plus unit, Phase 3: Ollama 0.40.13 passes every gate; advice strings for 0.9.0/0.3.5 are table-tested; llama.cpp build strings produce no advice. Not run: an older Ollama or LM Studio installation.
+- EC-22: tested-real, Phase 3: a real `kill -9` of the Ollama child `llama-server` mid-stream produced `llama-server process has terminated: signal: killed`; the full run reloaded once, showed `loading_model`, and succeeded. The partial-text stop path is unit-tested; GPU OOM could not be produced on this host.
 - EC-12: tested-real (decoy on 8080). Fix Phase 2.1.
 - EC-13: tested-real (`--api-key` server looks dead). Fix Phase 2.4.
 - EC-15: tested-real (G1 names; GGUF template present and tool-capable in `/props`). Fix Phase 4.1.
@@ -75,6 +76,12 @@ or out-of-scope (reason). One line per ID once touched.
 | 2026-11-06 | FastAPI app (this checkout) | real Ollama store | same | `capture_offline_models_baseline.py`, Chromium | `/models`, switcher, `/#/connections`, `/onboarding`, `/onboarding/local-service` at 360/768/1280/1920 | light theme (fixed dark), keyboard traversal (Phase 7) | 20 + 20 screenshots; zero overflow, zero page/console errors; defects listed in `00-BASELINE.md` |
 | 2026-11-06 | llama.cpp b12144 / server b12144-69ee2ecc0 | qwen3-4b Q4_K_M, 2491323904 bytes | Ryzen 3 5300U, CPU | `llama-server -m models/qwen3-4b.gguf -c 8192 --parallel 2 --reasoning-budget 0 --host 127.0.0.1 --port 9931` | `/props`, `/slots`, `/v1/models`, discovery, `admit_local`, real `/v1/chat/completions`, over-long request | vision, tools end to end | `/props.build_info=b12144-69ee2ecc0`; `/slots` two slots at 4096; discovery runtime `llamacpp`, confidence strong, applied 4096; admission `num_ctx=4096`, 2 slots; chat `context_window=4096`; 12,011-token request returned 400 `exceed_context_size_error` with `n_ctx=4096` |
 | 2026-11-06 | LM Studio llmster 0.0.27-1 | qwen3-4b (local), text-embedding-nomic-embed-text-v1.5 | same | `lms daemon up`, `lms server start --port 1234`, `POST /api/v1/models/load {"context_length":8192}` | `/api/v1/models`, discovery, `admit_local`, real `/v1/chat/completions` | API-token mode (separate row), vision | applied window 8192 (max 262144); `parallel=4`; discovery runtime `lmstudio`, confidence strong; cold load echoed 8192; chat `context_window=8192`, answer `window-ok` |
+| 2026-11-06 | Ollama 0.40.13 | qwen3:4b, unloaded before the run | Ryzen 3 5300U, CPU | real FastAPI app on an ephemeral port, fresh `HUTCH_STATE_DIR`, bot `ollama/qwen3:4b`, `POST /api/bots/<id>/run`; script in the session scratchpad, JSON at `~/.hutch-tmp/offline-models-2026-11/evidence/p3-cold-start.json` | status timeline, `loading_model`, measured `model_load` key, answer | 4 GB model variant (no download) | statuses `pending, running, loading_model, running, succeeded`; cold load 4.821 s; answer `phase-three-ok`; no hosted fallback |
+| 2026-11-06 | llama.cpp b12144 (CPU) | qwen3-4b Q4_K_M, 2.49 GB | same | `llama-server -m models/qwen3-4b.gguf -c 8192 --parallel 2 --reasoning-budget 0`; caught the first `/health` 503, then `admit_local("llamacpp", ...)`; JSON at `evidence/p3-llamacpp-load.json` | 503 body, wait, `/props`, `/slots`, applied window | chat through a Hutch bot route (Phase 7 wiring) | 503 body `{"error":{"message":"Loading model","type":"unavailable_error","code":503}}`; wait 3.553 s; applied 4096 per request, 2 slots; `on_loading` true/false |
+| 2026-11-06 | LM Studio llmster 0.0.27-1 | qwen3-4b | same | `POST /api/v1/models/unload {"instance_id":"qwen3-4b"}`, then `admit_local("lmstudio", ...)`, then a real `/v1/chat/completions`; JSON at `evidence/p3-lmstudio-reload.json` | unload state, measured reload, applied window, chat | TTL wait (60 min) | loaded instances empty, then applied 8192; reload 2.905 s; chat `reloaded` with `context_window=8192` |
+| 2026-11-06 | Ollama 0.40.13 | qwen3:0.6b | same | real `kill -9` of the Ollama child `llama-server` mid-stream, direct provider capture and a full app run; JSON at `evidence/p3-kill-runner.json` and `evidence/p3-run-kill.json` | real error text, classifier, reload, final answer, status timeline | GPU OOM | direct error `Ollama error mid-stream: ... unexpected EOF`; classifier reload; full run `pending, running, loading_model, running, succeeded` with two `load` events (one reload message, one measured reload); provider health recorded `llama-server process has terminated: signal: killed`; answer produced |
+| 2026-11-06 | llama.cpp b12144 (CPU) | qwen3-4b | same | `kill -9` of `llama-server` mid-stream, restart, `refresh_local_route`, real chat; JSON at `evidence/p3-llamacpp-restart.json` | real error text, classifier, restart detection, answer | full Hutch bot route (Phase 7) | error `cannot connect to http://127.0.0.1:9931/v1`; classifier reload; restarted server detected; answer `restarted` |
+| 2026-11-06 | version gates | — | — | `tests/test_local_versions.py` table, real Ollama 0.40.13 | gates at 0.40.13 and advice at 0.9.0/0.3.5 | an older runtime installation | all Ollama gates pass at 0.40.13; advice strings tested; LM Studio advice tested from a reported version; llama.cpp build string produces no advice |
 
 ## Decisions log
 
@@ -92,6 +99,21 @@ or out-of-scope (reason). One line per ID once touched.
   the real default and fingerprint the response, not trust the port.
 - 2026-11-06: The cloud signal is `/api/tags.remote_host` / `remote_model`; `/api/show`
   does not carry it on 0.40.13 or 0.40.15. Name suffix is fallback only.
+- 2026-11-06, Phase 3: a 503 "Loading model" is a bounded wait with a visible `loading_model`
+  state, never a fallback trigger. `/v1/models` is not a readiness signal for llama.cpp.
+- 2026-11-06, Phase 3: one reload per failure episode, then a clear stop. A failure with text
+  already delivered is never retried; the text stays incomplete and the turn stops with the cause.
+- 2026-11-06, Phase 3: fixed-window routes are re-read through a fresh adapter before every
+  model call, so an eviction or restart between turns is a state, not a stale assumption.
+  A route whose native endpoint cannot be read falls through to the request's own error.
+- 2026-11-06, Phase 3: version gates come only from published release notes; an unknown
+  version gets no advice, and llama.cpp gets no invented build floor (its build string is
+  recorded and features come from `/props` fields).
+- 2026-11-06, Phase 3: the cold-load exit check used the retained 2.5 GB qwen3:4b rather than
+  downloading a 4 GB model; 4.1 GB of the 10 GB budget remains committed to Phases 4-5.
+- 2026-11-06, Phase 3: a sleeping llama.cpp model is reported as reloadable, not down. Hutch
+  does not send a warmup POST to force the wake, so the first request includes the reload and
+  its status remains `running`; the adapter reports `sleeping` and the run note says so.
 
 ## Owner questions (ask once, batched)
 
@@ -123,12 +145,28 @@ Still open (ask at the phase that needs it):
   key-protected runtime with a matching stored key is readable rather than reported as `needs_key`.
   Removed unused `hw`/`bot` parameters from the choice helpers and the unused `LOOPBACK_HOSTS`
   constant in discovery. No behavior claim changed; the focused suite (87) passes.
+- 2026-11-06, Phase 3 review: the first classifier run on the real killed-runner text
+  ("unexpected EOF") returned `stop` with no message. Added the real wrapper markers and a
+  regression test built from the captured string; re-ran the real kill and got `reload`.
+- 2026-11-06, Phase 3 review: the per-call refresh initially ran for hosted routes and blocked
+  fixed routes whose native endpoint was unreadable (15 `test_runtime_builtin` failures).
+  Gated it to local providers and made an unreadable native endpoint fall through to the
+  request's own error; the whole runtime suite passes.
+- 2026-11-06, Phase 3 review: the OOM/restart sentences claimed a reload in the stop-after-partial
+  branch. Made them action-aware; partial text is stated as kept and the turn as stopped.
+- 2026-11-06, Phase 3 review: `_exit_reason` moved to `runtime/outcomes.py` and the Ollama
+  memory/refresh helpers moved to `providers/local/lifecycle.py`, so `runtime/builtin.py`
+  shrank from 1,955 to 1,942 lines rather than growing past its cap. No function over 60 lines;
+  the new modules are 235, 87 and 59 lines.
 
 ## Open items and deferred
 
 - G1, G2, G3, G4, G6, G7 fixes: Phases 1, 2 and 4.
 - G5 live Strict Offline: Phase 6.
-- Real 4 GB cold load, 503 body, explicit `--parallel 2` split: Phase 2/3.
+- Phase 3 not run: a 4 GB cold load (budget), a 60-minute LM Studio TTL wait, a 5-minute
+  Ollama keep-alive wait, an older Ollama/LM Studio installation for the upgrade path, GPU
+  OOM, and a full Hutch bot turn on llama.cpp or LM Studio (Phase 7 wiring). The adapter-level
+  restart and reload paths were exercised live and are recorded in the ledger.
 - vLLM and SGLang: not installed (dependency decision needed); OpenAI-compatible seam only.
 - LM Studio API-token mode from the CLI: not found in this pass; GUI setting documented.
 - Phase 0 artifacts total 40 PNGs plus the capture JSON; kept under
@@ -233,8 +271,8 @@ Still open (ask at the phase that needs it):
   `lifecycle.ensure_loaded`/`refresh_local_route` re-read the runtime before every local call
   (fixed routes are no longer assumed resident) and reload once; `admission_memory` moved with
   the same measured-allocation rule. `runtime/builtin.py` now 1,942 lines (was 1,955): the
-  Ollama-only refresh and memory helpers moved out. Tests: `test_local_failure.py` (11),
-  `test_local_lifecycle.py`; focused suites 369 pass. Live kill/restart evidence pending.
+  Ollama-only refresh and memory helpers moved out. Tests: `test_local_failure.py` (12),
+  `test_local_lifecycle.py`; focused suites 369 pass. Live kill/restart evidence is below.
 - 2026-11-06, Phase 3.3: `providers/local/versions.py` gates Ollama (tools 0.3.0,
   structured outputs 0.5.0, thinking 0.9.0, measured window 0.10.0) and LM Studio (tools
   0.3.6, TTL 0.3.9, native API/tokens 0.4.0); llama.cpp has no invented build floor and its
@@ -246,3 +284,26 @@ Still open (ask at the phase that needs it):
   highest required version among the missing features, so one upgrade covers all of them.
   No feature claim is made from a version alone; the runtime's own fields still decide
   (for example `chat_template_caps.supports_tools` on llama.cpp).
+- 2026-11-06, Phase 3 live: real Ollama 0.40.13 cold start through the real FastAPI app
+  (fresh `HUTCH_STATE_DIR`, ephemeral port): status timeline included `loading_model`, load
+  event measured 4.821 s, answer `phase-three-ok`. Real llama.cpp b12144 `/health` 503 body
+  captured; admission waited 3.553 s and reported 4096 per request across 2 slots. Real LM
+  Studio unload then reload measured 2.905 s at 8192 and answered `reloaded`. Real `kill -9`
+  of the Ollama child `llama-server` mid-stream: direct error `Ollama error mid-stream: ...
+  unexpected EOF` classified `reload`; a full app run showed `loading_model`, two `load`
+  events, and succeeded with an answer. Real `kill -9` and restart of `llama-server`:
+  `cannot connect` classified `reload`, restarted server detected, answer `restarted`.
+  Evidence JSON under `~/.hutch-tmp/offline-models-2026-11/evidence/p3-*.json`; services
+  stopped and ports 11434, 1234, 9931 and 8080 verified free.
+- 2026-11-06, Phase 3 gates: focused suite (19 files) 369 passed; `tests/test_local_failure.py`
+  17 passed after the real-wrapper fix; `npm run check:agent` passed (context hygiene, tool
+  contracts, constitution, agent map); `scripts/audit_emoji.py` reports only the pre-existing
+  `.codewhale/state` file, not a Phase 3 file. No UI or website change, so the visual gate does
+  not apply; no screenshots are claimed. `/code-review` and `/simplify` are not available in
+  this session; the phase diff was re-read manually and the findings above were fixed.
+- Phase 3 exit checks: EC-09, EC-10, EC-11 and EC-22 are recorded above with real evidence or
+  an exact not-run reason; the only deviation is the 4 GB model (budget) and the old-runtime
+  upgrade path (no old runtime installed). Phase 3 is done.
+
+Next phase: Phase 4, get a model (install, import, guide): G1 name grammar, G6 disk preflight,
+failure and resume, other-runtime decisions, and the real multi-gigabyte pull through the page.

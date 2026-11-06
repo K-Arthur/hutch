@@ -57,16 +57,26 @@ The maintenance preflight and concurrent configuration behavior were checked aga
 
 - **Install:** install Ollama from <https://ollama.com> and start its local server. Hutch does not bundle the Ollama binary or model weights.
 - **Models:** pull a model with Ollama first. Hutch's model picker lists what the running server reports; a model name in a preset is a suggestion, not a promise that the weights are installed.
+- **Loading and eviction:** a cold load is shown as `loading_model` with the measured duration, not as a timeout. Keep-alive expiry, an unload or the `OLLAMA_MAX_LOADED_MODELS` limit means the next turn reloads; Hutch re-reads `/api/ps` before every call. A runner killed mid-stream (`signal: killed`, or an `unexpected EOF` wrapper) is retried once after a reload when no text was delivered; partial text is kept as incomplete and the turn stops with the cause.
+- **Version:** Hutch gates tool calling, schema-constrained output, thinking and the measured `/api/ps` window by the server's reported version; `hutch doctor` and the Models page name the upgrade when one is needed. An unreadable version gets no advice.
 - **Without Ollama:** local routes are unavailable. Choose OpenRouter, OpenAI, Anthropic, or an installed OpenCode provider. Hutch does not silently substitute a hosted model.
 - **llama.cpp:** `llama-server` binds 127.0.0.1:9931 by default. Hutch probes 9931 and the older
   8080 and identifies the server from `/props` and `/v1/models`, not the port. `-c` is the total
   context; when the KV cache is divided, `/slots[].n_ctx` is the per-request window Hutch uses. A
   server started with `-m /path/model.gguf` is listed as the file's basename, which llama.cpp also
-  accepts. Launch flags are not exposed over HTTP; size deliberately.
+  accepts. Launch flags are not exposed over HTTP; size deliberately. `/health` 503 means
+  "loading": Hutch waits and measures it. `/props.is_sleeping` means the model is unloaded but
+  reloadable, and the next request wakes it. A server restart mid-turn is watched before every
+  call; if it does not answer again, the turn stops with that cause. The build string
+  (`/props.build_info`) is recorded; capabilities come from fields such as
+  `chat_template_caps.supports_tools`, because llama.cpp publishes no feature-by-build matrix.
 - **LM Studio:** start its server (default 127.0.0.1:1234). Hutch reads the applied
   `loaded_instances[].config.context_length`, not the model's maximum, and can load a cold model at a
-  fitted window. If API tokens are enabled, store the token on a connection for that exact origin;
-  without it the server shows `needs_key`, not "dead".
+  fitted window, timing the load. TTL expiry and auto-evict show as an unloaded model, and Hutch
+  reloads once before the next call rather than assuming it is still resident. If API tokens are
+  enabled, store the token on a connection for that exact origin; without it the server shows
+  `needs_key`, not "dead". The app does not report its version over HTTP, so Hutch records the
+  native `/api/v1` presence (0.4.0 or newer) and gives no version advice.
 - **Strict Offline:** requires a verified local route and the host's isolation checks. A hosted API key is not a Strict Offline fallback. A key-protected local server is still local; its token is a bearer header, never a URL credential.
 
 ## Hardware and network checks

@@ -16,8 +16,9 @@ LOCAL_PROVIDERS = frozenset(_NAME_LOCAL_PROVIDERS | {"sglang"})
 OOM_MARKERS = ("signal: killed", "out of memory", "unable to allocate", "failed to allocate",
                "not enough memory", "outofmemory")
 STOPPED_MARKERS = ("runner process has terminated", "llama runner process has terminated",
-                   "the stream ended before", "connection reset", "server disconnected",
-                   "remote protocol error", "the response stream broke")
+                   "while running the model", "unexpected eof", "the stream ended before",
+                   "connection reset", "server disconnected", "remote protocol error",
+                   "the response stream broke")
 
 
 @dataclass(frozen=True)

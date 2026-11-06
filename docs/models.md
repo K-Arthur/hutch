@@ -264,6 +264,34 @@ do not report the window they serve over `/v1/models`; Hutch says unknown and ma
 claim. Live evidence: llama.cpp b12144 and LM Studio 0.0.27-1, 2026-11-06, in
 `docs/realignment/offline-models-2026-11/02-PROGRESS.md`.
 
+### Loading, sleeping and eviction (2026-11-06)
+
+A runtime that is loading is a state, not a failure. llama.cpp answers `/health` with 503
+"Loading model" and serves `/v1/models` before it is ready; Hutch waits on `/health`, shows
+`loading_model` for the run, and records the measured wait. Measured on 2026-11-06: a cold
+Ollama qwen3:4b load took 4.8 s; llama.cpp b12144 took 3.6 s from the first 503 to the applied
+4,096-token slot; an LM Studio reload after an explicit unload took 2.9 s at 8,192 tokens.
+
+Fixed-window routes are re-read before every model call. If the model was evicted (LM Studio
+TTL or auto-evict, an explicit unload, a router eviction, `OLLAMA_MAX_LOADED_MODELS`) Hutch
+reloads it once with a visible loading state. A runtime that stops mid-turn is classified as a
+restart: with no output delivered Hutch reloads and retries once; if text was already produced,
+that text is kept and marked incomplete and the turn stops with the cause. A real kill -9 of the
+Ollama runner mid-stream produced `llama-server process has terminated: signal: killed`; the run
+showed `loading_model`, reloaded, and finished successfully. A killed llama-server was classified
+and recovered once it answered again.
+
+A sleeping llama.cpp model (`/props.is_sleeping`) is reported as reloadable, not down, and the
+first request wakes it. Hutch cannot know a runtime's TTL or eviction policy ahead of time, so it
+reads the model state instead of assuming the previous turn's model is still resident.
+
+Runtime versions are recorded and gated (Ollama tools 0.3.0, structured outputs 0.5.0, thinking
+0.9.0, measured window 0.10.0; LM Studio tools 0.3.6, TTL 0.3.9, native API/tokens 0.4.0).
+`hutch doctor` and the Models page say "upgrade X to Y for Z" when a used feature is newer than
+the running build. llama.cpp publishes no feature matrix, so Hutch records its build string and
+gates on the fields it actually returns, never a guessed build floor. An unknown version produces
+no advice.
+
 Run details separate recorded inference admission waits from model/tool time and Hutch overhead.
 Step timing covers recorded steps; startup admission waits are included in the run's `queue_ms`
 total. Interrupted waits that never acquire capacity are not included in that admitted-wait total.

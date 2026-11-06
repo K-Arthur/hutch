@@ -41,6 +41,17 @@ def test_a_restart_or_broken_stream_is_reloaded_once_when_nothing_was_delivered(
     assert classify_local_failure(exc, "llamacpp", partial=True).action == "stop"
 
 
+def test_the_real_killed_runner_wrapper_is_recognised():
+    exc = ProviderError(
+        "server", "Ollama error mid-stream: an error was encountered while running the model: unexpected EOF")
+    failure = classify_local_failure(exc, "ollama")
+    assert failure.action == "reload"
+    assert failure.kind == "server"
+    stopped = classify_local_failure(exc, "ollama", partial=True)
+    assert stopped.action == "stop"
+    assert "kept and marked incomplete" in stopped.message
+
+
 def test_a_loading_503_is_not_a_fallback():
     exc = ProviderError("server", 'llama.cpp returned HTTP 503: {"message":"Loading model"}')
     failure = classify_local_failure(exc, "llamacpp")
