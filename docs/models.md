@@ -329,10 +329,11 @@ Per-runtime health (also on the Models page): each call's outcome is recorded; t
 ## Route readiness and provider evidence (2026-10-30)
 
 The Models page now shows an explicit readiness state for every configured route. States are computed
-from local configuration only: available, needs authentication, capability unverified, endpoint
-unavailable, needs configuration, blocked by policy, and similar. Capability unverified is not a
-failure; it means no dated evidence exists for that exact route and model in this build. A provider
-catalogue link opens the account, capability and runtime overview. See provider-platform.md.
+from local configuration only: available, needs authentication, authentication expired, revoked
+account, capability unverified, endpoint unavailable, needs configuration, blocked by policy, and
+similar. Capability unverified is not a failure; it means no dated evidence exists for that exact
+route and model in this build. A provider catalogue link opens the account, capability and runtime
+overview. See provider-platform.md and ADR-0029.
 
 A spec of `provider/model` names a provider, not an account. When the provider has a configured account,
 the readiness panel says which account exists and shows a resolving spec such as

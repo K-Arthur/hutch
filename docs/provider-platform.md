@@ -34,6 +34,23 @@ because its adapter exists.
 - "Remove local key" removes Hutch's copy. It does not claim provider-side revocation; where an
   official revoke endpoint exists, the provider's own flow reports the result separately.
 
+### Credential lifecycle (2026-11-06, ADR-0029)
+
+- A saved OAuth account is projected into `active`, `expired`, `revoked` or `missing`. A refresh
+  token keeps it active after access expiry; an access token inside the 60-second skew with no
+  refresh token is expired. Readiness maps expired to `authentication_expired` and revoked to
+  `needs_authentication`.
+- `has_key` for a ChatGPT connection requires an active credential. Expired or revoked accounts do
+  not count as a key and do not trigger model discovery.
+- A refresh is single-flight per account across processes: the exclusive file lock is held across
+  the token request, and the second caller re-reads the rotated record. A failed refresh writes
+  nothing and never deletes the stored credential.
+- Sign in with ChatGPT uses OpenAI's local PKCE loopback callback. A remote dashboard cannot finish
+  that flow and says so; Hutch does not implement an undocumented device-code client. OpenCode's
+  OAuth/device flow stays with the official OpenCode server or CLI.
+- Disconnect distinguishes local credential removal from provider revocation, and reports remote
+  revocation as confirmed or unconfirmed.
+
 ## Route resolution and the billing boundary
 
 Added 2026-11-06 (ADR-0028). `GET /api/v1/provider-resolution?spec=...&runtime=...` returns the

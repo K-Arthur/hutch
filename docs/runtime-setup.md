@@ -38,6 +38,21 @@ the existing Apps & AI surface.
 
 The maintenance preflight and concurrent configuration behavior were checked against OpenCode **2.1.4**, with metadata-only local probes. Compatibility with every V2 version is not implied. Relevant upstream contracts: [agents](https://opencode.ai/v2/docs/agents/), [compaction](https://opencode.ai/v2/docs/compaction/), [warming](https://opencode.ai/v2/docs/warming/) and the [V2 HTTP API](https://dev.opencode.ai/v2/docs/api).
 
+## Provider sign-in boundaries
+
+- **Sign in with ChatGPT** uses OpenAI's local PKCE loopback callback. The browser must reach the
+  Hutch host's `127.0.0.1` callback, so a remote dashboard, a Windows-side browser without WSL port
+  forwarding, or a headless host cannot complete it. The page says so and points to an API key or
+  the official Codex CLI. Hutch does not implement an undocumented device-code client.
+- **OpenCode provider sign-in** (including its device/OAuth methods) is owned by the installed
+  official OpenCode V2 server and CLI. Hutch starts the attempt through that server and never
+  imports its OAuth tokens; only an explicitly selected API key can be transferred, and the original
+  login file is unchanged.
+- **Anthropic and Google subscription OAuth** is not a Hutch credential. Use an API key or the
+  vendor's own unmodified CLI with the user's own sign-in.
+- A saved OAuth credential is reported as active, expired, revoked or missing; a failed refresh
+  keeps the prior credential. See ADR-0029.
+
 ## Ollama and other local models
 
 - **Install:** install Ollama from <https://ollama.com> and start its local server. Hutch does not bundle the Ollama binary or model weights.

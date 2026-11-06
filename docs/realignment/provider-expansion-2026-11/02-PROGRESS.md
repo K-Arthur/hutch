@@ -8,7 +8,7 @@ Update at every checkpoint. Keep entries short and factual.
 |---|---|---|---|---|
 | 0 Diagnose | done 2026-11-06 | Phase 0 commit | none this phase; re-read 2026-10-31 Xiaomi evidence | - |
 | 1 Route resolution | done 2026-11-06 | 9f0fa4ed | none this phase; no provider call | - |
-| 2 Credential lifecycle | not started | | | |
+| 2 Credential lifecycle | done 2026-11-06 | Phase 2 commit | fixture lifecycle; no provider call | - |
 | 3 Flagship providers | not started | | | |
 | 4 Hosted and gateways | not started | | | |
 | 5 Local and custom | not started | | | |
@@ -56,6 +56,25 @@ Update at every checkpoint. Keep entries short and factual.
   `docs/realignment/provider-compatibility.md` (resolution subsection), and ADR-0028.
   `docs/runtime-setup.md` is unchanged because this phase did not change runtime behavior.
 
+## Phase 2 outputs (2026-11-06)
+
+- `chatgpt_status.py` projects a saved account into `active`, `expired`, `revoked` or `missing`
+  with `can_refresh` and the expiry; `chatgpt_auth.accounts()` shrank to use it.
+- `AccountProfile` carries `credential_state` and `credential_expires_at`. Readiness maps `expired`
+  to `authentication_expired` and `revoked` to `needs_authentication`; `/providers` and
+  `/legacy/connections` show the state instead of a green "missing" chip.
+- `ConnectionBook.has_key` for a ChatGPT account requires an active credential; expired/revoked
+  accounts no longer trigger model discovery.
+- Single-flight is proven with two real processes contending for one rotating token; a failed
+  refresh leaves the stored access and refresh tokens unchanged.
+- A remote dashboard states that the ChatGPT loopback callback cannot complete there and points to
+  an API key or the official CLI; no undocumented device-code client was added. OpenCode keeps its
+  own official OAuth/device flow.
+- `docs/research/2026-11-provider-expansion/03-CREDENTIAL-LIFECYCLE.md`, ADR-0029, and updates to
+  `provider-platform.md`, `models.md`, `runtime-setup.md`, `connections.md`.
+- Real UI observation: three synthetic ChatGPT accounts (active, expired, revoked) on an isolated
+  server; API states matched; 32/32 captures clean at four widths in light and dark.
+
 ## Owner inputs (batch, answered 2026-11-06)
 
 - Provisioned credentials: OpenAI, Anthropic, Google Gemini. Every other paid route is
@@ -84,6 +103,14 @@ Update at every checkpoint. Keep entries short and factual.
 - 2026-11-06: Saved route specs are normalized to the provider prefix the runtime already used.
   The migration is additive in meaning: no spec, billing relationship or fallback order changes
   (D5, schema 91).
+- 2026-11-06: A saved OAuth account has an explicit state (active, expired, revoked, missing). A
+  refresh token is enough for active; expired/revoked accounts are not keys. A failed refresh keeps
+  the stored credential (ADR-0029).
+- 2026-11-06: ChatGPT sign-in stays loopback-only. Remote/headless hosts get an honest boundary and
+  the API-key/official-CLI alternative; no undocumented device-code client is added. OpenCode owns
+  its official OAuth/device flow.
+- 2026-11-06: Revocation is reported as confirmed or unconfirmed; clearing local tokens is not the
+  same act as provider-side revocation.
 
 ## Review findings log
 
@@ -101,6 +128,13 @@ Update at every checkpoint. Keep entries short and factual.
   derived routes and status counts.
 - 2026-11-06, Phase 1, the main design docs and ADR were not updated with the code in the first
   pass; corrected in the same series with ADR-0028 and the three design-doc updates.
+- 2026-11-06, Phase 2, the real populated-state capture exposed a 500: a partial ChatGPT account
+  record raised `KeyError` during model discovery. Fixed by requiring an active credential in
+  `has_key` and reporting an incomplete record as a model-list error.
+- 2026-11-06, Phase 2, `has_key` treated an expired ChatGPT access token as usable because it only
+  checked plan scope; corrected to require an active credential.
+- 2026-11-06, Phase 2, design docs initially lagged the code again; corrected in this series with
+  ADR-0029 and four doc updates.
 
 ## Open items and deferred
 
@@ -115,3 +149,7 @@ Update at every checkpoint. Keep entries short and factual.
   a hosted route keeps the existing first-hosted approval path.
 - Account identity is still the spec prefix; a separate Bot account field would change how saved
   routes are interpreted and is deferred.
+- Phase 2 used synthetic account records: no live OpenAI SIWC sign-in, refresh or revocation was
+  exercised. The route is eligibility-gated; live OAuth is deferred to Phase 3a with owner approval.
+- Remote/WSL loopback sign-in is documented as unavailable, not implemented. OpenCode's official
+  device/OAuth flow was not exercised interactively in this environment.

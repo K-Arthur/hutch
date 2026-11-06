@@ -377,7 +377,10 @@ HUTCH_ENABLE_CHATGPT_PLAN=1 hutch serve --host 127.0.0.1
 ```
 
 This local opt-in switch is not proof of eligibility. ChatGPT plan access is not available through the generic API-key
-form or CLI `set-key` command. It uses the Responses API only and does not expose ChatGPT conversations.
+form or CLI `set-key` command. It uses the Responses API only and does not expose ChatGPT conversations. The saved
+credential is reported as active, expired, revoked or missing; a refresh token keeps it active after access expiry,
+and a failed refresh keeps the stored credential. The callback is loopback-only, so a remote dashboard cannot complete
+the flow and points to an API key or the official Codex CLI instead. See ADR-0029.
 
 The same flow is on the dashboard's **Connections** page. Model ids may contain `/`
 (`opencode-go/zhipuai/glm-5.3`): the connection name is everything before the first slash.

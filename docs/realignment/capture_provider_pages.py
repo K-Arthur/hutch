@@ -29,7 +29,8 @@ from playwright.async_api import async_playwright
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUT = ROOT / "docs/realignment/artifacts/provider-expansion-2026-11/phase0"
 VIEWPORTS = (("360", 360, 800), ("768", 768, 1000), ("1280", 1280, 900), ("1920", 1920, 1080))
-PAGES = (("providers", "/providers"), ("models", "/models"), ("first-run", "/#/chat"))
+PAGES = (("providers", "/providers"), ("models", "/models"), ("connections", "/legacy/connections"),
+         ("first-run", "/#/chat"))
 
 
 def _get_json(origin: str, path: str):
