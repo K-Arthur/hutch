@@ -151,3 +151,11 @@ Boundaries of the claim: `mimo-v2.6-flash` only for tools and streaming (`mimo-v
 no vision, structured output, cancellation mid-stream or other tool families; the cn/ams hosts were not
 contacted; and "streaming" here means Hutch consumes SSE and assembles the result server-side - the
 dashboard does not render progressive tokens.
+
+## Phase 3 routes (2026-11-06): identities, not verified behavior
+
+`kimi-coding`, `opencode-zen`, `qwen-standard-intl`, `qwen-standard-cn`, `moonshot-cn` and `zai-cn` were added as
+connection templates. None has a row in `compat.json`: no request-level behavior was observed, so each is
+implemented-unverified and carries no capability, tool-schema, streaming or reasoning claim. The Alibaba and
+Z.AI coding-plan routes are blocked by their own terms and have no template (ADR-0032). The research record is
+`docs/research/2026-11-provider-expansion/04-FLAGSHIP-ROUTES.md`.

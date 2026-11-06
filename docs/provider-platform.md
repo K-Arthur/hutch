@@ -70,6 +70,25 @@ readiness state. It reads local configuration only and never substitutes a choic
 - The Providers page banner is generated from the recorded live evidence and catalogue status counts,
   so it cannot drift from the ledger without a test failing.
 
+## Plan routes and separate memberships
+
+Added 2026-11-06 (ADR-0032, Phase 3). The catalogue now holds 64 identities.
+
+- `kimi-coding` (Kimi Code membership key, Anthropic Messages, subscription, acknowledgement required) and
+  `opencode-zen` (OpenCode Console prepaid API at `https://opencode.ai/inference/v1`) are their own
+  identities. Kimi Code was an auth method of `moonshot`; that method is gone and `moonshot-cn` covers the
+  China host. Both new routes are implemented-unverified: no live key has exercised either.
+- `qwen` has pay-as-you-go templates for the Singapore and Beijing hosts. Its Coding Plan method is blocked
+  (interactive-use-only terms); Token Plan is not offered.
+- The Z.AI Coding Plan method is blocked (supported-tools-only policy); `zai-cn` covers the China pay-as-you-go
+  host.
+- `google` no longer claims a coding CLI. Gemini CLI was replaced by Antigravity CLI on 2026-06-18 and Google
+  treats third-party use of its OAuth tokens as a terms violation.
+- No template may point at a recorded plan endpoint; `tests/test_flagship_routes.py` enforces it. Templates
+  whose vendor model list was not verified do not read one.
+- Not built: the Claude CLI delegate, the Codex native runtime, Grok OAuth, MiniMax plan sign-in. Each is
+  `documented` and recorded in `docs/research/2026-11-provider-expansion/04-FLAGSHIP-ROUTES.md`.
+
 ## Capability and readiness rules
 
 - Levels are documented, advertised, observed and live-verified, scoped to provider, endpoint,

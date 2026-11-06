@@ -9,7 +9,7 @@ Update at every checkpoint. Keep entries short and factual.
 | 0 Diagnose | done 2026-11-06 | Phase 0 commit | none this phase; re-read 2026-10-31 Xiaomi evidence | - |
 | 1 Route resolution | done 2026-11-06 | 9f0fa4ed | none this phase; no provider call | - |
 | 2 Credential lifecycle | done 2026-11-06 | Phase 2 commit | fixture lifecycle; no provider call | - |
-| 3 Flagship providers | not started | | | |
+| 3 Flagship providers | done 2026-11-06 | 88edb95d | unauthenticated GET opencode.ai/inference/v1/models (200); no paid call | shell env lacks OPENAI/ANTHROPIC/GEMINI keys |
 | 4 Hosted and gateways | not started | | | |
 | 5 Local and custom | not started | | | |
 | 6 Media, speech, search | not started | | | |
@@ -97,6 +97,30 @@ Update at every checkpoint. Keep entries short and factual.
   tests passed. Baseline browser failures (assistant settings tabs, first-run readiness,
   phone pairing confirm) reproduce at HEAD without these changes and are not caused here.
 
+## Phase 3 outputs (2026-11-06)
+
+- `88edb95d` splits `kimi-coding` (Anthropic Messages at `https://api.kimi.com/coding`, `KIMI_API_KEY`,
+  subscription, acknowledged User-Agent notice) and `opencode-zen` (prepaid gateway at
+  `https://opencode.ai/inference/v1`, `OPENCODE_API_KEY`) into their own catalogue identities (64 total)
+  and connection templates (43 total). Removes `kimi-coding-key` from `moonshot`.
+- Adds regional pay-as-you-go templates with distinct env vars: `moonshot-cn` (`MOONSHOT_CN_API_KEY`),
+  `zai-cn` (`BIGMODEL_API_KEY`), `qwen-standard-intl` (`DASHSCOPE_API_KEY`), `qwen-standard-cn`
+  (`DASHSCOPE_CN_API_KEY`). Marks Alibaba Cloud Coding Plan (`qwen/coding-plan`) and Z.AI GLM Coding
+  Plan (`zai/coding-plan`) as `blocked` with cited vendor terms; `test_flagship_routes.py` fails if any
+  template points at a blocked plan host.
+- Removes `coding_cli` from `google` (Gemini CLI replaced by Antigravity CLI on 2026-06-18; third-party
+  OAuth token use is a terms violation).
+- Owner approved up to 5 cents of live generation checks across OpenAI, Anthropic and Google Gemini,
+  reading keys from shell env vars, but `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` and
+  `GOOGLE_API_KEY` are all unset in this shell environment; recorded as `blocked: no credential in
+  shell environment` with zero paid calls. Unauthenticated `GET https://opencode.ai/inference/v1/models`
+  and `/zen/v1/models` returned HTTP 200 (96,452 bytes).
+- Real stack + visual validation: isolated `HUTCH_STATE_DIR` on port 18891 with `kimi`, `zen` and `qwen`
+  connections added; 32/32 Playwright captures at 360/768/1280/1920 in light and dark with 0 console
+  errors, 0 failed requests and 0 px horizontal overflow (`artifacts/provider-expansion-2026-11/phase3/`).
+- `docs/research/2026-11-provider-expansion/04-FLAGSHIP-ROUTES.md`, ADR-0032, and updates to
+  `docs/connections.md`, `docs/provider-platform.md` and `docs/realignment/provider-compatibility.md`.
+
 ## Owner inputs (batch, answered 2026-11-06)
 
 - Provisioned credentials: OpenAI, Anthropic, Google Gemini. Every other paid route is
@@ -133,6 +157,15 @@ Update at every checkpoint. Keep entries short and factual.
   its official OAuth/device flow.
 - 2026-11-06: Revocation is reported as confirmed or unconfirmed; clearing local tokens is not the
   same act as provider-side revocation.
+- 2026-11-06: Plan keys whose terms forbid unattended or unlisted third-party tools (Alibaba Cloud
+  Coding Plan, Z.AI GLM Coding Plan) are `blocked` auth methods with cited vendor sources and no
+  template (ADR-0032). Permitted third-party memberships (`kimi-coding`, `opencode-go`, `opencode-zen`)
+  are separate catalogue identities with their own templates and env vars.
+- 2026-11-06: Regional hosts use distinct templates and distinct environment variables so a region is
+  never selected implicitly by a shared variable name.
+- 2026-11-06: Claude Code CLI delegate and Codex native app-server runtime stay `documented`: each
+  requires a governed executor contract (approvals, spend, cancellation, session isolation) larger
+  than a 3-file task plus an interactive local CLI sign-in.
 
 ## Review findings log
 
@@ -157,13 +190,22 @@ Update at every checkpoint. Keep entries short and factual.
   checked plan scope; corrected to require an active credential.
 - 2026-11-06, Phase 2, design docs initially lagged the code again; corrected in this series with
   ADR-0029 and four doc updates.
+- 2026-11-06, Phase 3, `test_provider_routes.py` assumed every `ROUTES` entry owned a 1-tuple
+  `connection_templates == (provider,)`; relaxed to `provider in row.connection_templates` when
+  `moonshot-cn` and `zai-cn` were added.
+- 2026-11-06, Phase 3, verified in `providers/connection.py` and `providers/claude.py` that
+  `ClaudeProvider` forwards `conn.user_agent` (`hutch/<version>`) via `extra_headers` before claiming
+  in the `kimi-coding` terms notice that Hutch sends its own `User-Agent`, and pinned that wire
+  behavior in `test_flagship_routes.py`.
 
 ## Open items and deferred
 
-- Kimi Coding needs its own identity/template (G2); Qwen has no working route (G3); Claude CLI
-  delegate and Codex native runtime are absent (G4, G5); Antigravity decision needed (G6).
-- Z.AI Coding Plan eligibility for Hutch and OpenCode Go unattended use need vendor confirmation
-  before those routes leave documented/experimental.
+- Claude CLI delegate and Codex native runtime remain `documented` (G4, G5); Grok OAuth and MiniMax
+  Coding Plan OAuth remain `documented` pending vendor third-party terms and a Hutch-registered OAuth
+  client (G7, G8).
+- OpenAI, Anthropic and Google Gemini live checks are blocked only on exporting `OPENAI_API_KEY`,
+  `ANTHROPIC_API_KEY` and `GEMINI_API_KEY` into the shell environment.
+- OpenCode Go unattended use needs vendor confirmation before leaving `experimental`.
 - Out-of-scope providers are listed at the end of `00-GAP-AUDIT.md`.
 - Phase 1 API only: the dashboard picker does not yet show the resolved tuple before the first send
   (Phase 7). The resolver is read-only and not persisted per run.
@@ -172,6 +214,6 @@ Update at every checkpoint. Keep entries short and factual.
 - Account identity is still the spec prefix; a separate Bot account field would change how saved
   routes are interpreted and is deferred.
 - Phase 2 used synthetic account records: no live OpenAI SIWC sign-in, refresh or revocation was
-  exercised. The route is eligibility-gated; live OAuth is deferred to Phase 3a with owner approval.
+  exercised. The route is eligibility-gated.
 - Remote/WSL loopback sign-in is documented as unavailable, not implemented. OpenCode's official
   device/OAuth flow was not exercised interactively in this environment.

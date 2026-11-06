@@ -1,0 +1,973 @@
+{
+  "captured_at": "2026-11-06T13:10:11.734904+00:00",
+  "origin": "http://127.0.0.1:18891",
+  "browser": {
+    "name": "chromium",
+    "version": "153.0.8010.12"
+  },
+  "git_revision": "a08009f6d6ea373fbd056efec09ddcf81230de26",
+  "source_sha256": "df19bb81a1a3a94f5fba49c1f71a18a86ea554bee992e5362f54b134970222d4",
+  "records": [
+    {
+      "page": "providers",
+      "scheme": "light",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18891/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Kimi Code (membership) subscription service route only, untested",
+        "OpenCode Zen (pay-as-you-go API) gateway route only, untested",
+        "Qwen (Alibaba) vendor route only, untested",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (64)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 38 implemented-unverified, 1 experimental, 19 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nKimi Code (membership) subscription service route only, untested\nKimi Code membership (separate from Moonshot API) kimi\nKimi Code membership key\nSubscription allowance\nmissing\nneeds authentication\n\nNo local credential found: set KIMI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet KIMI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nOpenCode Zen (pay-as-you-go API) gateway route only, untested\nOpenCode Zen (pay-as-you-go API) zen\nOpenCode Console API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set OPENCODE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet OPENCODE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nQwen (Alibaba) vendor route only, untested\nQwen Cloud - international (pay-as-you-go) qwen\nQwen Cloud pay-as-you-go key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set DASHSCOPE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet DASHSCOPE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:9931/v1/models\nno service\nno service answered (URLError)\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered (URLError)\nOllama http://127.0.0.1:11434/api/tags\nanswering\n12 model(s) listed\n\ngemma4:e2b, gpt-oss:20b-cloud, moondream:1.8b-v2-q3_K_S, my-local-copy:latest, qwen2.5-coder:1.5b, qwen2.5-coder:3b ...\n\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered (URLError)\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered (URLError)\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reserva",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-light-360.png",
+      "sha256": "224591426bf7e58d3404e7329d6239c01c1e1b210980aed9203c95fabc150d88"
+    },
+    {
+      "page": "providers",
+      "scheme": "light",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18891/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Kimi Code (membership) subscription service route only, untested",
+        "OpenCode Zen (pay-as-you-go API) gateway route only, untested",
+        "Qwen (Alibaba) vendor route only, untested",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (64)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 38 implemented-unverified, 1 experimental, 19 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nKimi Code (membership) subscription service route only, untested\nKimi Code membership (separate from Moonshot API) kimi\nKimi Code membership key\nSubscription allowance\nmissing\nneeds authentication\n\nNo local credential found: set KIMI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet KIMI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nOpenCode Zen (pay-as-you-go API) gateway route only, untested\nOpenCode Zen (pay-as-you-go API) zen\nOpenCode Console API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set OPENCODE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet OPENCODE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nQwen (Alibaba) vendor route only, untested\nQwen Cloud - international (pay-as-you-go) qwen\nQwen Cloud pay-as-you-go key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set DASHSCOPE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet DASHSCOPE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:9931/v1/models\nno service\nno service answered (URLError)\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered (URLError)\nOllama http://127.0.0.1:11434/api/tags\nanswering\n12 model(s) listed\n\ngemma4:e2b, gpt-oss:20b-cloud, moondream:1.8b-v2-q3_K_S, my-local-copy:latest, qwen2.5-coder:1.5b, qwen2.5-coder:3b ...\n\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered (URLError)\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered (URLError)\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reserva",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-light-768.png",
+      "sha256": "a4be94e9ed1f1b926010cde15fd9c7b5774b78865bbcfb39fc352069110f83c1"
+    },
+    {
+      "page": "providers",
+      "scheme": "light",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18891/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Kimi Code (membership) subscription service route only, untested",
+        "OpenCode Zen (pay-as-you-go API) gateway route only, untested",
+        "Qwen (Alibaba) vendor route only, untested",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (64)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 38 implemented-unverified, 1 experimental, 19 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nKimi Code (membership) subscription service route only, untested\nKimi Code membership (separate from Moonshot API) kimi\nKimi Code membership key\nSubscription allowance\nmissing\nneeds authentication\n\nNo local credential found: set KIMI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet KIMI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nOpenCode Zen (pay-as-you-go API) gateway route only, untested\nOpenCode Zen (pay-as-you-go API) zen\nOpenCode Console API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set OPENCODE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet OPENCODE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nQwen (Alibaba) vendor route only, untested\nQwen Cloud - international (pay-as-you-go) qwen\nQwen Cloud pay-as-you-go key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set DASHSCOPE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet DASHSCOPE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:9931/v1/models\nno service\nno service answered (URLError)\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered (URLError)\nOllama http://127.0.0.1:11434/api/tags\nanswering\n12 model(s) listed\n\ngemma4:e2b, gpt-oss:20b-cloud, moondream:1.8b-v2-q3_K_S, my-local-copy:latest, qwen2.5-coder:1.5b, qwen2.5-coder:3b ...\n\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered (URLError)\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered (URLError)\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reserva",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-light-1280.png",
+      "sha256": "4a118de895f499934c66c3cb44e605a5b4a784e6935f31d1683ee6625751616d"
+    },
+    {
+      "page": "providers",
+      "scheme": "light",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18891/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Kimi Code (membership) subscription service route only, untested",
+        "OpenCode Zen (pay-as-you-go API) gateway route only, untested",
+        "Qwen (Alibaba) vendor route only, untested",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (64)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 38 implemented-unverified, 1 experimental, 19 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nKimi Code (membership) subscription service route only, untested\nKimi Code membership (separate from Moonshot API) kimi\nKimi Code membership key\nSubscription allowance\nmissing\nneeds authentication\n\nNo local credential found: set KIMI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet KIMI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nOpenCode Zen (pay-as-you-go API) gateway route only, untested\nOpenCode Zen (pay-as-you-go API) zen\nOpenCode Console API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set OPENCODE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet OPENCODE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nQwen (Alibaba) vendor route only, untested\nQwen Cloud - international (pay-as-you-go) qwen\nQwen Cloud pay-as-you-go key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set DASHSCOPE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet DASHSCOPE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:9931/v1/models\nno service\nno service answered (URLError)\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered (URLError)\nOllama http://127.0.0.1:11434/api/tags\nanswering\n12 model(s) listed\n\ngemma4:e2b, gpt-oss:20b-cloud, moondream:1.8b-v2-q3_K_S, my-local-copy:latest, qwen2.5-coder:1.5b, qwen2.5-coder:3b ...\n\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered (URLError)\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered (URLError)\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reserva",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-light-1920.png",
+      "sha256": "3ee0a0d80eb34222e619abc04249ee4d9a3cfceca741e0af6cebb76cc7ac9bdf"
+    },
+    {
+      "page": "providers",
+      "scheme": "dark",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18891/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Kimi Code (membership) subscription service route only, untested",
+        "OpenCode Zen (pay-as-you-go API) gateway route only, untested",
+        "Qwen (Alibaba) vendor route only, untested",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (64)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 38 implemented-unverified, 1 experimental, 19 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nKimi Code (membership) subscription service route only, untested\nKimi Code membership (separate from Moonshot API) kimi\nKimi Code membership key\nSubscription allowance\nmissing\nneeds authentication\n\nNo local credential found: set KIMI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet KIMI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nOpenCode Zen (pay-as-you-go API) gateway route only, untested\nOpenCode Zen (pay-as-you-go API) zen\nOpenCode Console API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set OPENCODE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet OPENCODE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nQwen (Alibaba) vendor route only, untested\nQwen Cloud - international (pay-as-you-go) qwen\nQwen Cloud pay-as-you-go key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set DASHSCOPE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet DASHSCOPE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:9931/v1/models\nno service\nno service answered (URLError)\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered (URLError)\nOllama http://127.0.0.1:11434/api/tags\nanswering\n12 model(s) listed\n\ngemma4:e2b, gpt-oss:20b-cloud, moondream:1.8b-v2-q3_K_S, my-local-copy:latest, qwen2.5-coder:1.5b, qwen2.5-coder:3b ...\n\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered (URLError)\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered (URLError)\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reserva",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-dark-360.png",
+      "sha256": "224591426bf7e58d3404e7329d6239c01c1e1b210980aed9203c95fabc150d88"
+    },
+    {
+      "page": "providers",
+      "scheme": "dark",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18891/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Kimi Code (membership) subscription service route only, untested",
+        "OpenCode Zen (pay-as-you-go API) gateway route only, untested",
+        "Qwen (Alibaba) vendor route only, untested",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (64)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 38 implemented-unverified, 1 experimental, 19 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nKimi Code (membership) subscription service route only, untested\nKimi Code membership (separate from Moonshot API) kimi\nKimi Code membership key\nSubscription allowance\nmissing\nneeds authentication\n\nNo local credential found: set KIMI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet KIMI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nOpenCode Zen (pay-as-you-go API) gateway route only, untested\nOpenCode Zen (pay-as-you-go API) zen\nOpenCode Console API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set OPENCODE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet OPENCODE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nQwen (Alibaba) vendor route only, untested\nQwen Cloud - international (pay-as-you-go) qwen\nQwen Cloud pay-as-you-go key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set DASHSCOPE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet DASHSCOPE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:9931/v1/models\nno service\nno service answered (URLError)\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered (URLError)\nOllama http://127.0.0.1:11434/api/tags\nanswering\n12 model(s) listed\n\ngemma4:e2b, gpt-oss:20b-cloud, moondream:1.8b-v2-q3_K_S, my-local-copy:latest, qwen2.5-coder:1.5b, qwen2.5-coder:3b ...\n\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered (URLError)\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered (URLError)\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reserva",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-dark-768.png",
+      "sha256": "a4be94e9ed1f1b926010cde15fd9c7b5774b78865bbcfb39fc352069110f83c1"
+    },
+    {
+      "page": "providers",
+      "scheme": "dark",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18891/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Kimi Code (membership) subscription service route only, untested",
+        "OpenCode Zen (pay-as-you-go API) gateway route only, untested",
+        "Qwen (Alibaba) vendor route only, untested",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (64)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 38 implemented-unverified, 1 experimental, 19 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nKimi Code (membership) subscription service route only, untested\nKimi Code membership (separate from Moonshot API) kimi\nKimi Code membership key\nSubscription allowance\nmissing\nneeds authentication\n\nNo local credential found: set KIMI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet KIMI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nOpenCode Zen (pay-as-you-go API) gateway route only, untested\nOpenCode Zen (pay-as-you-go API) zen\nOpenCode Console API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set OPENCODE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet OPENCODE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nQwen (Alibaba) vendor route only, untested\nQwen Cloud - international (pay-as-you-go) qwen\nQwen Cloud pay-as-you-go key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set DASHSCOPE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet DASHSCOPE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:9931/v1/models\nno service\nno service answered (URLError)\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered (URLError)\nOllama http://127.0.0.1:11434/api/tags\nanswering\n12 model(s) listed\n\ngemma4:e2b, gpt-oss:20b-cloud, moondream:1.8b-v2-q3_K_S, my-local-copy:latest, qwen2.5-coder:1.5b, qwen2.5-coder:3b ...\n\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered (URLError)\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered (URLError)\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reserva",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-dark-1280.png",
+      "sha256": "4a118de895f499934c66c3cb44e605a5b4a784e6935f31d1683ee6625751616d"
+    },
+    {
+      "page": "providers",
+      "scheme": "dark",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18891/providers",
+      "status": 200,
+      "title": "Providers \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Providers",
+        "Your provider accounts",
+        "Kimi Code (membership) subscription service route only, untested",
+        "OpenCode Zen (pay-as-you-go API) gateway route only, untested",
+        "Qwen (Alibaba) vendor route only, untested",
+        "Local inference on this machine",
+        "Execution runtimes",
+        "Provider catalogue (64)",
+        "Model vendors",
+        "Model-serving platforms",
+        "Gateways and routers"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nProviders\nlive\n\nEvery provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.\n\nAdd or repair an account\nModel routes\n\nLive-verified in this build: deepseek/deepseek-flash - text (2026-10-30); opencode/deepseek/deepseek-flash - text (2026-10-30); xiaomi/mimo-v2.5-asr - transcription (2026-10-31); xiaomi/mimo-v2.5-tts - speech (2026-10-31); xiaomi/mimo-v2.6-flash - streaming, text, tool_calls (2026-10-31); xiaomi/mimo-v2.6-pro - text (2026-10-31).\n\nThose are the only routes a dated owner-authorized run exercised. Every other route is unverified or research-only. Catalogue status: 3 implemented, 38 implemented-unverified, 1 experimental, 19 documented, 2 blocked, 1 deferred.\n\nA status is not a support claim. The catalogue was reviewed on 2026-11-06; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.\n\nYour provider accounts\n\nAccounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.\n\nKimi Code (membership) subscription service route only, untested\nKimi Code membership (separate from Moonshot API) kimi\nKimi Code membership key\nSubscription allowance\nmissing\nneeds authentication\n\nNo local credential found: set KIMI_API_KEY where Hutch starts, or store a key on Connections.\n\nSet KIMI_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nOpenCode Zen (pay-as-you-go API) gateway route only, untested\nOpenCode Zen (pay-as-you-go API) zen\nOpenCode Console API key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set OPENCODE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet OPENCODE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nQwen (Alibaba) vendor route only, untested\nQwen Cloud - international (pay-as-you-go) qwen\nQwen Cloud pay-as-you-go key\nPer-token API billing\nmissing\nneeds authentication\n\nNo local credential found: set DASHSCOPE_API_KEY where Hutch starts, or store a key on Connections.\n\nSet DASHSCOPE_API_KEY where Hutch starts, or store a key on the connection page.\n\nRename\nRemove local key\nLocal inference on this machine\n\nRead-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.\n\nllama.cpp http://127.0.0.1:9931/v1/models\nno service\nno service answered (URLError)\nLM Studio http://127.0.0.1:1234/v1/models\nno service\nno service answered (URLError)\nOllama http://127.0.0.1:11434/api/tags\nanswering\n12 model(s) listed\n\ngemma4:e2b, gpt-oss:20b-cloud, moondream:1.8b-v2-q3_K_S, my-local-copy:latest, qwen2.5-coder:1.5b, qwen2.5-coder:3b ...\n\nSGLang http://127.0.0.1:30000/v1/models\nno service\nno service answered (URLError)\nvLLM http://127.0.0.1:8000/v1/models\nno service\nno service answered (URLError)\nExecution runtimes\n\nA runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.\n\nHutch built-in runtime\nbuiltin\nimplemented\nselectable\nreserves usage\n\nHutch policy engine, approvals, path jail and usage reservations apply to every step.\n\nOpenCode managed runtime\nopencode\nexperimental\nselectable\nno usage reservation\ncli installed\nopencode v2.2.5\n\nEach OpenCode tool permission is brokered once/reject through Hutch; approved tools run with the user's OS authority outside Hutch's shell sandbox.\n\nPi RPC executor\npi\nblocked\nnot selectable\nno usage reservation\ncli not installed\n\nNo per-action approval hook and no shared usage reservation.\n\nClaude Code CLI\nclaude-code\ndocumented\nnot selectable\nno usage reserva",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "providers-dark-1920.png",
+      "sha256": "3ee0a0d80eb34222e619abc04249ee4d9a3cfceca741e0af6cebb76cc7ac9bdf"
+    },
+    {
+      "page": "models",
+      "scheme": "light",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18891/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Route readiness",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nRoute readiness\n\nStates come from local configuration only (no request, no token refresh). Capability unverified is not a failure: it means no dated evidence exists for this exact route and model in this build. See Providers for accounts and evidence.\n\nollama/gemma4:e2b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/gpt-oss:20b-cloud needs configuration\n\nThe provider is known but no account or ambient credential resolves this route.\n\nAdd a connection for this provider or correct the model spec.\n\nollama/moondream:1.8b-v2-q3_K_S capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/my-local-copy:latest capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:1.5b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:3b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:0.8b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:2b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:4b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:0.6b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:1.7b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:4b capability unverified\n\nLocal route: the service was not probed in this request.\n\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nollama/gemma4:e2b\nollama\nlocal\n\u00b7\ngemma4:e2b\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/gpt-oss:20b-cloud\nollama\nlocal\n\u00b7\ngpt-oss:20b-cloud\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/moondream:1.8b-v2-q3_K_S\nollama\nlocal\n\u00b7\nmoondream:1.8b-v2-q3_K_S\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/my-local-copy:latest\nollama\nlocal\n\u00b7\nmy-local-copy:latest\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen2.5-coder:1.5b\nollama\nlocal\n\u00b7\nqwen2.5-coder:1.5b\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen2.5-coder:3b\nollama\nlocal\n\u00b7\nqwen2.5-coder:3b\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen3.5:0.8b\nollama\nlocal\n\u00b7\nqwen3.5:0.8b\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen3.5:2b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:2b-q4_K_M\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen3.5:4b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:4b-q4_K_M\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen3:0.6b\nollama\nlocal\n\u00b7\nqwen3:0.6b\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen3:1.7b\nollama\nlocal\n\u00b7\nqwen3:1.7b\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen3:4b\nollama\nlocal\n\u00b7\nqwen3:4b\nready\nno assistants assigned\nSet default in Settings\nT",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-light-360.png",
+      "sha256": "6c13daaa383fd01b855f73da1280a8d82af3bc1734cea30bc9caee3142cb5b3b"
+    },
+    {
+      "page": "models",
+      "scheme": "light",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18891/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Route readiness",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nRoute readiness\n\nStates come from local configuration only (no request, no token refresh). Capability unverified is not a failure: it means no dated evidence exists for this exact route and model in this build. See Providers for accounts and evidence.\n\nollama/gemma4:e2b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/gpt-oss:20b-cloud needs configuration\n\nThe provider is known but no account or ambient credential resolves this route.\n\nAdd a connection for this provider or correct the model spec.\n\nollama/moondream:1.8b-v2-q3_K_S capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/my-local-copy:latest capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:1.5b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:3b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:0.8b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:2b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:4b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:0.6b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:1.7b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:4b capability unverified\n\nLocal route: the service was not probed in this request.\n\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nMODEL\tSTATUS\tASSIGNED TO\tACTIONS\n\nollama/gemma4:e2b\nollama\nlocal\n\u00b7\ngemma4:e2b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/gpt-oss:20b-cloud\nollama\nlocal\n\u00b7\ngpt-oss:20b-cloud\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/moondream:1.8b-v2-q3_K_S\nollama\nlocal\n\u00b7\nmoondream:1.8b-v2-q3_K_S\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/my-local-copy:latest\nollama\nlocal\n\u00b7\nmy-local-copy:latest\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen2.5-coder:1.5b\nollama\nlocal\n\u00b7\nqwen2.5-coder:1.5b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen2.5-coder:3b\nollama\nlocal\n\u00b7\nqwen2.5-coder:3b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:0.8b\nollama\nlocal\n\u00b7\nqwen3.5:0.8b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:2b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:2b-q4_K_M\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:4b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:4b-q4_K_M\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3:0.6b\nollama\nlocal\n\u00b7\nqwen3:0.6b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3:1.7b\nollama\nlocal\n\u00b7\nqwen3:1.7b\n\tready\tno assistants assigned\t\nSet default in ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-light-768.png",
+      "sha256": "9e883de1fabdf12f88d61af129aad667900fa44c50e0dea9cfc51eb552e72fa6"
+    },
+    {
+      "page": "models",
+      "scheme": "light",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18891/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Route readiness",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nRoute readiness\n\nStates come from local configuration only (no request, no token refresh). Capability unverified is not a failure: it means no dated evidence exists for this exact route and model in this build. See Providers for accounts and evidence.\n\nollama/gemma4:e2b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/gpt-oss:20b-cloud needs configuration\n\nThe provider is known but no account or ambient credential resolves this route.\n\nAdd a connection for this provider or correct the model spec.\n\nollama/moondream:1.8b-v2-q3_K_S capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/my-local-copy:latest capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:1.5b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:3b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:0.8b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:2b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:4b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:0.6b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:1.7b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:4b capability unverified\n\nLocal route: the service was not probed in this request.\n\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nMODEL\tSTATUS\tASSIGNED TO\tACTIONS\n\nollama/gemma4:e2b\nollama\nlocal\n\u00b7\ngemma4:e2b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/gpt-oss:20b-cloud\nollama\nlocal\n\u00b7\ngpt-oss:20b-cloud\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/moondream:1.8b-v2-q3_K_S\nollama\nlocal\n\u00b7\nmoondream:1.8b-v2-q3_K_S\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/my-local-copy:latest\nollama\nlocal\n\u00b7\nmy-local-copy:latest\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen2.5-coder:1.5b\nollama\nlocal\n\u00b7\nqwen2.5-coder:1.5b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen2.5-coder:3b\nollama\nlocal\n\u00b7\nqwen2.5-coder:3b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:0.8b\nollama\nlocal\n\u00b7\nqwen3.5:0.8b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:2b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:2b-q4_K_M\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:4b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:4b-q4_K_M\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3:0.6b\nollama\nlocal\n\u00b7\nqwen3:0.6b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3:1.7b\nollama\nlocal\n\u00b7\nqwen3:1.7b\n\tready\tno assistants assigned\t\nSet default in ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-light-1280.png",
+      "sha256": "a78cf2b592893a5d44a517eabc3403bce1734e57f2bc15964aef69025e0125ad"
+    },
+    {
+      "page": "models",
+      "scheme": "light",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18891/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Route readiness",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nRoute readiness\n\nStates come from local configuration only (no request, no token refresh). Capability unverified is not a failure: it means no dated evidence exists for this exact route and model in this build. See Providers for accounts and evidence.\n\nollama/gemma4:e2b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/gpt-oss:20b-cloud needs configuration\n\nThe provider is known but no account or ambient credential resolves this route.\n\nAdd a connection for this provider or correct the model spec.\n\nollama/moondream:1.8b-v2-q3_K_S capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/my-local-copy:latest capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:1.5b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:3b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:0.8b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:2b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:4b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:0.6b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:1.7b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:4b capability unverified\n\nLocal route: the service was not probed in this request.\n\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nMODEL\tSTATUS\tASSIGNED TO\tACTIONS\n\nollama/gemma4:e2b\nollama\nlocal\n\u00b7\ngemma4:e2b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/gpt-oss:20b-cloud\nollama\nlocal\n\u00b7\ngpt-oss:20b-cloud\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/moondream:1.8b-v2-q3_K_S\nollama\nlocal\n\u00b7\nmoondream:1.8b-v2-q3_K_S\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/my-local-copy:latest\nollama\nlocal\n\u00b7\nmy-local-copy:latest\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen2.5-coder:1.5b\nollama\nlocal\n\u00b7\nqwen2.5-coder:1.5b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen2.5-coder:3b\nollama\nlocal\n\u00b7\nqwen2.5-coder:3b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:0.8b\nollama\nlocal\n\u00b7\nqwen3.5:0.8b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:2b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:2b-q4_K_M\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:4b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:4b-q4_K_M\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3:0.6b\nollama\nlocal\n\u00b7\nqwen3:0.6b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3:1.7b\nollama\nlocal\n\u00b7\nqwen3:1.7b\n\tready\tno assistants assigned\t\nSet default in ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-light-1920.png",
+      "sha256": "0650ff1f05c4cc1fdd221f2dbe6c6d5e58ac1706ad4bed71708b50caf286f1ed"
+    },
+    {
+      "page": "models",
+      "scheme": "dark",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18891/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Route readiness",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nRoute readiness\n\nStates come from local configuration only (no request, no token refresh). Capability unverified is not a failure: it means no dated evidence exists for this exact route and model in this build. See Providers for accounts and evidence.\n\nollama/gemma4:e2b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/gpt-oss:20b-cloud needs configuration\n\nThe provider is known but no account or ambient credential resolves this route.\n\nAdd a connection for this provider or correct the model spec.\n\nollama/moondream:1.8b-v2-q3_K_S capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/my-local-copy:latest capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:1.5b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:3b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:0.8b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:2b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:4b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:0.6b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:1.7b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:4b capability unverified\n\nLocal route: the service was not probed in this request.\n\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nollama/gemma4:e2b\nollama\nlocal\n\u00b7\ngemma4:e2b\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/gpt-oss:20b-cloud\nollama\nlocal\n\u00b7\ngpt-oss:20b-cloud\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/moondream:1.8b-v2-q3_K_S\nollama\nlocal\n\u00b7\nmoondream:1.8b-v2-q3_K_S\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/my-local-copy:latest\nollama\nlocal\n\u00b7\nmy-local-copy:latest\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen2.5-coder:1.5b\nollama\nlocal\n\u00b7\nqwen2.5-coder:1.5b\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen2.5-coder:3b\nollama\nlocal\n\u00b7\nqwen2.5-coder:3b\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen3.5:0.8b\nollama\nlocal\n\u00b7\nqwen3.5:0.8b\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen3.5:2b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:2b-q4_K_M\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen3.5:4b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:4b-q4_K_M\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen3:0.6b\nollama\nlocal\n\u00b7\nqwen3:0.6b\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen3:1.7b\nollama\nlocal\n\u00b7\nqwen3:1.7b\nready\nno assistants assigned\nSet default in Settings\nTest\nRemove\nollama/qwen3:4b\nollama\nlocal\n\u00b7\nqwen3:4b\nready\nno assistants assigned\nSet default in Settings\nT",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-dark-360.png",
+      "sha256": "6c13daaa383fd01b855f73da1280a8d82af3bc1734cea30bc9caee3142cb5b3b"
+    },
+    {
+      "page": "models",
+      "scheme": "dark",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18891/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Route readiness",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nRoute readiness\n\nStates come from local configuration only (no request, no token refresh). Capability unverified is not a failure: it means no dated evidence exists for this exact route and model in this build. See Providers for accounts and evidence.\n\nollama/gemma4:e2b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/gpt-oss:20b-cloud needs configuration\n\nThe provider is known but no account or ambient credential resolves this route.\n\nAdd a connection for this provider or correct the model spec.\n\nollama/moondream:1.8b-v2-q3_K_S capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/my-local-copy:latest capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:1.5b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:3b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:0.8b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:2b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:4b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:0.6b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:1.7b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:4b capability unverified\n\nLocal route: the service was not probed in this request.\n\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nMODEL\tSTATUS\tASSIGNED TO\tACTIONS\n\nollama/gemma4:e2b\nollama\nlocal\n\u00b7\ngemma4:e2b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/gpt-oss:20b-cloud\nollama\nlocal\n\u00b7\ngpt-oss:20b-cloud\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/moondream:1.8b-v2-q3_K_S\nollama\nlocal\n\u00b7\nmoondream:1.8b-v2-q3_K_S\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/my-local-copy:latest\nollama\nlocal\n\u00b7\nmy-local-copy:latest\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen2.5-coder:1.5b\nollama\nlocal\n\u00b7\nqwen2.5-coder:1.5b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen2.5-coder:3b\nollama\nlocal\n\u00b7\nqwen2.5-coder:3b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:0.8b\nollama\nlocal\n\u00b7\nqwen3.5:0.8b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:2b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:2b-q4_K_M\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:4b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:4b-q4_K_M\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3:0.6b\nollama\nlocal\n\u00b7\nqwen3:0.6b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3:1.7b\nollama\nlocal\n\u00b7\nqwen3:1.7b\n\tready\tno assistants assigned\t\nSet default in ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-dark-768.png",
+      "sha256": "bba48257d561800a4ef282cad9950e5098489a3b6a9ec18b528ab8db352d32e4"
+    },
+    {
+      "page": "models",
+      "scheme": "dark",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18891/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Route readiness",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nRoute readiness\n\nStates come from local configuration only (no request, no token refresh). Capability unverified is not a failure: it means no dated evidence exists for this exact route and model in this build. See Providers for accounts and evidence.\n\nollama/gemma4:e2b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/gpt-oss:20b-cloud needs configuration\n\nThe provider is known but no account or ambient credential resolves this route.\n\nAdd a connection for this provider or correct the model spec.\n\nollama/moondream:1.8b-v2-q3_K_S capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/my-local-copy:latest capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:1.5b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:3b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:0.8b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:2b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:4b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:0.6b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:1.7b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:4b capability unverified\n\nLocal route: the service was not probed in this request.\n\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nMODEL\tSTATUS\tASSIGNED TO\tACTIONS\n\nollama/gemma4:e2b\nollama\nlocal\n\u00b7\ngemma4:e2b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/gpt-oss:20b-cloud\nollama\nlocal\n\u00b7\ngpt-oss:20b-cloud\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/moondream:1.8b-v2-q3_K_S\nollama\nlocal\n\u00b7\nmoondream:1.8b-v2-q3_K_S\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/my-local-copy:latest\nollama\nlocal\n\u00b7\nmy-local-copy:latest\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen2.5-coder:1.5b\nollama\nlocal\n\u00b7\nqwen2.5-coder:1.5b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen2.5-coder:3b\nollama\nlocal\n\u00b7\nqwen2.5-coder:3b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:0.8b\nollama\nlocal\n\u00b7\nqwen3.5:0.8b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:2b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:2b-q4_K_M\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:4b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:4b-q4_K_M\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3:0.6b\nollama\nlocal\n\u00b7\nqwen3:0.6b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3:1.7b\nollama\nlocal\n\u00b7\nqwen3:1.7b\n\tready\tno assistants assigned\t\nSet default in ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-dark-1280.png",
+      "sha256": "a78cf2b592893a5d44a517eabc3403bce1734e57f2bc15964aef69025e0125ad"
+    },
+    {
+      "page": "models",
+      "scheme": "dark",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18891/models",
+      "status": 200,
+      "title": "Models \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Models",
+        "Route readiness",
+        "AI services and assistant routing",
+        "Configured model routes",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?",
+        "Delete this model route?"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nActivity\nScheduled work\nShared\nCatalog\nModels\nConnectors\nUsage\nRuntime\nAssistants\nApps & AI\nSettings\nModels\nlive\n\nSee which AI services are ready and which route each assistant uses. Accounts live in Apps & AI; the default for new assistants is set in Settings.\n\nAdd or repair a service\n \nSet the default\n \nProvider catalogue\nAI services and assistant routing\nConfigured routes\nHardware, models and prices\nRoute readiness\n\nStates come from local configuration only (no request, no token refresh). Capability unverified is not a failure: it means no dated evidence exists for this exact route and model in this build. See Providers for accounts and evidence.\n\nollama/gemma4:e2b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/gpt-oss:20b-cloud needs configuration\n\nThe provider is known but no account or ambient credential resolves this route.\n\nAdd a connection for this provider or correct the model spec.\n\nollama/moondream:1.8b-v2-q3_K_S capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/my-local-copy:latest capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:1.5b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen2.5-coder:3b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:0.8b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:2b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3.5:4b-q4_K_M capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:0.6b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:1.7b capability unverified\n\nLocal route: the service was not probed in this request.\n\nollama/qwen3:4b capability unverified\n\nLocal route: the service was not probed in this request.\n\nAI services and assistant routing\n\nOne answer for which AI services this machine can use and which route each assistant runs. Accounts and keys live in Apps & AI; per-assistant routes are chosen in that assistant's settings.\n\nOpen Apps & AI\n\nNo default route for new built-in assistants. Set one in Settings.\n\nASSISTANT\tROUTE\tRUNTIME\tMODE\tSTATE\tFIX\nNo assistants yet. Create one.\nConfigured model routes\n\nRoutes saved on this machine, which assistants use them, and repair actions. The default for new assistants is written in Settings; a route that cannot run is shown as such.\n\nMODEL\tSTATUS\tASSIGNED TO\tACTIONS\n\nollama/gemma4:e2b\nollama\nlocal\n\u00b7\ngemma4:e2b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/gpt-oss:20b-cloud\nollama\nlocal\n\u00b7\ngpt-oss:20b-cloud\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/moondream:1.8b-v2-q3_K_S\nollama\nlocal\n\u00b7\nmoondream:1.8b-v2-q3_K_S\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/my-local-copy:latest\nollama\nlocal\n\u00b7\nmy-local-copy:latest\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen2.5-coder:1.5b\nollama\nlocal\n\u00b7\nqwen2.5-coder:1.5b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen2.5-coder:3b\nollama\nlocal\n\u00b7\nqwen2.5-coder:3b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:0.8b\nollama\nlocal\n\u00b7\nqwen3.5:0.8b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:2b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:2b-q4_K_M\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3.5:4b-q4_K_M\nollama\nlocal\n\u00b7\nqwen3.5:4b-q4_K_M\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3:0.6b\nollama\nlocal\n\u00b7\nqwen3:0.6b\n\tready\tno assistants assigned\t\nSet default in Settings\nTest\nRemove\n\n\nollama/qwen3:1.7b\nollama\nlocal\n\u00b7\nqwen3:1.7b\n\tready\tno assistants assigned\t\nSet default in ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "models-dark-1920.png",
+      "sha256": "0650ff1f05c4cc1fdd221f2dbe6c6d5e58ac1706ad4bed71708b50caf286f1ed"
+    },
+    {
+      "page": "connections",
+      "scheme": "light",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18891/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Kimi Code membership (separate from Moonshot API)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Terms notice\nacknowledgement required",
+        "OpenCode Zen (pay-as-you-go API)",
+        "Remove this connection?",
+        "API key"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nKimi Code membership (separate from Moonshot API)\nkimi\nsubscription\nanthropic\naccount kimi\nhttps://api.kimi.com/coding\nRemove\nAPI key\n\nmissing set $KIMI_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nMembership allowance, not a per-token bill. Declare your own allowance in tokens and calibrate it against the Kimi Code Console.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to kimi; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nKimi Code lets members use their API key in third-party tools, and says tampering with the client identifier (User-Agent) is a violation that can suspend membership benefits. Hutch identifies itself and never impersonates another client. Whether unattended or scheduled bot runs fit the membership allowance is Kimi's call; read its terms before scheduling bots on this route.\n\nRead the vendor's terms\n\nI have read this and take responsibility for how my assistants use this plan.\nAcknowledge\nPer-model protocol\nOpenCode Zen (pay-as-you-go API)\nzen\nper token\nopenai-chat\naccount zen\nhttps://opencode.ai/inference/v1\nRemove\nAPI key\n\nmissing set $OPENCODE_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPrepaid credits are charged per request. Hutch's currency admission needs a reviewed price row in Settings > Prices; the console balance is authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to zen; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-light-360.png",
+      "sha256": "93556c7573e21add3bb9216541124cf576f861278f152d284b8968c039896132"
+    },
+    {
+      "page": "connections",
+      "scheme": "light",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18891/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Kimi Code membership (separate from Moonshot API)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Terms notice\nacknowledgement required",
+        "OpenCode Zen (pay-as-you-go API)",
+        "Remove this connection?",
+        "API key"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nKimi Code membership (separate from Moonshot API)\nkimi\nsubscription\nanthropic\naccount kimi\nhttps://api.kimi.com/coding\nRemove\nAPI key\n\nmissing set $KIMI_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nMembership allowance, not a per-token bill. Declare your own allowance in tokens and calibrate it against the Kimi Code Console.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to kimi; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nKimi Code lets members use their API key in third-party tools, and says tampering with the client identifier (User-Agent) is a violation that can suspend membership benefits. Hutch identifies itself and never impersonates another client. Whether unattended or scheduled bot runs fit the membership allowance is Kimi's call; read its terms before scheduling bots on this route.\n\nRead the vendor's terms\n\nI have read this and take responsibility for how my assistants use this plan.\nAcknowledge\nPer-model protocol\nOpenCode Zen (pay-as-you-go API)\nzen\nper token\nopenai-chat\naccount zen\nhttps://opencode.ai/inference/v1\nRemove\nAPI key\n\nmissing set $OPENCODE_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPrepaid credits are charged per request. Hutch's currency admission needs a reviewed price row in Settings > Prices; the console balance is authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to zen; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-light-768.png",
+      "sha256": "070672264f8d35cf2b0e38b3cf919cc98e9e6fde7460cea9b49ef64b80e41160"
+    },
+    {
+      "page": "connections",
+      "scheme": "light",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18891/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Kimi Code membership (separate from Moonshot API)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Terms notice\nacknowledgement required",
+        "OpenCode Zen (pay-as-you-go API)",
+        "Remove this connection?",
+        "API key"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nKimi Code membership (separate from Moonshot API)\nkimi\nsubscription\nanthropic\naccount kimi\nhttps://api.kimi.com/coding\nRemove\nAPI key\n\nmissing set $KIMI_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nMembership allowance, not a per-token bill. Declare your own allowance in tokens and calibrate it against the Kimi Code Console.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to kimi; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nKimi Code lets members use their API key in third-party tools, and says tampering with the client identifier (User-Agent) is a violation that can suspend membership benefits. Hutch identifies itself and never impersonates another client. Whether unattended or scheduled bot runs fit the membership allowance is Kimi's call; read its terms before scheduling bots on this route.\n\nRead the vendor's terms\n\nI have read this and take responsibility for how my assistants use this plan.\nAcknowledge\nPer-model protocol\nOpenCode Zen (pay-as-you-go API)\nzen\nper token\nopenai-chat\naccount zen\nhttps://opencode.ai/inference/v1\nRemove\nAPI key\n\nmissing set $OPENCODE_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPrepaid credits are charged per request. Hutch's currency admission needs a reviewed price row in Settings > Prices; the console balance is authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to zen; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-light-1280.png",
+      "sha256": "5845160e3754ae8ccec771390204d1f91b8b66023447978d162d5910b500b8f5"
+    },
+    {
+      "page": "connections",
+      "scheme": "light",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18891/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Kimi Code membership (separate from Moonshot API)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Terms notice\nacknowledgement required",
+        "OpenCode Zen (pay-as-you-go API)",
+        "Remove this connection?",
+        "API key"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nKimi Code membership (separate from Moonshot API)\nkimi\nsubscription\nanthropic\naccount kimi\nhttps://api.kimi.com/coding\nRemove\nAPI key\n\nmissing set $KIMI_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nMembership allowance, not a per-token bill. Declare your own allowance in tokens and calibrate it against the Kimi Code Console.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to kimi; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nKimi Code lets members use their API key in third-party tools, and says tampering with the client identifier (User-Agent) is a violation that can suspend membership benefits. Hutch identifies itself and never impersonates another client. Whether unattended or scheduled bot runs fit the membership allowance is Kimi's call; read its terms before scheduling bots on this route.\n\nRead the vendor's terms\n\nI have read this and take responsibility for how my assistants use this plan.\nAcknowledge\nPer-model protocol\nOpenCode Zen (pay-as-you-go API)\nzen\nper token\nopenai-chat\naccount zen\nhttps://opencode.ai/inference/v1\nRemove\nAPI key\n\nmissing set $OPENCODE_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPrepaid credits are charged per request. Hutch's currency admission needs a reviewed price row in Settings > Prices; the console balance is authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to zen; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-light-1920.png",
+      "sha256": "9334658a44c84f2055901bdb623e2a5600f9f044c8a8c8a8a464b7310dfdfc6c"
+    },
+    {
+      "page": "connections",
+      "scheme": "dark",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18891/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Kimi Code membership (separate from Moonshot API)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Terms notice\nacknowledgement required",
+        "OpenCode Zen (pay-as-you-go API)",
+        "Remove this connection?",
+        "API key"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nKimi Code membership (separate from Moonshot API)\nkimi\nsubscription\nanthropic\naccount kimi\nhttps://api.kimi.com/coding\nRemove\nAPI key\n\nmissing set $KIMI_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nMembership allowance, not a per-token bill. Declare your own allowance in tokens and calibrate it against the Kimi Code Console.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to kimi; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nKimi Code lets members use their API key in third-party tools, and says tampering with the client identifier (User-Agent) is a violation that can suspend membership benefits. Hutch identifies itself and never impersonates another client. Whether unattended or scheduled bot runs fit the membership allowance is Kimi's call; read its terms before scheduling bots on this route.\n\nRead the vendor's terms\n\nI have read this and take responsibility for how my assistants use this plan.\nAcknowledge\nPer-model protocol\nOpenCode Zen (pay-as-you-go API)\nzen\nper token\nopenai-chat\naccount zen\nhttps://opencode.ai/inference/v1\nRemove\nAPI key\n\nmissing set $OPENCODE_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPrepaid credits are charged per request. Hutch's currency admission needs a reviewed price row in Settings > Prices; the console balance is authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to zen; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-dark-360.png",
+      "sha256": "93556c7573e21add3bb9216541124cf576f861278f152d284b8968c039896132"
+    },
+    {
+      "page": "connections",
+      "scheme": "dark",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18891/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Kimi Code membership (separate from Moonshot API)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Terms notice\nacknowledgement required",
+        "OpenCode Zen (pay-as-you-go API)",
+        "Remove this connection?",
+        "API key"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nKimi Code membership (separate from Moonshot API)\nkimi\nsubscription\nanthropic\naccount kimi\nhttps://api.kimi.com/coding\nRemove\nAPI key\n\nmissing set $KIMI_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nMembership allowance, not a per-token bill. Declare your own allowance in tokens and calibrate it against the Kimi Code Console.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to kimi; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nKimi Code lets members use their API key in third-party tools, and says tampering with the client identifier (User-Agent) is a violation that can suspend membership benefits. Hutch identifies itself and never impersonates another client. Whether unattended or scheduled bot runs fit the membership allowance is Kimi's call; read its terms before scheduling bots on this route.\n\nRead the vendor's terms\n\nI have read this and take responsibility for how my assistants use this plan.\nAcknowledge\nPer-model protocol\nOpenCode Zen (pay-as-you-go API)\nzen\nper token\nopenai-chat\naccount zen\nhttps://opencode.ai/inference/v1\nRemove\nAPI key\n\nmissing set $OPENCODE_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPrepaid credits are charged per request. Hutch's currency admission needs a reviewed price row in Settings > Prices; the console balance is authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to zen; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-dark-768.png",
+      "sha256": "070672264f8d35cf2b0e38b3cf919cc98e9e6fde7460cea9b49ef64b80e41160"
+    },
+    {
+      "page": "connections",
+      "scheme": "dark",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18891/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Kimi Code membership (separate from Moonshot API)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Terms notice\nacknowledgement required",
+        "OpenCode Zen (pay-as-you-go API)",
+        "Remove this connection?",
+        "API key"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nKimi Code membership (separate from Moonshot API)\nkimi\nsubscription\nanthropic\naccount kimi\nhttps://api.kimi.com/coding\nRemove\nAPI key\n\nmissing set $KIMI_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nMembership allowance, not a per-token bill. Declare your own allowance in tokens and calibrate it against the Kimi Code Console.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to kimi; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nKimi Code lets members use their API key in third-party tools, and says tampering with the client identifier (User-Agent) is a violation that can suspend membership benefits. Hutch identifies itself and never impersonates another client. Whether unattended or scheduled bot runs fit the membership allowance is Kimi's call; read its terms before scheduling bots on this route.\n\nRead the vendor's terms\n\nI have read this and take responsibility for how my assistants use this plan.\nAcknowledge\nPer-model protocol\nOpenCode Zen (pay-as-you-go API)\nzen\nper token\nopenai-chat\naccount zen\nhttps://opencode.ai/inference/v1\nRemove\nAPI key\n\nmissing set $OPENCODE_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPrepaid credits are charged per request. Hutch's currency admission needs a reviewed price row in Settings > Prices; the console balance is authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to zen; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-dark-1280.png",
+      "sha256": "5845160e3754ae8ccec771390204d1f91b8b66023447978d162d5910b500b8f5"
+    },
+    {
+      "page": "connections",
+      "scheme": "dark",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18891/legacy/connections",
+      "status": 200,
+      "title": "Apps & AI \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "Connections",
+        "Sign in with ChatGPT",
+        "Kimi Code membership (separate from Moonshot API)",
+        "Remove this connection?",
+        "API key",
+        "Usage allowance",
+        "Shared daily currency cap",
+        "Terms notice\nacknowledgement required",
+        "OpenCode Zen (pay-as-you-go API)",
+        "Remove this connection?",
+        "API key"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nApps & AI\nSettings\nConnections\nlive\n\nHosted endpoints and subscription plans, each with its own key. Use one in an assistant as <name>/<model>, for example opencode-go/glm-5.3.\n\nProvider catalogue and account states - integration status, capability evidence and runtime boundaries.\n\nKeys stay on this machine. A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.\n\nHutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.\n\nSign in with ChatGPT\nexperimental preview\nlocal callback only\n\nThis asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.\n\nThe current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the preview limits before connecting.\n\nPreview sign-in is disabled. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.\n\nContinue with ChatGPT\nKimi Code membership (separate from Moonshot API)\nkimi\nsubscription\nanthropic\naccount kimi\nhttps://api.kimi.com/coding\nRemove\nAPI key\n\nmissing set $KIMI_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nMembership allowance, not a per-token bill. Declare your own allowance in tokens and calibrate it against the Kimi Code Console.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to kimi; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.\n\nTerms notice\nacknowledgement required\n\nKimi Code lets members use their API key in third-party tools, and says tampering with the client identifier (User-Agent) is a violation that can suspend membership benefits. Hutch identifies itself and never impersonates another client. Whether unattended or scheduled bot runs fit the membership allowance is Kimi's call; read its terms before scheduling bots on this route.\n\nRead the vendor's terms\n\nI have read this and take responsibility for how my assistants use this plan.\nAcknowledge\nPer-model protocol\nOpenCode Zen (pay-as-you-go API)\nzen\nper token\nopenai-chat\naccount zen\nhttps://opencode.ai/inference/v1\nRemove\nAPI key\n\nmissing set $OPENCODE_API_KEY where hutch starts, or store one below\n\nStore\n\nWhere to get a key\n\nTest (spends no tokens)\nUsage allowance\n\nNo allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.\n\nper 5h\nper day\nper week\nper month\nSave\n\nPrepaid credits are charged per request. Hutch's currency admission needs a reviewed price row in Settings > Prices; the console balance is authoritative.\n\nShared daily currency cap\n\nNo currency cap is set for this account.\n\nSave cap\n\nThis value applies to zen; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use hutch connections set-account-cap with --account-id to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until ",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "connections-dark-1920.png",
+      "sha256": "9334658a44c84f2055901bdb623e2a5600f9f044c8a8c8a8a464b7310dfdfc6c"
+    },
+    {
+      "page": "first-run",
+      "scheme": "light",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18891/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOn this machine has a ready model route for setup.\n\nollama/gemma4:e2b\n\nConnect OpenCode\nUse another provider\nSETUP CHECK\nNeeds attention\n\n6 things need attention\n\nRuntime: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nRuntime: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nRuntime: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nConnection: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nConnection: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nConnection: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-light-360.png",
+      "sha256": "15ee49caabfed6454b4d2c90aaf91ea8f47861d5a4d6cd94d619e2e0e883c902"
+    },
+    {
+      "page": "first-run",
+      "scheme": "light",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18891/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOn this machine has a ready model route for setup.\n\nollama/gemma4:e2b\n\nConnect OpenCode\nUse another provider\nSETUP CHECK\nNeeds attention\n\n6 things need attention\n\nRuntime: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nRuntime: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nRuntime: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nConnection: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nConnection: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nConnection: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-light-768.png",
+      "sha256": "1d2aeb2ef9dcaa98b666f6feaf27391631c73a98adfe5788d09fd7c260258cc8"
+    },
+    {
+      "page": "first-run",
+      "scheme": "light",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18891/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOn this machine has a ready model route for setup.\n\nollama/gemma4:e2b\n\nConnect OpenCode\nUse another provider\nSETUP CHECK\nNeeds attention\n\n6 things need attention\n\nRuntime: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nRuntime: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nRuntime: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nConnection: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nConnection: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nConnection: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-light-1280.png",
+      "sha256": "943d35c6422c602a39f182a1e24a299432c977de1130a3da59572deac6ac681f"
+    },
+    {
+      "page": "first-run",
+      "scheme": "light",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18891/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOn this machine has a ready model route for setup.\n\nollama/gemma4:e2b\n\nConnect OpenCode\nUse another provider\nSETUP CHECK\nNeeds attention\n\n6 things need attention\n\nRuntime: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nRuntime: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nRuntime: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nConnection: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nConnection: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nConnection: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-light-1920.png",
+      "sha256": "d7f99605aa75933e997317a24ab5f992f55de65afb4c1347e731088f8c99354d"
+    },
+    {
+      "page": "first-run",
+      "scheme": "dark",
+      "viewport": [
+        360,
+        800
+      ],
+      "url": "http://127.0.0.1:18891/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOn this machine has a ready model route for setup.\n\nollama/gemma4:e2b\n\nConnect OpenCode\nUse another provider\nSETUP CHECK\nNeeds attention\n\n6 things need attention\n\nRuntime: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nRuntime: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nRuntime: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nConnection: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nConnection: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nConnection: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-dark-360.png",
+      "sha256": "15ee49caabfed6454b4d2c90aaf91ea8f47861d5a4d6cd94d619e2e0e883c902"
+    },
+    {
+      "page": "first-run",
+      "scheme": "dark",
+      "viewport": [
+        768,
+        1000
+      ],
+      "url": "http://127.0.0.1:18891/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOn this machine has a ready model route for setup.\n\nollama/gemma4:e2b\n\nConnect OpenCode\nUse another provider\nSETUP CHECK\nNeeds attention\n\n6 things need attention\n\nRuntime: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nRuntime: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nRuntime: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nConnection: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nConnection: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nConnection: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-dark-768.png",
+      "sha256": "1d2aeb2ef9dcaa98b666f6feaf27391631c73a98adfe5788d09fd7c260258cc8"
+    },
+    {
+      "page": "first-run",
+      "scheme": "dark",
+      "viewport": [
+        1280,
+        900
+      ],
+      "url": "http://127.0.0.1:18891/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOn this machine has a ready model route for setup.\n\nollama/gemma4:e2b\n\nConnect OpenCode\nUse another provider\nSETUP CHECK\nNeeds attention\n\n6 things need attention\n\nRuntime: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nRuntime: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nRuntime: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nConnection: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nConnection: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nConnection: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-dark-1280.png",
+      "sha256": "943d35c6422c602a39f182a1e24a299432c977de1130a3da59572deac6ac681f"
+    },
+    {
+      "page": "first-run",
+      "scheme": "dark",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "url": "http://127.0.0.1:18891/#/chat",
+      "status": 200,
+      "title": "Chat \u2014 Hutch",
+      "headings": [
+        "Assistants",
+        "What would you like help with?",
+        "AI SERVICE",
+        "SETUP CHECK",
+        "BACKGROUND SERVICE",
+        "HOW HUTCH WORKS",
+        "Needs you",
+        "Action outcomes to check"
+      ],
+      "text": "Skip to content\nhutch\nToday\nChat\nTasks\nNeeds you\nMore\nAssistants\nFind an assistant\nNo assistants yet \u2014 create one.\nApps & AI\nSettings\n\nYour personal assistant\n\nWhat would you like help with?\n\nStart with a request. Hutch carries it into setup for review.\n\nYour first request\nSet up my assistant\n\nNothing runs until you ask.\n\nAI SERVICE\nReady\n\nOn this machine has a ready model route for setup.\n\nollama/gemma4:e2b\n\nConnect OpenCode\nUse another provider\nSETUP CHECK\nNeeds attention\n\n6 things need attention\n\nRuntime: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nRuntime: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nRuntime: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nConnection: kimi: no API key Fix: set $KIMI_API_KEY or run `hutch connections set-key kimi`\nConnection: zen: no API key Fix: set $OPENCODE_API_KEY or run `hutch connections set-key zen`\nConnection: qwen: no API key Fix: set $DASHSCOPE_API_KEY or run `hutch connections set-key qwen`\nBACKGROUND SERVICE\n\nScheduled work runs only while Hutch is running. A background service keeps it running in your login session on this computer. Nothing is installed until you choose.\n\nInstall background service\nHOW HUTCH WORKS\nStart with a conversation\nReview important actions\nChoose the apps and AI you use\n\nYour request stays in this tab while you set up an AI service. You can rename the assistant and change its settings before saving.",
+      "overflow_px": 0,
+      "console_errors": [],
+      "failed_requests": [],
+      "screenshot": "first-run-dark-1920.png",
+      "sha256": "d7f99605aa75933e997317a24ab5f992f55de65afb4c1347e731088f8c99354d"
+    }
+  ],
+  "scope": "first-run empty state; no provider calls, credentials or external effects"
+}

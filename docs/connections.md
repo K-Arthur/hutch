@@ -486,16 +486,24 @@ route, not a proven model. No model list, capability, price or usage claim is ma
 per-token price row is still required before currency-limited use.
 
 - **Vendors**: `mistral` (`MISTRAL_API_KEY`), `xai` (`XAI_API_KEY`), `minimax` (`MINIMAX_API_KEY`), `moonshot`
-  (`MOONSHOT_API_KEY`), `zai` (`ZAI_API_KEY`), `cohere` (`COHERE_API_KEY`), `stepfun` (`STEPFUN_API_KEY`).
+  (`MOONSHOT_API_KEY`) and `moonshot-cn` (`MOONSHOT_CN_API_KEY`), `zai` (`ZAI_API_KEY`) and `zai-cn`
+  (`BIGMODEL_API_KEY`), `qwen-standard-intl` (`DASHSCOPE_API_KEY`) and `qwen-standard-cn`
+  (`DASHSCOPE_CN_API_KEY`), `cohere` (`COHERE_API_KEY`), `stepfun` (`STEPFUN_API_KEY`).
+- **Memberships and gateways added in provider-expansion Phase 3**: `kimi-coding` (`KIMI_API_KEY`, Anthropic
+  Messages, subscription, acknowledgement required) and `opencode-zen` (`OPENCODE_API_KEY`, prepaid credits,
+  `https://opencode.ai/inference/v1`). Neither has been exercised with a live key.
 - **Serving platforms**: `groq`, `cerebras`, `fireworks`, `together`, `deepinfra`, `novita`, `chutes`, `nvidia`,
   `huggingface` (`HF_TOKEN`), `synthetic`, `venice`, `gmi-cloud`, `arcee`, `ollama-cloud`.
 - **Enterprise and gateways**: `volcengine`, `tencent-cloud`, `kilocode`, `byteplus`.
 
-Regional and plan variants stay separate templates on purpose. `moonshot` is the overseas host; the China host
-and the Kimi Code membership URL are different routes. `stepfun` is the China host; the global host uses a
+Regional and plan variants stay separate templates on purpose. `moonshot` is the overseas host; `moonshot-cn` is
+the China host, and the Kimi Code membership (`kimi-coding`) is a separate identity with its own key and bill. `stepfun` is the China host; the global host uses a
 different domain. `tencent-cloud` is region-scoped: a key is valid only on its own TokenHub site, and no
 cross-region call is made. `zai`, `minimax` and `moonshot` templates are the API-key (PAYG) routes; their
-coding-plan keys are separate billing relationships and are not these templates. `ollama-cloud` is a hosted
+coding-plan keys are separate billing relationships and are not these templates. Two plan routes are blocked, not
+merely absent: the Alibaba Cloud Coding Plan (its terms forbid scripts, backends and other non-interactive use)
+and the Z.AI GLM Coding Plan (limited to officially supported tools; Hutch is not one). No template targets
+either plan host, and `tests/test_flagship_routes.py` fails if one ever does. `ollama-cloud` is a hosted
 service even though the same model names may run locally.
 
 A route reads its key only from its own `api_key_env` or its own key file. `OPENAI_API_KEY` is never sent to a
