@@ -211,27 +211,95 @@ def test_comfyui_poll_maps_states_honestly():
         "a server that forgot the job is reported, never guessed"
 
 
-def test_comfyui_cancel_confirms_only_on_an_explicit_ack():
-    def cancellable(request: httpx.Request) -> httpx.Response:
-        if request.method == "POST" and request.url.path == "/queue":
-            assert json.loads(request.content) == {"delete": ["p"]}
+class FakeComfyQueue:
+    """A stateful stand-in for ComfyUI's queue endpoints: which ids are running or pending, and
+    what each call did. It lets a test see that a 200 is not proof and that nothing else is hit."""
+
+    def __init__(self, running=(), pending=(), honors_interrupt=True):
+        self.running, self.pending = list(running), list(pending)
+        self.honors_interrupt = honors_interrupt
+        self.calls: list[tuple[str, str, object]] = []
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content) if request.content else None
+        self.calls.append((request.method, request.url.path, body))
+        if request.url.path == "/queue" and request.method == "GET":
+            return httpx.Response(200, json={
+                "queue_running": [[0, pid, {}] for pid in self.running],
+                "queue_pending": [[1, pid, {}] for pid in self.pending]})
+        if request.url.path == "/queue" and request.method == "POST":
+            self.pending = [p for p in self.pending if p not in body["delete"]]
+            return httpx.Response(200, json={})
+        if request.url.path == "/interrupt":
+            if self.honors_interrupt:
+                self.running = [p for p in self.running if p != (body or {}).get("prompt_id")]
             return httpx.Response(200, json={})
         return httpx.Response(404)
 
-    backend = make_comfy(cancellable)
-    assert backend.cancel({"upstream_job_id": "p"}) == {"cancelled": True,
-                                                        "how": "queue-delete"}
 
-    def refusing(request: httpx.Request) -> httpx.Response:
-        if request.method == "POST" and request.url.path == "/queue":
-            return httpx.Response(404)
-        if request.method == "POST" and request.url.path == "/interrupt":
-            return httpx.Response(500)
+def test_comfyui_cancel_deletes_a_pending_prompt_and_confirms_by_rereading_the_queue():
+    queue = FakeComfyQueue(pending=["p"])
+    assert make_comfy(queue).cancel({"upstream_job_id": "p"}) == {"cancelled": True, "how": "queue-delete"}
+    assert queue.pending == [] and ("POST", "/queue", {"delete": ["p"]}) in queue.calls
+
+
+def test_comfyui_cancel_interrupts_only_the_prompt_the_queue_shows_running():
+    queue = FakeComfyQueue(running=["p"])
+    assert make_comfy(queue).cancel({"upstream_job_id": "p"}) == {"cancelled": True, "how": "interrupt"}
+    assert ("POST", "/interrupt", {"prompt_id": "p"}) in queue.calls
+
+
+def test_comfyui_cancel_never_interrupts_another_clients_job():
+    queue = FakeComfyQueue(running=["someone-elses"], pending=[])
+    assert make_comfy(queue).cancel({"upstream_job_id": "mine"}) is None
+    assert not any(path == "/interrupt" for _, path, _ in queue.calls), \
+        "a body-less interrupt would have stopped a job that is not ours"
+
+
+def test_comfyui_cancel_is_unconfirmed_when_the_interrupt_did_not_take_effect():
+    queue = FakeComfyQueue(running=["p"], honors_interrupt=False)
+    assert make_comfy(queue).cancel({"upstream_job_id": "p"}) is None
+
+
+def test_comfyui_cancel_is_unconfirmed_when_the_queue_cannot_be_read():
+    assert make_comfy(lambda request: httpx.Response(500)).cancel({"upstream_job_id": "p"}) is None
+
+
+def comfy_with_outputs(outputs: dict, views: dict) -> ComfyUIBackend:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/history/p":
+            return httpx.Response(200, json={"p": {"status": {"completed": True}, "outputs": outputs}})
+        if request.url.path == "/view":
+            data = views.get(request.url.params["filename"])
+            return httpx.Response(200, content=data) if data else httpx.Response(404)
         return httpx.Response(404)
 
-    backend2 = make_comfy(refusing)
-    assert backend2.cancel({"upstream_job_id": "p"}) is None, \
-        "without an ack the job service must record cancel_unconfirmed, not cancelled"
+    return make_comfy(handler)
+
+
+def test_comfyui_finds_a_video_written_under_gifs_or_videos():
+    mp4 = b"\x00\x00\x00\x18ftypisom" + b"\x00" * 24
+    for key in ("gifs", "videos"):
+        backend = comfy_with_outputs({"9": {key: [{"filename": "clip.mp4", "type": "output"}]}},
+                                     {"clip.mp4": mp4})
+        assert backend.fetch({"upstream_job_id": "p", "kind": "video"}) == mp4
+
+
+def test_comfyui_prefers_the_requested_kind_and_permanent_files_over_previews():
+    outputs = {"3": {"images": [{"filename": "preview.png", "type": "temp"}]},
+               "9": {"images": [{"filename": "final.png", "type": "output"}],
+                     "videos": [{"filename": "final.mp4", "type": "output"}]}}
+    views = {"preview.png": b"PREVIEW", "final.png": b"FINAL-IMAGE", "final.mp4": b"FINAL-VIDEO"}
+    backend = comfy_with_outputs(outputs, views)
+    assert backend.fetch({"upstream_job_id": "p", "kind": "image"}) == b"FINAL-IMAGE"
+    assert backend.fetch({"upstream_job_id": "p", "kind": "video"}) == b"FINAL-VIDEO"
+
+
+def test_comfyui_refuses_an_output_over_the_media_limit(monkeypatch):
+    monkeypatch.setattr("hutch.media.providers.comfyui.MAX_MEDIA_BYTES", 10)
+    backend = comfy_with_outputs({"9": {"images": [{"filename": "big.png"}]}}, {"big.png": b"x" * 50})
+    with pytest.raises(ComfyUIError, match="byte limit"):
+        backend.fetch({"upstream_job_id": "p", "kind": "image"})
 
 
 def test_comfyui_submit_requires_a_workflow_and_surfaces_http_errors():
