@@ -10,7 +10,7 @@ covers before relying on it.
 |---|---|---|---|---|
 | 0 Diagnose | done | 33bf8a61 | 2026-11-06: Ollama 0.40.13/0.40.15, llama.cpp b12144 CPU+Vulkan, LM Studio llmster 0.0.27-1, Chromium captures | — |
 | 1 Locality truth | done (1.1, 1.2, 1.3) | see git log | 2026-11-06: real Ollama 0.40.13 rows (cloud stub, renamed cloud copy, local, missing model) | EC-02 second-interface run not run |
-| 2 Native runtime introspection | done (2.1, 2.2, 2.3, 2.4) | see git log | 2026-11-06: llama.cpp b12144 9931 (4096 per slot with `-c 8192 --parallel 2`), LM Studio applied 8192, discovery fingerprints both, squatter unknown, `--api-key` needs_key then a keyed chat, needle self-check at 4096 | vLLM/SGLang not installed; LM Studio API-token mode not enabled live (401 path tested with a real key-protected llama-server) |
+| 2 Native runtime introspection | done (2.1, 2.2, 2.3, 2.4) | d057cc95..7c53c59e | 2026-11-06: llama.cpp b12144 9931 (4096 per slot with `-c 8192 --parallel 2`), LM Studio applied 8192, discovery fingerprints both, squatter unknown, `--api-key` needs_key then a keyed chat, needle self-check at 4096 | vLLM/SGLang not installed; LM Studio API-token mode not enabled live (401 path tested with a real key-protected llama-server) |
 | 3 Lifecycle states and errors | not started | | | |
 | 4 Get a model (install, import, guide) | not started | | | |
 | 5 Multimodal and tool reliability | not started | | | |
@@ -180,6 +180,16 @@ Still open (ask at the phase that needs it):
   and the real server's own 400 is recorded; the 8080 squatter is `runtime=unknown`; the
   `--api-key` server reports `needs_key` and lists models only with the origin-scoped key. Phase 3
   is next.
+- 2026-11-06, Phase 2 gates: combined focused suite
+  `test_provider_discovery test_local_runtimes test_local_choices test_runtime_builtin
+  test_models_layer test_model_switcher test_models_detected_route test_local_admission_runtime
+  test_fitloop test_slots` = 201 passed; `tests/e2e/test_model_picker.py` = 12 passed;
+  `npm run check:agent` passed (context hygiene, tool contracts, constitution, agent map);
+  `scripts/audit_emoji.py` reports only the pre-existing `.codewhale/state` file, not a Phase 2
+  file. `/code-review` and `/simplify` are not available in this session; the phase diff was
+  re-read manually and the findings above were fixed. Multimodal checks are not applicable in
+  Phase 2 (no image path changed); Phase 5 owns them. Services started for evidence were stopped
+  and the temporary key file was removed; ports 9931, 9932, 9933, 1234 and 8080 are free.
 - 2026-11-06, Phase 2.4 live: `llama-server --api-key-file` on 9933. Without a key discovery returns
   `reachable=true, state=needs_key`; with a key from a temporary connection whose base URL is
   `http://127.0.0.1:9933/v1`, discovery returns `ready`, the model list and runtime `llamacpp`; the
