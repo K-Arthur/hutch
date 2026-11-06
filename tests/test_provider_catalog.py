@@ -35,6 +35,8 @@ REQUIRED_PROVIDER_IDS = (
     "huggingface", "deepinfra", "chutes", "novita", "kilocode", "byteplus", "ollama-cloud",
     "ollama", "lmstudio", "vllm", "sglang", "inferrs", "ds4", "llamacpp", "custom-compatible",
     "fal", "comfyui", "runway", "pixverse", "deepgram", "elevenlabs",
+    # Added in provider-expansion Phase 3: identities that were an auth method or a CLI runtime.
+    "kimi-coding", "opencode-zen",
 )
 
 
@@ -82,7 +84,7 @@ def test_bundled_catalog_accounts_for_every_requested_provider():
     missing = [provider_id for provider_id in REQUIRED_PROVIDER_IDS if provider_id not in ids]
     assert missing == []
     assert len(ids) == len(REQUIRED_PROVIDER_IDS)
-    assert catalog.reviewed_on == "2026-10-30"
+    assert catalog.reviewed_on == "2026-11-06"
 
 
 def test_bundled_catalog_values_are_from_closed_vocabularies():

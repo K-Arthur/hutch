@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "reviewed_on": "2026-10-30",
+  "reviewed_on": "2026-11-06",
   "providers": [
     {
       "id": "openai",
@@ -96,8 +96,7 @@
         "transcription",
         "search",
         "grounding",
-        "tools",
-        "coding_cli"
+        "tools"
       ],
       "protocols": [
         "gemini"
@@ -145,7 +144,7 @@
       "regions": [
         "global"
       ],
-      "notes": "The native generateContent route is implemented; no live Gemini key has exercised it. Thinking stays at the model default. Media, speech, video and provider-native search are documented only. Consumer CLI authentication arrangements changed in 2026; no retired consumer OAuth flow is implemented. Vertex AI is a separate catalogue identity."
+      "notes": "The native generateContent route is implemented; no live Gemini key has exercised it. Thinking stays at the model default. Media, speech, video and provider-native search are documented only. Consumer CLI sign-in is blocked: Google replaced Gemini CLI with Antigravity CLI on 2026-06-18 and treats third-party use of those OAuth tokens as a terms violation, so Hutch offers no Google coding-CLI route. Vertex AI is a separate catalogue identity."
     },
     {
       "id": "minimax",
@@ -202,8 +201,7 @@
       "summary": "",
       "services": [
         "chat",
-        "tools",
-        "coding_cli"
+        "tools"
       ],
       "protocols": [
         "openai-chat",
@@ -217,26 +215,63 @@
           "billing": "per_token",
           "status": "implemented",
           "docs": []
-        },
-        {
-          "id": "kimi-coding-key",
-          "type": "api_key",
-          "label": "Kimi Coding API key",
-          "billing": "subscription",
-          "status": "documented",
-          "docs": []
         }
       ],
       "docs": [],
       "integration_status": "implemented-unverified",
       "connection_templates": [
-        "moonshot"
+        "moonshot",
+        "moonshot-cn"
       ],
       "regions": [
         "global",
         "cn"
       ],
-      "notes": "General Moonshot models and Kimi Coding use different endpoints, model namespaces and billing; they stay separate routes."
+      "notes": "The general Moonshot API (international api.moonshot.ai, China api.moonshot.cn) is a separate platform, key and bill from Kimi Code, which has its own catalogue identity (kimi-coding). A key from one region or platform is not accepted by the other."
+    },
+    {
+      "id": "kimi-coding",
+      "title": "Kimi Code (membership)",
+      "category": "subscription_service",
+      "summary": "",
+      "services": [
+        "chat",
+        "tools"
+      ],
+      "protocols": [
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "Kimi Code membership key",
+          "billing": "subscription",
+          "status": "implemented",
+          "docs": [
+            {
+              "title": "Kimi Code documentation",
+              "url": "https://www.kimi.com/code/docs/en/",
+              "observed_on": "2026-11-06"
+            }
+          ]
+        }
+      ],
+      "docs": [
+        {
+          "title": "Kimi Code documentation",
+          "url": "https://www.kimi.com/code/docs/en/",
+          "observed_on": "2026-11-06"
+        }
+      ],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "kimi-coding"
+      ],
+      "regions": [
+        "global"
+      ],
+      "notes": "A membership key from the Kimi Code Console, Anthropic Messages at api.kimi.com/coding. Kimi allows membership keys in third-party tools provided the real client identifier is kept; Hutch sends its own and never impersonates another client. Unattended eligibility is Kimi's call. No Kimi key has exercised this route and the vendor model list is not read."
     },
     {
       "id": "qwen",
@@ -256,18 +291,30 @@
         {
           "id": "api-key",
           "type": "api_key",
-          "label": "Qwen Cloud API key",
+          "label": "Qwen Cloud pay-as-you-go key",
           "billing": "per_token",
-          "status": "documented",
-          "docs": []
+          "status": "implemented",
+          "docs": [
+            {
+              "title": "Qwen Cloud provider notes",
+              "url": "https://docs.openclaw.ai/providers/qwen",
+              "observed_on": "2026-11-06"
+            }
+          ]
         },
         {
           "id": "coding-plan",
           "type": "api_key",
           "label": "Alibaba Cloud Coding Plan key",
           "billing": "subscription",
-          "status": "documented",
-          "docs": []
+          "status": "blocked",
+          "docs": [
+            {
+              "title": "Alibaba Cloud Coding Plan terms",
+              "url": "https://www.alibabacloud.com/help/en/model-studio/coding-plan",
+              "observed_on": "2026-11-06"
+            }
+          ]
         },
         {
           "id": "portal-oauth",
@@ -278,14 +325,28 @@
           "docs": []
         }
       ],
-      "docs": [],
-      "integration_status": "documented",
-      "connection_templates": [],
+      "docs": [
+        {
+          "title": "Alibaba Cloud Coding Plan terms",
+          "url": "https://www.alibabacloud.com/help/en/model-studio/coding-plan",
+          "observed_on": "2026-11-06"
+        },
+        {
+          "title": "Qwen Cloud provider notes",
+          "url": "https://docs.openclaw.ai/providers/qwen",
+          "observed_on": "2026-11-06"
+        }
+      ],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "qwen-standard-intl",
+        "qwen-standard-cn"
+      ],
       "regions": [
         "global",
         "cn"
       ],
-      "notes": "The old Qwen Portal OAuth flow is retired and must not be recreated. Coding-plan entitlements can forbid unattended workloads; scheduling admission must respect that."
+      "notes": "Pay-as-you-go OpenAI-compatible routes (Singapore and Beijing hosts) are implemented; keys are region-bound. The Alibaba Coding Plan is blocked: its terms limit the key to interactive use in programming tools and forbid scripts, backends and other non-interactive use, and Hutch bots run unattended. Token Plan keys (sk-sp-) are a separate relationship and are not offered. The old Qwen Portal OAuth is retired and must not be recreated. No Qwen key has exercised this route."
     },
     {
       "id": "xai",
@@ -361,20 +422,33 @@
           "type": "api_key",
           "label": "GLM Coding Plan key",
           "billing": "subscription",
-          "status": "documented",
-          "docs": []
+          "status": "blocked",
+          "docs": [
+            {
+              "title": "GLM Coding Plan usage policy",
+              "url": "https://docs.z.ai/devpack/usage-policy",
+              "observed_on": "2026-11-06"
+            }
+          ]
         }
       ],
-      "docs": [],
+      "docs": [
+        {
+          "title": "GLM Coding Plan usage policy",
+          "url": "https://docs.z.ai/devpack/usage-policy",
+          "observed_on": "2026-11-06"
+        }
+      ],
       "integration_status": "implemented-unverified",
       "connection_templates": [
-        "zai"
+        "zai",
+        "zai-cn"
       ],
       "regions": [
         "global",
         "cn"
       ],
-      "notes": "Coding subscription and general API access are independent billing and authentication routes."
+      "notes": "The general pay-as-you-go API is offered on the international (api.z.ai) and China (open.bigmodel.cn) hosts. The GLM Coding Plan is blocked: Z.AI says it may only be used within its officially supported tools and that other use can restrict benefits, and Hutch is not on that list (checked 2026-11-06). The coding endpoint is not offered even with a plan key."
     },
     {
       "id": "opencode",
@@ -447,6 +521,51 @@
         "global"
       ],
       "notes": "A subscription-backed provider API key, not OAuth session reuse. Unattended eligibility is the provider's call and remains unestablished."
+    },
+    {
+      "id": "opencode-zen",
+      "title": "OpenCode Zen (pay-as-you-go API)",
+      "category": "gateway",
+      "summary": "",
+      "services": [
+        "chat",
+        "tools"
+      ],
+      "protocols": [
+        "openai-chat",
+        "anthropic"
+      ],
+      "auth": [
+        {
+          "id": "api-key",
+          "type": "api_key",
+          "label": "OpenCode Console API key",
+          "billing": "per_token",
+          "status": "implemented",
+          "docs": [
+            {
+              "title": "OpenCode Zen documentation",
+              "url": "https://opencode.ai/docs/zen/",
+              "observed_on": "2026-11-06"
+            }
+          ]
+        }
+      ],
+      "docs": [
+        {
+          "title": "OpenCode Zen documentation",
+          "url": "https://opencode.ai/docs/zen/",
+          "observed_on": "2026-11-06"
+        }
+      ],
+      "integration_status": "implemented-unverified",
+      "connection_templates": [
+        "opencode-zen"
+      ],
+      "regions": [
+        "global"
+      ],
+      "notes": "A prepaid-credit API from the OpenCode Console, separate from the OpenCode Go subscription and from the managed OpenCode runtime. It is a gateway: the console translates between native APIs, so the model that answers and its price must be read from the response. The public model list at /inference/v1/models answered HTTP 200 on 2026-11-06 without a key; no key has exercised chat."
     },
     {
       "id": "mistral",

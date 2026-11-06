@@ -24,6 +24,21 @@
       "model_protocol_hint": "OpenCode Go serves chat at .../go/openai/v1 and .../go/anthropic, but the model catalogue lives at .../go/v1/models, which is why this template declares a separate catalogue URL. The vendor lists a native API per model: GLM, Kimi, DeepSeek, MiMo, MiniMax M3.1 Flash, Step and the free models speak OpenAI Chat Completions; Claude Haiku, MiniMax M3, Qwen3.8 and Qwen3.7 speak Anthropic Messages; Gemini 4 Argon speaks Gemini; Grok, GPT Luna and Muse Spark speak OpenAI Responses, which Hutch does not offer on a generic connection. Set a model's protocol with `hutch connections set-protocol <name> <model> anthropic` when it is not Chat Completions.",
       "models_base_url": "https://opencode.ai/inference/go/v1"
     },
+    "opencode-zen": {
+      "title": "OpenCode Zen (pay-as-you-go API)",
+      "provider": "opencode-zen",
+      "auth_method": "api_key",
+      "protocol": "openai-chat",
+      "base_url": "https://opencode.ai/inference/v1",
+      "api_key_env": "OPENCODE_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": true,
+      "get_key_url": "https://opencode.ai/console",
+      "source": "https://opencode.ai/docs/zen/",
+      "signin_guidance": "Open the OpenCode Console, add credits and copy its API key into Hutch. This is an API-key connection, separate from the OpenCode Go subscription and from the managed OpenCode assistant sign-in.",
+      "quota_hint": "Prepaid credits are charged per request. Hutch's currency admission needs a reviewed price row in Settings > Prices; the console balance is authoritative.",
+      "model_protocol_hint": "Chat Completions at /inference/v1 (the older /zen/v1 host is a legacy alias of the same list). Each model has a native API: GPT models speak OpenAI Responses and Claude models speak Anthropic Messages, which a generic connection does not offer; the console translates other models through chat completions. Free-tier chat models require the OpenCode client, so use paid models from other clients."
+    },
     "openai-api": {
       "title": "OpenAI API",
       "provider": "openai",
@@ -403,6 +418,39 @@
       "quota_hint": "Per-token billing on the provider account. Hutch's currency admission needs a reviewed price row in Settings > Prices; the provider's own billing remains authoritative.",
       "model_protocol_hint": "Overseas host. The China host is api.moonshot.cn and a key from one region is not used on the other. Kimi Code membership keys use a different base URL and are not this template."
     },
+    "moonshot-cn": {
+      "title": "Moonshot / Kimi - China host",
+      "provider": "moonshot",
+      "auth_method": "api_key",
+      "protocol": "openai-chat",
+      "base_url": "https://api.moonshot.cn/v1",
+      "api_key_env": "MOONSHOT_CN_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": true,
+      "source": "https://docs.openclaw.ai/providers/moonshot",
+      "quota_hint": "Per-token billing on the provider account. Hutch's currency admission needs a reviewed price row in Settings > Prices; the provider's own billing remains authoritative.",
+      "model_protocol_hint": "China host. A key from the international platform (api.moonshot.ai) does not work here and the reverse is also true. Kimi Code membership keys are a separate connection template."
+    },
+    "kimi-coding": {
+      "title": "Kimi Code membership (separate from Moonshot API)",
+      "provider": "kimi-coding",
+      "auth_method": "api_key",
+      "protocol": "anthropic",
+      "base_url": "https://api.kimi.com/coding",
+      "api_key_env": "KIMI_API_KEY",
+      "billing": "subscription",
+      "models_endpoint": false,
+      "get_key_url": "https://www.kimi.com/code/console",
+      "source": "https://www.kimi.com/code/docs/en/",
+      "signin_guidance": "Create a membership key in the Kimi Code Console and paste it into Hutch. This is not a Moonshot platform key and does not work on api.moonshot.ai.",
+      "terms": {
+        "url": "https://www.kimi.com/code/docs/en/",
+        "requires_ack": true,
+        "notice": "Kimi Code lets members use their API key in third-party tools, and says tampering with the client identifier (User-Agent) is a violation that can suspend membership benefits. Hutch identifies itself and never impersonates another client. Whether unattended or scheduled bot runs fit the membership allowance is Kimi's call; read its terms before scheduling bots on this route."
+      },
+      "quota_hint": "Membership allowance, not a per-token bill. Declare your own allowance in tokens and calibrate it against the Kimi Code Console.",
+      "model_protocol_hint": "Anthropic Messages at https://api.kimi.com/coding (the SDK appends /v1/messages). The model list is not read from the vendor, so type the model id, for example kimi-for-coding. Context and output limits are plan-dependent; check the Kimi Code model table."
+    },
     "zai": {
       "title": "Z.AI",
       "provider": "zai",
@@ -416,6 +464,45 @@
       "source": "https://docs.z.ai/guides/overview/quick-start.md",
       "quota_hint": "Per-token billing on the provider account. Hutch's currency admission needs a reviewed price row in Settings > Prices; the provider's own billing remains authoritative.",
       "model_protocol_hint": "Standard PAYG key. The GLM Coding Plan key is a separate route limited to its supported tools."
+    },
+    "qwen-standard-intl": {
+      "title": "Qwen Cloud - international (pay-as-you-go)",
+      "provider": "qwen",
+      "auth_method": "api_key",
+      "protocol": "openai-chat",
+      "base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+      "api_key_env": "DASHSCOPE_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": false,
+      "source": "https://docs.openclaw.ai/providers/qwen",
+      "quota_hint": "Per-token billing on the provider account. Hutch's currency admission needs a reviewed price row in Settings > Prices; the provider's own billing remains authoritative.",
+      "model_protocol_hint": "Standard pay-as-you-go key on the Singapore host. Coding Plan and Token Plan keys (sk-sp-...) are different billing relationships and do not belong here; the Alibaba Coding Plan forbids non-interactive use. The model list is not read from the vendor, so type the model id."
+    },
+    "qwen-standard-cn": {
+      "title": "Qwen Cloud - China (pay-as-you-go)",
+      "provider": "qwen",
+      "auth_method": "api_key",
+      "protocol": "openai-chat",
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "api_key_env": "DASHSCOPE_CN_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": false,
+      "source": "https://docs.openclaw.ai/providers/qwen",
+      "quota_hint": "Per-token billing on the provider account. Hutch's currency admission needs a reviewed price row in Settings > Prices; the provider's own billing remains authoritative.",
+      "model_protocol_hint": "Beijing host. Keys are region-bound: an international key does not work here. The model list is not read from the vendor, so type the model id."
+    },
+    "zai-cn": {
+      "title": "Z.AI / Zhipu - China host (pay-as-you-go)",
+      "provider": "zai",
+      "auth_method": "api_key",
+      "protocol": "openai-chat",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "api_key_env": "BIGMODEL_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": true,
+      "source": "https://docs.openclaw.ai/providers/zai",
+      "quota_hint": "Per-token billing on the provider account. Hutch's currency admission needs a reviewed price row in Settings > Prices; the provider's own billing remains authoritative.",
+      "model_protocol_hint": "China host for the general pay-as-you-go API. The GLM Coding Plan (/api/coding/paas/v4) is not offered: Z.AI limits it to officially supported tools and Hutch is not one of them."
     },
     "cohere": {
       "title": "Cohere",

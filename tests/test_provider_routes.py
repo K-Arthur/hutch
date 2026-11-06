@@ -102,7 +102,7 @@ def test_catalogue_marks_every_route_implemented_unverified(catalogue):
     for provider in ROUTES:
         row = catalogue.require(provider)
         assert row.integration_status == "implemented-unverified", provider
-        assert row.connection_templates == (provider,), provider
+        assert provider in row.connection_templates, provider
         assert row.auth("api-key").status == "implemented", provider
 
 

@@ -23,7 +23,7 @@ class _ObservationStore:
 
 def test_every_requested_provider_has_a_report_and_documented_services():
     reports = capability_matrix()
-    assert len(reports) == 62
+    assert len(reports) == 64
     by_id = {report.provider_id: report for report in reports}
     openai = by_id["openai"]
     assert openai.level("text") == "documented"

@@ -27,8 +27,8 @@ def test_providers_api_lists_the_catalogue_without_secret_fields(state):
     response = client.get("/api/v1/providers")
     assert response.status_code == 200
     body = response.json()
-    assert body["reviewed_on"] == "2026-10-30"
-    assert len(body["providers"]) == 62
+    assert body["reviewed_on"] == "2026-11-06"
+    assert len(body["providers"]) == 64
     ids = {row["id"] for row in body["providers"]}
     assert {"openai", "anthropic", "google", "minimax", "moonshot", "qwen", "xai", "zai",
             "opencode", "opencode-go", "fal", "ollama", "custom-compatible"} <= ids
@@ -65,7 +65,7 @@ def test_capability_api_reports_levels_and_evidence(state):
     assert "live-verified" not in report["levels"].values()
     assert all(item["source"] for item in report["evidence"])
     matrix = client.get("/api/v1/provider-capabilities")
-    assert len(matrix.json()["reports"]) == 62
+    assert len(matrix.json()["reports"]) == 64
     assert client.get("/api/v1/provider-capabilities", params={"provider": "unknown-provider"}).status_code == 404
 
 
@@ -78,7 +78,7 @@ def test_readiness_api_explains_route_states(state):
     blocked = client.get("/api/v1/provider-readiness", params={"spec": "github-copilot/x"}).json()["readiness"]
     assert blocked["state"] == "blocked_by_policy"
     local = client.get("/api/v1/provider-readiness").json()
-    assert len(local["providers"]) == 62
+    assert len(local["providers"]) == 64
     assert len(local["local_services"]) == 5
 
 
@@ -160,7 +160,7 @@ def test_connections_page_has_one_add_form_and_a_template_reference(state):
     html = client.get("/legacy/connections").text
     assert html.count('action="/connections/add"') == 1
     assert 'id="connection-template"' in html
-    assert "Template reference (37)" in html
+    assert "Template reference (43)" in html
     assert html.count("Template reference") == 1
 
 
