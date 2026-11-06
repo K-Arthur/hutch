@@ -17,7 +17,6 @@ from dataclasses import asdict, dataclass
 from typing import Any, Optional
 
 from ..connections import ConnectionBook
-from ..runtime.registry import RUNTIMES
 from .accounts import account_profile
 from .catalog import bundled_catalog
 from .readiness import route_readiness
@@ -53,6 +52,7 @@ class RouteResolution:
 
 
 def _runtime_descriptor(runtime: str):
+    from ..runtime.registry import RUNTIMES
     return next((item for item in RUNTIMES if item.id == runtime), None)
 
 
