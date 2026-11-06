@@ -26,7 +26,9 @@ from ..media import (MediaJobError, MediaJobService, MediaStorage, MediaUnavaila
 from ..media.backends import build_backends
 from ..media.cost import estimate
 from ..media.providers.base import MediaBackend
+from ..media.resume import default_alt_text
 from ..media.spool import MediaSpool
+from ..media.usage import record_media_usage
 from ..outputblocks import new_block_id, parse_blocks
 from ..safety import Decision, Verdict
 from .base import ToolContext, ToolResult, rehearsed
@@ -256,8 +258,7 @@ def _submit_and_finish(ctx: ToolContext, service: MediaJobService, backend: Medi
 def _finalize(ctx: ToolContext, service: MediaJobService, backend: MediaBackend,
               tool_name: str, kind: str, prompt: str, row: dict[str, Any],
               detail: dict[str, Any]) -> ToolResult:
-    alt_text = (f"Speech: {prompt[:200]}" if kind == "audio"
-                else f"Generated {kind} from the prompt: {prompt[:400]}")[:600]
+    alt_text = default_alt_text(kind, prompt)
     probe = getattr(backend, "duration_seconds", None)
     duration = probe(row) if kind == "audio" and callable(probe) else None
     try:
@@ -275,28 +276,18 @@ def _finalize(ctx: ToolContext, service: MediaJobService, backend: MediaBackend,
 
 def _record_usage(ctx: ToolContext, backend: MediaBackend, kind: str, row: dict[str, Any],
                   detail: dict[str, Any]) -> str:
-    """Write the run-ledger usage row: measured tokens when the backend reports them, else the
-    price estimate with its source labeled. Never fails the media the user already paid for."""
-    spoken = None
-    result_for = getattr(backend, "result_for", None)
-    if kind == "audio" and callable(result_for):
-        spoken = result_for(row)
-    basis = detail.get("cost_basis") or {}
-    usd = float(basis["usd"]) if basis.get("priced") else 0.0
-    prompt_tokens = spoken.prompt_tokens if spoken else 0
-    completion_tokens = spoken.completion_tokens if spoken else 0
+    """Write the run-ledger usage row and keep the run's token counters in step."""
+    note, prompt_tokens, completion_tokens = record_media_usage(
+        ctx.store, run_id=ctx.run.id, bot_id=ctx.bot.id, backend=backend, kind=kind, job=row,
+        request=row.get("requested") or {}, detail=detail)
+    if note:
+        return note
     try:
-        ctx.store.add_usage(
-            ctx.run.id, ctx.bot.id, str(getattr(backend, "provider", backend.name)),
-            spoken.model if spoken else str(detail.get("model") or backend.name),
-            prompt_tokens, completion_tokens, 0, usd, kind="speech" if kind == "audio" else "media",
-            account_id=str(getattr(backend, "connection", "") or ""),
-            cost_source="estimated" if basis.get("priced") else "unpriced")
         ctx.run.prompt_tokens += prompt_tokens
         ctx.run.completion_tokens += completion_tokens
         ctx.store.update_run(ctx.run)
     except Exception as exc:  # noqa: BLE001 - the media is real and must be returned
-        return f"; usage could not be recorded in the run ledger: {exc}"
+        return f"; run counters could not be updated: {exc}"
     return (f"; {prompt_tokens} prompt / {completion_tokens} completion tokens recorded"
             if prompt_tokens or completion_tokens else "")
 

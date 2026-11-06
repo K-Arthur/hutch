@@ -369,3 +369,31 @@ def test_synthesized_speech_survives_a_restart_with_its_usage(tmp_path):
     spoken = reborn.result_for(job)
     assert spoken.audio == _wav() and spoken.prompt_tokens == 7 and spoken.completion_tokens == 11
     assert reborn.duration_seconds(job) is not None
+
+
+class FetchRefusesBackend(FakeBackend):
+    def fetch(self, job):
+        self.fetch_calls += 1
+        raise MediaRefused("the safety checker flagged the image")
+
+
+class FetchBreaksBackend(FakeBackend):
+    def fetch(self, job):
+        self.fetch_calls += 1
+        raise RuntimeError("connection reset")
+
+
+def test_finalize_always_returns_a_payload_and_a_row_even_when_the_job_failed(service):
+    service.backends["fake"] = FetchBreaksBackend()
+    row = service.submit(run_id="r", conversation_id="c", kind="image", prompt="x",
+                         idempotency_key="k-fin-fail", backend_hint="fake")
+    payload, final = service.finalize(row["id"], alt_text="a picture")
+    assert payload == {} and final["status"] == "failed" and "connection reset" in final["error"]
+
+
+def test_a_refusal_found_while_fetching_is_recorded_as_a_refusal(service):
+    service.backends["fake"] = FetchRefusesBackend()
+    row = service.submit(run_id="r", conversation_id="c", kind="image", prompt="x",
+                         idempotency_key="k-fin-ref", backend_hint="fake")
+    payload, final = service.finalize(row["id"], alt_text="a picture")
+    assert payload == {} and service_status(final) == "refused" and "safety checker" in final["error"]

@@ -315,7 +315,8 @@ class MediaJobService:
                  poster_format: str = "png",
                  duration_seconds: Optional[float] = None) -> tuple[dict[str, Any], dict[str, Any]]:
         """Fetch the finished bytes, validate them, store them, and close the job
-        with the media-block payload as its ``result``.
+        with the media-block payload as its ``result``. Returns ``(payload, row)``; when the
+        job failed or was refused the payload is ``{}`` and the row says why.
 
         The fetch happens HERE and now, expiring URLs are consumed immediately
         and only the validated bytes are stored, never the URL. The commit
@@ -340,22 +341,22 @@ class MediaJobService:
             raw = backend.fetch(row)
         except MediaRefused as exc:
             refusal = submit_failure(exc)
-            return self._fail(job_id, refusal["error"], refusal["cost_note"])
+            return {}, self._fail(job_id, refusal["error"], refusal["cost_note"])
         except Exception as exc:
-            return self._fail(job_id, f"the result could not be fetched: {exc}",
+            return {}, self._fail(job_id, f"the result could not be fetched: {exc}",
                               "the fetch failed after the upstream job was accepted; "
                               "the charge may stand — verify with the backend")
         if not isinstance(raw, (bytes, bytearray)):
-            return self._fail(job_id, "protocol violation: the backend's fetch returned "
+            return {}, self._fail(job_id, "protocol violation: the backend's fetch returned "
                               f"{type(raw).__name__} instead of bytes; a URL is never a "
                               "result", "nothing was stored from this fetch")
         try:
             validated = media_validate.validate_media(raw, max_bytes=MAX_MEDIA_BYTES)
         except media_validate.MediaValidationError as exc:
-            return self._fail(job_id, f"the result failed validation: {exc}",
+            return {}, self._fail(job_id, f"the result failed validation: {exc}",
                               "no bytes were stored; the provider charge may stand")
         if validated.format not in _KIND_FORMATS.get(kind, frozenset()):
-            return self._fail(
+            return {}, self._fail(
                 job_id,
                 f"the backend delivered {validated.format} for a {kind!r} request; the "
                 "mismatch is refused, not papered over",
@@ -371,7 +372,7 @@ class MediaJobService:
                 staged_poster = self.media_store.stage_bytes(
                     staged.job_id, poster_format, "poster", bytes(poster_bytes))
         except (MediaStorageError, MediaJobError) as exc:
-            return self._fail(job_id, f"the result could not be staged: {exc}",
+            return {}, self._fail(job_id, f"the result could not be staged: {exc}",
                               "no bytes were stored; the provider charge may stand")
         payload: dict[str, Any] = {
             "media_id": media_id,
@@ -406,7 +407,7 @@ class MediaJobService:
                                     poster=staged_poster, insert_row=insert_row)
         except Exception as exc:
             self.media_store.remove_version(media_id, self.media_store.version_dir_name(1, staged.sha256))
-            return self._fail(job_id, f"the result could not be committed: {exc}",
+            return {}, self._fail(job_id, f"the result could not be committed: {exc}",
                               "the bytes were validated but never recorded; the provider "
                               "charge may stand")
         final = self.store.get_media_job(job_id) or {}

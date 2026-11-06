@@ -26,6 +26,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
+from .jobs_routes import build_jobs_router
 from .storage import MediaIntegrityError, MediaStorage, MediaStorageError
 
 _MEDIA_ID_RE = re.compile(r"^media_[0-9a-f]{16}$")
@@ -38,6 +39,7 @@ def build_media_router(store: Any, media_store: MediaStorage) -> APIRouter:
     :class:`MediaStorage` whose ``read_version``/``read_poster`` re-verify bytes.
     """
     router = APIRouter()
+    router.include_router(build_jobs_router(store, media_store))
 
     def _verified(media_id: str, version: int, reader) -> tuple[bytes, dict[str, Any]]:
         if not _MEDIA_ID_RE.fullmatch(media_id) or not isinstance(version, int) or version < 1:
