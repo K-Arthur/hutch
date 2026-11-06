@@ -49,8 +49,9 @@ from ..providers.connection import provider_for_connection
 from ..toolcalling.compiler import ToolProtocolUnavailable, compile_plan, plan_event
 from ..toolcalling.envelope import decode_action, looks_like_envelope
 from ..toolcalling.profiles import ModelCapabilityProfile, resolve_profile
+from ..providers.local.lifecycle import admission_memory, refresh_local_route
 from .ladder import Ladder, Rung, SpendGuard, get_provider
-from .outcomes import exit_reason
+from .outcomes import classify_local_failure, exit_reason
 from .steps import StepTimer, call_tool, finish_step
 from . import fitloop
 from .toolrepair import LoopDetector, coerce_args, repair_instruction, unknown_tool_message, validate_args
@@ -182,23 +183,7 @@ class BuiltinRuntime:
         return self._hw if self._hw is not None else probe(with_runtimes=False)
 
     def _admission_memory(self, provider, model):
-        hw = copy.deepcopy(self._hardware())
-        if hw.ram_total_gb <= 0 or hw.ram_available_gb <= 0:
-            raise ProviderError("oom", "available RAM could not be measured or is exhausted; no model request was sent")
-        cards = [g for g in hw.gpus if not g.integrated and g.vendor in ("nvidia", "amd") and g.vram_gb]
-        if hw.accelerator == "gpu" and not any(g.free_gb is not None for g in cards):
-            raise ProviderError("oom", "free GPU memory could not be measured; repair the hardware probe before inference")
-        # A loaded model's allocation is already deducted from physical free
-        # memory. Credit only this model's reported allocation, capped by totals;
-        # multi-GPU placement is unknown, so no per-card credit is invented.
-        loaded = next((m for m in provider.ps() if m.get("name") == model or m.get("model") == model), None)
-        if loaded:
-            size, vram = loaded.get("size", 0), loaded.get("size_vram", 0)
-            if isinstance(size, (int, float)) and isinstance(vram, (int, float)) and 0 <= vram <= size:
-                hw.ram_available_gb = min(hw.ram_total_gb, hw.ram_available_gb + (size - vram) / 1024 ** 3)
-                if len(cards) == 1 and cards[0].free_gb is not None:
-                    cards[0].free_gb = min(cards[0].vram_gb, cards[0].free_gb + vram / 1024 ** 3)
-        return hw, loaded is not None
+        return admission_memory(self._hardware(), provider, model)
 
     @contextmanager
     def _inference(self, ctx: ToolContext, run: Run, rung: Rung, stop=None):
@@ -796,25 +781,13 @@ class BuiltinRuntime:
     # -------------------------------------------------------------------- loop
 
     def _refresh_local_admission(self, ctx, run, session):
-        if session.rung.provider != "ollama" or session.meta is None or not session.num_ctx:
-            return  # other local protocols have slot limits, not validated memory admission
-        provider, model = session.provider, session.rung.model
-        current = provider.show(model)
-        if current is None:
-            raise ProviderError("model_missing", f"model '{model}' is no longer installed", provider="ollama")
-        if session.meta.digest and current.digest != session.meta.digest:
-            raise ProviderError("bad_request", "the local model build changed during this run; start a new turn", provider="ollama")
-        hardware, loaded = self._admission_memory(provider, model)
-        plan = plan_context(current, hardware, session.num_ctx, session.num_ctx, local=True)
-        if plan.blocked:
-            raise ProviderError("oom", f"insufficient current memory headroom for {session.rung.spec}: {plan.note}", provider="ollama")
-        if not loaded:
-            self._set_status(ctx, run, RunStatus.loading_model, session.rung.spec)
-            try:
-                elapsed = provider.preload(model, "10m")
-            finally:
-                self._set_status(ctx, run, RunStatus.running, session.rung.spec)
-            self._log(ctx, run, "load", f"reloaded {model} after another model used inference", load_ms=elapsed)
+        refresh_local_route(
+            session.rung.provider, session.provider, session.rung.model, session.num_ctx,
+            self._hardware(), credential=getattr(session.provider, "api_key", ""),
+            expected_digest=session.meta.digest if session.meta else "",
+            on_loading=lambda on: self._set_status(
+                ctx, run, RunStatus.loading_model if on else RunStatus.running, session.rung.spec),
+            log=lambda kind, message, **fields: self._log(ctx, run, kind, message, **fields))
 
     def _require_billed_cost(self, ctx, run, provider, result, reservation_id):
         if not getattr(provider, 'reports_billed_cost', False):
@@ -1433,6 +1406,7 @@ class BuiltinRuntime:
         malformed_streak = loop_strikes = 0
         rate_limited_once = False
         stream_retried = False
+        reloaded = False
         warned_quota: set[str] = set()
 
         while True:
@@ -1550,6 +1524,19 @@ class BuiltinRuntime:
                     self._log(ctx, run, "retry", f"{session.rung.spec} rate-limited; waiting {wait:.0f}s then retrying once")
                     self._interruptible_sleep(wait, stop)
                     continue
+                failure = classify_local_failure(exc, session.rung.provider,
+                                                 partial=bool(exc.partial_content.strip()))
+                if failure.action == "reload" and not reloaded:
+                    reloaded = True
+                    self._log(ctx, run, "load", failure.message)
+                    try:
+                        with self._inference(ctx, run, session.rung, stop):
+                            self._refresh_local_admission(ctx, run, session)
+                    except ProviderError as reload_exc:
+                        raise RunAborted(exit_reason(exc), f"{failure.message} Reload failed: {reload_exc}") from exc
+                    continue
+                if failure.message:
+                    raise RunAborted(exit_reason(exc), failure.message) from exc
                 nxt = self._recover(ctx, run, ladder, guard, exc, messages, specs, est_prompt)
                 if nxt is None:
                     raise RunAborted(exit_reason(exc), f"model call failed ({session.rung.spec}): {exc}") from exc
@@ -1569,6 +1556,7 @@ class BuiltinRuntime:
                         plan_version=run.persona_plan.version if run.persona_plan is not None else None,
                         receipt=req.adapter_receipt)
             rate_limited_once = False
+            reloaded = False
             timer.model(time.perf_counter() - t_call)
 
             # ---- exact accounting (SR-2): provider-reported charge when available, else the quote
