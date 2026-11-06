@@ -300,7 +300,7 @@ any code claims otherwise.
 | Layer | What Hutch enforces | What it does not |
 |---|---|---|
 | **Worker egress** | Under `inference_mode=offline`, the worker runs in a fresh bubblewrap network + PID namespace with no host interfaces. Its only model path is a per-run Unix socket; the supervisor-side broker fixes the destination to the validated loopback origin and never accepts an address from the worker. Hosted fallbacks, overrides and escalation are refused before dispatch; web/browser tools are removed; provider, proxy and custom-endpoint environment variables are scrubbed | — |
-| **Model server** | Nothing. | A separately running `ollama serve` is an ordinary host process. It may proxy requests, check for updates, or download blobs. Loopback addressing does not prove it stays local. |
+| **Model server** | Nothing yet. ADR-0035 records the owner's decision that Hutch will manage the process in its own network namespace; it is not implemented. | A separately running `ollama serve` is an ordinary host process. It may proxy requests, check for updates, or download blobs. Loopback addressing does not prove it stays local. |
 | **Runtime updates / telemetry** | Nothing in Hutch starts an update check or sends telemetry | Ollama has its own release cadence and network behavior |
 
 Therefore Hutch may say: *"this run's worker could not reach the network, and its model
@@ -308,9 +308,11 @@ route went only to your loopback address."* It may not say: *"your model server 
 air-gapped"* or *"nothing left this machine."* The first is enforced by namespaces and a
 socket broker; the second is a property of a process Hutch does not own.
 
-Closing that gap properly means Hutch managing an independently isolated model process.
-That is a real architectural decision with its own security surface, and it is **not**
-taken in this work. It is recorded here as the honest boundary.
+Closing that gap properly means Hutch managing an independently isolated model process. The
+owner selected that option on 2026-11-06; ADR-0035 records the decision, its constraints and
+the implementation plan. It is not implemented, so the weaker claim above remains the only
+one Hutch may make. The Phase 6 evidence in section 9 establishes the worker boundary, not
+the managed process.
 
 ---
 
@@ -338,7 +340,10 @@ What C does not claim: a probe of 1,440 tokens proves the window is applied and 
 does not prove recall at 12,000 tokens on a slow machine, and the result text says so. A person who wants the full probe can
 use `hutch doctor --deep`, which runs the unshortened check on request.
 
-Open: **D** (a real prompt through the offline broker in the isolated worker; section 3.5). Model server isolation stays a recorded boundary (section 5).
+Closed: **D** by the Phase 6 live evidence in section 9 (Ollama 0.40.13 and llama.cpp
+b12144, a governed tool-and-image turn through the broker, and the airplane test). Model
+server isolation is now the accepted ADR-0035 decision, not yet implemented; the claim
+stays at the worker boundary until it ships.
 
 ---
 
@@ -425,8 +430,79 @@ host. Dated evidence and the not-run list are in
   finish four probes in ten minutes; no third-trial result is claimed.
 - **Ollama GGUF import is not a vision path.** Importing the Qwen2.5-VL GGUF produced
   `capabilities: ["completion"]` and no projector. Pull a vision model instead.
-- **Not run.** Audio/speech on any runtime, an air-gapped model server (D remains open),
-  GPU vision, Gemma 4 e4b/12b/26b, Qwen3.5 122B, Qwen3-VL specifically, and full-app
-  text-only runs for the current models. The old Qwen2.5-VL template has no tool section, so
-  its image-plus-tool probe used a disclosed local merge; the current Gemma 4 and Qwen3.5 2B
-  templates support vision and tools together.
+- **Not run.** Audio/speech on any runtime, GPU vision, Gemma 4 e4b/12b/26b, Qwen3.5 122B,
+  Qwen3-VL specifically, and full-app text-only runs for the current models. The old
+  Qwen2.5-VL template has no tool section, so its image-plus-tool probe used a disclosed
+  local merge; the current Gemma 4 and Qwen3.5 2B templates support vision and tools
+  together. Phase D was closed by Phase 6 (section 9); an air-gapped model server is the
+  accepted ADR-0035 decision, not yet implemented.
+
+---
+
+## 9. Phase 6 (2026-11): Strict Offline with a live model
+
+Phase 6 closed phase D and recorded the owner's boundary choice. Research and design are in
+`docs/research/2026-11-offline-models/07-PHASE6-OFFLINE.md` and `08-PHASE6-DESIGN.md`; the
+dated ledger is `02-PROGRESS.md`.
+
+### What was run
+
+- **Real Ollama 0.40.13, Gemma 4 e2b, real cat photo, governed `write_file` and `shell`.**
+  The Strict Offline worker answered "cat" and the byte count "3" in 97.7 s; the workspace
+  file held `cat`; the shell ran `wc -c`; the worker's `/proc/<pid>/net` showed a different
+  network namespace from the supervisor with only `lo` and no route.
+- **Real llama.cpp b12144, Gemma 4 e2b plus projector, `--offline`, `--parallel 1`,
+  8192 applied.** The same image and tools succeeded in 190.9 s; `context_limit` was 8192,
+  read through the per-run broker. The first attempt was refused because the local adapter
+  probed `/props` over direct TCP from inside the isolated worker; the adapter now uses the
+  broker.
+- **Airplane test.** The same Ollama turn with the app, Ollama and the worker inside one
+  `unshare -rn` namespace (only `lo` up, no route) succeeded in 138.3 s. An external
+  `connect()` from that namespace returned `101` (network unreachable).
+- **Tool egress.** The model ran a shell command that called
+  `socket.connect_ex(("1.1.1.1", 53))`; the tool result was `connect_ex 101`, and the run
+  continued.
+- **Large streamed response.** A forced 1,200-token NDJSON generation crossed the broker as
+  1,202 chunks and 131,695 bytes, ending with `done_reason: length` and `eval_count: 1200`.
+- **Cancellation.** A running generation stopped in 0.304 s; the worker exited with code
+  -15; the status timeline was `running, cancelling, stopped`.
+- **Broker loss.** Before the first model call the run failed with "Strict Offline model
+  broker is missing; no direct network fallback is allowed". After a successful call, the
+  classifier now names the Strict Offline bridge and stops; it no longer tells the user to
+  start a runtime that is still running.
+- **Request limit.** A 64 MiB+1 `Content-Length` to the real run broker returned HTTP 413
+  (`model request exceeds the broker's 64 MiB limit`) before any upstream request.
+- **Runner kill.** A real `SIGKILL` of the Gemma runner mid-generation was classified as a
+  local runtime stop; Hutch reloaded once (8.65 s) and the run completed. A kill during the
+  pre-run self-check had been reported as `context`; `selfcheck_error` now maps the captured
+  "unexpected EOF" text to a runtime failure, with a unit regression.
+- **Server restart.** A real `SIGKILL` and restart of Ollama produced the broker's 502; the
+  classifier reloaded once. The restarted server had not re-listed the model yet, so the
+  reload failed with "model ... is no longer installed"; the run stopped with both causes
+  and no silent fallback.
+
+### What changed
+
+- `src/hutch/sandbox.py`: a host with only loopback is now testable; the probe still proves
+  the worker cannot reach the host's loopback listener.
+- `src/hutch/providers/local/probe.py`: local runtime introspection (`/health`, `/props`,
+  `/slots`, `/v1/models`) uses the per-run broker inside an Offline worker.
+- `src/hutch/providers/ollama.py` and `providers/openai_compat.py`: the broker canonicalizes
+  the HTTP client without rewriting `provider.base_url`, so the reviewed-route check no
+  longer fails a healthy local route.
+- `src/hutch/runtime/outcomes.py`: a distinct Strict Offline bridge failure, a reload for
+  the broker's 502, and a runtime-failure classification for an interrupted self-check.
+
+### Boundary
+
+The owner chose the Hutch-managed isolated model process on 2026-11-06. ADR-0035 records
+the decision, its constraints and the implementation plan; it is not implemented. The exact
+claim today is the worker boundary in section 5: the run's worker could not reach the
+network, and its model route went only to loopback. The stronger sentence waits for the
+dated managed-process test.
+
+### Not run
+
+LM Studio under the Offline worker (its adapter shares the OpenAI-compatible broker path
+proven on llama.cpp), vLLM/SGLang, macOS and Windows, GPU inference, and the managed model
+process itself (not built).

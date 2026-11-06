@@ -542,12 +542,18 @@ Per-runtime health (also on the Models page): each call's outcome is recorded; t
   vision on real images, and the whole-app image path. The evidence and the not-run list are in
   `docs/realignment/offline-models-2026-11/02-PROGRESS.md`; the raw benches are in
   `docs/research/2026-11-offline-models/evidence/phase5/`.
+- **Strict Offline (2026-11-06).** The worker boundary is live-verified on Ollama 0.40.13 and
+  llama.cpp b12144: a governed tool-and-image turn through the per-run broker, the airplane test
+  inside `unshare -rn`, shell egress returning `connect_ex 101`, a 1,200-token stream, cancellation,
+  a runner kill and a server restart. The model server itself was user-run and is not isolated;
+  ADR-0035 records the owner's managed-process decision, which is not implemented. The exact claim
+  is in `docs/realignment/offline-models-2026-10-31.md` section 5 and section 9.
 - **Not verified.** GPU inference, CUDA/ROCm/Metal, a 4 GB-class cold load, an older runtime's
   upgrade path, GPU OOM, LM Studio API-token mode from the CLI, vLLM/SGLang serving, audio/speech
-  (including Gemma 4's audio capability), a gated Hugging Face pull, an air-gapped model-server
-  process, Gemma 4 e4b/12b/26b, Qwen3.5 122B, Qwen3-VL specifically, and full-app text-only runs for
-  the current models. The pages and commands report "not measured" rather than showing numbers that
-  were not.
+  (including Gemma 4's audio capability), a gated Hugging Face pull, a Hutch-managed isolated model
+  server (ADR-0035, not implemented), LM Studio through the Offline worker, Gemma 4 e4b/12b/26b,
+  Qwen3.5 122B, Qwen3-VL specifically, and full-app text-only runs for the current models. The
+  pages and commands report "not measured" rather than showing numbers that were not.
 
 ## Route readiness and provider evidence (2026-10-30)
 

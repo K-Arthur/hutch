@@ -14,7 +14,7 @@ covers before relying on it.
 | 3 Lifecycle states and errors | done (3.1, 3.2, 3.3) | bfcfaaf9..23ed98a3 | 2026-11-06: real Ollama cold load, real llama.cpp 503, real LM Studio unload/reload, real runner kill and llama-server restart | EC-09 4 GB model not downloaded (budget); old-version gate not live-tested |
 | 4 Get a model (install, import, guide) | done (4.1-4.5) | see git log (b32a5e47..) | 2026-11-06: real 1.9 GiB pull cancelled/resumed through the page; real disk-full and no-route pulls; real GGUF import (reuse and upload); four-width captures | Gated HF pull not run (no token); LM Studio/vLLM/SGLang install guided only |
 | 5 Multimodal and tool reliability | done (5.1-5.5) | 3a789476..a08009f6 + current-model comparison | 2026-11-06: real Ollama 0.40.13, llama.cpp b12144 + Qwen2.5-VL/Qwen3.5/Gemma 4 projectors, LM Studio 0.0.27-1, real cat photo and Playwright screenshot, sixteen model/runtime benches (2025 baseline and current Qwen3.5/Gemma 4), full-app current-model comparison | Ollama app-level vision blocked for the 2K moondream only; audio/speech not run; vLLM/SGLang not installed; Gemma 4 e4b/12b/26b and Qwen3.5 122B not run |
-| 6 Strict Offline live, boundary ADR | in progress | feb3e464, e26241e4 | 2026-11-06: airplane egress probe now passes inside `unshare -rn`; live tool-and-image run pending | Owner decision on the boundary (Phase 6.3) |
+| 6 Strict Offline live, boundary ADR | done (6.1, 6.2, 6.3) | see git log | 2026-11-06: real Ollama and llama.cpp tool-and-image turns through the broker; airplane test inside `unshare -rn`; shell egress 101; 1,200-token stream; cancel; runner kill; server restart; 64 MiB cap | Managed model process is the accepted ADR-0035 decision, not implemented |
 | 7 Frontend | not started | | | |
 | 8 Website and docs | not started | | | |
 | 9 Final review and merge | not started | | | |
@@ -32,7 +32,7 @@ owner questions answered (LM Studio: yes; download budget: not exceeded).
 | G2 cloud-tag locality | 2026-11-06, renamed cloud copy classified local; UI says "On this machine" | Phase 1: `providers/locality.py` (server signal first), live rows below | `baseline-up/up-switcher-1280-dark.png`; Phase 1 checkpoints |
 | G3 local group only for Ollama | 2026-11-06, llama.cpp reachable but `_local_choices` returned `[]` | Phase 2.3: `localchoices.py`, both real runtimes now produce `On this machine` rows | live choices run below |
 | G4 no native introspection | 2026-11-06, `rg` empty; real `/props`, `/slots`, `/api/v1/models` fields recorded | Phase 2.1: `providers/local/` adapters | live adapter run below |
-| G5 Strict Offline never live | historical gap confirmed; no live run yet | Phase 6.1 (planned) | `docs/realignment/offline-models-2026-10-31.md` section 3.5 |
+| G5 Strict Offline never live | 2026-11-06, real broker with real Ollama and llama.cpp | Phase 6.1/6.2: real governed tool-and-image runs, airplane test, egress attempt, failure modes; ADR-0035 for the managed server | `~/.hutch-tmp/offline-models-2026-11/evidence/p6/*.json`; Phase 6 checkpoints |
 | G6 no disk preflight, no real big pull | 2026-11-06, `rg` empty | Phase 4.2/4.3: `providers/install_plan.py`, server-side gate, measured rate; `install_errors.py`; real pull/cancel/resume, disk-full and no-route rows below | `~/.hutch-tmp/offline-models-2026-11/evidence/p4-pull-page.json`, `p4-disk-full.ndjson`, `p4-network-drop.ndjson`; commits 45af9d1b and later |
 | G7 port-trust discovery, key-protected servers | 2026-11-06, decoy on 8080 labelled llama.cpp; real `--api-key` server reported "no service answered" | Phase 2.1/2.4: response fingerprint, 9931 candidate, `needs_key` | decoy and key test below |
 | G8 frozen files not grown | confirmed 2026-11-06: 433/432/447/1955 against caps 435/432/466/1955 | Phase 9 recheck | `.file-size-baseline.json` |
@@ -45,7 +45,7 @@ or out-of-scope (reason). One line per ID once touched.
 - EC-01: tested-real; fixed Phase 1: real Ollama refuses `gpt-oss:20b-cloud` and renamed copy `my-local-copy` via `remote_host`.
 - EC-02: fault-injected/unit only (addresses resolved, not spelling; `tests/test_locality.py`); not-run live: no second interface or hosts entry. Address is checked at validation, not pinned at connect time (open, Phase 6).
 - EC-03: documented; llama.cpp `--offline` found, launch flags invisible so readiness is `unknown`, never a pass (vendor docs: Ollama cloud/remotes, LM Studio catalog/JIT, llama.cpp `-hf`).
-- EC-04: not-run (Phase 6).
+- EC-04: tested-real, Phase 6: a complete governed tool-and-image turn ran with the app, Ollama 0.40.13 and the worker inside one `unshare -rn` namespace (only loopback up); an external connect from that namespace returned 101; the worker's own netns had only `lo` and no route; the run succeeded in 138.3 s. Evidence `evidence/p6/image-tool-airplane1.json` and `airplane-host-egress.txt`.
 - EC-05: tested-real; fixed Phase 2.2: llama.cpp `/slots` 4096 and LM Studio `loaded_instances.config.context_length` 8192 are the windows Hutch sizes to; `plan_context` refuses an over-long prompt before send. Needle self-check at 4096 recorded below.
 - EC-06: tested-real for llama.cpp: an over-long request returns HTTP 400 `exceed_context_size_error` with `n_ctx=4096`; prompt truncation was removed for chat (R24). Hutch refuses before sending. LM Studio's `truncateMiddle`/`stopAtLimit` policy is not exposed by `/api/v1/models` (R20); Hutch sizes to the applied window and states the residual unknown.
 - EC-07: partially measured (Ollama `size`/`size_vram`); llama.cpp and LM Studio now report applied windows but not resident bytes over the fields Hutch reads. Full fit comparison remains Phase 2/5.
@@ -60,7 +60,7 @@ or out-of-scope (reason). One line per ID once touched.
 - EC-16: tested-real, Phase 5.1: llama.cpp b12144 Qwen2.5-VL-3B + Q8_0 mmproj answered `Cat` for a real 640 px photo, `"Models"` for a real Playwright capture, `image 1` for a two-image message, and described a WebP photo; image-plus-tool returned `describe_scene(animal="cat", colour="orange")` with a disclosed merged template. Ollama moondream described the cat through the native provider (741 prompt tokens); its 2,048-token window is refused by the app (4,096 floor). LM Studio qwen2.5-vl answered the screenshot and accepts PNG/JPEG; WebP is refused before sending. A text model was refused before send. Oversize (3.5 MB) was refused at admission. Current-model rerun: Gemma 4 e2b answered all three full-app image cases (`cat`, `Models`/`Route readiness`, `Image 1`), Qwen3.5 4B 2/3, Qwen3.5 2B 1/3, Qwen3.5 0.8B 0/3; Gemma 4 and Qwen3.5 2B also produced stock-template image+tool calls on llama.cpp, and LM Studio Gemma vision worked after the projector was named `mmproj-gemma4-e2b.gguf`.
 - EC-17: tested-real, Phase 5.3: sixteen model/runtime benches, 3 trials per probe, no recall. Baseline real causes: `no_call`, `call_in_content` (15/15 for llama.cpp qwen2.5-coder-3b: a complete call body in `content`, `tool_calls` null), `wrong_answer`, `ignored_result`, `wrong_arguments`. Current-model causes: Ollama all four 15/15; llama.cpp Gemma 4 e2b 11/15 (`call_in_content` 3 on tool choice, `no_call` 1 on argument types); LM Studio Gemma 4 e2b 12/15 (`reasoning_only` 3 on argument types). The same model scores differently per runtime, and the isolated bench does not predict the full-app result: Qwen3.5 2B passes 15/15 but answers 1/3 full-app image cases. No text-to-call repair was added.
 - EC-18: tested-real, Phase 5.4: real Ollama qwen3:4b with `think: true`, tools and 32 output tokens returned `done_reason: length`, empty content and 147 characters of thinking; the result note says the output limit was reached while reasoning and names the fix. The OpenAI-shaped path already had the equivalent note; the native Ollama path now shares it. llama.cpp qwen3-4b at the default budget ran at ~3.9 tokens/s and did not finish four probes in ten minutes; not a third-trial result. Current-model rerun: llama.cpp Qwen3.5 2B with the default thinking budget returned `length` and empty content for 20-120-token image probes; `--reasoning-budget 0` produced `cat`, `Models`, `image 1`, and a clean `describe_scene` call. LM Studio Gemma 4 e2b's default reasoning produced three `reasoning_only` bench trials at the 256-token cap; Ollama sends `think=False` and scored 15/15.
-- EC-19: not-run live (Phase 6 airplane test). Code audit: `rg` finds no `/v1/embeddings` client and no hosted embedding call in the chat, memory or search path; `synthesis/model.py` uses the chat route. LM Studio exposes `/v1/embeddings`, but no Hutch feature requests it for a local assistant.
+- EC-19: tested-real, Phase 6: the airplane turn (chat, file and shell tools) ran with no external route; a shell `connect_ex(("1.1.1.1", 53))` returned 101; the code audit still finds no `/v1/embeddings` client and no hosted embedding call in the chat, memory or search path; `synthesis/model.py` uses the chat route. LM Studio exposes `/v1/embeddings`, but no Hutch feature requests it for a local assistant.
 - EC-21: tested-real on this host (Ollama drops the iGPU; see `02-RUNTIME-API-NOTES.md`).
 - EC-20: tested-real for integrity and rights: a wrong expected SHA-256 is refused before any upload (`tests/test_model_import.py`); the runtime's blob endpoint verifies the digest again; the imported qwen3-4b GGUF carried the provided Apache text and `/api/show` returned tools/thinking; the 1.93 GB vision upload created a blob, and removing the test model removed that blob while the source file's hash stayed unchanged. Not run: a gated Hugging Face repository (no token).
 - EC-23: tested-real; fixed Phase 4.2/4.3: the plan named `~/.hutch-tmp/localmodels/models` and 70.4 GiB free; a real pull into a 300 MiB tmpfs failed at 309,451,728 of 1,929,903,008 bytes with `no space left on device`; cancel left the runtime's partial files and the resumed job started at 46,717,902 bytes rather than zero; removing the imported model left `qwen3:4b` intact.
@@ -106,6 +106,13 @@ or out-of-scope (reason). One line per ID once touched.
 | 2026-11-06 | llama.cpp b12144 (CPU) | `qwen3.5-2b.gguf` 1,274,396,992 bytes + 671,372,768-byte projector; `gemma4-e2b.gguf` 3,502,493,472 + 986,833,664-byte projector | same | `llama-server -m ... --mmproj ... -c 8192 -t 8 --jinja [--reasoning-budget 0]`; `hutch models bench ... --provider llamacpp` | stock template vision+tools, tool bench, real image+tool | GPU | Qwen3.5 2B 15/15; Gemma 4 e2b 11/15 (tool choice 0/3, three calls left as text); both image+tool calls clean; `bench-llamacpp-*.txt` |
 | 2026-11-06 | LM Studio 0.0.27-1 | `gemma4-e2b` (projector named `mmproj-gemma4-e2b.gguf`), vision/tools true | same | `lms import -L`, projector rename, `lms server restart`; real `/v1/chat/completions`; `hutch models bench ... --provider lmstudio` | cat and screenshot vision, WebP refusal, tool bench | audio | cat `Cat`; screenshot `Models`; WebP 400; tool bench 12/15 (argument types 0/3, three `reasoning_only` turns); `bench-lmstudio-gemma4-e2b.txt`, `p5-lmstudio-gemma4-e2b-vision.json` |
 | 2026-11-06 | FastAPI app (this checkout), fresh state, uvicorn 8765 | current Ollama models at an 8,192-token vision preset | same | `p5_current_model_app.py`: real upload + message + polling, real cat photo and Playwright screenshot | full-app image comparison: cat, screenshot, two images | full-app text-only; 0.8B at 8K | Gemma 4 e2b 3/3 (56-96 s); Qwen3.5 4B 2/3 (100-205 s); Qwen3.5 2B 1/3 (62-76 s); Qwen3.5 0.8B 0/3 at 4K (two-image window refusal); `p5-app-*.json` |
+| 2026-11-06 | Ollama 0.40.13 | gemma4:e2b, 4.59 GB, digest b3704936... | Ryzen 3 5300U, CPU | real app on an ephemeral loopback port, fresh `HUTCH_STATE_DIR`, offline bot `ollama/gemma4:e2b`, tools files+shell; `p6.py image-tool` | real 121,766-byte cat JPEG, per-run broker, `write_file` and `shell`, status timeline, worker `/proc/<pid>/net` | GPU; LM Studio | succeeded 97.7 s; answer "cat", byte count 3; `animal.txt` = "cat"; `wc -c` = 3; image count 1; context 1,840/16,384; worker netns differed, only `lo`, no route; `evidence/p6/image-tool-live4.json` |
+| 2026-11-06 | Ollama 0.40.13 | gemma4:e2b | same | offline bot; prompt to run `socket.connect_ex(("1.1.1.1", 53))` via the shell tool; `p6.py egress` | real tool call, sandboxed shell egress | hosted calls | tool result `connect_ex 101`; run succeeded 88.2 s; `evidence/p6/egress-live1.json` |
+| 2026-11-06 | Ollama 0.40.13 | gemma4:e2b | same | app, Ollama and the worker inside one `unshare -rn` (only `lo` up); `p6.py image-tool --start-ollama`; separate host egress probe | the same image-and-tool turn; external connect from that namespace | — | succeeded 138.3 s; `loading_model` visible; external connect 101; airplane netns 4026532826, worker netns 4026532886; only `lo`, no route; `evidence/p6/image-tool-airplane1.json`, `airplane-host-egress.txt` |
+| 2026-11-06 | Ollama 0.40.13 | qwen3:0.6b | same | `OfflineBrokerSet` plus real `/api/generate`, `num_predict 1200`, `stream: true`; `p6.py broker-stream` | chunked streaming through the broker | the app path | HTTP 200; 1,202 chunks, 131,695 bytes; `eval_count` 1200; `done_reason: length`; `evidence/p6/broker-stream-live1.json` |
+| 2026-11-06 | Ollama 0.40.13 | gemma4:e2b | same | real app, stop while running; `p6.py cancel` | stop request, worker termination, status timeline | partial text | stopped to terminal in 0.304 s; worker exited -15; `running, cancelling, stopped`; `evidence/p6/cancel-live1.json` |
+| 2026-11-06 | Ollama 0.40.13 | gemma4:e2b, qwen3:0.6b | same | broker unlink before and after a call, 64 MiB+1 request, real runner kill, real server kill/restart; `p6.py broker-missing, provider-after-loss, oversize, runner-kill, server-restart` | real broker, real runtime, real faults | managed server | before: "broker is missing, no direct network fallback"; after: bridge message, action stop; 413 for 64 MiB+1; runner kill reloaded in 8.65 s and completed; server restart 502, one reload, then "model ... is no longer installed", clear stop; `evidence/p6/*.json` |
+| 2026-11-06 | llama.cpp b12144-69ee2ecc0 (CPU) | Gemma 4 e2b 3.50 GB + 0.99 GB projector, 8192 per slot | same | `llama-server -m ... --mmproj ... -c 8192 --parallel 1 --jinja --reasoning-budget 0 --offline`; bot `llamacpp/gemma4-e2b`; `p6.py llamacpp` | real image-and-tool turn, broker, `/props` and `/slots` through the broker | GPU; LM Studio offline | succeeded 190.9 s; answer cat/3; context 2,257/8,192; `evidence/p6/llamacpp-live2.json` |
 
 ## Decisions log
 
@@ -230,6 +237,37 @@ or out-of-scope (reason). One line per ID once touched.
   was listed as a separate CLIP model and the chat model reported `vision: false`; renaming fixed
   it. This is a setup requirement, recorded in `docs/runtime-setup.md`.
 
+- 2026-11-06, Phase 6: a host with only loopback is already offline; the egress probe now
+  always tests a loopback listener and adds non-loopback targets only when interfaces exist,
+  and the worker must still fail to reach the host's loopback. `sandbox.py` stays at 640
+  lines (baseline 641); `tests/test_offline_airgap.py`; commit e26241e4.
+- 2026-11-06, Phase 6: the offline broker canonicalizes the worker's HTTP client origin
+  without rewriting `provider.base_url`; otherwise the reviewed-route check sees a changed
+  endpoint and refuses a healthy local route. `tests/test_offline_provider_identity.py`.
+- 2026-11-06, Phase 6: local runtime introspection (`/health`, `/props`, `/slots`,
+  `/v1/models`) uses the per-run broker inside an Offline worker. A direct TCP probe is
+  blocked by the worker namespace; the first llama.cpp live attempt reproduced that refusal.
+  `tests/test_local_probe_offline.py`.
+- 2026-11-06, Phase 6: a broker connect failure in an Offline worker is its own state
+  (action stop, "Strict Offline's model bridge is unavailable... the model runtime itself may
+  still be running"). A broker 502 "loopback model service did not answer" gets one reload;
+  a self-check interrupted by the runtime is a runtime failure, not a context failure.
+- 2026-11-06, Phase 6: the owner chose the Hutch-managed isolated model process. ADR-0035
+  records the decision, the Unix-socket bridge and the conditional claim; it is **not
+  implemented**. Until it ships the claim is the worker boundary, and no UI or site text may
+  say the model server is isolated.
+- 2026-11-06, Phase 6: the server-restart live run reloaded once, but the restarted Ollama
+  had not re-listed `gemma4:e2b`, so the reload failed with "model ... is no longer
+  installed". That is a clear stop; a wait-for-runtime-ready refinement belongs to the
+  managed-process lifecycle work.
+- 2026-11-06, Phase 6: LM Studio was not driven through the Offline worker. Its adapter
+  shares the OpenAI-compatible broker path proven live with llama.cpp; ADR-0035 keeps LM
+  Studio ineligible for the managed process until it offers a documented headless launch.
+- 2026-11-06, Phase 6: the self-check cache is keyed by the applied window. A warm-up at
+  14,348 tokens did not cover a later 16,384-token run, so a kill landed in the self-check;
+  this is recorded rather than hidden. The mislabel is fixed and the main-path kill was
+  re-run with a matching primer.
+
 ## Owner questions (ask once, batched)
 
 Answered in Phase 0:
@@ -238,10 +276,14 @@ Answered in Phase 0:
 - Download budget beyond 10 GB: **approved in Phase 5** for the current-model comparison.
   New downloads were 11.1 GB (four models), bringing the footprint to about 20.4 GB.
 
+Answered in Phase 6:
+
+- Boundary decision: **Hutch-managed isolated model process**. ADR-0035 records the
+  decision, the constraints and the implementation plan. It is not implemented; the claim
+  stays at the worker boundary until a dated managed-process test exists.
+
 Still open (ask at the phase that needs it):
 
-- Phase 6 boundary decision: managed isolated model server, user-run offline profile, or
-  status-quo wording. Do not implement the managed process without approval.
 - Which sibling Phase 5 rows to mark delegated to this package (owner to confirm).
 
 ## Review findings log
@@ -364,10 +406,50 @@ Still open (ask at the phase that needs it):
   `/code-review` and `/simplify` are not available in this session; the phase diff was re-read
   manually and the findings above were fixed.
 
+- 2026-11-06, Phase 6 review: the airplane setup exposed that the egress probe refused a
+  host with only loopback (`no local non-loopback interface is available`), so Strict
+  Offline could not start on an already air-gapped machine. The probe now tests the host's
+  loopback listener and only adds non-loopback targets when interfaces exist; the worker
+  must still fail to reach it. Fixed in e26241e4; `tests/test_offline_airgap.py`.
+- 2026-11-06, Phase 6 review: the first live offline turn failed with "provider endpoint
+  changed after review" before any model call. The broker canonicalization had rewritten
+  `provider.base_url` from `localhost` to `127.0.0.1`, so the reviewed route no longer
+  matched. The client now uses the canonical origin while the provider keeps its reviewed
+  endpoint; `tests/test_offline_provider_identity.py` covers Ollama, llama.cpp and LM Studio.
+- 2026-11-06, Phase 6 review: the first llama.cpp offline turn refused a real image even
+  though `/props.modalities.vision` was true. The local adapter read `/props` and `/slots`
+  over direct TCP from inside the worker, where TCP is blocked; introspection now uses the
+  per-run broker. `tests/test_local_probe_offline.py`; the real llama.cpp run then passed.
+- 2026-11-06, Phase 6 review: a broker failure after a successful call was blamed on the
+  runtime ("is it running?"), and the run classifier advised starting it. A broker connect
+  failure in an Offline worker is now a distinct stop that names the bridge and says the
+  runtime may still be running; a broker 502 gets one reload.
+- 2026-11-06, Phase 6 review: the first self-check kill was reported as `context`, implying
+  a small window. `selfcheck_error` now classifies the captured "unexpected EOF" text as a
+  runtime failure; the live main-path kill was re-run after priming the same window and
+  showed the reload (8.65 s) with a completed run.
+- 2026-11-06, Phase 6 review: the server restart reload failed with "model ... is no longer
+  installed" because the restarted Ollama had not re-listed the model yet. The two-sentence
+  stop is honest; a readiness wait is left to the managed-process lifecycle work.
+- 2026-11-06, Phase 6 review: the first broker-midrun harness attempt unlinked the socket
+  before the first request and tested the missing-broker construction path instead. The
+  after-first-call case was captured with a direct provider test against the real broker and
+  real Ollama; it is recorded rather than claimed as an app-level run.
+- 2026-11-06, Phase 6 review: the app's chat image gate is 1.5 MB and the upload API 25 MB,
+  so the broker's 64 MiB request cap is not reachable through a normal image. The cap was
+  tested directly against the real run broker (413, no upstream request), and the valid
+  121,766-byte image passed the full pipeline.
+- 2026-11-06, Phase 6 review: size checks: `runtime/builtin.py` 1942 (baseline 1955),
+  `sandbox.py` 640 (baseline 641), `providers/local/probe.py` 155, `runtime/outcomes.py`
+  103, `providers/ollama.py` 400, `providers/openai_compat.py` 450; no frozen file grew.
+  The new tests are under 400 lines.
+
 ## Open items and deferred
 
 - G2, G3, G4 and G7 fixes: Phases 1 and 2. G1 and G6 are closed in Phase 4.
-- G5 live Strict Offline: Phase 6.
+- G5 live Strict Offline: closed in Phase 6 with real Ollama and llama.cpp runs, the
+  airplane test and the failure modes. ADR-0035 records the managed-process decision; it is
+  not implemented, so the model-server claim remains the weaker worker-boundary sentence.
 - Phase 3 not run: a 4 GB cold load (budget), a 60-minute LM Studio TTL wait, a 5-minute
   Ollama keep-alive wait, an older Ollama/LM Studio installation for the upgrade path, GPU
   OOM, and a full Hutch bot turn on llama.cpp or LM Studio (Phase 7 wiring). The adapter-level
@@ -405,6 +487,15 @@ Still open (ask at the phase that needs it):
   photo. No demo data was added to the product.
 - Phase 0 artifacts total 40 PNGs plus the capture JSON; kept under
   `docs/realignment/artifacts/offline-models-2026-11/`.
+- Phase 6 not run: LM Studio through the Offline worker (its adapter shares the
+  OpenAI-compatible broker path proven live on llama.cpp), vLLM/SGLang, macOS and Windows,
+  GPU inference, and the managed isolated model process itself. The app-level
+  broker-after-a-successful-call case was captured with a direct provider test against the
+  real broker; the before-first-call app case is recorded. No model or binary was downloaded
+  in Phase 6; the retained Phase 5 set is unchanged.
+- ADR-0035 managed isolated model process: accepted, not implemented. It needs a separate
+  implementation task with a real launch, network namespace, Unix-socket bridge and
+  lifecycle tests. Do not claim the model server is isolated before that dated evidence.
 
 - 2026-11-06, Phase 1: `providers/locality.py` (server signal, resolved address, name fallback); wired into
   `validate_offline_route`, `OllamaProvider.data_stays_local(model)`, `validate_model_name(allow_cloud=False)`.
@@ -637,8 +728,47 @@ Still open (ask at the phase that needs it):
   `tests/test_offline_airgap.py`; `sandbox.py` stays at 640 lines against its 641-line
   baseline. Focused `test_offline_airgap.py` + `test_offline_mode.py` = 40 passed;
   `npm run check:agent` passed; the same probe now returns `ok=True` inside
-  `unshare -rn`. The live governed tool-and-image run is next.
+  `unshare -rn`.
+- 2026-11-06, Phase 6.1 live: real app + Ollama 0.40.13 + Gemma 4 e2b, a real 121,766-byte
+  cat photo and governed `write_file` + `shell`: succeeded in 97.7 s, answer "cat" and byte
+  count 3, workspace `animal.txt` = "cat"; the worker netns differed from the supervisor and
+  had only `lo` with no route. Real llama.cpp b12144 + Gemma 4 e2b + projector with
+  `--offline --parallel 1`: succeeded in 190.9 s, answer cat/3, `context_limit` 8,192 read
+  through the broker. Airplane: app, Ollama and worker inside one `unshare -rn` (only `lo`
+  up): succeeded in 138.3 s; an external connect returned 101. The shell egress attempt
+  returned `connect_ex 101`. Evidence under `evidence/p6/`.
+- 2026-11-06, Phase 6.2 live: a forced 1,200-token generation crossed the broker as 1,202
+  chunks / 131,695 bytes; cancel stopped a running worker in 0.304 s; broker loss before the
+  first call is a clear "broker is missing" failure; after a successful call the classifier
+  names the bridge and stops; a 64 MiB+1 request returned 413; a real runner kill reloaded
+  once (8.65 s) and completed; a real server restart produced a 502, one reload, then a
+  clear stop because the restarted server had not re-listed the model.
+- 2026-11-06, Phase 6 code fixes: `sandbox.py` (loopback-only host probe),
+  `providers/local/probe.py` (introspection through the broker), `providers/ollama.py` and
+  `providers/openai_compat.py` (broker canonicalization without rewriting the reviewed
+  endpoint), `runtime/outcomes.py` (bridge state, 502 reload, self-check failure kind).
+  Commits: e26241e4 (air-gap probe), 71595d18 (endpoint identity), fa3d9a5d (broker
+  introspection), 85340b61 (failure classification). Tests:
+  `tests/test_offline_airgap.py`, `test_offline_provider_identity.py`,
+  `test_local_probe_offline.py`, additions to `test_local_failure.py`.
+- 2026-11-06, Phase 6.3: the owner chose the Hutch-managed isolated model process.
+  ADR-0035 records the decision, the Unix-socket bridge, the eligibility rules and the
+  conditional claim; it is not implemented. The 2026-10-31 document now closes phase D and
+  states the exact claim (section 9); `docs/runtime-setup.md` carries the per-runtime
+  offline recipes.
+- Phase 6 gates: the focused 7-file suite passed 175; `npm run check:agent` passed;
+  `npm run audit:context` passed; `scripts/audit_emoji.py` reports only the pre-existing
+  `.codewhale/state` file, not a Phase 6 file. No UI or website file changed, so the visual
+  gate and focused e2e do not apply. `/code-review` and `/simplify` are not available in
+  this session; the phase diff was re-read manually and the findings above were fixed.
+- Phase 6 exit checks: G5 closed with real Ollama and llama.cpp runs; EC-04 and EC-19
+  tested-real (airplane and tool egress); phase D closed in the 2026-10-31 document; ADR-0035
+  accepted but not implemented, so the claim stays at the worker boundary. Not run: LM Studio
+  through the Offline worker, vLLM/SGLang, the managed process, macOS/Windows and GPU.
+  Phase 6 is done.
 
-Next phase: Phase 6 remains in progress. The airplane test and the isolated-worker tool run
-are the remaining MUST items (G5, EC-04, EC-19), then the owner's boundary choice in 6.3.
+Next phase: Phase 7, Frontend. It needs the Local runtimes panel, the grouped model list,
+the install/import flow, the first-run recommendation and every empty/error/loading/offline/
+key-protected state, with the visual validation gate. The managed model process from
+ADR-0035 is a separate implementation task, not part of Phase 7's UI work.
 
