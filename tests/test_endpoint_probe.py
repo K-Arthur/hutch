@@ -180,3 +180,16 @@ def test_connections_test_passes_and_flags_ollama_behind_v1(tmp_path, monkeypatc
         ollama.shutdown()
     assert result.ok and not result.verified and "num_ctx" in result.detail and "NOT verified" in result.detail
     assert ollama.seen == [("/v1/models", "Bearer sk-test-secret"), ("/api/version", None)]   # the key goes out once
+
+
+def test_an_http_error_the_server_explained_keeps_the_servers_words(tmp_path, monkeypatch):
+    from hutch.providers.connection import check_connection
+    httpd = _serve({"/v1/models": (400, {"Content-Type": "application/json"},
+                                   b'{"error":{"message":"model listing is disabled for this plan"}}')})
+    try:
+        book = _custom(tmp_path, monkeypatch, f"http://127.0.0.1:{httpd.server_address[1]}/v1")
+        result = check_connection(book, "mine")
+    finally:
+        httpd.shutdown()
+    assert not result.ok and "model listing is disabled for this plan" in result.detail
+    assert "layer" not in result.detail

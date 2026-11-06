@@ -19,7 +19,6 @@ from urllib.parse import urlsplit
 from .endpoint_policy import EndpointRefused, vet
 from .pinned_transport import PinnedTransport, refuse_unsafe_transport
 
-LAYERS = ("address", "dns", "connect", "tls", "key", "models")
 _ENGINE_ADVICE = {
     "ollama": ("This is an Ollama server behind its OpenAI-compatible /v1 endpoint, which cannot set the context "
                "window per request (Ollama defaults to 4k tokens under 24 GiB of VRAM). Use the Ollama route so "
@@ -41,6 +40,7 @@ class ProbeReport:
     engine: str = ""
     advice: str = ""
     suggested_base: str = ""
+    status: int = 0          # HTTP status of the model-list answer, when there was one
 
     @property
     def failed(self) -> Optional[Layer]:
@@ -115,7 +115,7 @@ def _models_layer(report: ProbeReport, client: Any, base: str, models_url: str, 
         hint = (" The port accepted a connection but did not answer HTTP: it may expect https://."
                 if models_url.startswith("http://") else "")
         return _fail(report, "models", f"the request failed ({type(exc).__name__}).{hint}".replace("..", "."))
-    status = response.status_code
+    status = report.status = response.status_code
     if status in (401, 403):
         report.layers.append(Layer("key", False, "reachable, but the API key was rejected (or the server needs one: a "
                                                  "protected server answers 401/403 on /v1/models)"))

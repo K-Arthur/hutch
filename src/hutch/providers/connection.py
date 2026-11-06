@@ -112,8 +112,11 @@ def _failed_layer(book: ConnectionBook, conn: Connection, name: str) -> str:
     model-list URL the runtime uses; it runs only after the provider's own check failed."""
     from .endpoint_probe import probe_endpoint
     catalog = (conn.models_base_url or conn.base_url).rstrip("/") + "/models"
-    bad = probe_endpoint(conn.base_url, key=book.key(name) or "", models_url=catalog).failed
-    return f"{bad.name} layer: {bad.detail}" if bad else ""
+    report = probe_endpoint(conn.base_url, key=book.key(name) or "", models_url=catalog)
+    bad = report.failed
+    if bad is None or (bad.name == "models" and report.status >= 400 and not report.suggested_base):
+        return ""            # an HTTP error the server explained itself: its own words say more than a layer name
+    return f"{bad.name} layer: {bad.detail}"
 
 
 def _unverified_key(detail: str) -> str:
