@@ -49,8 +49,8 @@ support claim.
 
 - Eight templates (Vercel AI Gateway, LiteLLM, ClawRouter, Bedrock runtime, Bedrock Mantle, Microsoft Foundry,
   Qianfan, StepFun global) are `implemented-unverified`.
-- The three template-only settings are data. Provider code gained one 40-line seam module, one 70-line
-  provider wrapper, and a single branch in `provider_for_connection`; the frozen `openai_compat.py` and
+- The three template-only settings are data. Provider code gained a 34-line key-header module, a 73-line
+  schema-trim module (pure functions plus a thin provider wrapper), and a short branch in `provider_for_connection`; the frozen `openai_compat.py` and
   `connections.py` did not grow.
 - `models_list_ignores_key` can lag a vendor change. If a vendor starts validating the key, the check
   under-claims (reports not verified) rather than over-claims. Re-measure when a template is reviewed.
