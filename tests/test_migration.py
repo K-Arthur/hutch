@@ -14,7 +14,6 @@ from pathlib import Path
 
 import pytest
 
-from hutch import route_spec_schema
 from hutch.config import get_config, hutchConfig
 from hutch.engine import Engine
 from hutch.lifecycle import IllegalTransition
@@ -661,42 +660,6 @@ def test_upgrade_preserves_bot_ids_schedules_memory_and_allows(v4):
         legacy = store._db.execute("SELECT provider, account_id FROM usage ORDER BY id LIMIT 1").fetchone()
         assert legacy["account_id"] == legacy["provider"] == "mock"  # pre-account usage retains its original grouping
         assert store._db.execute("SELECT COUNT(*) FROM usage_reservations").fetchone()[0] == 0
-    finally:
-        store.close()
-
-
-def test_saved_routes_gain_an_explicit_provider_prefix_without_changing_meaning():
-    db = sqlite3.connect(":memory:")
-    db.row_factory = sqlite3.Row
-    try:
-        db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY, doc TEXT NOT NULL)")
-        legacy = {"name": "legacy", "model": "gpt-x",
-                  "fallbacks": ["llama3.2", "anthropic/claude"],
-                  "escalation": {"to": ["opus"]},
-                  "task_routes": {"author": "author-model"}}
-        explicit = {"name": "explicit", "model": "ollama/llama3.2", "fallbacks": ["xai/grok"]}
-        db.execute("INSERT INTO bots VALUES (?, ?)", ("legacy", json.dumps(legacy)))
-        db.execute("INSERT INTO bots VALUES (?, ?)", ("explicit", json.dumps(explicit)))
-        route_spec_schema.migrate(db)
-        route_spec_schema.migrate(db)
-        got = json.loads(db.execute("SELECT doc FROM bots WHERE id='legacy'").fetchone()[0])
-        assert got["model"] == "openai-compatible/gpt-x"
-        assert got["fallbacks"] == ["openai-compatible/llama3.2", "anthropic/claude"]
-        assert got["escalation"]["to"] == ["openai-compatible/opus"]
-        assert got["task_routes"] == {"author": "openai-compatible/author-model"}
-        kept = json.loads(db.execute("SELECT doc FROM bots WHERE id='explicit'").fetchone()[0])
-        assert kept == explicit
-        assert SCHEMA_VERSION >= 82
-    finally:
-        db.close()
-
-
-def test_upgrade_keeps_an_already_explicit_saved_route_unchanged(v4):
-    store = Store(v4)
-    try:
-        bots = {bot.id: bot for bot in store.list_bots()}
-        assert all("/" in bot.model for bot in bots.values())
-        assert bots[BRIEFING].model == "mock/demo"
     finally:
         store.close()
 

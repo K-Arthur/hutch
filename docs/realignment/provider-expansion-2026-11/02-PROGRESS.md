@@ -7,7 +7,7 @@ Update at every checkpoint. Keep entries short and factual.
 | Phase | Status | Last commit | Live-verified | Blocked on |
 |---|---|---|---|---|
 | 0 Diagnose | done 2026-11-06 | Phase 0 commit | none this phase; re-read 2026-10-31 Xiaomi evidence | - |
-| 1 Route resolution | not started | | | |
+| 1 Route resolution | done 2026-11-06 | 9f0fa4ed | none this phase; no provider call | - |
 | 2 Credential lifecycle | not started | | | |
 | 3 Flagship providers | not started | | | |
 | 4 Hosted and gateways | not started | | | |
@@ -35,6 +35,23 @@ Update at every checkpoint. Keep entries short and factual.
 - Real stack: isolated `HUTCH_STATE_DIR` + `hutch init` + `hutch serve --port 18890`; no provider
   call was made.
 
+## Phase 1 outputs (2026-11-06)
+
+- `9fffa9ab` Providers banner is derived from `LIVE_VERIFIED_EVIDENCE` grouped by route/date plus
+  catalogue status counts. The old hardcoded sentence (which omitted Xiaomi and mislabeled
+  documented/blocked entries) is gone.
+- `d7f53448` `providers/routing.py` resolves `(provider, account, account_source, billing, model,
+  runtime, protocol, endpoint, status)` from local facts, labels ambient keys, withholds them from
+  non-official hosts, and refuses to pick between accounts. Exposed at
+  `/api/v1/provider-resolution`. `resolve_chain` flags a subscription-to-metered hop.
+- `36673256` schema version 91 writes the implicit `openai-compatible/` prefix into saved `model`,
+  `fallbacks`, `escalation.to` and `task_routes`. Behavior, billing and order are unchanged;
+  already explicit routes are untouched. Migration module keeps frozen `store.py` at its cap.
+- `9f0fa4ed` `SpendGuard` refuses a fallback or escalation from a subscription primary to
+  per-token/credits before the call.
+- `docs/research/2026-11-provider-expansion/02-ROUTE-RESOLUTION.md` records the research, design,
+  real-stack output and limits.
+
 ## Owner inputs (batch, answered 2026-11-06)
 
 - Provisioned credentials: OpenAI, Anthropic, Google Gemini. Every other paid route is
@@ -56,6 +73,13 @@ Update at every checkpoint. Keep entries short and factual.
   scoped to the marketing site until a light theme is approved in Phase 7.
 - 2026-11-06: Providers page live-evidence sentence is generated from evidence and statuses in
   Phase 1, not hand-maintained (G1).
+- 2026-11-06: Route resolution never chooses an account when two or more could pay. An ambient key
+  is labeled and never breaks the tie (D2, D3).
+- 2026-11-06: A fallback or escalation from a subscription primary to per-token/credits is refused
+  until the metered route is made primary. That configuration is the explicit consent (D4).
+- 2026-11-06: Saved route specs are normalized to the provider prefix the runtime already used.
+  The migration is additive in meaning: no spec, billing relationship or fallback order changes
+  (D5, schema 91).
 
 ## Review findings log
 
@@ -65,6 +89,12 @@ Update at every checkpoint. Keep entries short and factual.
   mislabels documented/blocked routes as implemented-unverified; queued for Phase 1.
 - 2026-11-06, Phase 0, light and dark captures are identical because the theme is fixed; recorded
   as G16, not a capture failure.
+- 2026-11-06, Phase 1, the first resolver draft imported the runtime registry at module load,
+  creating a routing -> runtime -> builtin -> ladder -> routing cycle; the import is now lazy.
+- 2026-11-06, Phase 1, `store.py` is frozen at its line cap, so the migration lives in
+  `route_spec_schema.py` and is appended without growing the file.
+- 2026-11-06, Phase 1, the surface test asserted the obsolete hardcoded banner; it now asserts the
+  derived routes and status counts.
 
 ## Open items and deferred
 
@@ -73,3 +103,9 @@ Update at every checkpoint. Keep entries short and factual.
 - Z.AI Coding Plan eligibility for Hutch and OpenCode Go unattended use need vendor confirmation
   before those routes leave documented/experimental.
 - Out-of-scope providers are listed at the end of `00-GAP-AUDIT.md`.
+- Phase 1 API only: the dashboard picker does not yet show the resolved tuple before the first send
+  (Phase 7). The resolver is read-only and not persisted per run.
+- Billing-crossing refusal covers subscription-to-metered only; a local/free primary falling back to
+  a hosted route keeps the existing first-hosted approval path.
+- Account identity is still the spec prefix; a separate Bot account field would change how saved
+  routes are interpreted and is deferred.

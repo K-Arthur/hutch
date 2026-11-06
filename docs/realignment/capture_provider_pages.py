@@ -46,11 +46,11 @@ def _source_hash() -> str:
     return digest.hexdigest()
 
 
-async def capture(origin: str, out: Path) -> dict:
+async def capture(origin: str, out: Path, *, require_empty: bool = True) -> dict:
     connections = _get_json(origin, "/api/v1/connections")
     accounts = _get_json(origin, "/api/v1/provider-accounts")
     populated = {"connections": connections, "accounts": accounts}
-    if connections or accounts.get("provider_count"):
+    if require_empty and (connections or accounts.get("provider_count")):
         raise SystemExit(f"Refusing capture: {populated} contains configured records")
 
     out.mkdir(parents=True, exist_ok=True)
@@ -129,10 +129,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://127.0.0.1:18890")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--allow-populated", action="store_true",
+                        help="Capture a state with configured accounts instead of refusing it")
     args = parser.parse_args()
     parts = urlsplit(args.url)
     origin = urlunsplit((parts.scheme, parts.netloc, "", "", ""))
-    result = asyncio.run(capture(origin, args.output))
+    result = asyncio.run(capture(origin, args.output, require_empty=not args.allow_populated))
     for record in result["records"]:
         print(
             f"{record['page']}/{record['scheme']}/{record['viewport'][0]}: "
