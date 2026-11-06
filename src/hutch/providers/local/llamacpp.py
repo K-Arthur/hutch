@@ -35,9 +35,10 @@ def _model_id(raw: str) -> str:
     """A llama-server started with ``-m /path/model.gguf`` lists that path as its id.
 
     It also accepts the basename without the extension as the request model (verified live), so
-    Hutch presents that usable id instead of an absolute path in a route spec.
+    Hutch presents that usable id instead of a path in a route spec. The path may be absolute or
+    relative to the server's working directory.
     """
-    if raw.startswith("/") and raw.endswith(".gguf"):
+    if raw.endswith(".gguf"):
         return os.path.basename(raw)[:-5]
     return raw
 

@@ -74,17 +74,19 @@ def test_llamacpp_reads_the_per_slot_window_not_the_headline_context():
     assert "tools" in state.models[0].capabilities
 
 
-def test_llamacpp_turns_an_absolute_model_path_into_a_usable_id():
-    models = {"data": [{"id": "/models/qwen3-4b.gguf", "owned_by": "llamacpp"}]}
-    fake = Fake({
-        "http://h/props": _json({**LLAMA_PROPS, "model_path": "/models/qwen3-4b.gguf"}),
-        "http://h/health": _json({}),
-        "http://h/v1/models": _json(models),
-        "http://h/slots": _json([{"id": 0, "n_ctx": 4096}]),
-    })
-    state = LlamaCppRuntime("http://h", http=fake).state()
-    assert state.models[0].name == "qwen3-4b"
-    assert "qwen3-4b" in state.loaded
+def test_llamacpp_turns_a_gguf_path_into_a_usable_id():
+    for path in ("/models/qwen3-4b.gguf", "models/vision/qwen2.5-vl.gguf"):
+        name = "qwen2.5-vl" if "vision" in path else "qwen3-4b"
+        models = {"data": [{"id": path, "owned_by": "llamacpp"}]}
+        fake = Fake({
+            "http://h/props": _json({**LLAMA_PROPS, "model_path": path}),
+            "http://h/health": _json({}),
+            "http://h/v1/models": _json(models),
+            "http://h/slots": _json([{"id": 0, "n_ctx": 4096}]),
+        })
+        state = LlamaCppRuntime("http://h", http=fake).state()
+        assert state.models[0].name == name
+        assert name in state.loaded
 
 
 def test_llamacpp_falls_back_to_props_when_slots_are_disabled():
