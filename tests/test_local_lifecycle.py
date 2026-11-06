@@ -71,6 +71,13 @@ def test_a_loading_timeout_is_a_state_with_the_reason():
     assert phases == [True, False]
 
 
+def test_a_non_loopback_endpoint_is_refused_as_a_state():
+    observed = observe_load(LlamaCppRuntime("http://192.168.1.20"), "m")
+    assert observed.blocked is True
+    assert observed.error_kind == "bad_request"
+    assert "loopback" in observed.detail
+
+
 def test_sleeping_is_not_a_wait_and_not_an_error():
     phases: list[bool] = []
     observed = observe_load(Sequenced(_ready(sleeping=True)), "m", on_loading=phases.append)

@@ -157,7 +157,11 @@ Still open (ask at the phase that needs it):
 - 2026-11-06, Phase 3 review: `_exit_reason` moved to `runtime/outcomes.py` and the Ollama
   memory/refresh helpers moved to `providers/local/lifecycle.py`, so `runtime/builtin.py`
   shrank from 1,955 to 1,942 lines rather than growing past its cap. No function over 60 lines;
-  the new modules are 235, 87 and 59 lines.
+  the new modules are 255, 87 and 67 lines.
+- 2026-11-06, Phase 3 review: a local route pointed at a non-loopback address made the probe
+  raise `ValueError` instead of a `ProbeError`. `observe_load` now turns that into a blocked
+  `bad_request` observation and `load_fixed_runtime` catches it too; one regression test. The
+  4-file runtime set then passed 127.
 
 ## Open items and deferred
 
@@ -259,7 +263,7 @@ Still open (ask at the phase that needs it):
   wait, `load_fixed_runtime`), `RuntimeState.sleeping` from llama.cpp `/props.is_sleeping`,
   admission passes `load_ms`/`sleeping`, and the run records the measured load in the existing
   `model_load:` key and `load` event. A LOADING state is no longer cached, so the poll sees the
-  transition. Tests: `tests/test_local_lifecycle.py` (8); focused local suites 41 pass.
+  transition. Tests: `tests/test_local_lifecycle.py` (9); focused local suites 41 pass.
   `check:agent` passes. Live cold-load evidence pending.
 - 2026-11-06, Phase 3.1 review: moved `_exit_reason` to `runtime/outcomes.py` to keep
   `runtime/builtin.py` at its 1,955-line cap; the call site now reads the runtime's state via

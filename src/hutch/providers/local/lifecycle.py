@@ -42,15 +42,29 @@ def _notify(on_loading: Optional[Callable[[bool], None]], loading: bool) -> None
         on_loading(loading)
 
 
+def _state(adapter) -> RuntimeState:
+    try:
+        return adapter.state()
+    except ValueError as exc:
+        return RuntimeState("", state=UNKNOWN, detail=str(exc))
+
+
 def observe_load(adapter, model: str, *, timeout: float = DEFAULT_LOAD_TIMEOUT,
                  poll: float = LOAD_POLL_SECONDS, on_loading: Optional[Callable[[bool], None]] = None,
                  sleep: Callable[[float], None] = time.sleep,
                  clock: Callable[[], float] = time.monotonic) -> LoadObservation:
     """Wait while the runtime reports ``loading``; return what it reported and how long it took."""
-    state = adapter.state()
+    try:
+        state = adapter.state()
+    except ValueError as exc:
+        return LoadObservation(UNKNOWN, UNKNOWN, detail=str(exc), blocked=True,
+                               error_kind="bad_request")
     sleeping = bool(getattr(state, "sleeping", False))
     if state.state != LOADING:
-        detail = (f"{model} is asleep in the runtime; the next request reloads it" if sleeping else "")
+        if not state.reachable:
+            detail = state.detail
+        else:
+            detail = (f"{model} is asleep in the runtime; the next request reloads it" if sleeping else "")
         return LoadObservation(state.state, state.state, detail=detail, sleeping=sleeping, state=state)
     _notify(on_loading, True)
     started = clock()
@@ -64,7 +78,7 @@ def observe_load(adapter, model: str, *, timeout: float = DEFAULT_LOAD_TIMEOUT,
                 return LoadObservation(LOADING, state.state, elapsed_ms, detail, blocked=True,
                                        error_kind="timeout", state=state)
             sleep(poll)
-            state = adapter.state()
+            state = _state(adapter)
             if state.state != LOADING:
                 elapsed_ms = (clock() - started) * 1000.0
                 detail = (f"loaded {model} in {elapsed_ms / 1000:.1f}s (cold load)"
@@ -90,27 +104,33 @@ def load_fixed_runtime(provider_id: str, base_url: str, model: str, context_leng
         except ProbeError as exc:
             kind = "auth" if exc.kind == "needs_key" else "server"
             return LoadObservation(UNREACHABLE, UNREACHABLE, detail=str(exc), blocked=True,
-                                   error_kind=kind, state=adapter.state())
+                                   error_kind=kind, state=_state(adapter))
+        except ValueError as exc:
+            return LoadObservation(UNREACHABLE, UNREACHABLE, detail=str(exc), blocked=True,
+                                   error_kind="bad_request", state=_state(adapter))
         finally:
             _notify(on_loading, False)
         waited_ms = (time.perf_counter() - started) * 1000.0
         detail = (f"LM Studio loaded {model} at {applied:,} tokens in {waited_ms / 1000:.1f}s"
                   if applied else f"LM Studio loaded {model} in {waited_ms / 1000:.1f}s")
-        return LoadObservation(UNREACHABLE, READY, waited_ms, detail, state=adapter.state())
+        return LoadObservation(UNREACHABLE, READY, waited_ms, detail, state=_state(adapter))
     try:
         response = post_json(adapter.base_url + "/models/load", {"model": model},
                              timeout=min(timeout, 60.0), bearer=credential)
     except ProbeError as exc:
         return LoadObservation(UNREACHABLE, UNREACHABLE, detail=str(exc), blocked=True,
-                               error_kind="unreachable", state=adapter.state())
+                               error_kind="unreachable", state=_state(adapter))
+    except ValueError as exc:
+        return LoadObservation(UNREACHABLE, UNREACHABLE, detail=str(exc), blocked=True,
+                               error_kind="bad_request", state=_state(adapter))
     if response.status in (401, 403):
         detail = "the runtime requires an API key before Hutch can load a model"
         return LoadObservation(UNREACHABLE, NEEDS_KEY, detail=detail, blocked=True,
-                               error_kind="auth", state=adapter.state())
+                               error_kind="auth", state=_state(adapter))
     if response.status not in (200, 404):
         detail = f"the runtime refused to load {model} (HTTP {response.status})"
         return LoadObservation(UNREACHABLE, UNREACHABLE, detail=detail, blocked=True,
-                               error_kind="server", state=adapter.state())
+                               error_kind="server", state=_state(adapter))
     return observe_load(adapter, model, timeout=timeout, on_loading=on_loading)
 
 
