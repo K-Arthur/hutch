@@ -12,7 +12,7 @@ covers before relying on it.
 | 1 Locality truth | done (1.1, 1.2, 1.3) | see git log | 2026-11-06: real Ollama 0.40.13 rows (cloud stub, renamed cloud copy, local, missing model) | EC-02 second-interface run not run |
 | 2 Native runtime introspection | done (2.1, 2.2, 2.3, 2.4) | d057cc95..7c53c59e | 2026-11-06: llama.cpp b12144 9931 (4096 per slot with `-c 8192 --parallel 2`), LM Studio applied 8192, discovery fingerprints both, squatter unknown, `--api-key` needs_key then a keyed chat, needle self-check at 4096 | vLLM/SGLang not installed; LM Studio API-token mode not enabled live (401 path tested with a real key-protected llama-server) |
 | 3 Lifecycle states and errors | done (3.1, 3.2, 3.3) | bfcfaaf9..23ed98a3 | 2026-11-06: real Ollama cold load, real llama.cpp 503, real LM Studio unload/reload, real runner kill and llama-server restart | EC-09 4 GB model not downloaded (budget); old-version gate not live-tested |
-| 4 Get a model (install, import, guide) | not started | | | |
+| 4 Get a model (install, import, guide) | in progress (4.1-4.5) | | | |
 | 5 Multimodal and tool reliability | not started | | | |
 | 6 Strict Offline live, boundary ADR | not started | | | Owner decision on the boundary (Phase 6.3) |
 | 7 Frontend | not started | | | |
@@ -312,3 +312,25 @@ Still open (ask at the phase that needs it):
 
 Next phase: Phase 4, get a model (install, import, guide): G1 name grammar, G6 disk preflight,
 failure and resume, other-runtime decisions, and the real multi-gigabyte pull through the page.
+
+### Phase 4 checkpoints
+
+- 2026-11-06, Phase 4 research: `docs/research/2026-11-offline-models/05-PHASE4-INSTALL.md`
+  (P4-1 to P4-13) and R33-R41 appended to `01-FAILURE-MINING.md`. G1 reproduced on the real
+  grammar (6 of 10 real names refused); G6 reproduced (`rg` finds no disk preflight or
+  `OLLAMA_MODELS` handling). The fault environment was verified: `unshare -rm` keeps host
+  networking for a tmpfs pull, `unshare -rmn` leaves only loopback.
+- 2026-11-06, Phase 4 design: `07-PHASE4-DESIGN.md` names six tasks and their exact files.
+  No frozen file is touched; no template or CSS change is planned.
+- 2026-11-06, Phase 4 decisions: Ollama owns pull/blob verification; LM Studio gets a
+  guided `lms get` path (native download has no documented cancel or catalog list);
+  llama.cpp gets a guided `-hf` launch path (the fetch happens before the server answers);
+  vLLM/SGLang remain guided. Preflight reads `OLLAMA_MODELS` or the documented default only
+  for a loopback runtime, and reports unknown otherwise. Resume is conditional on the
+  runtime keeping its parts (R36/R37). Import uses the runtime's blob and create APIs and
+  reads the license back; a missing license is shown as missing.
+- 2026-11-06, Phase 4 baseline: retained Ollama 0.40.13 up on 127.0.0.1:11434 with
+  `~/.hutch-tmp/localmodels/models` (3.8 GB); filesystem 70.4 GiB free; models
+  `qwen3:0.6b`, `qwen2.5-coder:1.5b`, `qwen3:4b`, plus the Phase 1 cloud stubs. Real pull
+  target `qwen2.5:3b` (1.9 GB, Q4_K_M, Qwen Research License, tools) is not installed.
+
