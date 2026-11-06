@@ -227,3 +227,22 @@ Still open (ask at the phase that needs it):
   `runtime/builtin.py` at its 1,955-line cap; the call site now reads the runtime's state via
   admission and only turns it into a status and a measured event. No behavior claim beyond the
   measured wait.
+- 2026-11-06, Phase 3.2: `runtime/outcomes.py` classifies local failures (Ollama's
+  `signal: killed`/runner-terminated wrapper, broken streams, 503 loading) into reload-once or
+  stop with the cause and fix; partial output is never retried and stays incomplete.
+  `lifecycle.ensure_loaded`/`refresh_local_route` re-read the runtime before every local call
+  (fixed routes are no longer assumed resident) and reload once; `admission_memory` moved with
+  the same measured-allocation rule. `runtime/builtin.py` now 1,942 lines (was 1,955): the
+  Ollama-only refresh and memory helpers moved out. Tests: `test_local_failure.py` (11),
+  `test_local_lifecycle.py`; focused suites 369 pass. Live kill/restart evidence pending.
+- 2026-11-06, Phase 3.3: `providers/local/versions.py` gates Ollama (tools 0.3.0,
+  structured outputs 0.5.0, thinking 0.9.0, measured window 0.10.0) and LM Studio (tools
+  0.3.6, TTL 0.3.9, native API/tokens 0.4.0); llama.cpp has no invented build floor and its
+  build string is recorded in the admission note. `health.py` keeps the Ollama version it
+  reads and attaches the upgrade sentence to the runtime card fix that doctor and the Models
+  page already render. Tests: `test_local_versions.py` (9); health/models suites 63 pass.
+- 2026-11-06, Phase 3.3 decisions: an unknown version gets no advice (LM Studio over HTTP
+  exposes no app version; native `/api/v1` presence implies 0.4.0+). The advice names the
+  highest required version among the missing features, so one upgrade covers all of them.
+  No feature claim is made from a version alone; the runtime's own fields still decide
+  (for example `chat_template_caps.supports_tools` on llama.cpp).

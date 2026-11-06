@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from .models import iso, utcnow
+from .providers.local.versions import upgrade_advice
 
 FAIL_DEGRADED_AT = 2      # consecutive failures before a runtime is called degraded
 FAIL_DOWN_AT = 4
@@ -83,6 +84,8 @@ def runtime_health(config: Any, store: Any, hw: Any = None, bot_models: Optional
                     p = get_provider("ollama", None)
                 hh = p.health()
                 h.latency_ms, h.loaded = hh.latency_ms, [m.get("name", "") for m in hh.loaded]
+                h.version = hh.version or h.version
+                h.detail = f"running{(' ' + h.version) if h.version else ''} at {rt.url}"
         elif rt.installed:
             h.state, h.fix = "down", {"ollama": "start it with `ollama serve`", "llama.cpp": "start `llama-server`",
                                       "lmstudio": "start the LM Studio server"}.get(rt.name, "start it")
@@ -94,6 +97,9 @@ def runtime_health(config: Any, store: Any, hw: Any = None, bot_models: Optional
             h.state, h.detail = "idle", "not installed (no bot uses it)"
         if fails:
             h.detail += f" - {fails} recent call failure(s), last: {last}"
+        advice = upgrade_advice(rt.name, h.version)
+        if advice:
+            h.fix = advice
         out.append(h)
 
     book = ConnectionBook(config.state_dir)

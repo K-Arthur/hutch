@@ -112,7 +112,8 @@ def _admit_fixed(provider_id: str, base_url: str, model: str, want: int, min_ctx
             slots_note = f" (parallel {loaded.parallel})"
         else:
             slots_note = ""
-        note = (f"the runtime reports {loaded.applied_context:,} tokens applied{slots_note}"
+        runtime = f"{provider_id} {state.version}".strip()
+        note = (f"{runtime} reports {loaded.applied_context:,} tokens applied{slots_note}"
                 + (f" (wanted {want:,}; a fixed window cannot be changed per request)" if want != loaded.applied_context else ""))
         if meta is not None:
             meta.applied_context = loaded.applied_context
