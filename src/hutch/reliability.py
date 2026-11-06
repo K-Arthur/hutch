@@ -66,6 +66,11 @@ class ProbeResult:
     errors: int = 0                         # the model call itself failed (runtime problem, not model quality)
     detail: str = ""                        # the most common way it went wrong
     median_ms: float = 0.0
+    #: Structured causes counted across this probe's trials: no_call, empty_answer,
+    #: reasoning_only, call_in_content, missing_id, duplicate_id, multiple_calls,
+    #: parallel_calls, parse_error, wrong_tool, unexpected_call, schema, type_repair,
+    #: ignored_result, wrong_answer, call_failed.
+    causes: dict[str, int] = field(default_factory=dict)
 
     @property
     def rate(self) -> float:
@@ -186,6 +191,7 @@ class Probe:
     messages: list[dict[str, Any]]
     tools: list[dict[str, Any]]
     judge: Callable[[ChatResult], Judgement]
+    expects_call: bool = True
 
 
 def probes() -> list[Probe]:
@@ -200,14 +206,91 @@ def probes() -> list[Probe]:
               [{"role": "user", "content": "List the files in the folder reports."}], [READ, WRITE, LIST, SHELL, FETCH],
               _judge_call("list_files", [READ, WRITE, LIST, SHELL, FETCH], _sem_list)),
         Probe("restraint", "Does not call a tool it does not need",
-              [{"role": "user", "content": "What is 2 + 2? Answer directly."}], [READ, LIST], _judge_restraint),
+              [{"role": "user", "content": "What is 2 + 2? Answer directly."}], [READ, LIST],
+              _judge_restraint, expects_call=False),
         Probe("uses_result", "Uses what a tool returned",
               [{"role": "user", "content": "What time is the meeting? Check notes.txt if you need to."},
                {"role": "assistant", "content": "", "tool_calls": [{"id": "call_1", "type": "function", "function": {
                    "name": "read_file", "arguments": json.dumps({"path": "notes.txt"})}}]},
                {"role": "tool", "tool_call_id": "call_1", "name": "read_file",
-                "content": "Meeting moved to 3pm on Thursday."}], [READ, LIST], _judge_uses_result),
+                "content": "Meeting moved to 3pm on Thursday."}], [READ, LIST], _judge_uses_result,
+              expects_call=False),
     ]
+
+
+# ------------------------------------------------------------------ causes
+
+_CALL_MARKERS = ("<tool_call", "<|tool_call", "[TOOL_REQUEST]", "<function=")
+
+
+def _looks_like_call(text: str) -> bool:
+    """Call-shaped text left in content by a parser that could not turn it into a call."""
+    low = text.lower()
+    return any(marker.lower() in low for marker in _CALL_MARKERS)
+
+
+def _protocol_observations(res: ChatResult) -> list[str]:
+    """Protocol facts visible even when a call passed: ids, parallelism, reasoning-only."""
+    found: list[str] = []
+    ids = [tc.id for tc in res.tool_calls]
+    if any(not call_id for call_id in ids):
+        found.append("missing_id")
+    present = [call_id for call_id in ids if call_id]
+    if len(present) != len(set(present)):
+        found.append("duplicate_id")
+    if len(ids) > 1:
+        found.append("parallel_calls")
+    if not ids and not res.content.strip() and res.thinking.strip():
+        found.append("reasoning_only")
+    if not ids and _looks_like_call(res.content):
+        found.append("call_in_content")
+    return found
+
+
+def _failure_cause(res: ChatResult, probe: Probe, why: str) -> str:
+    """One structured cause for a failed trial, from the result shape and the judge's words."""
+    if not probe.expects_call and res.tool_calls:
+        return "unexpected_call"
+    if res.tool_calls:
+        if len(res.tool_calls) > 1:
+            return "multiple_calls"
+        call = res.tool_calls[0]
+        if call.parse_error:
+            return "parse_error"
+        expected = probe.tools[0]["function"]["name"] if probe.tools else ""
+        if expected and call.name != expected:
+            return "wrong_tool"
+        if why.startswith("arguments do not match"):
+            return "schema"
+        return "wrong_arguments"
+    if res.thinking.strip() and not res.content.strip():
+        return "reasoning_only"
+    if not res.content.strip():
+        return "empty_answer"
+    if _looks_like_call(res.content):
+        return "call_in_content"
+    if "ignored the tool result" in why:
+        return "ignored_result"
+    if why.startswith("did not answer"):
+        return "wrong_answer"
+    return "no_call"
+
+
+def classify_trial(res: ChatResult, probe: Probe, judgement: Judgement) -> tuple[str, list[str]]:
+    """(primary failure cause, every cause observed in this trial).
+
+    Observations count even when the trial passed, so a missing id or a reasoning-only turn is
+    visible without pretending it failed. The primary cause is empty for a passed trial.
+    """
+    causes = _protocol_observations(res)
+    if judgement.why == "needed type repair":
+        causes.append("type_repair")
+    if judgement.repaired:
+        return "", causes
+    primary = _failure_cause(res, probe, judgement.why)
+    if primary not in causes:
+        causes.append(primary)
+    return primary, causes
 
 
 # ------------------------------------------------------------------ running
@@ -230,6 +313,14 @@ def _verdict(probe_results: list[ProbeResult], recall_ok: Optional[bool]) -> tup
         s = f"{rep_rate:.0%} of tool probes passed; weakest: {worst.title.lower()} ({worst.repaired}/{worst.trials})"
     if weak and v != "unreliable":
         s += f"; shaky at: {', '.join(weak)}"
+    protocol = [f"{sum(p.causes.get(cause, 0) for p in tool)} {label}"
+                for cause, label in (("missing_id", "call(s) had no id"),
+                                     ("duplicate_id", "duplicate call id(s)"),
+                                     ("reasoning_only", "reasoning-only turn(s)"),
+                                     ("call_in_content", "call(s) left as text"))
+                if sum(p.causes.get(cause, 0) for p in tool)]
+    if protocol:
+        s += "; protocol: " + ", ".join(protocol)
     if recall_ok is False:
         s += "; could not recall the start of a long prompt at this window"
     return v, s
@@ -267,6 +358,7 @@ def profile_model(provider: Provider, model: str, *, runtime: str = "ollama", nu
                                                 max_tokens=256, temperature=TEMPERATURE, think=False))
             except ProviderError as exc:
                 res.errors += 1
+                res.causes["call_failed"] = res.causes.get("call_failed", 0) + 1
                 reasons[f"the call failed ({exc.kind})"] = reasons.get(f"the call failed ({exc.kind})", 0) + 1
                 continue
             times.append((time.perf_counter() - t0) * 1000)
@@ -277,6 +369,9 @@ def profile_model(provider: Provider, model: str, *, runtime: str = "ollama", nu
             j = pr.judge(out)
             res.raw += j.raw
             res.repaired += j.repaired
+            _primary, causes = classify_trial(out, pr, j)
+            for cause in causes:
+                res.causes[cause] = res.causes.get(cause, 0) + 1
             if not j.repaired and j.why:
                 reasons[j.why] = reasons.get(j.why, 0) + 1
         res.median_ms = round(statistics.median(times), 1) if times else 0.0

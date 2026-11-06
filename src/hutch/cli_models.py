@@ -151,24 +151,28 @@ def models_presets() -> None:
 
 
 @models_app.command("bench")
-def models_bench(model: str = typer.Argument(..., help="an installed Ollama model, e.g. qwen3:4b"),
+def models_bench(model: str = typer.Argument(..., help="an installed model, e.g. qwen3:4b"),
                  trials: int = typer.Option(3, "--trials", "-n", min=1, max=20, help="runs per probe"),
                  ctx: int = typer.Option(8192, "--ctx", help="context window to measure at"),
-                 recall: bool = typer.Option(True, "--recall/--no-recall", help="include the long-prompt recall probe")) -> None:
+                 recall: bool = typer.Option(True, "--recall/--no-recall", help="include the long-prompt recall probe"),
+                 provider: str = typer.Option("ollama", "--provider",
+                                              help="ollama (default), llamacpp, lmstudio or openai-compatible"),
+                 base_url: str = typer.Option("", "--base-url", help="server URL for a local runtime")) -> None:
     """Profile how reliably a model forms tool calls, picks tools and uses results, on THIS machine."""
     from .hardware import probe
     from .reliability import VERDICT_TEXT, profile_model
     from .runtime.ladder import get_provider
     config, store = get_config(), _store()
-    prov = get_provider("ollama", None)
+    prov = get_provider(provider, base_url or None)
     health = prov.health()
     if not health.ok:
-        err.print(f"[red]Ollama is not reachable ({health.detail}).[/red] Start it with `ollama serve`.")
+        hint = " Start it with `ollama serve`." if provider == "ollama" else " Check --base-url and that the server is up."
+        err.print(f"[red]{provider} is not reachable ({health.detail}).[/red]{hint}")
         raise typer.Exit(code=1)
     hw = probe(with_runtimes=False)
-    console.print(f"profiling [bold]{model}[/bold]: {trials} trial(s) per probe at {ctx:,} tokens "
+    console.print(f"profiling [bold]{model}[/bold] on {provider}: {trials} trial(s) per probe at {ctx:,} tokens "
                   f"(each trial is one model call; on CPU this can take a while)")
-    prof = profile_model(prov, model, runtime="ollama", num_ctx=ctx, trials=trials, hardware=hw.summary,
+    prof = profile_model(prov, model, runtime=provider, num_ctx=ctx, trials=trials, hardware=hw.summary,
                          with_recall=recall, progress=lambda s: console.print(f"  [dim]{s}[/dim]"))
     store.save_profile(prof)
     from rich.table import Table
@@ -177,8 +181,10 @@ def models_bench(model: str = typer.Argument(..., help="an installed Ollama mode
     t.add_column("passed", justify="right")
     t.add_column("unaided", justify="right")
     t.add_column("what went wrong")
+    t.add_column("causes")
     for p in prof.probes:
-        t.add_row(p.title, f"{p.repaired}/{p.trials}", f"{p.raw}/{p.trials}", p.detail or "-")
+        causes = ", ".join(f"{name} {count}" for name, count in sorted(p.causes.items())) or "-"
+        t.add_row(p.title, f"{p.repaired}/{p.trials}", f"{p.raw}/{p.trials}", p.detail or "-", causes)
     console.print(t)
     col = {"reliable": "green", "usable_with_repair": "yellow", "unreliable": "red", "inconclusive": "dim"}[prof.verdict]
     console.print(f"[{col}]{VERDICT_TEXT[prof.verdict]}[/{col}]: {prof.summary}")
