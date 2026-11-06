@@ -8,7 +8,7 @@ output.
 | Phase | Status | Last commit | Live-verified | Blocked on |
 |---|---|---|---|---|
 | 0 Diagnose and baseline audit | done | 1bec95e1 | 73 focused tests passed (54.38s); 40 baseline screenshots (0 errors, 0 overflow) | none |
-| 1 Live web research and failure mining | not started | | | |
+| 1 Live web research and failure mining | done | c3856c3b | 8/8 owner URLs fetched live; 48 requirements and 48 failure rows cross-checked; `npm run check:agent` and `npm run audit:context` pass; emoji audit has no repository-source hits (8 hits only in git-ignored `.codewhale/state/subagents.v1.json`) | none |
 | 2 Automations trust & observability (G03, G06) | not started | | | |
 | 3 Inbound webhook & event triggers (G04) | not started | | | |
 | 4 Multimodal intake pipeline (chat, channels, Today) | not started | | | |
@@ -43,6 +43,10 @@ output.
   - `src/hutch/server/static/hutch-pages.css`
   - `docs/research/2026-11-vault-signin/*`
   - `.commandcode/*`
+- Phase 1 observation (2026-11-06): `docs/research/2026-11-personal-ops-workflows/00-GAP-AUDIT.md`
+  carries an uncommitted trailing-newline change. It is not this phase's file and was not staged.
+  `src/hutch/server/static/hutch-pages.css` remains modified by another session and was not touched.
+  `.commandcode/` remains untracked and was not staged.
 
 ## Decisions log
 
@@ -51,12 +55,25 @@ output.
 | 2026-11-06 | Init | Keep Today (`src/hutch/personal/today.py`) strictly deterministic (zero LLM calls on page load) | Prevents hallucinated briefings, latency spikes and hidden token spend; multimodal/model extraction happens on intake/runs and writes provenance-tagged proposals |
 | 2026-11-06 | Init | Treat shared spaces (`src/hutch/personal/spaces.py`) as single-owner data scopes until G07 multi-participant auth is implemented | Prevents false privacy/isolation claims for household members on a single-owner server |
 | 2026-11-06 | Phase 0 | Retain `capture_personal_ops_baseline.py` in `docs/realignment/` | Mirrors sibling realignment pattern (`capture_vault_signin_baseline.py`) for reproducible visual regression probes at every phase gate |
+| 2026-11-06 | Phase 1 | Revision journal uses SQL triggers on `bots`, not app-layer logging (POW-D1) | API, CLI and direct DB writes all pass the trigger; schedule settings are exactly what n8n's workflow history misses |
+| 2026-11-06 | Phase 1 | Schedule policy lives in a sidecar table, not `models.py` (POW-D17) | `models.py` is frozen at 828 lines; a sidecar gets its own CAS revision |
+| 2026-11-06 | Phase 1 | Webhook secret is hashed at rest, shown once, compared in constant time, rotated with a dual window (POW-D4) | A database read must not yield a usable token; rotation must not drop in-flight deliveries |
+| 2026-11-06 | Phase 1 | Calendar writes are exact-approval actions with a stable key; `outcome_unknown` is never retried (POW-D9) | Provider sync already creates copies by design; Hutch must not add duplicates |
+| 2026-11-06 | Phase 1 | Shared lists are one server-scoped record with upsert merge (POW-D10) | Local-copy reconciliation is the documented cause of duplicates, ghosts and crossed-off drift |
+| 2026-11-06 | Phase 1 | Worktree GC is dry-run by default and never deletes unmerged or unpushed work without explicit force (POW-D11) | Auto-cleanup has deleted live and unpushed work in reported cases |
+| 2026-11-06 | Phase 1 | Purge exports first, then uses `secure_delete` with a checkpoint before `VACUUM`, and leaves a content-free tombstone (POW-D16) | WAL and freelist pages can retain deleted bytes; foreign keys need a row |
+| 2026-11-06 | Phase 1 | A phone can view, complete and decide an existing approval; confirming a new obligation stays local-owner (POW-D13) | Preserves the local-first authority boundary while covering the away-from-desk need |
+| 2026-11-06 | Phase 1 | Telegram stays text-only by default with a visible notice; media intake is per-channel opt-in (POW-D14) | Silent drops are the current defect; default media widens attack surface and size failure modes |
+| 2026-11-06 | Phase 1 | No new dependency (POW-D15) | The standard library and existing stack cover every requirement; supply-chain cost is not justified |
 
 ## Visual validation log
 
 | Date | Phase | Surface | Widths & themes | Defects found & fixed | Evidence path |
 |---|---|---|---|---|---|
 | 2026-11-06 | Phase 0 | `#/today`, `#/shared`, `#/schedules`, `#/tasks`, `#/catalog` | 360, 768, 1280, 1920 px (dark and light; 40 views total) | 0 console errors, 0 px horizontal overflow across all 40 views | `docs/research/2026-11-personal-ops-workflows/artifacts/phase0/report.json` |
+
+Phase 1 made no UI or website change, so no new visual capture was required. The Phase 0 baseline
+remains the visual reference for the next UI phase.
 
 ## Review findings log
 
@@ -66,6 +83,11 @@ output.
 | 2026-11-06 | Phase 0 | `src/hutch/tools/commitments.py:50-115` | `capture_commitment` lacks `source_ref` validation against run tool/upload records | Tracked for Phase 5 (Task 5A) |
 | 2026-11-06 | Phase 0 | `src/hutch/store.py:4027-4100` | Schedule mutations overwrite bot doc without audit/revision triggers (G03) | Tracked for Phase 2 (Task 2A) |
 | 2026-11-06 | Phase 0 | `src/hutch/server/security.py:40-160` | Phone capability map excludes Today and commitments routes (G13) | Tracked for Phase 9 (Task 9A) |
+| 2026-11-06 | Phase 1 | `03-REQUIREMENTS-AND-DECISIONS.md:45` | POW-R17 originally did not restrict the text-only notice to allowlisted senders; fixed before commit so a stranger is never messaged | c3856c3b |
+| 2026-11-06 | Phase 1 | `03-REQUIREMENTS-AND-DECISIONS.md:99` | Phone capability first said "view and complete only", omitting the existing-approval decision the phase goal requires; fixed with an explicit allow/deny test | c3856c3b |
+| 2026-11-06 | Phase 1 | `03-REQUIREMENTS-AND-DECISIONS.md:123` | Sidecar schedule policy was not recorded as a decision; added POW-D17 to keep `models.py` frozen | c3856c3b |
+| 2026-11-06 | Phase 1 | `02-FAILURES-AND-COMPLAINTS.md` | Initial id cross-check found POW-R4 and POW-R13 defined but uncited; added them to F20 and F41 | c3856c3b |
+| 2026-11-06 | Phase 1 | `01-SOURCES.md` E1-E2 | `ocr.direct` returned 504 and the OpenAI PDF thread returned an empty page; recorded as unreachable instead of guessing | c3856c3b |
 
 ## Open items and deferred
 
@@ -73,3 +95,6 @@ output.
 |---|---|---|
 | Live Google Calendar / Gmail OAuth verification | No live Google credentials provided | Owner credentials or stay `implemented-unverified` |
 | Live Telegram bot verification | No live Telegram bot token provided | Owner bot token or stay `implemented-unverified` |
+| `ocr.direct` receipt-validation guide | HTTP 504 on 2026-11-06 | Not needed; C14 (ExpenSheet) covers the same rules and no requirement depends on the missing page |
+| OpenAI Developer Community PDF-export thread | Returned an empty body on 2026-11-06 | C16 and C17 carry the deliverable-loss evidence; recheck only if a primary OpenAI statement is needed |
+| Telegram local Bot API server | Not stood up or tested | Do not claim its 2 GB ceiling; the standard Bot API 20 MiB download cap is the verified limit |
