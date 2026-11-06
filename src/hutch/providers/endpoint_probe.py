@@ -130,8 +130,9 @@ def _models_layer(report: ProbeReport, client: Any, base: str, models_url: str, 
               "to that host); set the endpoint to the final URL" if 300 <= status < 400
               else f"{models_url} answered HTTP {status}, not a model list")
     _suggest_v1(report, client, base, key)
-    return _fail(report, "models", detail + (f". It does list models at {report.suggested_base}/models: set the "
-                                             "endpoint to that" if report.suggested_base else ""))
+    return _fail(report, "models", detail + (f". The same server lists its models under {report.suggested_base}/models: "
+                                             f"set the endpoint to {report.suggested_base}"
+                                             if report.suggested_base else ""))
 
 
 def _suggest_v1(report: ProbeReport, client: Any, base: str, key: str) -> None:

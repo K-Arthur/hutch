@@ -122,8 +122,9 @@ def vet(host: str, port: int, *, resolver: Optional[_Resolver] = None, vendor: b
     vetted = [(ip, classify_address(ip)) for ip in _addresses(name, port, resolver)]
     for ip, kind in vetted:
         if kind == BLOCKED:
-            raise EndpointRefused(f"'{host}' resolves to {ip}, a link-local, reserved or otherwise blocked address "
-                                  "(this range includes cloud metadata services) and is never a model endpoint")
+            where = ip if name == ip else f"'{host}' resolves to {ip}, which"
+            raise EndpointRefused(f"{where} is a link-local, reserved or otherwise blocked address (this range "
+                                  "includes cloud metadata services) and is never a model endpoint")
     if literal_ip(name) is not None or vendor or local_style(name) or name in allowed_hosts(env):
         return vetted
     for ip, kind in vetted:

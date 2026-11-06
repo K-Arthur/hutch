@@ -80,7 +80,7 @@ def test_an_exact_listed_name_is_trusted_and_a_sibling_is_not():
 
 def test_a_listed_name_still_cannot_reach_a_blocked_address():
     env = {"HUTCH_PRIVATE_HOSTS": "llm.corp.example.test"}
-    with pytest.raises(EndpointRefused, match="blocked"):
+    with pytest.raises(EndpointRefused, match="blocked address"):
         vet("llm.corp.example.test", 443, resolver=_answers("169.254.169.254"), env=env)
 
 
