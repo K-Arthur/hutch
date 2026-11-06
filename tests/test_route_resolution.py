@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 from hutch.connections import ConnectionBook
 from hutch.providers.routing import billing_crosses, resolve_chain, resolve_route
+from hutch.runtime.ladder import billing_crossing_refusal
 
 
 def _book(tmp_path) -> ConnectionBook:
@@ -106,6 +107,17 @@ def test_a_fallback_that_crosses_from_subscription_to_metered_requires_consent(t
     assert rows[1]["resolution"].billing == "per_token"
     assert rows[1]["requires_consent"] is True
     assert all(not row["resolution"].substituted for row in rows)
+
+
+def test_a_subscription_primary_refuses_a_metered_fallback(tmp_path):
+    book = _book(tmp_path)
+    book.add("openai-api", "plan", billing="subscription")
+    book.add("xai", "metered", billing="per_token")
+    assert billing_crossing_refusal(book, "plan/gpt-4o", "metered/grok-4", local=False)
+    assert billing_crossing_refusal(book, "plan/gpt-4o", "plan/gpt-4o-mini", local=False) is None
+    assert billing_crossing_refusal(book, "metered/grok-4", "plan/gpt-4o", local=False) is None
+    assert billing_crossing_refusal(book, "ollama/llama3.2", "metered/grok-4", local=False) is None
+    assert billing_crossing_refusal(book, "plan/gpt-4o", "metered/grok-4", local=True) is None
 
 
 def test_billing_crossing_is_one_directional():

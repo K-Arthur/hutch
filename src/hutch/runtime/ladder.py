@@ -25,6 +25,7 @@ from ..models import Bot, Run, iso, utcnow
 from ..money import parse_usd, to_store_reserved
 from ..providers import Provider, make_provider, parse_spec
 from ..providers.pricing import PriceBook
+from ..providers.routing import billing_crosses
 from ..store import CallQuote, Reservation
 
 _PROVIDERS: dict[tuple, Provider] = {}
@@ -188,6 +189,27 @@ def resolve_quote(rung: Rung, prices: PriceBook, connections, est_prompt_tokens:
                      stale=(price.stale if price else True))
 
 
+def _billing_of(connections, spec: str) -> str:
+    if connections is None:
+        return ""
+    provider, _ = parse_spec(spec)
+    connection = connections.get(provider)
+    return connection.billing if connection is not None else ""
+
+
+def billing_crossing_refusal(connections, primary_spec: str, candidate_spec: str, *, local: bool) -> Optional[str]:
+    """Refuse a hop from a subscription allowance to metered billing without an explicit decision.
+
+    Configuration is the approval: if the metered route is the Bot's primary model, it is already the
+    declared payer. A fallback or escalation must not silently move spend to a different relationship.
+    """
+    if local or not billing_crosses(_billing_of(connections, primary_spec), _billing_of(connections, candidate_spec)):
+        return None
+    return (f"{candidate_spec} is billed per token while this Bot's primary route is a subscription. "
+            "Hutch will not cross from a subscription allowance to metered billing without an explicit "
+            "decision; make the metered route the primary model or remove it from the fallback chain.")
+
+
 class SpendGuard:
     """Estimate-based admission limits for hosted calls; provider billing can differ from Hutch's estimate."""
 
@@ -272,6 +294,9 @@ class SpendGuard:
         """Why this call must not happen, or None. Local models are free and always allowed."""
         if rung.local:
             return None
+        crossing = billing_crossing_refusal(self.connections, self.bot.model, rung.spec, local=rung.local)
+        if crossing:
+            return crossing
         connection = self.connections.get(rung.provider) if self.connections else None
         if connection is not None and connection.auth_type == "chatgpt-siws":
             from ..chatgpt_consent import has_background_provider_consent, is_background_run
