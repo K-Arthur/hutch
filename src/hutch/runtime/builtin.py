@@ -50,6 +50,7 @@ from ..toolcalling.compiler import ToolProtocolUnavailable, compile_plan, plan_e
 from ..toolcalling.envelope import decode_action, looks_like_envelope
 from ..toolcalling.profiles import ModelCapabilityProfile, resolve_profile
 from .ladder import Ladder, Rung, SpendGuard, get_provider
+from .outcomes import exit_reason
 from .steps import StepTimer, call_tool, finish_step
 from . import fitloop
 from .toolrepair import LoopDetector, coerce_args, repair_instruction, unknown_tool_message, validate_args
@@ -435,9 +436,11 @@ class BuiltinRuntime:
         floor = min(want, preset.min_ctx if preset else 4096)
         hardware, _ = (self._admission_memory(provider, rung.model) if rung.provider == "ollama"
                        else (self._hardware(), False))
+        set_loading = lambda on: self._set_status(ctx, run, RunStatus.loading_model if on else RunStatus.running, rung.spec)
         admission = admit_local(rung.provider, provider=provider, base_url=getattr(provider, "base_url", ""),
                                 model=rung.model, want=want, min_ctx=floor, hardware=hardware,
-                                credential=getattr(provider, "api_key", "") if rung.provider != "ollama" else "")
+                                credential=getattr(provider, "api_key", "") if rung.provider != "ollama" else "",
+                                on_loading=set_loading)
         meta, num_ctx = admission.meta, admission.num_ctx
         if admission.blocked or (rung.provider == "ollama" and not num_ctx):
             raise ProviderError(admission.error_kind or "server", admission.reason, provider=rung.provider)
@@ -447,6 +450,10 @@ class BuiltinRuntime:
                   num_ctx=num_ctx, fit=admission.fit_status or ("measured" if num_ctx else "unknown"),
                   estimated=admission.estimated, state=admission.state,
                   **({"severity": "warn"} if not num_ctx else {}))
+        if admission.load_ms:
+            ctx.store.kv_set(f"model_load:{rung.model}", json.dumps({"ms": admission.load_ms, "at": time.time()}))
+            self._log(ctx, run, "load", f"loaded {rung.model} in {admission.load_ms / 1000:.1f}s",
+                      load_ms=admission.load_ms)
         # LM-3: prompt + tools vs the window the model will actually get
         if num_ctx:
             chk = check_prompt(messages, specs, num_ctx, self._turn_cap(bot, rung, run))
@@ -761,10 +768,10 @@ class BuiltinRuntime:
                 if stop():
                     raise RunAborted("stopped", "user requested stop") from exc
                 if not exc.retryable and exc.kind not in ("model_missing", "auth", "quota"):
-                    raise RunAborted(_exit_reason(exc), f"cannot start on {rung.spec}: {exc}") from exc
+                    raise RunAborted(exit_reason(exc), f"cannot start on {rung.spec}: {exc}") from exc
                 nxt = ladder.next_fallback()
                 if nxt is None:
-                    raise RunAborted(_exit_reason(exc), f"cannot start on {rung.spec}: {exc}") from exc
+                    raise RunAborted(exit_reason(exc), f"cannot start on {rung.spec}: {exc}") from exc
                 self._log(ctx, run, "fallback", f"{rung.spec} is unavailable ({exc}); trying {nxt.spec}",
                           from_model=rung.spec, to_model=nxt.spec, reason=str(exc))
                 rung = nxt
@@ -1489,7 +1496,7 @@ class BuiltinRuntime:
             except DeniedError as exc:
                 raise RunAborted("error", f"provider route was not approved: {exc}") from exc
             except ProviderError as exc:
-                raise RunAborted(_exit_reason(exc), f"provider connection is no longer usable: {exc}") from exc
+                raise RunAborted(exit_reason(exc), f"provider connection is no longer usable: {exc}") from exc
             req = ChatRequest(
                 model=session.rung.model, messages=self._request_messages(ctx, run, session, messages),
                 tools=specs, num_ctx=session.num_ctx,
@@ -1523,7 +1530,7 @@ class BuiltinRuntime:
                                          "provider": session.rung.spec,
                                          "error": str(exc)[:500]}))
                 if is_preview:
-                    raise RunAborted(_exit_reason(exc), f"preview request failed; Hutch did not retry: {exc}") from exc
+                    raise RunAborted(exit_reason(exc), f"preview request failed; Hutch did not retry: {exc}") from exc
                 if plan.strategy == "constrained" and exc.kind == "bad_request":
                     raise RunAborted(
                         "tool_protocol",
@@ -1545,7 +1552,7 @@ class BuiltinRuntime:
                     continue
                 nxt = self._recover(ctx, run, ladder, guard, exc, messages, specs, est_prompt)
                 if nxt is None:
-                    raise RunAborted(_exit_reason(exc), f"model call failed ({session.rung.spec}): {exc}") from exc
+                    raise RunAborted(exit_reason(exc), f"model call failed ({session.rung.spec}): {exc}") from exc
                 session, rate_limited_once = nxt, False
                 continue
             except RunAborted:
@@ -1899,12 +1906,6 @@ class BuiltinRuntime:
                 raise RunAborted("malformed", f"{session.rung.spec} produced {malformed_streak} invalid tool calls in "
                                               "a row; configure an escalation model or choose a more reliable one "
                                               "(see `hutch models bench`)")
-
-
-def _exit_reason(exc: ProviderError) -> str:
-    if getattr(exc, "cost_cap", False):
-        return "cost_cap"
-    return {"context": "context", "refused": "refused"}.get(exc.kind, "error")
 
 
 def _plain_schema(value: Any) -> Any:

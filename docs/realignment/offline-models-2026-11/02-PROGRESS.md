@@ -11,7 +11,7 @@ covers before relying on it.
 | 0 Diagnose | done | 33bf8a61 | 2026-11-06: Ollama 0.40.13/0.40.15, llama.cpp b12144 CPU+Vulkan, LM Studio llmster 0.0.27-1, Chromium captures | — |
 | 1 Locality truth | done (1.1, 1.2, 1.3) | see git log | 2026-11-06: real Ollama 0.40.13 rows (cloud stub, renamed cloud copy, local, missing model) | EC-02 second-interface run not run |
 | 2 Native runtime introspection | done (2.1, 2.2, 2.3, 2.4) | d057cc95..7c53c59e | 2026-11-06: llama.cpp b12144 9931 (4096 per slot with `-c 8192 --parallel 2`), LM Studio applied 8192, discovery fingerprints both, squatter unknown, `--api-key` needs_key then a keyed chat, needle self-check at 4096 | vLLM/SGLang not installed; LM Studio API-token mode not enabled live (401 path tested with a real key-protected llama-server) |
-| 3 Lifecycle states and errors | not started | | | |
+| 3 Lifecycle states and errors | in progress (3.1, 3.2, 3.3) | see git log | pending live run | — |
 | 4 Get a model (install, import, guide) | not started | | | |
 | 5 Multimodal and tool reliability | not started | | | |
 | 6 Strict Offline live, boundary ADR | not started | | | Owner decision on the boundary (Phase 6.3) |
@@ -212,3 +212,18 @@ Still open (ask at the phase that needs it):
   loaded at 4,096 tokens per request across 2 slots". Focused `tests/e2e/test_model_picker.py`
   (12) passes; the switcher rows are the existing keyboard-operable menu items and the notes notice
   is `aria-live="polite"`.
+
+### Phase 3 checkpoints
+
+- 2026-11-06, Phase 3 research: `docs/research/2026-11-offline-models/04-PHASE3-LIFECYCLE.md`,
+  R26-R32 appended to `01-FAILURE-MINING.md`, design in `06-PHASE3-DESIGN.md`.
+- 2026-11-06, Phase 3.1: `providers/local/lifecycle.py` (bounded `observe_load` with measured
+  wait, `load_fixed_runtime`), `RuntimeState.sleeping` from llama.cpp `/props.is_sleeping`,
+  admission passes `load_ms`/`sleeping`, and the run records the measured load in the existing
+  `model_load:` key and `load` event. A LOADING state is no longer cached, so the poll sees the
+  transition. Tests: `tests/test_local_lifecycle.py` (9); focused local suites 41 pass.
+  `check:agent` passes. Live cold-load evidence pending.
+- 2026-11-06, Phase 3.1 review: moved `_exit_reason` to `runtime/outcomes.py` to keep
+  `runtime/builtin.py` at its 1,955-line cap; the call site now reads the runtime's state via
+  admission and only turns it into a status and a measured event. No behavior claim beyond the
+  measured wait.

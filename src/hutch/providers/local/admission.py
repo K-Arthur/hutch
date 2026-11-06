@@ -8,14 +8,16 @@ measured one.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from ...context import plan_context
 from ...hardware import Hardware
 from ..base import ModelMeta, Provider
 from . import adapter_for
 from .base import LOADING, NEEDS_KEY, READY, UNKNOWN
+from .lifecycle import observe_load
 from .probe import ProbeError
 
 
@@ -33,13 +35,17 @@ class LocalAdmission:
     reason: str = ""
     fit_status: str = ""
     estimated: bool = False
+    load_ms: float = 0.0
+    sleeping: bool = False
 
 
 def admit_local(provider_id: str, *, provider: Optional[Provider], base_url: str, model: str,
-                want: int, min_ctx: int, hardware: Hardware, credential: str = "") -> LocalAdmission:
+                want: int, min_ctx: int, hardware: Hardware, credential: str = "",
+                on_loading: Optional[Callable[[bool], None]] = None) -> LocalAdmission:
     if provider_id == "ollama" and provider is not None:
         return _admit_ollama(provider, model, want, min_ctx, hardware)
-    return _admit_fixed(provider_id, base_url, model, want, min_ctx, hardware, credential)
+    return _admit_fixed(provider_id, base_url, model, want, min_ctx, hardware, credential,
+                        on_loading=on_loading)
 
 
 def _missing(model: str, available: list[str]) -> LocalAdmission:
@@ -76,9 +82,14 @@ def _admit_ollama(provider: Provider, model: str, want: int, min_ctx: int,
 
 
 def _admit_fixed(provider_id: str, base_url: str, model: str, want: int, min_ctx: int,
-                 hardware: Hardware, credential: str) -> LocalAdmission:
+                 hardware: Hardware, credential: str,
+                 on_loading: Optional[Callable[[bool], None]] = None) -> LocalAdmission:
     adapter = adapter_for(provider_id, base_url, credential)
-    state = adapter.state()
+    observed = observe_load(adapter, model, on_loading=on_loading)
+    state = observed.state
+    load_ms = observed.waited_ms
+    if observed.blocked:
+        return _blocked(observed.error_kind or "server", observed.detail, observed.state_after)
     if state.state == NEEDS_KEY:
         return _blocked("auth", state.detail, NEEDS_KEY)
     if not state.reachable:
@@ -106,20 +117,28 @@ def _admit_fixed(provider_id: str, base_url: str, model: str, want: int, min_ctx
         if meta is not None:
             meta.applied_context = loaded.applied_context
         return LocalAdmission(meta, loaded.applied_context, want, applied=loaded.applied_context,
-                              slots=loaded.parallel, state=READY, note=note)
+                              slots=loaded.parallel, state=READY, note=note, load_ms=load_ms,
+                              sleeping=observed.sleeping)
     if meta is None:
         note = (f"{provider_id} did not report its models or its window; Hutch will not assume either "
                 f"(wanted {want:,})")
-        return LocalAdmission(None, None, want, state=UNKNOWN, note=note)
+        return LocalAdmission(None, None, want, state=UNKNOWN, note=note, load_ms=load_ms,
+                              sleeping=observed.sleeping)
+    if observed.sleeping:
+        note = (f"{provider_id} reports {model} asleep; the next request reloads it, and Hutch will size "
+                f"the run only after the runtime reports the applied window (wanted {want:,})")
+        return LocalAdmission(meta, None, want, state=UNKNOWN, note=note, load_ms=load_ms,
+                              sleeping=True)
     if provider_id == "lmstudio":
-        return _load_lmstudio(adapter, meta, model, want, min_ctx, hardware)
+        return _load_lmstudio(adapter, meta, model, want, min_ctx, hardware, on_loading=on_loading)
     note = (f"{provider_id} does not report the window it serves over its model list; Hutch cannot size this "
             f"run to it (wanted {want:,})")
-    return LocalAdmission(meta, None, want, state=UNKNOWN, note=note)
+    return LocalAdmission(meta, None, want, state=UNKNOWN, note=note, load_ms=load_ms)
 
 
 def _load_lmstudio(adapter: Any, meta: Optional[ModelMeta], model: str, want: int, min_ctx: int,
-                   hardware: Hardware) -> LocalAdmission:
+                   hardware: Hardware,
+                   on_loading: Optional[Callable[[bool], None]] = None) -> LocalAdmission:
     if meta is None:
         return _missing(model, [])
     wanted = min(want, meta.max_context) if meta.max_context else want
@@ -129,18 +148,25 @@ def _load_lmstudio(adapter: Any, meta: Optional[ModelMeta], model: str, want: in
                               error_kind="oom", reason=f"{model} does not fit this machine: {plan.note}",
                               fit_status=plan.fit.status if plan.fit else "unknown",
                               estimated=bool(plan.fit and plan.fit.estimated))
+    if on_loading is not None:
+        on_loading(True)
+    started = time.perf_counter()
     try:
         applied = adapter.load(model, plan.num_ctx)
     except ProbeError as exc:
         kind = "auth" if exc.kind == "needs_key" else "server"
         return _blocked(kind, str(exc))
+    finally:
+        if on_loading is not None:
+            on_loading(False)
+    load_ms = (time.perf_counter() - started) * 1000.0
     if applied:
         meta.applied_context = applied
-        note = (f"LM Studio loaded {model} at {applied:,} tokens"
+        note = (f"LM Studio loaded {model} at {applied:,} tokens in {load_ms / 1000:.1f}s"
                 + (f" (wanted {want:,})" if want != applied else ""))
         return LocalAdmission(meta, applied, want, applied=applied, state=READY, note=note,
                               fit_status=plan.fit.status if plan.fit else "unknown",
-                              estimated=bool(plan.fit and plan.fit.estimated))
+                              estimated=bool(plan.fit and plan.fit.estimated), load_ms=load_ms)
     note = (f"LM Studio did not report the applied window for {model}; Hutch will not assume "
             f"the requested {plan.num_ctx:,} took effect")
-    return LocalAdmission(meta, None, want, state=UNKNOWN, note=note)
+    return LocalAdmission(meta, None, want, state=UNKNOWN, note=note, load_ms=load_ms)

@@ -51,6 +51,7 @@ class RuntimeState:
     state: str = UNREACHABLE
     detail: str = ""
     version: str = ""
+    sleeping: bool = False           # unloaded but reloadable (llama.cpp /props.is_sleeping)
     models: list[ModelMeta] = field(default_factory=list)
     loaded: dict[str, Loaded] = field(default_factory=dict)
     policy: str = "unknown"          # refuse | shift | unknown

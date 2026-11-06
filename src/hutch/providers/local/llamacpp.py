@@ -208,13 +208,18 @@ class LlamaCppRuntime:
                 row.capabilities = list(dict.fromkeys([*row.capabilities, *(_modalities({}, props))]))
         state.policy, state.policy_detail = "unknown", POLICY_NOTE
         state.identity = self._identity(props, models, models_response)
+        state.sleeping = bool(props.get("is_sleeping"))
         if loading:
             state.state = LOADING
         elif props or models:
             state.state = READY
+            if state.sleeping:
+                state.detail = "the model is asleep in the runtime; the next request reloads it"
         else:
             state.state, state.detail = UNKNOWN, "the port answered but neither /props nor /v1/models identified a server"
-        self._cached = state
+        # A loading server changes on its own; a cached LOADING would never become ready.
+        if not loading:
+            self._cached = state
         return state
 
     @staticmethod
