@@ -43,3 +43,75 @@ downloaded and read instead (Google). No provider credential exists in this envi
 | Retired model presented as available | Sora 2 (2026-09-24), Veo preview (2026-10-22), `gemini-2.5-flash-image` (2027-03-15), `grok-imagine-image-pro` | vendor-side | Catalogue says `retired` with the date; no route. |
 | Cost surprise | token-billed images, credits-billed video, per-character speech, 2027-01-01 TTS price change | mitigable | Estimate shown before the approval, labeled with its basis and date; the vendor account stays authoritative. |
 | Job outlives the tool call | `create_media` waits 90 s then returns; nothing resumes a 5-minute render | fixable | Status, resume and cancel operate on the ledger, outside any run. |
+
+## Design (what was built, and the files)
+
+Tasks, each at most three source files plus one seam:
+
+1. Durability and honesty: `media/spool.py`, `media/status.py`, `media/fetch.py`; seam `media/jobs.py` (shrunk from 592
+   to 577 lines while gaining `refused`, `recoverable` and tuple-returning `finalize`).
+2. Route engine: `data/media-routes.json`, `providers/route_spec.py`, `providers/wire.py`, `providers/http_call.py`,
+   `providers/route_values.py`, `providers/route_backend.py` (sync), `providers/route_task.py` (task).
+3. Wiring and cost: `media/backends.py`, `media/cost.py`, `data/media-prices.json`, `media/usage.py`; the 170-line
+   `run_provider_media` in `tools/media_generation.py` became twelve functions of at most 40 lines.
+4. Jobs that outlive the call: `media/ledger.py`, `media/resume.py`, `media/jobs_routes.py` (mounted from
+   `media/routes.py`, so frozen `app.py` did not grow).
+5. ComfyUI: queue-aware cancel, outputs from every list, bounded and pinned downloads.
+6. Catalogue and docs: `providers.json` statuses, ADR-0036, `provider-platform.md`, `connections.md`,
+   `provider-compatibility.md`.
+
+Decisions and why:
+
+- **Data, not per-vendor code.** Fourteen routes fit two protocols. OpenAI Images needs model-family rules a table
+  cannot hold, so the row names an adapter. Routes whose wire was not read stay `documented` instead of being built
+  on a guess (Runway, MiniMax video, Google Omni).
+- **No backend is chosen between accounts.** With 14 routes the old alphabetical pick would silently choose a payer.
+- **A held result before the ledger moves.** The provider is paid when it answers; the spool closes the window.
+- **Credentials.** Connection-backed where a chat connection exists (key, endpoint and billing are the user's
+  decision in Hutch); an environment variable only for vendors without one, labeled ambient. No new credential store
+  and no change to frozen `connections.py`.
+- **Estimates.** Only Google image and speech have a readable price. Everything else says "cost unknown". An
+  estimate is recorded as `estimated`; an unknown price is `unpriced` with no number.
+- **No automatic retry anywhere.** The OpenAI SDK's default retries are off for billable calls; fal gets
+  `X-Fal-No-Retry`; Gemini TTS's empty 200 is not retried (the thread reports roughly half of requests failing and
+  billing for each).
+
+## Results
+
+- Focused suites: 253 media tests; 590 provider, catalogue, compat, media, route and connection tests; 127 app and
+  tool tests; 82 tool-contract and offline tests. `npm run check:agent` and `npm run audit:context` pass. The emoji
+  audit reports 8 violations, all in `.codewhale/state/subagents.v1.json` (another tool's untracked state).
+- Mutation checks (tests fail without the behavior): the in-body envelope check, `X-Fal-No-Retry`, the content-type
+  check, the old blind ComfyUI cancel, and images-only ComfyUI fetch.
+- Real stack, `docs/realignment/run_media_resume_check.py`, record in
+  `docs/realignment/artifacts/provider-expansion-2026-11/phase6/media-resume-run.json` (2026-11-06): a victim process
+  was SIGKILLed after a stand-in provider answered a speech request; a real `hutch serve` on the same state listed the
+  open job, `advance` finished it with one provider request, the served SHA-256 equalled the provider's bytes, and
+  the spool was empty afterward. A video job went pending to done and was stored as `video/mp4`; a cancel the provider
+  cannot confirm ended `cancel_unconfirmed`; a MiniMax 1026 envelope inside a 200 ended `refused`. The record holds no
+  key. **The provider was a stand-in, so none of this is vendor evidence.**
+
+## Defects found by running, not planned
+
+- `finalize()` returned a bare row on failure paths while every caller unpacks a tuple (pre-existing; any failed
+  fetch raised `ValueError` in the tool).
+- The new downloader let the pinned transport's `EndpointRefused` escape; it is now a `FetchError`.
+- Reconcile tests passed a live service that rightly skips jobs it drives; they now restart the service.
+- Releasing the held copy after commit lost Xiaomi's measured tokens (read after the release); caught by the existing
+  speech test, fixed by reading before finalize, with a regression test on the resume path.
+- A local "route cannot be filled" error claimed the provider may have billed; it now says nothing was sent.
+- The spool was never released or swept; fixed.
+
+## Not run, and why
+
+- Any vendor request: no credential for any of the eleven providers in the environment. Every route is
+  `blocked: no credential` for live purposes. The owner's earlier statement that OpenAI, Anthropic and Google keys
+  are provisioned still does not match the shell (the variables are unset); the first paid call per provider would
+  need the keys exported and a per-call token or image cap agreed.
+- A real ComfyUI server (none installed), Comfy Cloud, and Runway, PixVerse CN, MiniMax video.
+- Provider-native search for OpenAI, Google and xAI: documented, not built. The existing Xiaomi route and the
+  `live_search` distinction are unchanged and still labeled in every surface.
+- Music (Lyria, MiniMax music, ElevenLabs music, fal music), image editing through routes, streaming synthesis, mp3
+  output, voice cloning and image-to-video: not built; the media store accepts wav audio only.
+- The UI for any of this (Phase 7): the jobs API exists; no page lists jobs, and a finished resumed job does not
+  re-enter the conversation as a media block.
