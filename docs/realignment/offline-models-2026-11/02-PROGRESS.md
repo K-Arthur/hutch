@@ -116,6 +116,13 @@ Still open (ask at the phase that needs it):
 - 2026-11-06, Phase 0: `scripts/audit_emoji.py` reports 8 pictographic findings, all in
   `.codewhale/state/subagents.v1.json` (another actor's state directory). None is in a
   Phases 0 file; not touched.
+- 2026-11-06, Phase 2 review: `local_window_notes` returned early unless the hardware probe saw a
+  non-Ollama runtime, and the hardware probe checks llama.cpp's old 8080, so a stock 9931 server
+  produced no notes. It now probes the discovery candidates and is skipped only when
+  `with_runtimes=False`. Local choices and model notes also now pass the state directory so a
+  key-protected runtime with a matching stored key is readable rather than reported as `needs_key`.
+  Removed unused `hw`/`bot` parameters from the choice helpers and the unused `LOOPBACK_HOSTS`
+  constant in discovery. No behavior claim changed; the focused suite (87) passes.
 
 ## Open items and deferred
 

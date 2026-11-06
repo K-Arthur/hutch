@@ -117,9 +117,9 @@ def _per_million(price) -> str:
     return f"${price.input:g} in / ${price.output:g} out per 1M tokens"
 
 
-def _local_choices(bot: Bot, hw: Hardware, provider: Any) -> list[Choice]:
+def _local_choices(bot: Bot, hw: Hardware, provider: Any, state_dir: Any = None) -> list[Choice]:
     from .localchoices import local_choices
-    return local_choices(bot, hw, provider)
+    return local_choices(bot, hw, provider, state_dir=state_dir)
 
 
 def _hosted_choices(bot: Bot, book: PriceBook) -> list[Choice]:
@@ -308,7 +308,7 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
     allow_hosted_discovery = discover_hosted_models and bot.inference_mode.value not in ("local", "offline")
     opencode = (_opencode_choices(config, bot)       # the picker lists OpenCode's models for any assistant (choosing one switches its runtime)
                 if (bot.runtime is RuntimeKind.opencode or any_runtime) and allow_hosted_discovery else [])
-    for c in (_local_choices(bot, hw, provider) + _hosted_choices(bot, book)
+    for c in (_local_choices(bot, hw, provider, config.state_dir) + _hosted_choices(bot, book)
               + opencode
               + _connection_choices(bot, store, cbook, known,
                                     discover_hosted_models=allow_hosted_discovery, model_query=model_query)):

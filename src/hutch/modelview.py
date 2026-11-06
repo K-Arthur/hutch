@@ -93,17 +93,19 @@ def residency_note(meta: ModelMeta) -> str:
     return ", ".join(parts)
 
 
-def local_window_notes(hw: Hardware) -> list[str]:
-    """Measured windows from non-Ollama runtimes that are actually running.
+def local_window_notes(state_dir: Any = None) -> list[str]:
+    """Measured windows from non-Ollama runtimes that answer.
 
-    Only called when the hardware probe already found one reachable, so a models page with no
-    llama.cpp/LM Studio server does not pay for a second round of connection attempts.
+    The hardware probe checks llama.cpp's old 8080, so this uses the same candidate list as
+    discovery and never infers a window from the hardware snapshot. A stored key is supplied only
+    for its matching connection origin.
     """
-    if not any(r.reachable and r.name != "ollama" for r in hw.runtimes):
-        return []
     from .providers.discovery import ENDPOINTS, probe_local_services
+    from .providers.local.credentials import runtime_credentials
+    credential_for = runtime_credentials(state_dir) if state_dir else None
     notes: list[str] = []
-    for row in probe_local_services(timeout=0.4, endpoints=[e for e in ENDPOINTS if e.provider_id != "ollama"]).values():
+    for row in probe_local_services(timeout=0.4, endpoints=[e for e in ENDPOINTS if e.provider_id != "ollama"],
+                                    credential_for=credential_for).values():
         if not row.get("reachable"):
             continue
         windows = row.get("applied_context") or {}
@@ -178,7 +180,7 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
             sugg.append((tag, estimate_fit(meta, hw, REFERENCE_WINDOWS[0]), meta))
     sugg.sort(key=lambda t: (t[1].status == "wont_fit", t[2].params_b or 0))
     book = PriceBook(config.state_dir / "prices.json")
-    notes = list(hw.notes) + local_window_notes(hw)
+    notes = list(hw.notes) + (local_window_notes(config.state_dir) if with_runtimes else [])
     if not ollama_up:
         notes.append("Ollama is not running, so installed models cannot be listed. Start it with `ollama serve`; "
                      "suggestions below are estimates from the catalog.")

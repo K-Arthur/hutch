@@ -20,7 +20,6 @@ from urllib.parse import urlsplit
 from .local import DEFAULT_TIMEOUT, ProbeError, get_json, introspect, verified_loopback_url
 from .local.base import NEEDS_KEY, READY, UNREACHABLE, UNKNOWN
 
-LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 MAX_RESPONSE_BYTES = 256 * 1024
 MAX_MODELS = 500
 

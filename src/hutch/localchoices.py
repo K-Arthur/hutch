@@ -17,7 +17,7 @@ from .providers.discovery import ENDPOINTS, probe_local_services
 from .providers.registry import is_local
 
 
-def _ollama_choices(bot: Any, hw: Hardware, provider: Any, want: int) -> list[Any]:
+def _ollama_choices(hw: Hardware, provider: Any, want: int) -> list[Any]:
     from .modelchoices import Choice, _cached
     from .modelview import installed
     out: list[Any] = []
@@ -40,16 +40,19 @@ def _ollama_choices(bot: Any, hw: Hardware, provider: Any, want: int) -> list[An
     return out
 
 
-def _runtime_rows(hw: Hardware) -> list[dict[str, Any]]:
+def _runtime_rows(state_dir: Any = None) -> list[dict[str, Any]]:
     """Probe every non-Ollama local runtime; llama.cpp's stock port is not the hardware probe's.
 
     A dead loopback port refuses immediately, and a five-second cache keeps the picker from
-    repeating the probe for every message.
+    repeating the probe for every message. A key is supplied only for a matching connection origin.
     """
     from .modelchoices import _cached
+    from .providers.local.credentials import runtime_credentials
     endpoints = [e for e in ENDPOINTS if e.provider_id != "ollama"]
+    credential_for = runtime_credentials(state_dir) if state_dir else None
     rows = _cached("local-runtime-rows",
-                   lambda: probe_local_services(timeout=0.4, endpoints=endpoints), ttl=5.0)
+                   lambda: probe_local_services(timeout=0.4, endpoints=endpoints,
+                                                credential_for=credential_for), ttl=5.0)
     return list(rows.values())
 
 
@@ -73,7 +76,7 @@ def _endpoint(row: dict[str, Any]) -> str:
     return url[: -len("/models")] if url.endswith("/models") else url
 
 
-def _runtime_choices(bot: Any, hw: Hardware, row: dict[str, Any], want: int) -> list[Any]:
+def _runtime_choices(hw: Hardware, row: dict[str, Any], want: int) -> list[Any]:
     from .modelchoices import Choice
     if row.get("state") == "needs_key" or not row.get("reachable"):
         return []
@@ -104,12 +107,12 @@ def _runtime_choices(bot: Any, hw: Hardware, row: dict[str, Any], want: int) -> 
     return out
 
 
-def local_choices(bot: Any, hw: Hardware, provider: Any) -> list[Any]:
+def local_choices(bot: Any, hw: Hardware, provider: Any, *, state_dir: Any = None) -> list[Any]:
     """Every local model Hutch can see, grouped by where inference happens."""
     want = bot.num_ctx or 16384
     out: list[Any] = []
     if any(r.name == "ollama" and r.reachable for r in hw.runtimes):
-        out.extend(_ollama_choices(bot, hw, provider, want))
-    for row in _runtime_rows(hw):
-        out.extend(_runtime_choices(bot, hw, row, want))
+        out.extend(_ollama_choices(hw, provider, want))
+    for row in _runtime_rows(state_dir):
+        out.extend(_runtime_choices(hw, row, want))
     return out
