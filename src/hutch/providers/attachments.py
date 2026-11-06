@@ -111,16 +111,25 @@ def validate_image_rows(requested: list[str], rows: list[Optional[dict]], *,
     return validated, problems
 
 
-def image_route_refusal(provider: Any, model: str, *, verify_model: bool = True) -> Optional[str]:
+def image_route_refusal(provider: Any, model: str, *, verify_model: bool = True,
+                        image_mimes: Optional[list[str]] = None) -> Optional[str]:
     """Why this route cannot receive the attached images, or ``None`` when it can.
 
     Wire-level support (``supports_media_input``) is always checked.
     ``verify_model=False`` skips the per-model check for callers that must not
     make a network request (admission on Ollama routes queries ``/api/show``);
     the runtime re-checks with ``verify_model=True`` after the model is online.
+
+    ``image_mimes`` lets a route refuse a media type its own server rejects. LM
+    Studio 0.0.27 accepts PNG/JPEG data URIs and answers a WebP data URI with
+    "'url' field must be a base64 encoded image" (observed 2026-11-06); Hutch says
+    so before sending instead of converting the user's file silently.
     """
     if not getattr(provider, "supports_media_input", False):
         return "the selected model route cannot receive image input"
+    if getattr(provider, "name", "") == "lmstudio" and any(
+            str(mime).lower() == "image/webp" for mime in (image_mimes or ())):
+        return "LM Studio rejects WebP image data URIs; use a PNG or JPEG image"
     if verify_model and not provider.supports_vision(model):
         return f"the model '{model}' does not accept image input"
     return None

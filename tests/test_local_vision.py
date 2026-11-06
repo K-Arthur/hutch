@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from hutch.providers.attachments import image_route_refusal
 from hutch.providers.local import HttpResult, ProbeError
 from hutch.providers.local.vision import local_vision_supported
 from hutch.providers.openai_compat import OpenAICompatProvider
@@ -101,3 +102,29 @@ def test_openai_compat_provider_does_not_claim_vision_for_an_unknown_route(monke
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not be asked")))
     provider = OpenAICompatProvider("http://example.test/v1", provider_name="openai-compatible")
     assert provider.supports_vision("some-model") is False
+
+
+class MediaProvider:
+    supports_media_input = True
+
+    def __init__(self, name: str, vision: bool = True):
+        self.name = name
+        self._vision = vision
+
+    def supports_vision(self, model: str) -> bool:
+        return self._vision
+
+
+def test_lmstudio_refuses_webp_before_sending():
+    provider = MediaProvider("lmstudio")
+    assert "WebP" in (image_route_refusal(provider, "qwen2.5-vl", image_mimes=["image/webp"]) or "")
+    assert image_route_refusal(provider, "qwen2.5-vl", image_mimes=["image/png", "image/jpeg"]) is None
+    assert image_route_refusal(provider, "qwen2.5-vl", verify_model=False,
+                               image_mimes=["image/webp"]) is not None
+
+
+def test_other_routes_do_not_inherit_the_lmstudio_media_rule():
+    provider = MediaProvider("llamacpp")
+    assert image_route_refusal(provider, "qwen2.5-vl", image_mimes=["image/webp"]) is None
+    assert image_route_refusal(MediaProvider("lmstudio", vision=False), "qwen3-4b",
+                               image_mimes=["image/png"]) == "the model 'qwen3-4b' does not accept image input"

@@ -389,7 +389,8 @@ class BuiltinRuntime:
         """
         from ..providers.attachments import image_route_refusal
         count = len(run.image_attachments)
-        refusal = image_route_refusal(session.provider, session.rung.model, verify_model=True)
+        refusal = image_route_refusal(session.provider, session.rung.model, verify_model=True,
+                                      image_mimes=[a.get("mime") for a in run.image_attachments])
         if refusal:
             raise RunAborted("media_input",
                              f"{refusal}, so your message and its {count} image(s) were not sent to the "
