@@ -7,7 +7,7 @@ output.
 
 | Phase | Status | Last commit | Live-verified | Blocked on |
 |---|---|---|---|---|
-| 0 Diagnose and baseline audit | done | pending | 73 focused tests passed (54.38s); 40 baseline screenshots (0 errors, 0 overflow) | none |
+| 0 Diagnose and baseline audit | done | 1bec95e1 | 73 focused tests passed (54.38s); 40 baseline screenshots (0 errors, 0 overflow) | none |
 | 1 Live web research and failure mining | not started | | | |
 | 2 Automations trust & observability (G03, G06) | not started | | | |
 | 3 Inbound webhook & event triggers (G04) | not started | | | |
