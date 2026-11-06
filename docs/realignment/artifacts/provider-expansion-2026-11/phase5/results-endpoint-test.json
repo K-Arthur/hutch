@@ -1,0 +1,182 @@
+[
+  {
+    "case": "lms",
+    "width": "360",
+    "overflow_px": 0,
+    "notice": "lms: connection verified (authenticated; 6 model(s) available).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-lms-360.png"
+  },
+  {
+    "case": "lmsroot",
+    "width": "360",
+    "overflow_px": 0,
+    "notice": "lmsroot: connection test failed (models layer: http://127.0.0.1:1234/models answered HTTP 200, not a model list. The same server lists its models under http://127.0.0.1:1234/v1/models: set the endpoint to http://127.0.0.1:1234/v1).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-lmsroot-360.png"
+  },
+  {
+    "case": "lmstls",
+    "width": "360",
+    "overflow_px": 0,
+    "notice": "lmstls: connection test failed (tls layer: 127.0.0.1's port is up but speaks plain HTTP, not TLS: use http:// in the endpoint).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-lmstls-360.png"
+  },
+  {
+    "case": "closed",
+    "width": "360",
+    "overflow_px": 0,
+    "notice": "closed: connection test failed (connect layer: nothing is listening on 127.0.0.1:1 (connection refused)).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-closed-360.png"
+  },
+  {
+    "case": "ollamav1",
+    "width": "360",
+    "overflow_px": 0,
+    "notice": "ollamav1: connection verified (authenticated; 12 model(s) available Note: This is an Ollama server behind its OpenAI-compatible /v1 endpoint, which cannot set the context window per request (Ollama defaults to 4k tokens under 24 GiB of VRAM). Use the Ollama route so Hutch sets the window, or create a model with a larger num_ctx.).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-ollamav1-360.png"
+  },
+  {
+    "case": "lms",
+    "width": "768",
+    "overflow_px": 0,
+    "notice": "lms: connection verified (authenticated; 6 model(s) available).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-lms-768.png"
+  },
+  {
+    "case": "lmsroot",
+    "width": "768",
+    "overflow_px": 0,
+    "notice": "lmsroot: connection test failed (models layer: http://127.0.0.1:1234/models answered HTTP 200, not a model list. The same server lists its models under http://127.0.0.1:1234/v1/models: set the endpoint to http://127.0.0.1:1234/v1).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-lmsroot-768.png"
+  },
+  {
+    "case": "lmstls",
+    "width": "768",
+    "overflow_px": 0,
+    "notice": "lmstls: connection test failed (tls layer: 127.0.0.1's port is up but speaks plain HTTP, not TLS: use http:// in the endpoint).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-lmstls-768.png"
+  },
+  {
+    "case": "closed",
+    "width": "768",
+    "overflow_px": 0,
+    "notice": "closed: connection test failed (connect layer: nothing is listening on 127.0.0.1:1 (connection refused)).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-closed-768.png"
+  },
+  {
+    "case": "ollamav1",
+    "width": "768",
+    "overflow_px": 0,
+    "notice": "ollamav1: connection verified (authenticated; 12 model(s) available Note: This is an Ollama server behind its OpenAI-compatible /v1 endpoint, which cannot set the context window per request (Ollama defaults to 4k tokens under 24 GiB of VRAM). Use the Ollama route so Hutch sets the window, or create a model with a larger num_ctx.).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-ollamav1-768.png"
+  },
+  {
+    "case": "lms",
+    "width": "1280",
+    "overflow_px": 0,
+    "notice": "lms: connection verified (authenticated; 6 model(s) available).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-lms-1280.png"
+  },
+  {
+    "case": "lmsroot",
+    "width": "1280",
+    "overflow_px": 0,
+    "notice": "lmsroot: connection test failed (models layer: http://127.0.0.1:1234/models answered HTTP 200, not a model list. The same server lists its models under http://127.0.0.1:1234/v1/models: set the endpoint to http://127.0.0.1:1234/v1).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-lmsroot-1280.png"
+  },
+  {
+    "case": "lmstls",
+    "width": "1280",
+    "overflow_px": 0,
+    "notice": "lmstls: connection test failed (tls layer: 127.0.0.1's port is up but speaks plain HTTP, not TLS: use http:// in the endpoint).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-lmstls-1280.png"
+  },
+  {
+    "case": "closed",
+    "width": "1280",
+    "overflow_px": 0,
+    "notice": "closed: connection test failed (connect layer: nothing is listening on 127.0.0.1:1 (connection refused)).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-closed-1280.png"
+  },
+  {
+    "case": "ollamav1",
+    "width": "1280",
+    "overflow_px": 0,
+    "notice": "ollamav1: connection verified (authenticated; 12 model(s) available Note: This is an Ollama server behind its OpenAI-compatible /v1 endpoint, which cannot set the context window per request (Ollama defaults to 4k tokens under 24 GiB of VRAM). Use the Ollama route so Hutch sets the window, or create a model with a larger num_ctx.).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-ollamav1-1280.png"
+  },
+  {
+    "case": "lms",
+    "width": "1920",
+    "overflow_px": 0,
+    "notice": "lms: connection verified (authenticated; 6 model(s) available).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-lms-1920.png"
+  },
+  {
+    "case": "lmsroot",
+    "width": "1920",
+    "overflow_px": 0,
+    "notice": "lmsroot: connection test failed (models layer: http://127.0.0.1:1234/models answered HTTP 200, not a model list. The same server lists its models under http://127.0.0.1:1234/v1/models: set the endpoint to http://127.0.0.1:1234/v1).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-lmsroot-1920.png"
+  },
+  {
+    "case": "lmstls",
+    "width": "1920",
+    "overflow_px": 0,
+    "notice": "lmstls: connection test failed (tls layer: 127.0.0.1's port is up but speaks plain HTTP, not TLS: use http:// in the endpoint).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-lmstls-1920.png"
+  },
+  {
+    "case": "closed",
+    "width": "1920",
+    "overflow_px": 0,
+    "notice": "closed: connection test failed (connect layer: nothing is listening on 127.0.0.1:1 (connection refused)).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-closed-1920.png"
+  },
+  {
+    "case": "ollamav1",
+    "width": "1920",
+    "overflow_px": 0,
+    "notice": "ollamav1: connection verified (authenticated; 12 model(s) available Note: This is an Ollama server behind its OpenAI-compatible /v1 endpoint, which cannot set the context window per request (Ollama defaults to 4k tokens under 24 GiB of VRAM). Use the Ollama route so Hutch sets the window, or create a model with a larger num_ctx.).",
+    "console_errors": [],
+    "failed_requests": [],
+    "screenshot": "models-test-ollamav1-1920.png"
+  }
+]
