@@ -64,12 +64,11 @@ def test_only_exact_loopback_plain_http_endpoints_are_accepted():
 
 
 def test_caller_supplied_non_loopback_endpoint_is_refused_before_any_request():
-    requested = []
     fake = Fake({})
 
     with pytest.raises(ValueError):
         probe_service(LocalEndpoint("evil", "Evil", "http://192.168.1.10/v1/models", "openai"), get=fake)
-    assert requested == []
+    assert fake.calls == []
 
 
 def test_ollama_and_openai_model_lists_are_parsed_and_bounded():
