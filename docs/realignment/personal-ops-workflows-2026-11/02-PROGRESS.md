@@ -30,7 +30,15 @@ recorded in section E rather than guessed.
 | 2A Schedule revision journal | done | 817c3942 | `npm run test:agent -- tests/test_schedule_history.py`: 7 passed; real SQLite migration v92; update/delete refused; no-op save writes zero rows |
 | 2B Approval checkpoints and bounded conditions | done | 69b2637b | `npm run test:agent -- tests/test_schedule_conditions.py tests/test_schedule_policy.py tests/test_schedule_approvals.py tests/test_schedule_history.py tests/test_scheduler.py tests/test_schedule_outcomes.py tests/test_schedule_durability.py tests/test_lifecycle.py tests/test_approval_cas.py`: 172 passed; real approval parks, approve releases, deny/expire skips, one notification |
 | 2C Schedules surface (filter, history, roll-call) | done | fd988138 (cleanup e7ac6411, fix c31b9a92) | `uv run --frozen --no-sync pytest -q tests/e2e/test_schedule_history.py`: 3 passed; 12 captures, 0 console errors, 0 overflow; roll call, filter, keyboard history, policy save verified |
-| Phase 2 exit | done | c31b9a92 | 172 focused tests; real SQLite v93; real FastAPI statuses 200/409/422/404; real Chromium 153.0.8010.12; evidence in `06-VALIDATION-LEDGER.md` |
+| Phase 2 exit | done | c31b9a92 | 172 focused tests; real SQLite v93; real FastAPI statuses 200/409/422/404; real Chromium 153.0.8010.12; evidence in `06-VALIDATION-LEDGER.md` | none |
+
+### Phase 3 checkpoints
+
+| Task | Status | Commit | Verification |
+|---|---|---|---|
+| 3A Webhook schema, store and admission receiver | in progress | | `npm run test:agent -- tests/test_webhooks.py`: 8 passed; real SQLite migration v94; 64 KB cap, MIME check, dual-window secret rotation, idempotency replay, and untrusted ingest scan |
+| 3B Webhook API, management UI and live e2e | not started | | |
+| Phase 3 exit | not started | | |
 
 ## Owner inputs needed (batch, ask once)
 
