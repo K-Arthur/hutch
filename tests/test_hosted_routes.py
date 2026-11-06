@@ -145,8 +145,9 @@ def test_a_placeholder_must_be_the_whole_value():
 
 def test_a_template_with_a_user_owned_host_is_refused_until_the_host_is_given(tmp_path):
     book = ConnectionBook(tmp_path)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="--base-url") as refused:
         book.add("microsoft-foundry", name="foundry-test")
+    assert "Foundry" in str(refused.value)
     connection = book.add("microsoft-foundry", name="foundry-test", base_url="https://res.openai.azure.com/openai/v1/")
     assert connection.base_url == "https://res.openai.azure.com/openai/v1"
     assert connection.headers == {"api-key": KEY_PLACEHOLDER}, "the stored connection never holds the key"

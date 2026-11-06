@@ -38,6 +38,9 @@ def validate_endpoints(merged: dict[str, Any]) -> None:
         endpoint = merged.get(field_name)
         if not endpoint:
             continue
+        if endpoint.strip().rstrip("/") in ("http:", "https:"):      # a template whose host belongs to the user
+            raise ValueError(f"{merged.get('title', 'this template')} has no default host: give your own endpoint "
+                             "(--base-url, or the endpoint field in the form)")
         parts, host, port = _parts(endpoint)
         if (parts.scheme not in {"http", "https"} or not host or parts.query or parts.fragment or
                 (port is not None and not 1 <= port <= 65535) or "%" in host):
