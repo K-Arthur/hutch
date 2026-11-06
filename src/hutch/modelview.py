@@ -125,13 +125,17 @@ def locality_for_route(spec: str, is_local: bool, conn_base_url: str = "",
             host = (urlparse(conn_base_url).hostname or "").lower()
         except Exception:
             host = ""
-    if host in ("localhost", "127.0.0.1", "::1") or host.endswith(".local"):
+    if host == "localhost" or host.endswith(".local"):
         return "machine"
-    if (host.startswith("10.") or host.startswith("192.168.") or
-            host.startswith("172.16.") or host.startswith("172.17.") or host.startswith("172.18.") or
-            host.startswith("172.19.") or host.startswith("172.2") or host.startswith("172.30.") or
-            host.startswith("172.31.")):
-        return "network"
+    try:
+        import ipaddress
+        address = ipaddress.ip_address(host)
+        if address.is_loopback:
+            return "machine"
+        if address.is_private:
+            return "network"
+    except ValueError:
+        pass
     return "cloud"
 
 
@@ -193,7 +197,6 @@ def local_runtime_cards(state_dir: Any = None, *,
         if not row.get("reachable"):
             continue
         cards.append({
-            "provider": provider_id,
             "title": row.get("title") or provider_id,
             "state": row.get("state") or "unknown",
             "detail": row.get("detail") or "",
@@ -203,8 +206,6 @@ def local_runtime_cards(state_dir: Any = None, *,
             "models": list(row.get("models") or []),
             "applied_context": dict(row.get("applied_context") or {}),
             "parallel": row.get("parallel"),
-            "policy": row.get("policy") or "unknown",
-            "policy_detail": row.get("policy_detail") or "",
             "fix": row.get("fix") or "",
             "url": row.get("url") or "",
         })
