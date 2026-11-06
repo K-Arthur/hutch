@@ -6,7 +6,7 @@ no source line counts, no unstaged or ignored files. Ordinary source edits do
 not change it; stage file additions or removals, then regenerate. Do not edit
 this file by hand.
 
-Tracked files in scope: 2536.
+Tracked files in scope: 2537.
 
 ## Top-level layout
 
@@ -23,7 +23,7 @@ Tracked files in scope: 2536.
 | `docs/` | 1198 |
 | `native/` | 9 |
 | `scripts/` | 38 |
-| `src/` | 633 |
+| `src/` | 634 |
 | `tests/` | 493 |
 | `website/` | 66 |
 
@@ -43,7 +43,7 @@ Tracked files in scope: 2536.
 | `media/` | 12 |
 | `personal/` | 8 |
 | `platforms/` | 4 |
-| `providers/` | 44 |
+| `providers/` | 45 |
 | `runtime/` | 19 |
 | `server/` | 238 |
 | `sources/` | 4 |

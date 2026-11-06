@@ -20,7 +20,7 @@ from hutch.providers.install_plan import (
     DISK_RESERVE_BYTES, InstallPlan, _host_is_loopback, build_plan, free_bytes,
     ollama_model_dir, read_speed, record_rate, record_speed,
 )
-from hutch.providers.model_install import InstallJob, _apply
+from hutch.providers.install_jobs import InstallJob, _apply
 
 MIB = 1024 * 1024
 
@@ -128,7 +128,7 @@ def test_free_bytes_uses_the_nearest_existing_parent(tmp_path):
 
 def test_the_live_rate_is_measured_from_new_bytes_only(monkeypatch):
     ticks = iter([100.0, 101.0, 102.0])
-    monkeypatch.setattr("hutch.providers.model_install.time.monotonic", lambda: next(ticks))
+    monkeypatch.setattr("hutch.providers.install_jobs.time.monotonic", lambda: next(ticks))
     job = InstallJob(id="j", model="m")
     _apply(job, {"status": "pulling", "digest": "sha256:a", "total": 1000, "completed": 0})
     _apply(job, {"status": "pulling", "digest": "sha256:a", "total": 1000, "completed": 500})
@@ -140,7 +140,7 @@ def test_the_live_rate_is_measured_from_new_bytes_only(monkeypatch):
 
 def test_a_resumed_blob_does_not_inflate_the_rate(monkeypatch):
     ticks = iter([100.0, 101.0])
-    monkeypatch.setattr("hutch.providers.model_install.time.monotonic", lambda: next(ticks))
+    monkeypatch.setattr("hutch.providers.install_jobs.time.monotonic", lambda: next(ticks))
     job = InstallJob(id="j", model="m")
     _apply(job, {"status": "pulling", "digest": "sha256:a", "total": 2000, "completed": 1500})
     _apply(job, {"status": "pulling", "digest": "sha256:a", "total": 2000, "completed": 1600})
