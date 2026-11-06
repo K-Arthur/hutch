@@ -6,7 +6,7 @@ no source line counts, no unstaged or ignored files. Ordinary source edits do
 not change it; stage file additions or removals, then regenerate. Do not edit
 this file by hand.
 
-Tracked files in scope: 2646.
+Tracked files in scope: 2652.
 
 ## Top-level layout
 
@@ -17,14 +17,14 @@ Tracked files in scope: 2646.
 | `.github/` | 10 |
 | `.impeccable/` | 4 |
 | `.zcode/` | 6 |
-| `app/` | 3 |
+| `app/` | 4 |
 | `benchmarks/` | 29 |
 | `desktop/` | 23 |
-| `docs/` | 1268 |
+| `docs/` | 1269 |
 | `native/` | 9 |
 | `scripts/` | 38 |
-| `src/` | 654 |
-| `tests/` | 511 |
+| `src/` | 656 |
+| `tests/` | 513 |
 | `website/` | 66 |
 
 ## Python package: src/hutch/
@@ -45,7 +45,7 @@ Tracked files in scope: 2646.
 | `platforms/` | 4 |
 | `providers/` | 52 |
 | `runtime/` | 19 |
-| `server/` | 240 |
+| `server/` | 242 |
 | `sources/` | 4 |
 | `synthesis/` | 7 |
 | `toolcalling/` | 11 |
@@ -59,8 +59,8 @@ Tracked files in scope: 2646.
 
 | Path | Tracked files |
 | --- | ---: |
-| `(root files)` | 387 |
-| `e2e/` | 87 |
+| `(root files)` | 388 |
+| `e2e/` | 88 |
 | `fixtures/` | 17 |
 | `native/` | 1 |
 | `support/` | 19 |
@@ -74,7 +74,7 @@ Tracked files in scope: 2646.
 | `desktop/process-guard/` | 5 |
 | `desktop/src/` | 1 |
 | `desktop/web/` | 2 |
-| `app/src/(root files)` | 3 |
+| `app/src/(root files)` | 4 |
 | `website/(root files)` | 23 |
 | `website/.well-known/` | 1 |
 | `website/assets/` | 34 |
