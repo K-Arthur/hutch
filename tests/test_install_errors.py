@@ -10,6 +10,18 @@ from hutch.providers.install_errors import (
 )
 
 
+@pytest.mark.parametrize("text,code", [
+    ("write /tmp/p4small/models/blobs/sha256-5ee4f07cdb9b-partial: no space left on device", "disk_full"),
+    ('pull model manifest: Get "https://registry.ollama.ai/v2/library/qwen2.5/manifests/3b": '
+     "dial tcp [2606:4700::6812:11aa]:443: connect: network is unreachable", "network"),
+])
+def test_captured_runtime_errors_are_classified(text, code):
+    """The exact strings from the real 2026-11-06 disk-full and no-route pulls."""
+    failure = classify_install_error(text)
+    assert failure.code == code
+    assert failure.action in ("free_space", "retry")
+
+
 def test_a_full_disk_names_the_free_and_needed_sizes():
     failure = classify_install_error("no space left on device", free_bytes=300 * 1024 * 1024,
                                      size_bytes=2 * 1024 ** 3)
