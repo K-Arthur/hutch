@@ -17,7 +17,7 @@ covers before relying on it.
 | 6 Strict Offline live, boundary ADR | done (6.1, 6.2, 6.3) | see git log | 2026-11-06: real Ollama and llama.cpp tool-and-image turns through the broker; airplane test inside `unshare -rn`; shell egress 101; 1,200-token stream; cancel; runner kill; server restart; 64 MiB cap | Managed model process is the accepted ADR-0035 decision, not implemented |
 | 7 Frontend | done (7.1-7.5) | 24be8a4c, 35e63905 | 2026-11-06: real Ollama 0.40.13 and llama.cpp b12144; /models at 360/768/1280/1920 in empty, down, ready, cloud-tagged, needs-key, loading, network and offline-in-browser states; grouping/privacy/capability/measured labels live; keyboard focus order and visible focus recorded | install running/cancelled/failed visual recapture reused from Phase 4 (layout unchanged), upgrade-needed not run (no older runtime), tab-strip overlap pre-existing
 | 8 Website and docs | done (T8.1-T8.5) | b388ad8a | 2026-11-06: site local/offline block at 360/768/1280/1920 (dark), zero overflow/errors, FAQ parity; compat matrix 14 routes reviewed 2026-11-06; docs updated | light theme not captured (the site is one dark theme); no new full-suite baseline |
-| 9 Final review and merge | done | pending | 2026-11-06: whole-initiative review; final gates; fresh-state tool turn on Ollama, llama.cpp and LM Studio, then the same offline | managed isolated model process not implemented (ADR-0035); no push or tag |
+| 9 Final review and merge | done | 2b5f70d2 | 2026-11-06: whole-initiative review; final gates; fresh-state tool turn on Ollama, llama.cpp and LM Studio, then the same offline | managed isolated model process not implemented (ADR-0035); no push or tag |
 
 Phase 0 exit checks: baseline (`docs/research/2026-11-offline-models/00-BASELINE.md`),
 failure mining (`01-FAILURE-MINING.md`) and API notes (`02-RUNTIME-API-NOTES.md`) written;
@@ -994,7 +994,10 @@ Still open (ask at the phase that needs it):
   12, `test_model_sharing` 2, `test_model_install` 3, `test_model_repair` 3,
   `test_models_detected_route` 6, `test_website` 42), `npm run check:agent`,
   `npm run audit:context`, and `scripts/audit_emoji.py` (only the pre-existing
-  `.codewhale/state` file).
+  `.codewhale/state` file). `test_the_palette_opens_the_picker_on_a_chat_page_and_only_there`
+  is intermittent: it failed once in a file run, then passed alone and on a
+  clean rerun; it is a palette state race, not this change, and is recorded
+  rather than hidden.
 - Final real-setup pass (fresh `HUTCH_STATE_DIR` each scenario; rows in the
   ledger above): no runtime -> Ollama 0.40.13 tool turn (29.5 s) -> llama.cpp
   b12144 tool turn (41.1 s after a 4,096-window refusal resolved at 8,192) ->
