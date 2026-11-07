@@ -1,0 +1,83 @@
+{% from "_icons.html" import icon %}
+{# Media, speech and search. Server-rendered from data (media/view.py); media-jobs.js only adds the actions. #}
+<section class="panel" id="media" aria-labelledby="media-h">
+  <header class="conn-head"><div>
+    <h2 id="media-h" class="card-title">{{ icon("layers", 18) }} Media, speech and search</h2>
+    <p class="hint">Image, video and speech generation run as jobs that survive a restart and can be checked or cancelled here. No route in the table below has a dated live run, so none is called working; a cost is a dated estimate or "cost unknown". Xiaomi MiMo speech was live-verified through its chat connection, not through this table.</p>
+  </div></header>
+
+  <h3 class="section">Jobs</h3>
+  <div id="media-jobs" data-finished="{{ 1 if media.finished else 0 }}">
+    <div class="media-jobs-bar">
+      <p class="hint" role="status">{{ media.jobs | length }} job{{ "" if media.jobs | length == 1 else "s" }}{{ " including finished ones" if media.finished else " still open" }}.</p>
+      <a class="btn small ghost" href="/providers?jobs={{ "open" if media.finished else "all" }}#media">{{ "Show open jobs only" if media.finished else "Show finished jobs too" }}</a>
+      <button type="button" class="btn small ghost" id="media-jobs-refresh" hidden>Refresh</button>
+    </div>
+    {% if media.jobs %}
+    <div class="media-jobs-list" role="list" aria-label="Media jobs">
+      {% for job in media.jobs %}
+      <div class="media-job" role="listitem" id="job-{{ job.id }}">
+        <div>
+          <strong>{{ job.kind }}</strong> <span class="mono small">{{ job.backend }}</span>
+          <span class="chip {{ job.chip_class }}">{{ job.status_label }}</span>
+          <span class="muted small">started {{ job.started }}</span>
+          {% if job.prompt_preview %}<p class="job-note">{{ job.prompt_preview }}{% if job.prompt_chars > 200 %} ...{% endif %}</p>{% endif %}
+          <p class="job-note">{{ job.meaning }}</p>
+          {% if job.error %}<p class="job-note">Reason: {{ job.error }}</p>{% endif %}
+          {% if job.cost_note %}<p class="job-note">Cost: {{ job.cost_note }}</p>{% endif %}
+        </div>
+        <div class="job-actions">
+          {% if job.can_act %}
+          <button type="button" class="btn small ghost" data-job-action="advance" data-job="{{ job.id }}" hidden>Check now</button>
+          <button type="button" class="btn small danger" data-job-action="cancel" data-job="{{ job.id }}" hidden>Cancel job</button>
+          {% endif %}
+          {% if job.media %}<a class="btn small ghost" href="{{ job.media.content_url }}">Open result</a>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <noscript><p class="hint">Checking and cancelling a job need JavaScript.</p></noscript>
+    {% else %}
+    <div class="empty"><p>No media jobs{{ "" if media.finished else " are open" }}.</p>
+      <p class="hint">A job appears here when an assistant starts image, video or speech generation.</p></div>
+    {% endif %}
+  </div>
+
+  <details class="media-details">
+    <summary><h3 class="card-title">Media routes</h3>
+      <span class="hint">{{ media.routes | length }} routes: {{ media.built }} built, {{ media.unbuilt }} not built, {{ media.retired }} retired or blocked</span></summary>
+    <div class="media-table-wrap" tabindex="0" role="region" aria-label="Media routes">
+      <table class="media-table">
+        <thead><tr><th scope="col">Route</th><th scope="col">Kind</th><th scope="col">Status</th><th scope="col">Credential</th><th scope="col">Cost</th><th scope="col">Notes</th></tr></thead>
+        <tbody>
+          {% for row in media.routes %}
+          <tr>
+            <th scope="row"><span class="mono">{{ row.id }}</span><br><span class="muted small">{{ row.title }}</span></th>
+            <td>{{ row.kind }}</td>
+            <td><span class="chip {{ row.chip_class }}" title="{{ row.status_meaning }}">{{ row.status_label }}</span>{% if row.retired_on %}<br><span class="muted small">since {{ row.retired_on }}</span>{% endif %}</td>
+            <td class="wide">{{ row.credential }}</td>
+            <td class="wide">{{ row.price }}</td>
+            <td class="wide">{{ row.notes }}{% if row.source %} <a href="{{ row.source }}" rel="noopener noreferrer" target="_blank">source</a>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details class="media-details">
+    <summary><h3 class="card-title">Search</h3>
+      <span class="hint">provider search and Hutch's live_search are different tools</span></summary>
+    <p class="hint"><strong>Provider search:</strong> the provider runs the search and writes the answer, so your query goes to that provider. <strong>live_search:</strong> Hutch itself fetches public pages through its approved egress and returns a brief with numbered citations. Neither replaces the other, and Hutch never switches from one to the other for you.</p>
+    <div class="plain-list" aria-label="Provider search routes">
+      {% for row in media.searches %}
+      <div class="list-row"><div>
+        <strong><a href="/providers/{{ row.provider }}">{{ row.provider_title }}</a></strong> <span class="mono small">{{ row.template }}</span>
+        <span class="chip {{ row.chip_class }}">{{ row.status_label }}</span>
+        <p class="hint">A built provider search route, declared by the {{ row.template }} connection template.</p>
+      </div></div>
+      {% else %}<p class="hint">No provider search route is built.</p>{% endfor %}
+    </div>
+    {% if media.unbuilt_search %}<p class="hint">Listed as a search service in the catalogue but with no route in Hutch yet: {{ media.unbuilt_search | join(", ") }}.</p>{% endif %}
+  </details>
+</section>

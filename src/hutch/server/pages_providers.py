@@ -22,6 +22,7 @@ from ..providers.catalog_view import CATEGORY_LABELS, catalog_facets, catalog_ro
 from ..providers.discovery import probe_local_services, services_json
 from ..providers.readiness import account_readiness, provider_readiness, readiness_json, route_readiness
 from ..providers.routing import resolve_route
+from ..media.view import media_context
 from ..runtime.registry import registry_json
 from .pages_provider_detail import register_provider_detail
 
@@ -122,7 +123,8 @@ def register_provider_pages(app: FastAPI, page: Callable, go: Callable, read_for
                     facets=catalog_facets(catalog), reviewed_on=catalog.reviewed_on,
                     provider_count=len(catalog.providers), live_summary=live_summary(),
                     status_counts=_status_counts(catalog), local_services=services_json(local_services()),
-                    runtime_catalog=runtime_catalog())
+                    runtime_catalog=runtime_catalog(),
+                    media=media_context(store, catalog, finished=request.query_params.get("jobs") == "all"))
 
     # ------------------------------------------------------------------- APIs
 

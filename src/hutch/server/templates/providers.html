@@ -2,7 +2,7 @@
 {% from "_icons.html" import icon %}
 {% block title %}Providers{% endblock %}
 {% block header_context %}<div class="ctx-id"><h1>Providers</h1></div>{% endblock %}
-{% block head %}<link rel="stylesheet" href="/static/providers.css"><script src="/static/providers.js" defer></script>{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/providers.css"><script src="/static/providers.js" defer></script><script src="/static/media-jobs.js" defer></script>{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -69,6 +69,8 @@
     <p><a class="btn small primary" href="#catalogue">Find a provider</a></p></div>
   {% endif %}
 </section>
+
+{% include "_providers_media.html" %}
 
 <section class="panel" aria-labelledby="local-h">
   <details>

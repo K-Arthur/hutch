@@ -35,6 +35,8 @@
 .panel details > summary .card-title { margin: 0; display: inline-flex; align-items: center; gap: 8px; }
 .panel details > summary .hint { margin: 0; }
 .panel details[open] > summary { margin-bottom: 8px; }
+.panel > details > summary::before { content: ""; flex: none; align-self: center; width: 7px; height: 7px; border-right: 2px solid var(--dim); border-bottom: 2px solid var(--dim); transform: rotate(-45deg); margin-right: 2px; }
+.panel > details[open] > summary::before { transform: rotate(45deg); }
 
 /* ---- resolved route ------------------------------------------------------------------------ */
 .resolution { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 18px; margin: 12px 0 0; padding: 14px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--panel); }
@@ -46,17 +48,6 @@
 .picker-form .hutch-field label { display: block; margin-bottom: 4px; font-size: 0.8125rem; color: var(--dim); }
 .picker-form .hutch-input, .picker-form .hutch-select { width: 100%; min-width: 0; }
 
-@media (max-width: 720px) {
-  .provider-row { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 12px; }
-  .provider-row-side { flex-direction: row; flex-wrap: wrap; align-items: center; text-align: left; }
-  .provider-row-side .btn { display: none; }   /* the name is the link; a second target only adds height */
-  .wizard-step { padding-left: 14px; padding-top: 44px; }
-  .resolution { grid-template-columns: minmax(0, 1fr); gap: 2px; }
-  .resolution dd { margin-bottom: 8px; }
-}
-@media (pointer: coarse) {
-  .provider-row-side .btn { min-height: 44px; }
-}
 /* ---- provider detail -------------------------------------------------------------------------- */
 .provider-detail-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .route-card { border: 1px solid var(--border); border-radius: var(--r); background: var(--bg-subtle); padding: 16px; margin-top: 14px; }
@@ -90,3 +81,27 @@
 .capability-table thead th, .media-table thead th { border-top: 0; font-size: 0.6875rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--faint); font-weight: 600; background: var(--bg-subtle); }
 .media-table td.wide { min-width: 220px; }
 
+/* ---- media jobs -------------------------------------------------------------------------------- */
+.media-job { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; padding: 12px 14px; border-top: 1px solid var(--border); }
+.media-job:first-child { border-top: 0; }
+.media-job .job-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.media-job .job-note { margin: 4px 0 0; font-size: 0.8125rem; color: var(--dim); overflow-wrap: anywhere; }
+.media-jobs-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 6px 0; }
+.media-jobs-bar .hint { margin: 0; }
+.media-details { margin-top: 14px; }
+.media-jobs-list { border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-subtle); margin-top: 10px; }
+
+/* ---- narrow and coarse-pointer overrides: last, so they win over the base rules above ---- */
+@media (max-width: 720px) {
+  .provider-row { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 12px; }
+  .provider-row-side { flex-direction: row; flex-wrap: wrap; align-items: center; text-align: left; }
+  .provider-row-side .btn { display: none; }   /* the name is the link; a second target only adds height */
+  .wizard-step { padding-left: 14px; padding-top: 44px; }
+  .resolution { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .resolution dd { margin-bottom: 8px; }
+  .media-job { grid-template-columns: minmax(0, 1fr); }
+}
+@media (pointer: coarse) {
+  .provider-row-side .btn { min-height: 44px; }
+  .media-job .btn { min-height: 44px; }
+}

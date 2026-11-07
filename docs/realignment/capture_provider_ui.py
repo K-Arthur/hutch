@@ -27,6 +27,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 from capture_provider_ui_scenarios import SCENARIOS as INDEX_SCENARIOS, Gate
+from capture_provider_ui_media import SCENARIOS as MEDIA_SCENARIOS, seed_media, start_standin
 from capture_provider_ui_wizard import SCENARIOS as WIZARD_SCENARIOS
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,7 +35,7 @@ VIEWPORTS = (("360", 360, 800), ("768", 768, 1000), ("1280", 1280, 900), ("1920"
 PLACEHOLDER_KEYS = {"deepseek-work": "sk-ui-capture-placeholder-deepseek", "openai-api": ""}
 
 
-def seed_state(state: Path) -> None:
+def seed_state(state: Path, origin: str) -> None:
     """A populated but credential-free-in-reality state: two accounts, one with a placeholder key."""
     sys.path.insert(0, str(ROOT / "src"))
     os.environ["HUTCH_STATE_DIR"] = str(state)
@@ -49,6 +50,7 @@ def seed_state(state: Path) -> None:
     from hutch.store import Store
     Store(get_config()).create_bot(Bot(name="resolver-bot", model="deepseek-work/deepseek-chat", tools=[],
                                        approval_mode=ApprovalMode.ask))
+    seed_media(state, origin)
 
 
 def start_server(state: Path, port: int) -> subprocess.Popen:
@@ -82,7 +84,8 @@ def main() -> int:
     if any(state.iterdir()):
         raise SystemExit(f"refusing to run: {state} is not empty")
     out.mkdir(parents=True, exist_ok=True)
-    seed_state(state)
+    standin, origin = start_standin()
+    seed_state(state, origin)
     server = start_server(state, args.port)
     gate = Gate(origin=f"http://127.0.0.1:{args.port}", out=out, viewports=VIEWPORTS,
                 axe_path=args.axe, secrets=[v for v in PLACEHOLDER_KEYS.values() if v], state=state)
@@ -90,11 +93,12 @@ def main() -> int:
     try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
-            for name, scenario in {**INDEX_SCENARIOS, **WIZARD_SCENARIOS}.items():
+            for name, scenario in {**INDEX_SCENARIOS, **WIZARD_SCENARIOS, **MEDIA_SCENARIOS}.items():
                 if not wanted or name in wanted:
                     scenario(gate, browser)
             browser.close()
     finally:
+        standin.shutdown()
         server.terminate()
         try:
             server.wait(timeout=10)
