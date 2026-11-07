@@ -159,6 +159,32 @@ def scenario_picker(gate: Gate, browser) -> None:
     phone.context.close()
 
 
+def scenario_strict_offline(gate: Gate, browser) -> None:
+    """The route picker under Strict Offline: a hosted route is refused with the policy's reason, a loopback one is
+    allowed without being called working, and the mode survives in the URL and the control."""
+    page = gate.page(browser, 1280, 900)
+    gate.visit(page, "/providers/deepseek?pick_account=deepseek-work&pick_model=deepseek-chat", "strict", ready="#route-picker-form")
+    page.select_option("#pick-mode", "offline")
+    page.locator("#route-picker-result").filter(has_text="not an allowed local model route").wait_for()
+    text = page.locator("#route-picker-result").inner_text()
+    gate.check("Strict Offline refuses a hosted route and says why",
+               "refused" in text and "not an allowed local model route" in text, text=text[:300])
+    gate.measure(page, "strict-offline-hosted-refused")
+    page.context.close()
+    local = gate.page(browser, 1280, 900)
+    gate.visit(local, "/providers/ollama?pick_model=tiny&pick_mode=offline", "strict-local", ready=".resolution")
+    text = local.locator("#route-picker-result").inner_text()
+    gate.check("Strict Offline allows a loopback route, in the policy's words",
+               "Strict Offline allows this route" in text, text=text[:300])
+    gate.check("the chosen mode is the selected option", local.input_value("#pick-mode") == "offline")
+    gate.measure(local, "strict-offline-local-allowed")
+    local.context.close()
+    phone = gate.page(browser, 360, 800)
+    gate.visit(phone, "/providers/deepseek?pick_account=deepseek-work&pick_model=deepseek-chat&pick_mode=offline", "strict-360", ready=".resolution")
+    gate.measure(phone, "strict-offline-360")
+    phone.context.close()
+
+
 def scenario_models_page(gate: Gate, browser) -> None:
     for label, width, height in gate.viewports:
         page = gate.page(browser, width, height)
@@ -179,5 +205,5 @@ def scenario_models_page(gate: Gate, browser) -> None:
 
 SCENARIOS: dict[str, Callable[[Gate, Any], None]] = {
     "detail": scenario_detail_pages, "wizard": scenario_wizard, "detail-axe": scenario_detail_axe_and_motion,
-    "picker": scenario_picker, "models": scenario_models_page,
+    "picker": scenario_picker, "strict-offline": scenario_strict_offline, "models": scenario_models_page,
 }

@@ -9,6 +9,7 @@
   <dt>Runtime</dt><dd>{{ res.runtime }} <span class="tag">{{ res.runtime_status }}</span></dd>
   <dt>Protocol</dt><dd>{{ res.protocol or "not specified" }}</dd>
   <dt>Endpoint</dt><dd class="mono">{{ res.endpoint or "none" }}</dd>
+  {% if res.mode %}<dt>Inference mode</dt><dd><span class="chip {{ 'st-stopped' if res.mode.allowed else 'st-failed' }}">{{ "allowed" if res.mode.allowed else "refused" }}</span>{{ res.mode.text }}</dd>{% endif %}
   {% if res.next_action %}<dt>Next step</dt><dd>{{ res.next_action }}</dd>{% endif %}
 </dl>
 <p class="hint">Resolved from local settings only: nothing was sent to the provider. Hutch never substitutes another account, model or runtime; if this is not what you meant, nothing runs until you change it.</p>

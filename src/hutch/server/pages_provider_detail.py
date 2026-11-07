@@ -27,6 +27,7 @@ from ..providers.catalog_view import (CATEGORY_LABELS, SERVICE_LABELS, capabilit
 from ..providers.connection import check_connection
 from ..providers.discovery import services_json
 from ..providers.readiness import account_readiness
+from ..providers.registry import validate_inference_mode
 from ..providers.routing import resolve_route
 from ..providers.wizard import Context, route_guides
 
@@ -40,8 +41,23 @@ def _media_env(provider: Provider) -> str:
                  if route.provider == provider.id and route.env_var), "")
 
 
+#: Inference modes a route can be checked against, and how a person reads them.
+MODES = (("hybrid", "Hybrid (default)"), ("local", "Local only"), ("offline", "Strict Offline"))
+
+
+def _mode_verdict(mode: str, spec: str, endpoint: str) -> dict[str, Any]:
+    """Whether the chosen inference mode would allow this route, in the policy's own words."""
+    label = dict(MODES)[mode]
+    try:
+        validate_inference_mode(mode, spec, base_url=endpoint or None)
+    except ValueError as exc:
+        return {"mode": mode, "label": label, "allowed": False, "text": str(exc)}
+    return {"mode": mode, "label": label, "allowed": True,
+            "text": f"{label} allows this route: its endpoint and model are on this computer."}
+
+
 def _picker(provider: Provider, current: ConnectionBook, runtimes: list[dict], local: Callable[[], dict],
-            account: str, model: str, runtime: str) -> dict[str, Any]:
+            account: str, model: str, runtime: str, mode: str = "hybrid") -> dict[str, Any]:
     """The route picker: choices from local facts, and the resolution when a model was entered.
 
     The prefix is the connection name (or the provider id for a built-in route); the resolver reports who pays,
@@ -53,12 +69,17 @@ def _picker(provider: Provider, current: ConnectionBook, runtimes: list[dict], l
     chosen = account if account in prefixes else prefixes[0]
     picked = runtime if runtime in {item["id"] for item in usable} else usable[0]["id"]
     model = model.strip()
+    mode = mode if mode in dict(MODES) else "hybrid"
     resolution = None
     if model:
         resolved = resolve_route(current, f"{chosen}/{model}", runtime=picked, local_services=local())
         resolution = resolution_view(resolved.json())
+        if mode != "hybrid":
+            resolution["mode"] = _mode_verdict(mode, resolved.spec, resolved.endpoint)
+            if not resolution["mode"]["allowed"]:   # the readiness hint would say to run a route this mode refuses
+                resolution["next_action"] = "Choose a local model route, or switch the inference mode to Hybrid."
     return {"prefixes": prefixes, "accounts": accounts, "runtimes": usable, "account": chosen,
-            "model": model, "runtime": picked, "resolution": resolution}
+            "model": model, "runtime": picked, "mode": mode, "modes": MODES, "resolution": resolution}
 
 
 def register_provider_detail(app: FastAPI, page: Callable, go: Callable, read_form: Callable, *,
@@ -94,7 +115,8 @@ def register_provider_detail(app: FastAPI, page: Callable, go: Callable, read_fo
                         account: str = Query(default="", max_length=41),   # an unknown account is ignored, not trusted
                         pick_account: str = Query(default="", max_length=41),
                         pick_model: str = Query(default="", max_length=200),
-                        pick_runtime: str = Query(default="", max_length=41)):
+                        pick_runtime: str = Query(default="", max_length=41),
+                        pick_mode: str = Query(default="", max_length=20)):
         provider, catalog = provider_or_404(provider_id), bundled_catalog()
         current = book()
         guides = route_guides(Context(
@@ -112,7 +134,7 @@ def register_provider_detail(app: FastAPI, page: Callable, go: Callable, read_fo
                     service_labels=SERVICE_LABELS, billing_labels=BILLING_LABELS,
                     capabilities=capability_rows(capability_report(provider.id, store=store)),
                     picker=_picker(provider, current, list(runtime_catalog().get("runtimes", [])), local_services,
-                                   pick_account, pick_model, pick_runtime),
+                                   pick_account, pick_model, pick_runtime, pick_mode),
                     reviewed_on=catalog.reviewed_on)
 
     # --------------------------------------------------------------- actions

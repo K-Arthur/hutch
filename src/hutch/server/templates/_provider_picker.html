@@ -16,6 +16,10 @@
       <select class="hutch-select" id="pick-runtime" name="pick_runtime">
         {% for item in picker.runtimes %}<option value="{{ item.id }}"{% if item.id == picker.runtime %} selected{% endif %}>{{ item.title }}</option>{% endfor %}
       </select></div>
+    <div class="hutch-field"><label for="pick-mode">Inference mode</label>
+      <select class="hutch-select" id="pick-mode" name="pick_mode">
+        {% for value, label in picker.modes %}<option value="{{ value }}"{% if value == picker.mode %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select></div>
     <button class="btn primary">Resolve route</button>
   </form>
   <div id="route-picker-result" role="status" aria-live="polite">

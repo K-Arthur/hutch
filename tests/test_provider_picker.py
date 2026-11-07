@@ -99,3 +99,30 @@ def test_the_models_page_shows_the_resolved_route_for_each_saved_route(env):
     assert 'aria-label="Resolved route for deepseek-work/deepseek-chat"' in page
     section = page[page.index('aria-label="Resolved route for deepseek-work/deepseek-chat"'):]
     assert "named connection" in section[:900] and "Per-token API billing" in section[:900]
+
+
+def test_strict_offline_refuses_a_hosted_route_in_the_policys_own_words(env):
+    client, _ = env
+    result = _result(client.get("/providers/deepseek", params={"pick_model": "m1", "pick_mode": "offline"}).text)
+    mode = " ".join(_field(result, "Inference mode"))
+    assert mode.startswith("refused") and "not an allowed local model route" in mode
+    assert "chip st-failed" in result
+    assert " ".join(_field(result, "Next step")) == "Choose a local model route, or switch the inference mode to Hybrid."
+    assert "Exercise the route" not in result
+
+
+def test_strict_offline_allows_a_loopback_route_without_calling_it_working(env):
+    client, _ = env
+    result = _result(client.get("/providers/ollama", params={"pick_model": "tiny", "pick_mode": "offline"}).text)
+    mode = " ".join(_field(result, "Inference mode"))
+    assert mode.startswith("allowed") and "Strict Offline allows this route" in mode
+    assert "chip st-succeeded" not in result.split("Inference mode")[1].split("</dd>")[0]
+
+
+def test_hybrid_and_an_unknown_mode_add_no_mode_row_and_the_choice_is_kept(env):
+    client, _ = env
+    for mode in ("hybrid", "not-a-mode", ""):
+        page = client.get("/providers/deepseek", params={"pick_model": "m1", "pick_mode": mode}).text
+        assert "Inference mode</dt>" not in _result(page), mode
+    page = client.get("/providers/deepseek", params={"pick_model": "m1", "pick_mode": "local"}).text
+    assert 'value="local" selected' in page and "Inference mode</dt>" in _result(page)
