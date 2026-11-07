@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from hutch.media.cost import load_prices
 from hutch.media.providers.route_spec import load_routes
 from hutch.media.status import service_status

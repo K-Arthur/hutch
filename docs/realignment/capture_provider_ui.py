@@ -16,7 +16,6 @@ light/dark gate. Credentials in the state are placeholders and the run fails if 
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import subprocess
 import sys

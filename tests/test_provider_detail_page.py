@@ -162,3 +162,27 @@ def test_a_media_only_vendor_names_its_environment_variable_and_offers_no_key_fo
     assert "FAL_KEY" in page and "ambient" in page and 'name="key"' not in page
     monkeypatch.setenv("FAL_KEY", "never-render-this-value")
     assert "never-render-this-value" not in client.get("/providers/fal").text
+
+
+def test_only_a_local_provider_probes_loopback_and_its_page_still_shows_the_server_step(env, monkeypatch):
+    client, _ = env
+    calls = []
+
+    def fake_probe(**_kwargs):
+        calls.append(1)
+        return {}
+
+    monkeypatch.setattr("hutch.server.pages_providers.probe_local_services", fake_probe)
+    assert client.get("/providers/deepseek").status_code == 200
+    assert calls == [], "a hosted provider's page must not probe the loopback services"
+    page = client.get("/providers/ollama").text
+    assert calls and 'data-step="server"' in page
+
+
+def test_a_sign_in_template_is_refused_with_a_pointer_to_apps_and_ai_and_never_a_server_error(env):
+    """Regression: a crafted POST for the ChatGPT sign-in template raised KeyError and returned a 500."""
+    client, directory = env
+    response = _post(client, "/providers/openai/connect", template="chatgpt-plan", name="fake-chatgpt", route="chatgpt-sign-in")
+    assert response.status_code == 303
+    assert "sign-in account" in _flash(response, "error") and "Apps & AI" in _flash(response, "error")
+    assert "fake-chatgpt" not in ConnectionBook(directory).names()

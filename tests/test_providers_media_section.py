@@ -93,3 +93,11 @@ def test_the_script_calls_the_job_api_and_asks_twice_before_cancelling():
     source = (Path(__file__).resolve().parents[1] / "src/hutch/server/static/media-jobs.js").read_text()
     assert "/api/v1/media/jobs/" in source and "X-CSRF" not in source
     assert "Confirm: cancel this job" in source and "may not confirm, and may still bill" in source
+
+
+def test_the_claim_that_no_media_route_has_a_live_run_is_true():
+    """The section says so on the page; this fails if a live-verified record ever lands on a media route's provider."""
+    from hutch.providers.capabilities import live_verified_evidence
+    media_providers = {route.provider for route in load_routes().values()}
+    live_providers = {item.scope.split("/", 1)[0] for item in live_verified_evidence()}
+    assert not (media_providers & live_providers), media_providers & live_providers

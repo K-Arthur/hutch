@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse
 
 from ..connections import ConnectionBook
@@ -31,6 +32,11 @@ from ..providers.registry import validate_inference_mode
 from ..providers.routing import resolve_route
 from ..providers.wizard import Context, route_guides
 
+
+
+def _is_local(provider: Provider) -> bool:
+    """Only a provider with a local-service route needs the loopback probes; the others skip them."""
+    return any(method.type == "local_service" for method in provider.auth_methods)
 
 
 def _media_env(provider: Provider) -> str:
@@ -72,7 +78,8 @@ def _picker(provider: Provider, current: ConnectionBook, runtimes: list[dict], l
     mode = mode if mode in dict(MODES) else "hybrid"
     resolution = None
     if model:
-        resolved = resolve_route(current, f"{chosen}/{model}", runtime=picked, local_services=local())
+        resolved = resolve_route(current, f"{chosen}/{model}", runtime=picked,
+                                 local_services=local() if _is_local(provider) else None)
         resolution = resolution_view(resolved.json())
         if mode != "hybrid":
             resolution["mode"] = _mode_verdict(mode, resolved.spec, resolved.endpoint)
@@ -121,7 +128,7 @@ def register_provider_detail(app: FastAPI, page: Callable, go: Callable, read_fo
         current = book()
         guides = route_guides(Context(
             provider=provider, book=current, store=store, templates=current.templates(),
-            local_services=tuple(services_json(local_services())),
+            local_services=tuple(services_json(local_services())) if _is_local(provider) else (),
             runtimes=tuple(runtime_catalog().get("runtimes", [])), media_env=_media_env(provider), focus=account))
         readiness = {name: account_readiness(current, name, catalog=catalog)
                      for guide in guides for name in guide.accounts}
@@ -146,9 +153,13 @@ def register_provider_detail(app: FastAPI, page: Callable, go: Callable, read_fo
         if template not in provider.connection_templates:
             return go(back(provider, route), error=f"{template or 'That'} is not an account type for {provider.title}.")
         current = book()
+        offered = current.templates().get(template)
+        if offered is None or offered.get("auth_method", "api_key") not in ("api_key", "custom_endpoint"):
+            return go(back(provider, route),
+                      error=f"{template} is a sign-in account. Start it from Apps & AI, which owns the sign-in.")
         try:
             overrides: dict[str, Any] = {}
-            if current.templates()[template].get("auth_method") == "custom_endpoint":
+            if offered.get("auth_method") == "custom_endpoint":
                 overrides["base_url"] = form.get("base_url").strip() or None
             conn = current.add(template, form.get("name").strip() or None, **overrides)
         except ValueError as exc:
@@ -181,6 +192,6 @@ def register_provider_detail(app: FastAPI, page: Callable, go: Callable, read_fo
     async def wizard_test(request: Request, provider_id: str, name: str):
         provider, form = provider_or_404(provider_id), await read_form(request)
         current, route = owned(provider, name), form.get("route")
-        result = check_connection(current, name)
+        result = await run_in_threadpool(check_connection, current, name)   # a network read: keep it off the event loop
         message = {"notice": f"{name}: {result.detail}"} if result.ok else {"error": f"{name}: {result.detail}"}
         return go(back(provider, route, name), **message)
