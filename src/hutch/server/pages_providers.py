@@ -18,21 +18,11 @@ from ..providers.accounts import disconnect_local, provider_groups, rename_accou
 from ..providers.capabilities import (CAPABILITIES, capability_matrix, capability_report, live_summary,
                                       report_json)
 from ..providers.catalog import CATEGORIES, INTEGRATION_STATUSES, STATUS_TEXT, bundled_catalog
+from ..providers.catalog_view import CATEGORY_LABELS, catalog_facets, catalog_rows, distinct_next_action
 from ..providers.discovery import probe_local_services, services_json
 from ..providers.readiness import account_readiness, provider_readiness, readiness_json, route_readiness
 from ..providers.routing import resolve_route
 from ..runtime.registry import registry_json
-
-CATEGORY_LABELS = {
-    "vendor": "Model vendors",
-    "serving_platform": "Model-serving platforms",
-    "gateway": "Gateways and routers",
-    "enterprise_cloud": "Enterprise clouds",
-    "subscription_service": "Subscription services",
-    "local_runtime": "Local and self-hosted runtimes",
-    "media_platform": "Media, speech and music",
-    "compatible_endpoint": "Custom compatible endpoints",
-}
 
 _RUNTIME_CACHE_SECONDS = 60.0
 _runtime_cache: dict[str, Any] = {"at": 0.0, "value": None}
@@ -89,6 +79,20 @@ def _profile_json(profile) -> dict:
     }
 
 
+def _account_sections(book: ConnectionBook, catalog) -> tuple[list[dict], dict[str, int]]:
+    """Accounts grouped by provider with readiness, and the account count per provider id."""
+    sections, counts = [], {}
+    for group in provider_groups(book):
+        rows = []
+        for profile in group.accounts:
+            readiness = account_readiness(book, profile.name, catalog=catalog)
+            rows.append({"profile": profile, "readiness": readiness,
+                         "next_action": distinct_next_action(readiness.detail, readiness.next_action)})
+        counts[group.provider_id] = len(rows)
+        sections.append({"provider_id": group.provider_id, "provider": group.provider, "accounts": rows})
+    return sections, counts
+
+
 def register_provider_pages(app: FastAPI, page: Callable, go: Callable, read_form: Callable) -> None:
     config, store = app.state.config, app.state.store
 
@@ -108,25 +112,16 @@ def register_provider_pages(app: FastAPI, page: Callable, go: Callable, read_for
     def providers_page(request: Request):
         catalog = bundled_catalog()
         current = book()
-        groups = provider_groups(current)
-        accounts = []
-        counts: dict[str, int] = {}
-        for group in groups:
-            rows = [{"profile": profile, "readiness": account_readiness(current, profile.name, catalog=catalog)}
-                    for profile in group.accounts]
-            counts[group.provider_id] = len(rows)
-            accounts.append({"provider_id": group.provider_id, "provider": group.provider, "accounts": rows})
-        ecosystem = []
-        for category in CATEGORIES:
-            providers = [{"provider": provider, "account_count": counts.get(provider.id, 0)}
-                         for provider in catalog.providers if provider.category == category]
-            if providers:
-                ecosystem.append({"category": category, "label": CATEGORY_LABELS.get(category, category),
-                                  "providers": providers})
-        return page(request, "providers.html", nav="connections", groups=accounts, ecosystem=ecosystem,
-                    reviewed_on=catalog.reviewed_on, provider_count=len(catalog.providers),
-                    live_summary=live_summary(), status_counts=_status_counts(catalog),
-                    local_services=services_json(local_services()), runtime_catalog=runtime_catalog())
+        accounts, counts = _account_sections(current, catalog)
+        rows = catalog_rows(catalog, counts)
+        ecosystem = [{"category": category, "label": CATEGORY_LABELS.get(category, category),
+                      "rows": [row for row in rows if row["category"] == category]} for category in CATEGORIES]
+        return page(request, "providers.html", nav="connections", groups=accounts,
+                    ecosystem=[section for section in ecosystem if section["rows"]],
+                    facets=catalog_facets(catalog), reviewed_on=catalog.reviewed_on,
+                    provider_count=len(catalog.providers), live_summary=live_summary(),
+                    status_counts=_status_counts(catalog), local_services=services_json(local_services()),
+                    runtime_catalog=runtime_catalog())
 
     # ------------------------------------------------------------------- APIs
 

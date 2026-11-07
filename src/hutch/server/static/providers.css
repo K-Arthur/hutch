@@ -1,0 +1,46 @@
+/* Providers surfaces. Hand-written like the other server-page sheets; shared pieces (.panel, .chip, .tag,
+   .hint, .mono, .list-row) come from hutch.css and the form controls from hutch-form-controls.css.
+   Nothing here animates, so reduced-motion needs no override. */
+
+/* ---- filters --------------------------------------------------------------------------------- */
+.provider-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 12px; align-items: end; margin: 14px 0 6px; }
+.provider-filters .hutch-field { margin: 0; min-width: 0; }
+.provider-filters .hutch-field label { display: block; margin-bottom: 4px; font-size: 0.8125rem; color: var(--dim); }
+.provider-filters .hutch-input, .provider-filters .hutch-select { width: 100%; min-width: 0; }
+.provider-filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 6px 0 10px; }
+.provider-filter-status { margin: 0; }
+
+/* ---- catalogue rows ---------------------------------------------------------------------------- */
+.provider-section h3 { display: flex; align-items: baseline; gap: 8px; margin: 18px 0 6px; }
+.provider-section h3 .count { font-size: 0.8125rem; font-weight: 500; color: var(--dim); }
+.provider-rows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; background: var(--bg-subtle); }
+.provider-row { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr) 92px; gap: 6px 18px; align-items: start; padding: 12px 14px; border-top: 1px solid var(--border); }
+.provider-row:first-child { border-top: 0; }
+.provider-row[hidden], .provider-section[hidden] { display: none; }
+.provider-row-name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.provider-row-name a { display: inline-block; min-height: 24px; padding-block: 1px; font-weight: 600; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.plain-list .card-title > a { text-decoration: underline; text-underline-offset: 3px; }
+.provider-row-name a:hover { text-decoration: underline; }
+.provider-row-name .mono { font-size: 0.75rem; color: var(--dim); }
+.provider-row-summary { margin: 4px 0 0; flex-basis: 100%; font-size: 0.8125rem; color: var(--dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.provider-row-chips { display: grid; gap: 4px; min-width: 0; }
+.chip-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0; min-width: 0; }
+.chip-line .tag { white-space: nowrap; }
+.chip-line .group-label { flex: 0 0 64px; font-size: 0.6875rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); }
+.provider-row-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; text-align: right; }
+.provider-row-side .btn { min-height: 32px; }
+
+/* ---- disclosure panels ------------------------------------------------------------------------- */
+.panel details > summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-height: 32px; padding: 4px 0; }
+.panel details > summary .card-title { margin: 0; display: inline-flex; align-items: center; gap: 8px; }
+.panel details > summary .hint { margin: 0; }
+.panel details[open] > summary { margin-bottom: 8px; }
+
+@media (max-width: 720px) {
+  .provider-row { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 12px; }
+  .provider-row-side { flex-direction: row; flex-wrap: wrap; align-items: center; text-align: left; }
+  .provider-row-side .btn { display: none; }   /* the name is the link; a second target only adds height */
+}
+@media (pointer: coarse) {
+  .provider-row-side .btn { min-height: 44px; }
+}

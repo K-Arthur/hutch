@@ -23,14 +23,14 @@ from .catalog import Provider, bundled_catalog
 ACCOUNT_STATES = ("ready", "needs_key", "needs_sign_in", "expired", "revoked", "needs_configuration",
                   "local_service")
 
-_BILLING_LABELS = {
+BILLING_LABELS = {
     "per_token": "Per-token API billing",
     "subscription": "Subscription allowance",
     "credits": "Credits",
     "free": "Local or free service",
     "unknown": "Billing not reported",
 }
-_AUTH_LABELS = {
+AUTH_LABELS = {
     "api_key": "API key",
     "pkce": "OAuth sign-in (PKCE)",
     "oauth": "OAuth sign-in",
@@ -149,7 +149,7 @@ def account_profile(book: ConnectionBook, name: str, catalog=None) -> AccountPro
         credential_state = "not_required" if credential == "not_required" else credential
         credential_expires_at = 0.0
     auth_method = auth_method_for_connection(conn)
-    auth_label = _AUTH_LABELS.get(auth_method, auth_method)
+    auth_label = AUTH_LABELS.get(auth_method, auth_method)
     if provider is not None:
         # Catalogue auth ids are provider-specific ("api-key", "chatgpt-sign-in"); the connection
         # carries a mechanism ("api_key", "pkce"). Match by id first, then by declared mechanism.
@@ -199,7 +199,7 @@ def account_profile(book: ConnectionBook, name: str, catalog=None) -> AccountPro
     return AccountProfile(
         name=conn.name, title=conn.title, provider_id=provider_id, provider_title=provider_title,
         provider_category=category, provider_status=provider_status, auth_method=auth_method,
-        auth_label=auth_label, billing=conn.billing, billing_label=_BILLING_LABELS.get(conn.billing, conn.billing),
+        auth_label=auth_label, billing=conn.billing, billing_label=BILLING_LABELS.get(conn.billing, conn.billing),
         credential=credential, credential_source=source, endpoint=conn.base_url, protocol=conn.protocol,
         status=status, detail=detail, credential_state=credential_state,
         credential_expires_at=credential_expires_at,

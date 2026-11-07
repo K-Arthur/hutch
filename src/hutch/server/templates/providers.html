@@ -2,14 +2,15 @@
 {% from "_icons.html" import icon %}
 {% block title %}Providers{% endblock %}
 {% block header_context %}<div class="ctx-id"><h1>Providers</h1></div>{% endblock %}
-{% block head %}<script src="/static/providers.js" defer></script>{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/providers.css"><script src="/static/providers.js" defer></script>{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
     <p class="sub">Every provider Hutch knows about, its real integration status, and the accounts configured on this machine. A provider entry is not a support claim: the status and last research date are shown for each one.</p>
   </div>
   <div class="page-actions">
-    <a href="/legacy/connections" class="btn primary">{{ icon("layers", 14) }}<span>Add or repair an account</span></a>
+    <a href="#catalogue" class="btn primary">{{ icon("layers", 14) }}<span>Find a provider</span></a>
+    <a href="/legacy/connections" class="btn ghost">{{ icon("settings", 14) }}<span>All account settings</span></a>
     <a href="/models" class="btn ghost">{{ icon("cpu", 14) }}<span>Model routes</span></a>
   </div>
 </div>
@@ -22,7 +23,7 @@
   <p class="hint">A status is not a support claim. The catalogue was reviewed on {{ reviewed_on }}; sources and boundaries are in docs/research/2026-10-provider-platform/ and docs/research/2026-11-provider-expansion/.</p>
 </div></div>
 
-<section class="panel" aria-labelledby="your-accounts-h">
+<section class="panel" id="accounts" aria-labelledby="your-accounts-h">
   <header class="conn-head"><div>
     <h2 id="your-accounts-h" class="card-title">{{ icon("layers", 18) }} Your provider accounts</h2>
     <p class="hint">Accounts are named connections. A model spec names its connection explicitly, so choosing a model always names which account pays. Credential values are never shown.</p>
@@ -30,7 +31,7 @@
   {% if groups %}
     {% for group in groups %}
     <div class="plain-list" aria-label="Accounts for {{ group.provider.title if group.provider else group.provider_id }}">
-      <h3 class="card-title">{{ group.provider.title if group.provider else group.provider_id }}
+      <h3 class="card-title">{% if group.provider %}<a href="/providers/{{ group.provider_id }}">{{ group.provider.title }}</a>{% else %}{{ group.provider_id }}{% endif %}
         {% if group.provider %}<span class="tag">{{ group.provider.category | replace("_", " ") }}</span>
         <span class="tag" title="{{ group.provider.status_meaning }}">{{ group.provider.status_label }}</span>{% endif %}
       </h3>
@@ -45,7 +46,7 @@
             <span class="chip {% if row.readiness.state == 'available' %}st-succeeded{% elif row.readiness.state == 'blocked_by_policy' %}st-failed{% elif row.readiness.state in ('needs_authentication', 'authentication_expired', 'capability_unverified', 'subscription_restricted') %}st-waiting_approval{% else %}st-stopped{% endif %}">{{ row.readiness.state | replace("_", " ") }}</span>
           </div>
           <p class="hint">{{ row.readiness.detail }}</p>
-          {% if row.readiness.next_action %}<p class="hint">{{ row.readiness.next_action }}</p>{% endif %}
+          {% if row.next_action %}<p class="hint">{{ row.next_action }}</p>{% endif %}
         </div>
         <div class="card-actions account-actions account-rename-actions">
           <form method="post" action="/providers/account/{{ row.profile.name }}/rename" class="hutch-form hutch-inline">
@@ -64,88 +65,58 @@
     {% endfor %}
   {% else %}
   <div class="empty">{{ icon("layers", 28) }}<p>No provider accounts are configured yet.</p>
-    <p class="hint">Add an API-key or subscription account in Apps &amp; AI. Local runtimes need no account.</p>
-    <p><a class="btn small primary" href="/legacy/connections">Add an account</a></p></div>
+    <p class="hint">Find your provider in the catalogue below, open it and follow its setup steps. Local runtimes need no account.</p>
+    <p><a class="btn small primary" href="#catalogue">Find a provider</a></p></div>
   {% endif %}
 </section>
 
 <section class="panel" aria-labelledby="local-h">
-  <header class="conn-head"><div>
-    <h2 id="local-h" class="card-title">{{ icon("cpu", 18) }} Local inference on this machine</h2>
+  <details>
+    <summary>
+      <h2 id="local-h" class="card-title">{{ icon("cpu", 18) }} Local inference on this machine</h2>
+      <span class="hint">{{ local_services | selectattr("reachable") | list | length }} of {{ local_services | length }} known loopback endpoints answering</span>
+    </summary>
     <p class="hint">Read-only probes of the known loopback endpoints. No credential is sent, redirects are refused, and a model listing is not proof that a model runs.</p>
-  </div></header>
-  <div class="plain-list">
-    {% for service in local_services %}
-    <div class="list-row"><div>
-      <strong>{{ service.title }}</strong> <span class="mono small">{{ service.url }}</span>
-      <div class="tags">
-        {% if service.reachable %}<span class="chip st-succeeded">answering</span>{% else %}<span class="chip st-stopped">no service</span>{% endif %}
-        {% if service.models %}<span class="tag">{{ service.models | length }} model(s) listed</span>{% endif %}
-        {% if service.error %}<span class="tag">{{ service.error }}</span>{% endif %}
-      </div>
-      {% if service.models %}<p class="hint mono">{{ service.models[:6] | join(", ") }}{% if service.models | length > 6 %} ...{% endif %}</p>{% endif %}
-    </div></div>
-    {% endfor %}
-  </div>
+    <div class="plain-list">
+      {% for service in local_services %}
+      <div class="list-row"><div>
+        <strong>{{ service.title }}</strong> <span class="mono small">{{ service.url }}</span>
+        <div class="tags">
+          {% if service.reachable %}<span class="chip st-succeeded">answering</span>{% else %}<span class="chip st-stopped">no service</span>{% endif %}
+          {% if service.models %}<span class="tag">{{ service.models | length }} model(s) listed</span>{% endif %}
+          {% if service.error %}<span class="tag">{{ service.error }}</span>{% endif %}
+        </div>
+        {% if service.models %}<p class="hint mono">{{ service.models[:6] | join(", ") }}{% if service.models | length > 6 %} ...{% endif %}</p>{% endif %}
+      </div></div>
+      {% endfor %}
+    </div>
+  </details>
 </section>
 
 <section class="panel" aria-labelledby="runtimes-h">
-  <header class="conn-head"><div>
-    <h2 id="runtimes-h" class="card-title">{{ icon("settings", 18) }} Execution runtimes</h2>
+  <details>
+    <summary>
+      <h2 id="runtimes-h" class="card-title">{{ icon("settings", 18) }} Execution runtimes</h2>
+      <span class="hint">{{ runtime_catalog.runtimes | selectattr("enabled") | list | length }} of {{ runtime_catalog.runtimes | length }} selectable</span>
+    </summary>
     <p class="hint">A runtime is not a provider. Only the built-in runtime reserves provider usage before a model call; external engines keep their own tools and credentials. Registering a runtime does not enable it.</p>
-  </div></header>
-  <div class="plain-list" aria-label="Execution runtimes">
-    {% for runtime in runtime_catalog.runtimes %}
-    <div class="list-row"><div>
-      <strong>{{ runtime.title }}</strong>
-      <div class="tags">
-        <span class="tag mono">{{ runtime.id }}</span>
-        <span class="chip {% if runtime.status == 'implemented' %}st-succeeded{% elif runtime.status in ('experimental', 'documented') %}st-waiting_approval{% else %}st-failed{% endif %}">{{ runtime.status }}</span>
-        {% if runtime.enabled %}<span class="tag">selectable</span>{% else %}<span class="tag">not selectable</span>{% endif %}
-        {% if runtime.usage_reservation %}<span class="chip st-succeeded">reserves usage</span>{% else %}<span class="chip st-stopped">no usage reservation</span>{% endif %}
-        {% if runtime.cli %}{% if runtime.cli.installed %}<span class="chip st-succeeded">CLI installed</span>{% if runtime.cli.version %}<span class="tag mono">{{ runtime.cli.version }}</span>{% endif %}{% else %}<span class="chip st-stopped">CLI not installed</span>{% endif %}{% endif %}
-      </div>
-      <p class="hint">{{ runtime.permission_boundary }}</p>
-    </div></div>
-    {% endfor %}
-  </div>
-</section>
-
-<section class="panel" aria-labelledby="catalog-h">
-  <header class="conn-head"><div>
-    <h2 id="catalog-h" class="card-title">{{ icon("chart", 18) }} Provider catalogue ({{ provider_count }})</h2>
-    <p class="hint">Grouped by what the service is. Status values: implemented, implemented-unverified, experimental, documented (research only), blocked, retired, deferred. Model and capability columns are evidence in the research package, not promises.</p>
-  </div></header>
-  <div class="hutch-field">
-    <label class="small" for="provider-search">Search providers</label>
-    <input class="hutch-input" id="provider-search" type="search" placeholder="Search by name, service, category or status" autocomplete="off" aria-describedby="provider-filter-status">
-  </div>
-  <div class="tags" role="group" aria-label="Filter by category">
-    <button type="button" class="btn small ghost" data-category-filter="all" aria-pressed="true">All</button>
-    {% for section in ecosystem %}<button type="button" class="btn small ghost" data-category-filter="{{ section.category }}" aria-pressed="false">{{ section.label }}</button>{% endfor %}
-  </div>
-  <p class="hint" id="provider-filter-status" role="status" aria-live="polite">Showing {{ provider_count }} providers.</p>
-  {% for section in ecosystem %}
-  <div class="provider-section" data-category-section="{{ section.category }}">
-    <h3 class="section">{{ section.label }}</h3>
-    <div class="card-grid">
-      {% for item in section.providers %}
-      <article class="card" data-provider-card data-category="{{ section.category }}" data-search="{{ item.provider.title | lower }} {{ item.provider.id }} {{ item.provider.services | join(' ') }} {{ item.provider.integration_status }} {{ item.provider.status_label }} {{ item.provider.auth_methods | map(attribute='label') | join(' ') | lower }}">
-        <h4 class="card-title">{{ item.provider.title }}
-          <span class="chip {% if item.provider.integration_status == 'implemented' %}st-succeeded{% elif item.provider.integration_status in ('implemented-unverified', 'experimental') %}st-waiting_approval{% elif item.provider.integration_status in ('blocked', 'retired') %}st-failed{% else %}st-stopped{% endif %}" title="{{ item.provider.status_meaning }}">{{ item.provider.status_label }}</span>
-        </h4>
-        <p class="hint">{{ item.provider.status_meaning }}</p>
-        <div class="tags"><span class="tag mono">{{ item.provider.id }}</span>{% if item.account_count %}<span class="tag">{{ item.account_count }} account(s)</span>{% endif %}</div>
-        {% if item.provider.notes %}<p class="hint">{{ item.provider.notes }}</p>{% endif %}
-        <p class="hint"><strong>Services:</strong> {{ item.provider.services | join(", ") }}</p>
-        <p class="hint"><strong>Auth:</strong> {% for method in item.provider.auth_methods %}{{ method.label }} ({{ method.status }}){% if not loop.last %}; {% endif %}{% endfor %}</p>
-        <p class="hint"><strong>Protocols:</strong> {{ item.provider.protocols | join(", ") or "not specified" }}</p>
-        {% if item.provider.docs %}<p class="hint"><a href="{{ item.provider.docs[0].url }}" rel="noopener noreferrer" target="_blank">Official documentation</a> <span class="muted small">observed {{ item.provider.docs[0].observed_on }}</span></p>{% endif %}
-      </article>
+    <div class="plain-list" aria-label="Execution runtimes">
+      {% for runtime in runtime_catalog.runtimes %}
+      <div class="list-row"><div>
+        <strong>{{ runtime.title }}</strong>
+        <div class="tags">
+          <span class="tag mono">{{ runtime.id }}</span>
+          <span class="chip {% if runtime.status == 'implemented' %}st-succeeded{% elif runtime.status in ('experimental', 'documented') %}st-waiting_approval{% else %}st-failed{% endif %}">{{ runtime.status }}</span>
+          {% if runtime.enabled %}<span class="tag">selectable</span>{% else %}<span class="tag">not selectable</span>{% endif %}
+          {% if runtime.usage_reservation %}<span class="chip st-succeeded">reserves usage</span>{% else %}<span class="chip st-stopped">no usage reservation</span>{% endif %}
+          {% if runtime.cli %}{% if runtime.cli.installed %}<span class="chip st-succeeded">CLI installed</span>{% if runtime.cli.version %}<span class="tag mono">{{ runtime.cli.version }}</span>{% endif %}{% else %}<span class="chip st-stopped">CLI not installed</span>{% endif %}{% endif %}
+        </div>
+        <p class="hint">{{ runtime.permission_boundary }}</p>
+      </div></div>
       {% endfor %}
     </div>
-  </div>
-  {% endfor %}
-  <div class="empty" id="provider-no-match" hidden><p>No provider matches that search.</p><p class="hint">Clear the search or choose All.</p></div>
+  </details>
 </section>
+
+{% include "_providers_catalogue.html" %}
 {% endblock %}

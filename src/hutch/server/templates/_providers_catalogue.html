@@ -1,0 +1,76 @@
+{% from "_icons.html" import icon %}
+{# Catalogue index: one compact row per provider. Filters are progressive: the form is hidden until
+   providers.js runs, so without script the full list is shown and nothing claims to filter. #}
+<section class="panel" id="catalogue" aria-labelledby="catalog-h">
+  <header class="conn-head"><div>
+    <h2 id="catalog-h" class="card-title">{{ icon("chart", 18) }} Provider catalogue ({{ provider_count }})</h2>
+    <p class="hint">A row is a provider and the routes it offers, not a support claim. "Built" means Hutch has a code path for that route; the status chip says whether anything has actually been run through it. Open a provider for its routes, setup steps and evidence.</p>
+  </div></header>
+
+  <form class="provider-filters" id="provider-filters" role="search" aria-label="Filter the provider catalogue" method="get" action="/providers" hidden>
+    <div class="hutch-field">
+      <label for="provider-search">Search</label>
+      <input class="hutch-input" id="provider-search" name="q" type="search" placeholder="Name or service" autocomplete="off" aria-describedby="provider-filter-status">
+    </div>
+    <div class="hutch-field">
+      <label for="filter-category">Category</label>
+      <select class="hutch-select" id="filter-category" name="category" data-filter="category">
+        <option value="">All categories</option>
+        {% for item in facets.categories %}<option value="{{ item.id }}">{{ item.label }} ({{ item.count }})</option>{% endfor %}
+      </select>
+    </div>
+    <div class="hutch-field">
+      <label for="filter-status">Status</label>
+      <select class="hutch-select" id="filter-status" name="status" data-filter="status">
+        <option value="">Any status</option>
+        {% for item in facets.statuses %}<option value="{{ item.id }}">{{ item.label }} ({{ item.count }})</option>{% endfor %}
+      </select>
+    </div>
+    <div class="hutch-field">
+      <label for="filter-auth">Sign-in route</label>
+      <select class="hutch-select" id="filter-auth" name="auth" data-filter="auth">
+        <option value="">Any route</option>
+        {% for item in facets.auth_types %}<option value="{{ item.id }}">{{ item.label }} ({{ item.count }})</option>{% endfor %}
+      </select>
+    </div>
+    <div class="hutch-field">
+      <label for="filter-service">Service</label>
+      <select class="hutch-select" id="filter-service" name="service" data-filter="service">
+        <option value="">Any service</option>
+        {% for item in facets.services %}<option value="{{ item.id }}">{{ item.label }} ({{ item.count }})</option>{% endfor %}
+      </select>
+    </div>
+  </form>
+  <noscript><p class="hint">Filtering needs JavaScript. Every provider is listed below.</p></noscript>
+  <div class="provider-filter-bar">
+    <p class="hint provider-filter-status" id="provider-filter-status" role="status">Showing all {{ provider_count }} providers.</p>
+    <button type="button" class="btn small ghost" id="provider-filter-clear" hidden>Clear filters</button>
+  </div>
+
+  {% for section in ecosystem %}
+  <div class="provider-section" data-category-section="{{ section.category }}">
+    <h3 class="section">{{ section.label }} <span class="count">{{ section.rows | length }}</span></h3>
+    <ul class="provider-rows" aria-label="{{ section.label }}">
+      {% for row in section.rows %}
+      <li class="provider-row" data-provider-card data-id="{{ row.id }}" data-category="{{ row.category }}" data-status="{{ row.status }}" data-auth="{{ row.auth_types }}" data-services="{{ row.service_ids }}" data-search="{{ row.search }}">
+        <div class="provider-row-name">
+          <a href="{{ row.href }}">{{ row.title }}</a>
+          <span class="chip {{ row.chip_class }}" title="{{ row.status_meaning }}">{{ row.status_label }}</span>
+          <span class="mono">{{ row.id }}</span>
+          {% if row.summary %}<p class="provider-row-summary">{{ row.summary }}</p>{% endif %}
+        </div>
+        <div class="provider-row-chips">
+          <p class="chip-line"><span class="group-label">Routes</span>{% for route in row.routes %}<span class="tag" title="{{ route.type_label }}: {{ route.code_label }}">{{ route.type_label }}: {{ route.code_label }}</span>{% endfor %}</p>
+          {% if row.services %}<p class="chip-line"><span class="group-label">Services</span>{% for service in row.services %}<span class="tag">{{ service.label }}</span>{% endfor %}</p>{% endif %}
+        </div>
+        <div class="provider-row-side">
+          {% if row.account_count %}<span class="tag">{{ row.account_count }} account{{ "" if row.account_count == 1 else "s" }}</span>{% endif %}
+          <a class="btn small ghost" href="{{ row.href }}" aria-label="Open {{ row.title }}">Open</a>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+  <div class="empty" id="provider-no-match" hidden><p>No provider matches those filters.</p><p class="hint">Clear the filters to see every provider again.</p></div>
+</section>
