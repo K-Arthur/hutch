@@ -42,6 +42,41 @@ def test_models_page_renders_every_section(client):
     assert re.search(r'<a href="/models"[^>]*aria-current="page"', r.text), "Models entry is current"
 
 
+def test_models_page_reuses_one_local_discovery_result_for_notes_and_cards(client, monkeypatch):
+    from hutch.providers import discovery
+
+    calls = []
+
+    def probe(**kwargs):
+        calls.append(kwargs)
+        return {}
+
+    monkeypatch.setattr(discovery, "probe_local_services", probe)
+    assert client.get("/models").status_code == 200
+    assert len(calls) == 1
+
+
+def test_models_page_keeps_stopped_runtime_recovery_and_key_state_honest(client, monkeypatch):
+    from types import SimpleNamespace
+
+    import hutch.modelview as modelview
+    from hutch.providers import discovery
+
+    monkeypatch.setattr(discovery, "probe_local_services", lambda **_kwargs: {
+        "lmstudio": {"provider": "lmstudio", "title": "LM Studio", "url": "http://127.0.0.1:1234/v1/models",
+                     "reachable": True, "models": [], "state": "needs_key", "runtime": "unknown",
+                     "confidence": "unknown", "applied_context": {}, "parallel": None, "policy": "unknown",
+                     "policy_detail": "", "fix": "store a local server key", "detail": "key required"},
+    })
+    monkeypatch.setattr(modelview, "runtime_health", lambda *_args, **_kwargs: [SimpleNamespace(
+        name="llama.cpp", kind="local-runtime", state="down", detail="stopped", version="", loaded=[],
+        used_by=[], fix="start llama-server")])
+
+    html = client.get("/models").text
+    assert "model list unavailable until an API key is set" in html
+    assert "start llama-server" in html
+
+
 def test_models_page_is_honest_about_defaults_and_assistant_routing(client):
     """The top of the page answers who uses what; false/duplicate model options are gone (S6a)."""
     client.app.state.store.create_bot(Bot(name="design-partner", display_name="Design Partner",
