@@ -216,6 +216,29 @@ def test_a_second_advance_that_loses_the_race_reports_the_finished_job_not_a_fai
     assert out["action"] == "none" and "another request" in out["note"]
 
 
+def test_concurrent_finalize_result_does_not_record_usage_twice(store, config, ctx, monkeypatch):
+    connect(config, "xai")
+    install_fake_transport(monkeypatch, lambda r: httpx.Response(
+        200, content=WAV, headers={"content-type": "audio/wav"}))
+    first, second = service_for(store, config), service_for(store, config)
+    row = submit(first, ctx, "xai-speech:xai", "audio", "hello there", "k-race-usage")
+    from hutch.media import resume
+
+    def concurrent_winner(job_id, **_kwargs):
+        winner = resume.advance(first, store, job_id)
+        assert winner["action"] == "finalized"
+        # MediaJobService.finalize returns an empty payload with the succeeded row when its
+        # commit loses to another finalizer.
+        return {}, store.get_media_job(job_id)
+
+    second.finalize = concurrent_winner
+    out = resume.advance(second, store, row["id"])
+    assert out["action"] == "none"
+    assert "another request" in out["note"]
+    count = store._db.execute("SELECT COUNT(*) FROM usage WHERE run_id = ?", (ctx.run.id,)).fetchone()[0]
+    assert count == 1
+
+
 def test_sweep_removes_only_old_entries_that_no_open_job_references(store, config, ctx, monkeypatch):
     from hutch.media.ledger import sweep_orphans
     import os

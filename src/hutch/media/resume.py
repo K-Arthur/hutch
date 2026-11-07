@@ -61,8 +61,8 @@ def _finalize(service: MediaJobService, store: Any, backend: Any, row: dict[str,
     duration = probe(row) if kind == "audio" and callable(probe) else None
     spoken = measured_usage(backend, kind, row)         # before finalize releases the held copy
     try:
-        _, final = service.finalize(row["id"], alt_text=default_alt_text(kind, prompt),
-                                    duration_seconds=duration)
+        payload, final = service.finalize(row["id"], alt_text=default_alt_text(kind, prompt),
+                                          duration_seconds=duration)
     except MediaJobError as exc:
         current = service.status(row["id"]) or row
         if current["status"] in TERMINAL_STATUSES:       # another request finished it first
@@ -71,6 +71,11 @@ def _finalize(service: MediaJobService, store: Any, backend: Any, row: dict[str,
         return {"action": "failed", "note": str(exc), "job": describe(current)}
     if final.get("status") != "succeeded":
         return {"action": "failed", "note": str(final.get("error") or ""), "job": describe(final)}
+    if not payload:
+        # A concurrent finalizer stored the bytes and closed the row after our initial status
+        # check. It also owns the usage record; this request must not count it a second time.
+        return {"action": "none", "note": "the job was finished by another request",
+                "job": describe(final)}
     note = _usage(store, backend, kind, row, requested, spoken)
     return {"action": "finalized", "note": note, "job": describe(final)}
 
