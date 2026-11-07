@@ -1,8 +1,8 @@
 """Equivalence and bound tests for transcript token-accounting caches (perf D6-B).
 
-The cached functions must return exactly the previous formulas; the cache is only a
-performance mechanism. Reference implementations below are the pre-cache code, kept here
-so a future change to either formula fails loudly instead of silently drifting.
+The cached functions must preserve the current formulas; the cache is only a performance
+mechanism. The reference estimator includes the image-aware content rule shared by planning and
+compaction, so image bytes are not miscounted as text.
 """
 
 from __future__ import annotations
@@ -15,7 +15,6 @@ import threading
 from hutch.context import (
     IMAGE_TOKEN_ESTIMATE,
     PER_MESSAGE_OVERHEAD,
-    _content_tokens,
     clear_token_caches,
     estimate_tokens,
     prompt_tokens,
@@ -25,8 +24,25 @@ from hutch.runtime.fitloop import count_tokens
 from hutch.token_cache import MessageTokenCache, SequenceTokenCache
 
 
+def _ref_content_tokens(content):
+    if isinstance(content, str):
+        return math.ceil(len(content) / 3.2)
+    if isinstance(content, list):
+        total = 0
+        for part in content:
+            if isinstance(part, dict):
+                if part.get("type") == "image_url":
+                    total += IMAGE_TOKEN_ESTIMATE
+                elif part.get("type") == "text":
+                    total += math.ceil(len(str(part.get("text") or "")) / 3.2)
+                else:
+                    total += math.ceil(len(json.dumps(part)[:2000]) / 3.2)
+        return total
+    return math.ceil(len(str(content or "")) / 3.2)
+
+
 def _ref_prompt_tokens(messages, tools):
-    msg = sum(_content_tokens(m.get("content")) + PER_MESSAGE_OVERHEAD
+    msg = sum(_ref_content_tokens(m.get("content")) + PER_MESSAGE_OVERHEAD
               + sum(estimate_tokens(json.dumps(tc)) for tc in (m.get("tool_calls") or []))
               for m in messages)
     tool = estimate_tokens(json.dumps(tools, separators=(",", ":"))) if tools else 0
@@ -36,8 +52,7 @@ def _ref_prompt_tokens(messages, tools):
 def _ref_count_tokens(messages, tool_tokens=0):
     total = 0
     for message in messages:
-        text = str(message.get("content") or "")
-        tokens = int(math.ceil(len(text) / 3.2)) + 6
+        tokens = _ref_content_tokens(message.get("content")) + 6
         for call in message.get("tool_calls") or []:
             tokens += int(math.ceil(len(json.dumps(call, separators=(",", ":"))) / 3.2))
         total += tokens
