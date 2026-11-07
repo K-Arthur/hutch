@@ -52,6 +52,18 @@
     return openCodeChoice(openCode);
   }
 
+  // The one sentence that says what was found. "Ready" reads as saved, so it says what exists and, in the same
+  // breath, that nothing is saved yet; first run and the Models page both show it, so they say the same thing.
+  const NOT_SAVED = "None is saved as the default for new assistants yet.";
+
+  function availability(choice) {
+    if (!choice) return "";
+    if (choice.kind !== "opencode") return `${choice.group || "A configured provider"} has a model route you can use. ${NOT_SAVED}`;
+    const count = choice.count;
+    const account = choice.connected ? "A provider account is connected." : "Its available models can be used without a separate account.";
+    return `OpenCode is available with ${count} model option${count === 1 ? "" : "s"}. ${account} ${NOT_SAVED}`;
+  }
+
   const CHANGE = "Change it any time: Settings sets the default for new assistants, and an assistant's AI model tab changes just that assistant.";
 
   function disclosure(choice) {
@@ -82,5 +94,5 @@
     </aside>`;
   }
 
-  window.hutchStarterRoute = { choose, disclosure, noticeHtml };
+  window.hutchStarterRoute = { choose, disclosure, noticeHtml, availability };
 })();

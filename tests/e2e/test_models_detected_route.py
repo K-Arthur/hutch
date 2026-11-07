@@ -56,7 +56,7 @@ def test_ready_service_is_offered_with_first_run_copy_and_saves_in_one_click(bro
     page, watch = _open(browser, base, lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(body)))
     try:
         panel = page.locator("#detected-service")
-        panel.get_by_text("OpenCode is ready with 2 model options.").wait_for(timeout=15_000)
+        panel.get_by_text("OpenCode is available with 2 model options.").wait_for(timeout=15_000)
         assert "Its available models can be used without a separate account." in panel.inner_text()
         link = panel.get_by_role("link", name="Review Demo model in Settings")
         link.click()
@@ -75,7 +75,7 @@ def test_connected_account_copy_matches_first_run(browser, base):
     page, watch = _open(browser, base, lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(body)))
     try:
         panel = page.locator("#detected-service")
-        panel.get_by_text("OpenCode is ready with 1 model option.").wait_for(timeout=15_000)
+        panel.get_by_text("OpenCode is available with 1 model option.").wait_for(timeout=15_000)
         assert "A provider account is connected." in panel.inner_text()
     finally:
         page.context.close()

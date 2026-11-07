@@ -41,13 +41,10 @@
       show(el("p", { className: "muted", textContent: "No ready AI service was found. Connect OpenCode or choose another provider." }));
       return;
     }
-    const count = choice.count;
     const notice = el("div");
     notice.innerHTML = window.hutchStarterRoute.noticeHtml(choice);   // the shared notice: static markup, values escaped there
     show(
-      el("p", { textContent: `OpenCode is ready with ${count} model option${count === 1 ? "" : "s"}. ${status.authenticated
-        ? "A provider account is connected."
-        : "Its available models can be used without a separate account."}` }),
+      el("p", { textContent: window.hutchStarterRoute.availability(choice) }),   // the same sentence first run shows
       el("p", { className: "hint", textContent: "Review it in Settings, where the new-assistant default is saved. Existing assistants keep their settings, and nothing runs." }),
       notice,
       useForm(choice),

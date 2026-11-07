@@ -3206,11 +3206,7 @@ async function readFirstRunReadiness() {
   if (starter) {
     return {
       state: "ready", choice: starter, retry: false,
-      copy: starter.kind === "opencode"
-        ? `OpenCode is ready with ${starter.count} model option${starter.count === 1 ? "" : "s"}. ${starter.connected
-          ? "A provider account is connected."
-          : "Its available models can be used without a separate account."}`
-        : `${starter.group || "A configured provider"} has a ready model route for setup.`,
+      copy: hutchStarterRoute.availability(starter),
     };
   }
   if (failures.length === 3) {

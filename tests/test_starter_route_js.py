@@ -106,3 +106,39 @@ def test_a_connected_profile_with_no_free_model_is_offered_as_the_persons_own_ac
 def test_nothing_ready_means_no_starter_and_no_notice(status):
     result = pick(status)
     assert result["choice"] is None and result["disclosure"] is None and result["html"] == ""
+
+
+AVAILABILITY = """
+const fs = require('fs');
+const window = {};
+require('vm').runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), { window });
+const choice = JSON.parse(fs.readFileSync(0, 'utf8'));
+process.stdout.write(JSON.stringify(window.hutchStarterRoute.availability(choice)));
+"""
+
+
+def sentence(choice):
+    done = subprocess.run(["node", "-e", AVAILABILITY, str(MODULE)], input=json.dumps(choice),
+                          capture_output=True, text=True, timeout=30, check=True)
+    return json.loads(done.stdout)
+
+
+def test_the_availability_sentence_says_what_exists_and_that_nothing_is_saved():
+    one = sentence(pick(opencode([model("opencode/opencode/a-free")]))["choice"])
+    many = sentence(pick(opencode([model("opencode/opencode/a-free"), model("opencode/opencode/b-free")]))["choice"])
+    assert one.startswith("OpenCode is available with 1 model option.") and "1 model options" not in one
+    assert many.startswith("OpenCode is available with 2 model options.")
+    assert "without a separate account" in one
+    assert one.endswith("None is saved as the default for new assistants yet.")
+    assert "ready" not in one.lower()                       # "ready" read as saved next to "No default route"
+
+
+def test_a_connected_account_and_an_own_provider_route_use_the_same_closing_claim():
+    connected = sentence(pick(opencode([model("opencode/opencode/a-free")], authenticated=True))["choice"])
+    own = sentence(pick(None, [route("deepseek/deepseek-chat", hosted=True, group="DeepSeek")])["choice"])
+    assert "A provider account is connected." in connected and connected.endswith("yet.")
+    assert own.startswith("DeepSeek has a model route you can use.") and own.endswith("None is saved as the default for new assistants yet.")
+
+
+def test_no_choice_yields_no_sentence():
+    assert sentence(None) == ""
