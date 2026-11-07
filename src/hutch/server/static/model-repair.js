@@ -19,8 +19,10 @@
     return !!model && model.state === "ready" && (!!bot.route_problem || runtimeOf(model.runtime) !== runtimeOf(bot.runtime));
   }
 
-  function confirmBody(bot, model) {
-    const notice = model.hosted ? window.hutchStarterRoute.noticeHtml({ hosted: true, free: model.free ?? FREE.test(model.spec) }) : "";
+  function confirmBody(bot, model, sharing) {
+    const notice = sharing?.required && sharing.disclosure
+      ? "<p><strong>" + html(sharing.disclosure.title) + "</strong></p><p>" + html(sharing.disclosure.body) + "</p>"
+      : model.hosted ? window.hutchStarterRoute.noticeHtml({ hosted: true, free: model.free ?? FREE.test(model.spec) }) : "";
     const moves = runtimeOf(model.runtime) !== runtimeOf(bot.runtime);
     return notice + "<p>This saves <b>" + html(model.label) + "</b> as " + html(label(bot)) + "'s model"
       + (moves ? " and moves it to the " + (model.runtime === "opencode" ? "OpenCode" : "built-in") + " runtime" : "")
@@ -28,14 +30,18 @@
   }
 
   /* Ask, then save. Resolves with the saved assistant, or null when the person backs out. */
-  function apply(bot, model) {
+  async function apply(bot, model) {
+    let sharing = null;
+    try { sharing = await window.hutchModelSharing.requirement(bot, model.spec); } catch { /* the save reports it */ }
     return new Promise(resolve => {
-      openModal({ title: "Use " + model.label + " for " + label(bot) + "?", bodyHtml: confirmBody(bot, model), confirmText: "Use this model",
+      openModal({ title: "Use " + model.label + " for " + label(bot) + "?", bodyHtml: confirmBody(bot, model, sharing),
+        confirmText: "Use this model",
         confirmClass: "primary", onCancel: () => resolve(null),
         onConfirm: async () => {
           const body = { model: model.spec };
           if (runtimeOf(model.runtime) !== runtimeOf(bot.runtime)) body.runtime = runtimeOf(model.runtime);
           try {
+            if (sharing?.required) await window.hutchModelSharing.record(bot, model.spec, "default");
             const saved = await api("/bots/" + encodeURIComponent(bot.name), { method: "PATCH", body });
             toast(model.label + " is now " + label(bot) + "'s model.");
             if (typeof renderChatStudio === "function") await renderChatStudio(bot.name);

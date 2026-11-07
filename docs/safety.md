@@ -570,6 +570,21 @@ service remains outside Hutch's worker boundary and may itself access the networ
 claim that a local model server or model label proves inference provenance. `GET /api/v1/capabilities`
 reports the current host result.
 
+Changing an existing assistant's saved route to a model that leaves this machine is a
+data-sharing change (EC-28). The server refuses the save, and a one-message override, until
+the assistant's confirmation has been recorded for that exact route and scope; the
+confirmation is consumed by the change that follows, so switching back later asks again
+instead of reusing old consent. The disclosure is built from the Phase 1 locality
+classifier (runtime server signal first, then resolved address, then the name as a
+fallback) and names the assistant, the route and what moves. A local route needs none.
+The browser shows the same words in a keyboard-operable dialog before it posts the
+acknowledgement. Code: `hutch/route_sharing.py` and `hutch/server/model_sharing_api.py`;
+tests: `tests/test_route_sharing.py`, `tests/e2e/test_model_sharing.py`. Note that creation
+of a new assistant from a hosted starter route keeps the existing starter-route notice;
+this confirmation covers changing an existing assistant's primary model and one-message
+override. Task-role routes set in the assistant's settings are still an explicit per-role
+choice in that form and are not yet gated by this confirmation.
+
 ## Computer use (browser and isolated desktop)
 
 The full contract is in [computer-use.md](computer-use.md). The safety-relevant points:

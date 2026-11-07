@@ -83,7 +83,7 @@ def test_the_cant_run_notice_offers_the_best_model_and_saves_it_only_when_confir
         dialog = _dialog(page)
         dialog.wait_for()
         text = dialog.inner_text()
-        assert "Free starter model, hosted by OpenCode" in text and "leaves this computer" in text
+        assert "This model runs on a hosted service" in text and "Data leaves this computer" in text
         assert "moves it to the OpenCode runtime" in text
         dialog.locator("#modal-cancel").click()
         assert store.get_bot("tidy-downloads").model == "mock/demo", "backing out saves nothing"
@@ -118,7 +118,7 @@ def test_the_picker_leads_with_what_can_run_offers_a_provider_link_and_saves_on_
         assert page.locator("#modal-confirm").inner_text() == "Use this model"
         page.locator('.ms-row:has(input[value="opencode/opencode/plain-free"])').click()
         page.locator("#modal-confirm").click()
-        confirm = page.locator("dialog[open]:has-text('Free starter model')")      # the picker dialog may still be closing
+        confirm = page.locator("dialog[open]:has-text('This model runs on a hosted service')")      # the picker dialog may still be closing
         confirm.wait_for(timeout=10_000)
         assert store.get_bot("tidy-downloads").model == "mock/demo", "choosing is not saving"
         confirm.locator("#modal-confirm").click()

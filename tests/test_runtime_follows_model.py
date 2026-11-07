@@ -8,6 +8,8 @@ These tests run without OpenCode installed (its catalogue is not consulted for a
 
 from __future__ import annotations
 
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -15,6 +17,14 @@ from hutch.route_problem import runtime_for_route
 from hutch.server.app import create_app
 
 OPENCODE = "opencode/opencode/glm-flash-free"
+
+
+def _ack_sharing(client, bot: str, model: str) -> None:
+    """A hosted route change needs the EC-28 data-sharing confirmation first."""
+    token = re.search(r'name="csrf" content="([^"]+)"', client.get("/models").text).group(1)
+    response = client.post(f"/api/bots/{bot}/model-sharing", json={"model": model, "scope": "default"},
+                           headers={"x-csrf-token": token})
+    assert response.status_code == 200, response.text
 
 
 @pytest.fixture()
@@ -63,6 +73,7 @@ def test_an_explicit_mismatch_is_refused_with_a_plain_reason_not_saved_broken(cl
 
 def test_choosing_a_model_on_an_existing_assistant_brings_its_runtime(client):
     client.post("/api/bots", json={"name": "mover", "display_name": "Mover", "model": "ollama/llama3.2:3b", "tools": []})
+    _ack_sharing(client, "mover", OPENCODE)
     moved = client.patch("/api/bots/mover", json={"model": OPENCODE})
     assert moved.status_code == 200, moved.text
     assert moved.json()["runtime"] == "opencode" and moved.json()["model"] == OPENCODE

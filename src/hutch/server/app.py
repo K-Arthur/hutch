@@ -3751,6 +3751,12 @@ def create_app() -> FastAPI:
             model = validate_override(config, store, bot, body.model or selected_route)
         except ModelNotUsable as exc:
             raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
+        if body.model and model != bot.model:
+            from ..route_sharing import SharingRequired, require_model_sharing
+            try:
+                require_model_sharing(store, bot, model, "override", config)
+            except SharingRequired as exc:
+                raise HTTPException(409, str(exc)) from None
         if image_attachments:
             # Wire/model capability for the resolved route, without a network request.
             # Local model routes defer the per-model check (it queries /api/show) and the
@@ -3928,6 +3934,12 @@ def create_app() -> FastAPI:
             model = validate_override(config, store, bot, body.model or "")
         except ModelNotUsable as exc:
             raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
+        if body.model and model != bot.model:
+            from ..route_sharing import SharingRequired, require_model_sharing
+            try:
+                require_model_sharing(store, bot, model, "override", config)
+            except SharingRequired as exc:
+                raise HTTPException(409, str(exc)) from None
         key = idempotency_key(request)
         digest = request_digest({"conversation_id": conversation_id, "question_id": question_id,
                                  "option_ids": body.option_ids, "model": body.model})
@@ -4588,6 +4600,12 @@ def create_app() -> FastAPI:
                                                    body.model if body.model is not None else proposed_model)
             except ModelNotUsable as exc:
                 raise HTTPException(422, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
+        if body.model is not None and proposed_model != bot.model:
+            from ..route_sharing import SharingRequired, require_model_sharing
+            try:
+                require_model_sharing(store, policy_bot, proposed_model, "default", config)
+            except SharingRequired as exc:
+                raise HTTPException(409, str(exc)) from None
         try:
             validate_inference_mode(proposed_mode, proposed_model, base_url=bot.base_url)
         except ValueError as exc:
@@ -4987,6 +5005,12 @@ def create_app() -> FastAPI:
             model = validate_override(config, store, bot, body.model or "")
         except ModelNotUsable as exc:
             raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
+        if body.model and model != bot.model:
+            from ..route_sharing import SharingRequired, require_model_sharing
+            try:
+                require_model_sharing(store, bot, model, "override", config)
+            except SharingRequired as exc:
+                raise HTTPException(409, str(exc)) from None
         run = engine.submit(bot, body.prompt, origin="manual:api", rehearsal=body.rehearse,
                             model="" if model == bot.model else model)
         return run_view(store.get_run(run.id))
@@ -7399,6 +7423,8 @@ def create_app() -> FastAPI:
                                   request_digest=request_digest)
     from .bot_deletion_api import install_bot_deletion_routes
     install_bot_deletion_routes(app, store)
+    from .model_sharing_api import install_model_sharing_routes
+    install_model_sharing_routes(app, store, config)
     from .pages import register_pages
     register_pages(app)
     from .onboarding_api import install_onboarding_routes

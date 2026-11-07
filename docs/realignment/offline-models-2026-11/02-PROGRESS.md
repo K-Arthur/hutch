@@ -462,6 +462,20 @@ Still open (ask at the phase that needs it):
 - 2026-11-06, Phase 7 review: the private-address branch in `locality_for_route` used
   string prefixes (`172.2` matched public 172.200+ addresses). Replaced with
   `ipaddress.ip_address(...).is_private`/`is_loopback`; unused card fields removed.
+- 2026-11-06, Phase 7 EC-28 follow-up review: the first guard covered only
+  `PATCH /api/bots/{ref}`; the one-message override paths (`/api/bots/{ref}/run`,
+  conversation messages and option selection) accepted a cloud route without a
+  confirmation. All three now call the same `require_model_sharing`; a regression
+  test sends without the ack and gets 409.
+- 2026-11-06, Phase 7 EC-28 follow-up review: the confirmation is consumed by the
+  change that follows instead of being persisted. A test switches away and back
+  and receives 409 again, proving an old consent cannot be replayed. A mismatched
+  route or digest is refused and left unconsumed.
+- 2026-11-06, Phase 7 EC-28 follow-up review: the browser dialog uses the
+  existing overlay primitive (focus trap, Escape, visible focus) and the server
+  text; cancelling never applies the selection. The e2e tests cover cancel and
+  save-again. `docs/safety.md` states the boundary and the new-assistant
+  starter-route notice exception.
 
 ## Open items and deferred
 
@@ -864,15 +878,37 @@ Still open (ask at the phase that needs it):
   agent map); `npm run audit:context` passed; `scripts/audit_emoji.py` reports
   no Phase 7 finding. `/code-review` and `/simplify` are not available in this
   session; the diff was re-read manually and the findings above were fixed.
-- Phase 7 exit checks: 7.1-7.5 implemented; the state matrix is covered with
-  dated images and the exact not-run reasons above. Phase 7 is done. The
-  pre-existing tab-strip overlap on /models remains logged (not introduced or
-  fixed here).
-- Deferred: the Phase 1.2 cloud opt-in confirmation UI (EC-28, SHOULD) is not
-  part of 7.1-7.5 and remains unimplemented. The cloud route is labelled in the
-  list and refused under Strict Offline, but switching an assistant to it does
-  not yet show a per-assistant data-sharing confirmation. This stays open for
-  Phase 8/9 rather than being claimed.
+- 2026-11-06, Phase 7.2 follow-up (EC-28, the deferred cloud opt-in UI):
+  `route_sharing.py` builds a per-assistant disclosure from the Phase 1
+  locality classifier (runtime server signal, then resolved address, then name)
+  for `network`, `cloud_via_local` and `cloud` routes; a local route needs
+  none. `server/model_sharing_api.py` serves
+  `GET /api/bots/{ref}/model-sharing?model=...` and records a CSRF-protected
+  acknowledgement. `PATCH /api/bots/{ref}` and every one-message override path
+  (`/api/bots/{ref}/run`, conversation messages, option selection) refuse a
+  non-local change with 409 until the matching acknowledgement is recorded, and
+  the save/send consumes it once, so a later switch back asks again.
+  `model-switcher.js` shows a keyboard-operable "Share this assistant's work?"
+  dialog before it applies a hosted/cloud one-message choice or saves one as the
+  assistant default; cancelling leaves the saved route unchanged. The dialog
+  names the assistant, the exact route and what moves. The repair dialog
+  (`model-repair.js`) uses the same server disclosure and records the
+  acknowledgement before saving. Tests: `tests/test_route_sharing.py` (11,
+  including the renamed cloud copy, a private HTTPS network route, a loopback
+  gateway that needs none, one-shot consumption and the CSRF refusal),
+  `tests/e2e/test_model_sharing.py` (2, cancel-keeps-default and
+  save-asks-again), `tests/e2e/test_model_picker.py` (12),
+  `tests/e2e/test_model_repair.py` (3, now asserting the server disclosure),
+  `tests/test_runtime_follows_model.py` (12, updated to acknowledge the hosted
+  runtime switch). Docs: `docs/safety.md` local inference boundary. Size check:
+  `model-switcher.js` was frozen at 483 lines, so the marks moved to
+  `model-marks.js` (50) and the dialog to `model-sharing-confirm.js` (57); the
+  switcher is 466. The oversized picker test file split into
+  `test_model_picker.py` (340) and `test_model_sharing.py` (78).
+- Phase 7 exit checks: 7.1-7.5 implemented, and the deferred EC-28 confirmation
+  UI is now implemented and tested. The state matrix is covered with dated
+  images and the exact not-run reasons above. Phase 7 is done. The pre-existing
+  tab-strip overlap on /models remains logged (not introduced or fixed here).
 
 Next phase: Phase 8, Website and documentation.
 

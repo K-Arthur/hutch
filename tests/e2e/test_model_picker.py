@@ -75,6 +75,14 @@ def _open_menu(page):
     page.locator(".ms-menu .ms-item").first.wait_for()
 
 
+def _confirm_sharing(page):
+    """A hosted route shows the EC-28 confirmation; recording it is what lets the choice apply."""
+    dialog = page.locator("dialog[role=dialog]").filter(has_text="Share this assistant's work?")
+    dialog.wait_for()
+    page.locator("#modal-confirm").click()
+    dialog.wait_for(state="hidden")
+
+
 def test_every_model_wears_a_vendor_mark_with_a_where_it_runs_badge(picker):
     page, _ = picker
     _open_menu(page)
@@ -104,6 +112,7 @@ def test_quick_picks_lead_with_the_default_what_is_in_use_and_what_was_chosen_la
     page.locator(".ms-btn.is-custom").wait_for()
     _open_menu(page)
     page.keyboard.press("4")                                  # then a hosted route
+    _confirm_sharing(page)
     chosen = page.locator(".ms-btn .ms-label").inner_text()
     _open_menu(page)
     assert page.locator(".ms-menu .ms-section").all_inner_texts()[0] == "Quick picks"
@@ -164,6 +173,7 @@ def test_the_full_list_filters_and_chooses_from_the_keyboard_without_duplicate_c
     assert first != second and {first, second} == {"openai/gpt-5.1", "openai/gpt-5.1-mini"}
     expect(search).to_be_focused()
     search.press("Enter")
+    _confirm_sharing(page)
     page.locator(".ms-btn.is-custom").wait_for()
     assert page.locator(".ms-btn .ms-label").inner_text() == second.split("/", 1)[1]
 
