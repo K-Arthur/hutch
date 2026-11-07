@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ provider.title }}{% endblock %}
+{% block header_context %}<div class="ctx-id"><h1>{{ provider.title }}</h1></div>{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/providers.css">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="hint"><a href="/providers#catalogue">Back to all providers</a></p>
+    {% if provider.summary %}<p class="sub">{{ provider.summary }}</p>{% endif %}
+    <div class="provider-detail-meta">
+      <span class="chip {{ chip_class }}" title="{{ status_meaning }}">{{ status_label }}</span>
+      <span class="tag">{{ category_label }}</span>
+      <span class="tag mono">{{ provider.id }}</span>
+      {% for protocol in provider.protocols %}<span class="tag">{{ protocol }}</span>{% endfor %}
+      {% for region in provider.regions %}<span class="tag">region: {{ region }}</span>{% endfor %}
+    </div>
+    <p class="hint">{{ status_meaning }}</p>
+    {% if provider.notes %}<p class="hint">{{ provider.notes }}</p>{% endif %}
+  </div>
+  <div class="page-actions">
+    {% if provider.docs %}<a class="btn ghost" href="{{ provider.docs[0].url }}" rel="noopener noreferrer" target="_blank">Official documentation</a>{% endif %}
+    <a class="btn ghost" href="/providers#accounts">Your accounts</a>
+  </div>
+</div>
+
+<section class="panel" id="routes" aria-labelledby="routes-h">
+  <header class="conn-head"><div>
+    <h2 id="routes-h" class="card-title">{{ icon("layers", 18) }} Routes and setup</h2>
+    <p class="hint">A route is one way to authenticate and pay. Each step below reflects what exists on this machine now, so the page resumes where you left off. "Built" means Hutch has a code path; it is not a claim that the route has been run live.</p>
+  </div></header>
+  {% for guide in guides %}{% include "_provider_route.html" %}{% endfor %}
+</section>
+
+<section class="panel" id="evidence" aria-labelledby="evidence-h">
+  <header class="conn-head"><div>
+    <h2 id="evidence-h" class="card-title">{{ icon("chart", 18) }} What is known about this provider</h2>
+    <p class="hint">Each capability shows the highest level of evidence on record. "Unverified" means no dated evidence exists, which is different from "not supported". Levels: documented, advertised, observed, live-verified. Catalogue reviewed {{ reviewed_on }}.</p>
+  </div></header>
+  <p class="hint"><strong>Services listed:</strong> {% for service in provider.services %}{{ service_labels.get(service, service) }}{% if not loop.last %}, {% endif %}{% else %}none recorded{% endfor %}</p>
+  <div class="capability-table-wrap" tabindex="0" role="region" aria-label="Capability evidence for {{ provider.title }}">
+    <table class="capability-table">
+      <thead><tr><th scope="col">Capability</th><th scope="col">Level</th><th scope="col">Scope</th><th scope="col">Observed</th><th scope="col">Source</th></tr></thead>
+      <tbody>
+        {% for row in capabilities %}
+        <tr><th scope="row">{{ row.capability }}</th><td>{{ row.level }}</td><td class="mono">{{ row.scope or "-" }}</td><td>{{ row.observed_on or "-" }}</td><td>{% if row.source.startswith("https://") %}<a href="{{ row.source }}" rel="noopener noreferrer" target="_blank">source</a>{% else %}{{ row.source or row.detail }}{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

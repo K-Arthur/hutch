@@ -13,6 +13,7 @@ import re
 from typing import Any
 
 from .accounts import AUTH_LABELS
+from .capabilities import CAPABILITIES, CapabilityReport
 from .catalog import CATEGORIES, INTEGRATION_STATUSES, STATUS_TEXT, Provider, ProviderCatalog
 
 CATEGORY_LABELS = {
@@ -50,6 +51,14 @@ _CHIP = {
 }
 
 
+#: A route chip says only whether a code path exists. It is never the green of a live-verified provider.
+_ROUTE_CHIP = {"experimental": "st-waiting_approval", "blocked": "st-failed", "retired": "st-failed"}
+
+
+def route_chip_class(status: str) -> str:
+    return _ROUTE_CHIP.get(status, "st-stopped")
+
+
 def status_chip_class(status: str) -> str:
     """The existing chip colour class for a catalogue or route status; neutral for an unknown one."""
     return _CHIP.get(status, "st-stopped")
@@ -60,7 +69,7 @@ def route_chips(provider: Provider) -> list[dict[str, Any]]:
     return [
         {"id": method.id, "type": method.type, "type_label": AUTH_TYPE_LABELS.get(method.type, method.type),
          "status": method.status, "code_label": CODE_LABELS.get(method.status, method.status),
-         "chip_class": status_chip_class(method.status)}
+         "chip_class": route_chip_class(method.status)}
         for method in provider.auth_methods
     ]
 
@@ -135,3 +144,23 @@ def catalog_facets(catalog: ProviderCatalog) -> dict[str, list[dict[str, Any]]]:
         "auth_types": _counted(auth_order, [[m.type for m in p.auth_methods] for p in providers], AUTH_TYPE_LABELS),
         "services": _counted(service_order, [list(p.services) for p in providers], SERVICE_LABELS),
     }
+
+
+def capability_rows(report: CapabilityReport) -> list[dict[str, str]]:
+    """One row per known capability: its highest evidence level and the entry that earned it.
+
+    A capability with no dated evidence is listed as "unverified", never omitted, so the table shows what is
+    not known as plainly as what is."""
+    best = report.highest()
+    rows = []
+    for capability in CAPABILITIES:
+        label = capability.replace("_", " ")
+        level = best.get(capability)
+        entry = next((item for item in report.entries if item.capability == capability and item.level == level), None)
+        if entry is None:
+            rows.append({"capability": label, "level": "unverified", "scope": "", "source": "",
+                         "observed_on": "", "detail": "No dated evidence."})
+        else:
+            rows.append({"capability": label, "level": entry.level, "scope": entry.scope,
+                         "source": entry.source, "observed_on": entry.observed_on, "detail": entry.detail})
+    return rows

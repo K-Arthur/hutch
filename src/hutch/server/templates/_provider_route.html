@@ -1,0 +1,80 @@
+{% from "_icons.html" import icon %}
+{# One route (auth method) of a provider and its guide. `guide` is a providers.wizard.RouteGuide. #}
+{% set chip = routes_by_id[guide.method.id] %}
+<article class="route-card" id="route-{{ guide.method.id }}" aria-labelledby="route-{{ guide.method.id }}-h">
+  <header>
+    <h3 id="route-{{ guide.method.id }}-h">{{ guide.method.label }}</h3>
+    <span class="chip {{ chip.chip_class }}">{{ chip.code_label }}</span>
+    <span class="tag">{{ chip.type_label }}</span>
+    <span class="tag">{{ billing_labels.get(guide.method.billing, guide.method.billing) }}</span>
+  </header>
+  {% if guide.method.notes %}<p class="hint">{{ guide.method.notes }}</p>{% endif %}
+  {% if guide.method.docs %}<ul class="route-doc-links">{% for doc in guide.method.docs %}<li><a href="{{ doc.url }}" rel="noopener noreferrer" target="_blank">{{ doc.title }}</a> <span class="muted small">observed {{ doc.observed_on }}</span></li>{% endfor %}</ul>{% endif %}
+
+  {% if guide.accounts %}
+  <div class="plain-list" aria-label="Accounts for {{ guide.method.label }}">
+    {% for name in guide.accounts %}{% set state = readiness[name] %}
+    <div class="list-row"><div>
+      <strong class="mono">{{ name }}</strong>
+      {% if name == guide.focus %}<span class="tag" aria-label="selected account">selected</span>{% elif guide.accounts | length > 1 %}<a class="small" href="/providers/{{ provider.id }}?account={{ name }}#route-{{ guide.method.id }}">Work on this account</a>{% endif %}
+      <span class="chip {% if state.state == 'available' %}st-succeeded{% elif state.state == 'blocked_by_policy' %}st-failed{% elif state.state in ('needs_authentication', 'authentication_expired', 'capability_unverified', 'subscription_restricted') %}st-waiting_approval{% else %}st-stopped{% endif %}">{{ state.state | replace("_", " ") }}</span>
+      <p class="hint">{{ state.detail }}</p>
+    </div></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <ol class="wizard" aria-label="Setup steps for {{ guide.method.label }}">
+    {% for step in guide.steps %}
+    <li class="wizard-step" data-state="{{ step.state }}" data-step="{{ step.key }}"{% if step.state == "current" %} aria-current="step"{% endif %}>
+      <h4>{{ step.title }} <span class="step-state">{{ step.state_text }}</span></h4>
+      {% if step.body %}<p class="hint">{{ step.body }}</p>{% endif %}
+      {% if step.link %}<p><a href="{{ step.link[1] }}"{% if step.link[1].startswith("https://") %} rel="noopener noreferrer" target="_blank"{% endif %}>{{ step.link[0] }}</a></p>{% endif %}
+
+      {% if step.form == "connect" %}
+      {% set choices = step.data.choices %}
+      {% if step.state == "done" %}<details><summary>Add another account</summary>{% endif %}
+      <form method="post" action="/providers/{{ provider.id }}/connect" class="hutch-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="route" value="{{ guide.method.id }}">
+        {% if choices | length > 1 %}
+        <div class="hutch-field"><label for="tpl-{{ guide.method.id }}">Account type</label>
+          <select class="hutch-select" id="tpl-{{ guide.method.id }}" name="template">{% for c in choices %}<option value="{{ c.id }}">{{ c.title }}</option>{% endfor %}</select></div>
+        {% else %}<input type="hidden" name="template" value="{{ choices[0].id }}">{% endif %}
+        <div class="hutch-field"><label for="name-{{ guide.method.id }}">Name (optional)</label>
+          <input class="hutch-input" id="name-{{ guide.method.id }}" name="name" maxlength="41" pattern="[a-z0-9][a-z0-9\-]{1,40}" placeholder="{{ choices[0].id }}" autocomplete="off" spellcheck="false"></div>
+        {% if choices[0].asks_base_url %}
+        <div class="hutch-field"><label for="url-{{ guide.method.id }}">Base URL{% if choices | length == 1 and choices[0].needs_base_url %} (required){% endif %}</label>
+          <input class="hutch-input" id="url-{{ guide.method.id }}" name="base_url" type="url" inputmode="url" placeholder="https://host.example/v1" autocomplete="off" spellcheck="false"{% if choices | length == 1 and choices[0].needs_base_url %} required{% endif %}></div>
+        {% endif %}
+        <button class="btn primary">{{ "Add another account" if guide.focus else "Add account" }}</button>
+      </form>
+      {% if step.state == "done" %}</details>{% endif %}
+
+      {% elif step.form == "key" %}
+      {% if step.state == "done" %}<details><summary>Replace the key</summary>{% endif %}
+      <form method="post" action="/providers/{{ provider.id }}/accounts/{{ step.data.account }}/key" class="hutch-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="route" value="{{ guide.method.id }}">
+        <div class="hutch-field"><label for="key-{{ guide.method.id }}">API key for {{ step.data.account }}</label>
+          <input class="hutch-input" id="key-{{ guide.method.id }}" name="key" type="password" autocomplete="off" spellcheck="false" required></div>
+        <button class="btn primary">{{ "Replace the key" if step.state == "done" else "Store the key" }}</button>
+      </form>
+      {% if step.state == "done" %}</details>{% endif %}
+
+      {% elif step.form == "ack" %}
+      <form method="post" action="/providers/{{ provider.id }}/accounts/{{ step.data.account }}/ack" class="hutch-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="route" value="{{ guide.method.id }}">
+        {% if step.data.stale %}<p class="hint">These terms changed since you last acknowledged them.</p>{% endif %}
+        <label class="small"><input type="checkbox" name="agree" value="1" required> I read these terms for {{ step.data.account }}</label>
+        <button class="btn primary">Acknowledge</button>
+      </form>
+
+      {% elif step.form == "test" %}
+      <form method="post" action="/providers/{{ provider.id }}/accounts/{{ step.data.account }}/test" class="hutch-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="route" value="{{ guide.method.id }}">
+        <button class="btn ghost">Test the connection</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</article>

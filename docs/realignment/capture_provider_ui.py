@@ -26,7 +26,8 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from capture_provider_ui_scenarios import SCENARIOS, Gate
+from capture_provider_ui_scenarios import SCENARIOS as INDEX_SCENARIOS, Gate
+from capture_provider_ui_wizard import SCENARIOS as WIZARD_SCENARIOS
 
 ROOT = Path(__file__).resolve().parents[2]
 VIEWPORTS = (("360", 360, 800), ("768", 768, 1000), ("1280", 1280, 900), ("1920", 1920, 1080))
@@ -84,7 +85,7 @@ def main() -> int:
     try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
-            for name, scenario in SCENARIOS.items():
+            for name, scenario in {**INDEX_SCENARIOS, **WIZARD_SCENARIOS}.items():
                 if not wanted or name in wanted:
                     scenario(gate, browser)
             browser.close()

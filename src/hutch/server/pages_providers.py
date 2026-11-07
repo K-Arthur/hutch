@@ -23,6 +23,7 @@ from ..providers.discovery import probe_local_services, services_json
 from ..providers.readiness import account_readiness, provider_readiness, readiness_json, route_readiness
 from ..providers.routing import resolve_route
 from ..runtime.registry import registry_json
+from .pages_provider_detail import register_provider_detail
 
 _RUNTIME_CACHE_SECONDS = 60.0
 _runtime_cache: dict[str, Any] = {"at": 0.0, "value": None}
@@ -216,3 +217,6 @@ def register_provider_pages(app: FastAPI, page: Callable, go: Callable, read_for
         except KeyError:
             return go("/providers", error="No account named " + name + ".")
         return go("/providers", notice=result["detail"])
+
+    register_provider_detail(app, page, go, read_form, local_services=local_services,
+                             runtime_catalog=runtime_catalog)

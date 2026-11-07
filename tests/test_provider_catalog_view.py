@@ -6,7 +6,8 @@ import pytest
 
 from hutch.providers.catalog import INTEGRATION_STATUSES, SERVICE_TAGS, bundled_catalog
 from hutch.providers.catalog_view import (AUTH_TYPE_LABELS, CODE_LABELS, SERVICE_LABELS, catalog_facets,
-                                          catalog_rows, distinct_next_action, route_chips, status_chip_class)
+                                          catalog_rows, distinct_next_action, route_chip_class, route_chips,
+                                          status_chip_class)
 
 
 @pytest.fixture(scope="module")
@@ -78,3 +79,9 @@ def test_a_next_action_that_restates_the_detail_is_dropped_but_a_new_one_is_kept
 def test_status_chip_classes_keep_unverified_apart_from_verified():
     assert status_chip_class("implemented") != status_chip_class("implemented-unverified")
     assert status_chip_class("blocked") == status_chip_class("retired")
+
+
+def test_a_built_route_is_never_the_green_of_a_live_verified_provider():
+    assert route_chip_class("implemented") not in ("st-succeeded",)
+    assert status_chip_class("implemented") == "st-succeeded"
+    assert route_chip_class("blocked") == "st-failed" and route_chip_class("experimental") == "st-waiting_approval"
