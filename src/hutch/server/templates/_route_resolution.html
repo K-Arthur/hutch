@@ -1,0 +1,14 @@
+{# One resolved route (providers.routing.RouteResolution through catalog_view.resolution_view). `res` is that dict. #}
+<dl class="resolution" aria-label="Resolved route for {{ res.spec }}">
+  <dt>Status</dt><dd><span class="chip {{ res.chip_class }}">{{ res.state_text }}</span>{{ res.detail }}</dd>
+  <dt>Route</dt><dd class="mono">{{ res.spec }}</dd>
+  <dt>Provider</dt><dd>{{ res.provider_title }} <span class="tag mono">{{ res.provider }}</span></dd>
+  <dt>Account</dt><dd>{{ res.account_text }} <span class="tag">{{ res.account_source }}</span></dd>
+  <dt>Billing</dt><dd>{{ res.billing_label }}</dd>
+  <dt>Model</dt><dd class="mono">{{ res.model or "none given" }}</dd>
+  <dt>Runtime</dt><dd>{{ res.runtime }} <span class="tag">{{ res.runtime_status }}</span></dd>
+  <dt>Protocol</dt><dd>{{ res.protocol or "not specified" }}</dd>
+  <dt>Endpoint</dt><dd class="mono">{{ res.endpoint or "none" }}</dd>
+  {% if res.next_action %}<dt>Next step</dt><dd>{{ res.next_action }}</dd>{% endif %}
+</dl>
+<p class="hint">Resolved from local settings only: nothing was sent to the provider. Hutch never substitutes another account, model or runtime; if this is not what you meant, nothing runs until you change it.</p>

@@ -22,14 +22,14 @@ from ..media.providers.route_spec import load_routes
 from ..providers.accounts import BILLING_LABELS
 from ..providers.capabilities import capability_report
 from ..providers.catalog import STATUS_TEXT, Provider, bundled_catalog
-from ..providers.catalog_view import (CATEGORY_LABELS, SERVICE_LABELS, capability_rows, route_chips,
-                                      status_chip_class)
+from ..providers.catalog_view import (CATEGORY_LABELS, SERVICE_LABELS, capability_rows, resolution_view,
+                                      route_chips, status_chip_class)
 from ..providers.connection import check_connection
 from ..providers.discovery import services_json
 from ..providers.readiness import account_readiness
+from ..providers.routing import resolve_route
 from ..providers.wizard import Context, route_guides
 
-_ACCOUNT_Q = Query(default="", max_length=41)   # an unknown account is ignored by the wizard, not trusted
 
 
 def _media_env(provider: Provider) -> str:
@@ -38,6 +38,27 @@ def _media_env(provider: Provider) -> str:
         return ""
     return next((route.env_var for route in load_routes().values()
                  if route.provider == provider.id and route.env_var), "")
+
+
+def _picker(provider: Provider, current: ConnectionBook, runtimes: list[dict], local: Callable[[], dict],
+            account: str, model: str, runtime: str) -> dict[str, Any]:
+    """The route picker: choices from local facts, and the resolution when a model was entered.
+
+    The prefix is the connection name (or the provider id for a built-in route); the resolver reports who pays,
+    and never substitutes a different account, model or runtime."""
+    accounts = sorted(name for name, conn in current.configured().items()
+                      if conn.template in provider.connection_templates)
+    prefixes = [provider.id, *accounts]
+    usable = [item for item in runtimes if item.get("enabled")] or [{"id": "builtin", "title": "Hutch built-in runtime"}]
+    chosen = account if account in prefixes else prefixes[0]
+    picked = runtime if runtime in {item["id"] for item in usable} else usable[0]["id"]
+    model = model.strip()
+    resolution = None
+    if model:
+        resolved = resolve_route(current, f"{chosen}/{model}", runtime=picked, local_services=local())
+        resolution = resolution_view(resolved.json())
+    return {"prefixes": prefixes, "accounts": accounts, "runtimes": usable, "account": chosen,
+            "model": model, "runtime": picked, "resolution": resolution}
 
 
 def register_provider_detail(app: FastAPI, page: Callable, go: Callable, read_form: Callable, *,
@@ -69,7 +90,11 @@ def register_provider_detail(app: FastAPI, page: Callable, go: Callable, read_fo
     # ------------------------------------------------------------------ page
 
     @app.get("/providers/{provider_id}", response_class=HTMLResponse, include_in_schema=False)
-    def provider_detail(request: Request, provider_id: str, account: str = _ACCOUNT_Q):
+    def provider_detail(request: Request, provider_id: str,
+                        account: str = Query(default="", max_length=41),   # an unknown account is ignored, not trusted
+                        pick_account: str = Query(default="", max_length=41),
+                        pick_model: str = Query(default="", max_length=200),
+                        pick_runtime: str = Query(default="", max_length=41)):
         provider, catalog = provider_or_404(provider_id), bundled_catalog()
         current = book()
         guides = route_guides(Context(
@@ -86,6 +111,8 @@ def register_provider_detail(app: FastAPI, page: Callable, go: Callable, read_fo
                     routes_by_id={chip["id"]: chip for chip in route_chips(provider)},
                     service_labels=SERVICE_LABELS, billing_labels=BILLING_LABELS,
                     capabilities=capability_rows(capability_report(provider.id, store=store)),
+                    picker=_picker(provider, current, list(runtime_catalog().get("runtimes", [])), local_services,
+                                   pick_account, pick_model, pick_runtime),
                     reviewed_on=catalog.reviewed_on)
 
     # --------------------------------------------------------------- actions

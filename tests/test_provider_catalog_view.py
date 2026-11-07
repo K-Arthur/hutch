@@ -6,8 +6,8 @@ import pytest
 
 from hutch.providers.catalog import INTEGRATION_STATUSES, SERVICE_TAGS, bundled_catalog
 from hutch.providers.catalog_view import (AUTH_TYPE_LABELS, CODE_LABELS, SERVICE_LABELS, catalog_facets,
-                                          catalog_rows, distinct_next_action, route_chip_class, route_chips,
-                                          status_chip_class)
+                                          catalog_rows, distinct_next_action, readiness_chip_class,
+                                          resolution_view, route_chip_class, route_chips, status_chip_class)
 
 
 @pytest.fixture(scope="module")
@@ -85,3 +85,17 @@ def test_a_built_route_is_never_the_green_of_a_live_verified_provider():
     assert route_chip_class("implemented") not in ("st-succeeded",)
     assert status_chip_class("implemented") == "st-succeeded"
     assert route_chip_class("blocked") == "st-failed" and route_chip_class("experimental") == "st-waiting_approval"
+
+
+def test_only_an_available_route_is_green_and_unknown_evidence_is_amber():
+    from hutch.providers.readiness import STATES
+    assert readiness_chip_class("available") == "st-succeeded"
+    assert {state for state in STATES if readiness_chip_class(state) == "st-succeeded"} == {"available"}
+    assert readiness_chip_class("capability_unverified") == "st-waiting_approval"
+    assert readiness_chip_class("blocked_by_policy") == "st-failed"
+
+
+def test_a_resolution_with_no_account_says_so_and_never_invents_one():
+    view = resolution_view({"status": "needs_configuration", "billing": "unknown", "account": "", "spec": "x/y"})
+    assert view["account_text"] == "no account chosen" and view["billing_label"] == "Billing not reported"
+    assert view["chip_class"] == "st-stopped" and view["state_text"] == "needs configuration"

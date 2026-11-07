@@ -1,0 +1,25 @@
+{# Route picker: choose an account and a model, see the resolved route before anything is sent.
+   Works as a plain GET form; provider-picker.js only refreshes the result in place. #}
+<section class="panel" id="route-picker" aria-labelledby="route-picker-h">
+  <header class="conn-head"><div>
+    <h2 id="route-picker-h" class="card-title">{{ icon("cpu", 18) }} Check a route</h2>
+    <p class="hint">Pick the account that would pay, type a model id and a runtime. The result shows exactly which provider, account, billing, runtime and endpoint that choice resolves to, using local settings only.</p>
+  </div></header>
+  <form method="get" action="/providers/{{ provider.id }}#route-picker" class="hutch-form picker-form" id="route-picker-form" data-provider="{{ provider.id }}">
+    <div class="hutch-field"><label for="pick-account">Account</label>
+      <select class="hutch-select" id="pick-account" name="pick_account">
+        {% for prefix in picker.prefixes %}<option value="{{ prefix }}"{% if prefix == picker.account %} selected{% endif %}>{{ prefix }}{% if prefix == provider.id %} (no named account){% endif %}</option>{% endfor %}
+      </select></div>
+    <div class="hutch-field"><label for="pick-model">Model id</label>
+      <input class="hutch-input" id="pick-model" name="pick_model" value="{{ picker.model }}" maxlength="200" autocomplete="off" spellcheck="false" placeholder="for example the model's id from the provider"></div>
+    <div class="hutch-field"><label for="pick-runtime">Runtime</label>
+      <select class="hutch-select" id="pick-runtime" name="pick_runtime">
+        {% for item in picker.runtimes %}<option value="{{ item.id }}"{% if item.id == picker.runtime %} selected{% endif %}>{{ item.title }}</option>{% endfor %}
+      </select></div>
+    <button class="btn primary">Resolve route</button>
+  </form>
+  <div id="route-picker-result" role="status" aria-live="polite">
+    {% if picker.resolution %}{% set res = picker.resolution %}{% include "_route_resolution.html" %}
+    {% else %}<p class="hint">Enter a model id to see its route.</p>{% endif %}
+  </div>
+</section>

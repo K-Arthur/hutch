@@ -44,6 +44,11 @@ def seed_state(state: Path) -> None:
     book.set_key("deepseek-work", PLACEHOLDER_KEYS["deepseek-work"])
     book.add("openai-api", name="openai-api")
     book.add("opencode-go", name="opencode-go")
+    from hutch.config import get_config
+    from hutch.models import ApprovalMode, Bot
+    from hutch.store import Store
+    Store(get_config()).create_bot(Bot(name="resolver-bot", model="deepseek-work/deepseek-chat", tools=[],
+                                       approval_mode=ApprovalMode.ask))
 
 
 def start_server(state: Path, port: int) -> subprocess.Popen:

@@ -18,6 +18,18 @@ from ..providers.pricing import PriceBook
 from .security import check_csrf
 
 
+def _resolution_for(book: Any, spec: str):
+    """The resolved route for one saved spec (local facts only), or None when it cannot be resolved.
+
+    A route that cannot be parsed must not break the page that lists it; its readiness row still shows."""
+    from ..providers.catalog_view import resolution_view
+    from ..providers.routing import resolve_route
+    try:
+        return resolution_view(resolve_route(book, spec).json())
+    except Exception:  # noqa: BLE001 - one odd saved route never takes the whole Models page down
+        return None
+
+
 def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: Callable) -> None:
     config, store = app.state.config, app.state.store
 
@@ -49,8 +61,8 @@ def register_model_pages(app: FastAPI, page: Callable, go: Callable, read_form: 
         from ..connections import ConnectionBook
         from ..providers.readiness import route_readiness
         book = ConnectionBook(config.state_dir)
-        readiness = [{"spec": row.spec, "status": row.status, "readiness": route_readiness(book, row.spec)}
-                     for row in view.configured_routes]
+        readiness = [{"spec": row.spec, "status": row.status, "readiness": route_readiness(book, row.spec),
+                      "resolution": _resolution_for(book, row.spec)} for row in view.configured_routes]
         # Price errors belong beside the price form, not above the page head;
         # the template overrides the base flash and renders it inside #prices.
         return page(request, "models.html", nav="models", v=view, readiness=readiness,

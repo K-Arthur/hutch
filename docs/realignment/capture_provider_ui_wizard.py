@@ -119,6 +119,65 @@ def scenario_detail_axe_and_motion(gate: Gate, browser) -> None:
     page.context.close()
 
 
+def scenario_picker(gate: Gate, browser) -> None:
+    page = gate.page(browser, 1280, 900)
+    gate.visit(page, "/providers/deepseek", "picker", ready="#route-picker-form")
+    page.evaluate("window.__marker = 'same-document'")
+    page.select_option("#pick-account", "deepseek-work")
+    page.fill("#pick-model", "deepseek-chat")
+    page.wait_for_selector("#route-picker-result .resolution")
+    text = page.locator("#route-picker-result").inner_text()
+    gate.check("typing resolves the route in place, without a navigation",
+               page.evaluate("window.__marker") == "same-document" and "deepseek-work" in text
+               and "Per-token API billing" in text, text=text[:300])
+    gate.check("the resolved route names a named connection and carries no credential",
+               "named connection" in text and "sk-ui-capture" not in page.content())
+    gate.measure(page, "picker-1280-resolved")
+    page.select_option("#pick-account", "deepseek")
+    page.locator("#route-picker-result").filter(has_text="not chosen").wait_for()
+    gate.check("choosing no named account is reported as not chosen, never silently resolved to the one account",
+               "not chosen: 1 named account" in page.locator("#route-picker-result").inner_text())
+    page.focus("#pick-account")
+    order = _focus_order(page, 4)
+    gate.check("the picker is reachable by keyboard in reading order with visible focus",
+               [item["id"] for item in order[:3]] == ["pick-account", "pick-model", "pick-runtime"]
+               and all(item["ring"] for item in order), order=order)
+    page.context.close()
+    plain = gate.page(browser, 1280, 900, java_script_enabled=False)
+    gate.visit(plain, "/providers/deepseek", "picker-nojs", ready="#route-picker-form")
+    plain.select_option("#pick-account", "deepseek-work")
+    plain.fill("#pick-model", "deepseek-chat")
+    with plain.expect_navigation():
+        plain.get_by_role("button", name="Resolve route").click()
+    gate.check("without JavaScript the form still resolves the route on the server",
+               plain.locator("#route-picker-result .resolution").count() == 1 and "pick_model=deepseek-chat" in plain.url,
+               url=plain.url)
+    plain.context.close()
+    phone = gate.page(browser, 360, 800)
+    gate.visit(phone, "/providers/deepseek?pick_account=deepseek-work&pick_model=deepseek-chat", "picker-360", ready=".resolution")
+    gate.measure(phone, "picker-360-resolved")
+    phone.context.close()
+
+
+def scenario_models_page(gate: Gate, browser) -> None:
+    for label, width, height in gate.viewports:
+        page = gate.page(browser, width, height)
+        gate.visit(page, "/models", label, ready="#route-readiness")
+        gate.measure(page, f"models-{label}")
+        page.context.close()
+    page = gate.page(browser, 1280, 900, bypass_csp=True)
+    gate.visit(page, "/models", "models-details", ready="#route-readiness")
+    summary = page.get_by_text("Resolved route: who pays, runtime and endpoint").first
+    summary.focus()
+    page.keyboard.press("Enter")
+    gate.check("the resolved route opens from the keyboard on the Models page",
+               page.locator("#route-readiness .resolution").first.is_visible()
+               and "deepseek-work" in page.locator("#route-readiness .resolution").first.inner_text())
+    gate.axe(page, "/models")
+    page.context.close()
+
+
 SCENARIOS: dict[str, Callable[[Gate, Any], None]] = {
     "detail": scenario_detail_pages, "wizard": scenario_wizard, "detail-axe": scenario_detail_axe_and_motion,
+    "picker": scenario_picker, "models": scenario_models_page,
 }

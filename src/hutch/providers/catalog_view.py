@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from .accounts import AUTH_LABELS
+from .accounts import AUTH_LABELS, BILLING_LABELS
 from .capabilities import CAPABILITIES, CapabilityReport
 from .catalog import CATEGORIES, INTEGRATION_STATUSES, STATUS_TEXT, Provider, ProviderCatalog
 
@@ -164,3 +164,24 @@ def capability_rows(report: CapabilityReport) -> list[dict[str, str]]:
             rows.append({"capability": label, "level": entry.level, "scope": entry.scope,
                          "source": entry.source, "observed_on": entry.observed_on, "detail": entry.detail})
     return rows
+
+
+#: Readiness state -> chip colour. Green is reserved for "available"; unknown evidence is amber, never green.
+_STATE_CHIP = {"available": "st-succeeded", "blocked_by_policy": "st-failed",
+               "needs_authentication": "st-waiting_approval", "authentication_expired": "st-waiting_approval",
+               "capability_unverified": "st-waiting_approval", "subscription_restricted": "st-waiting_approval"}
+
+
+def readiness_chip_class(state: str) -> str:
+    return _STATE_CHIP.get(state, "st-stopped")
+
+
+def resolution_view(resolution: dict[str, Any]) -> dict[str, Any]:
+    """A RouteResolution as the template reads it: labels, a chip class and honest empty-account wording."""
+    return dict(
+        resolution,
+        chip_class=readiness_chip_class(resolution["status"]),
+        state_text=resolution["status"].replace("_", " "),
+        billing_label=BILLING_LABELS.get(resolution["billing"], resolution["billing"]),
+        account_text=resolution["account"] or "no account chosen",
+    )

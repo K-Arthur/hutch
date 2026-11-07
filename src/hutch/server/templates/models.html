@@ -5,7 +5,7 @@
 {% block title %}Models{% endblock %}
 {% block header_context %}<div class="ctx-id"><h1>Models</h1></div>{% endblock %}
 {% block flash %}{% endblock %}
-{% block head %}<script src="/static/model-install.js" defer></script>{% if not v.configured_routes %}<script src="/static/starter-route.js" defer></script><script src="/static/models-detect.js" defer></script>{% endif %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/providers.css"><script src="/static/model-install.js" defer></script>{% if not v.configured_routes %}<script src="/static/starter-route.js" defer></script><script src="/static/models-detect.js" defer></script>{% endif %}{% endblock %}
 {% macro fitchip(f) -%}
   <span class="chip fit-{{ f.status }}">{{ f.label }}</span>
 {%- endmacro %}
@@ -45,6 +45,7 @@
       <span class="chip {% if row.readiness.state == 'available' %}st-succeeded{% elif row.readiness.state == 'blocked_by_policy' %}st-failed{% elif row.readiness.state in ('needs_authentication', 'authentication_expired', 'capability_unverified', 'subscription_restricted') %}st-waiting_approval{% else %}st-stopped{% endif %}">{{ row.readiness.state | replace("_", " ") }}</span>
       <p class="hint">{{ row.readiness.detail }}</p>
       {% if row.readiness.next_action %}<p class="hint">{{ row.readiness.next_action }}</p>{% endif %}
+      {% if row.resolution %}<details><summary class="small">Resolved route: who pays, runtime and endpoint</summary>{% set res = row.resolution %}{% include "_route_resolution.html" %}</details>{% endif %}
     </div></div>
     {% endfor %}
   </div>

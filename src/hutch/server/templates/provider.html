@@ -2,7 +2,7 @@
 {% from "_icons.html" import icon %}
 {% block title %}{{ provider.title }}{% endblock %}
 {% block header_context %}<div class="ctx-id"><h1>{{ provider.title }}</h1></div>{% endblock %}
-{% block head %}<link rel="stylesheet" href="/static/providers.css">{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/providers.css"><script src="/static/provider-picker.js" defer></script>{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -31,6 +31,8 @@
   </div></header>
   {% for guide in guides %}{% include "_provider_route.html" %}{% endfor %}
 </section>
+
+{% include "_provider_picker.html" %}
 
 <section class="panel" id="evidence" aria-labelledby="evidence-h">
   <header class="conn-head"><div>
