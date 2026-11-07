@@ -192,12 +192,31 @@ never enabled by registration. See docs/runtime-setup.md for prerequisites.
 
 ## Surfaces
 
-- /providers (dashboard): catalogue by category, account list with readiness, local loopback services,
-  runtime boundaries, and search/filter.
-- /models: configured routes with an explicit readiness panel and a link to the provider catalogue.
+- /providers (dashboard): a route index (one row per provider; search plus category, status, sign-in route and service
+  filters kept in the query string), your accounts with readiness, a Media, speech and search section, loopback
+  services and runtime boundaries. See "Provider pages" below.
+- /providers/{id}: one provider's routes with a state-aware setup wizard per route, a route picker and the capability
+  evidence table.
+- /models: configured routes with an explicit readiness panel, the resolved route under each, and a link to the
+  provider catalogue.
 - /legacy/connections: key/terms/allowance management. /api/v1/providers, /api/v1/provider-accounts,
   /api/v1/provider-capabilities, /api/v1/provider-readiness and /api/v1/runtime-catalog expose the same
   records; none can change a routing decision.
+
+## Provider pages (2026-11-06, ADR-0037)
+
+- A route chip says "built" or "not built". Only a provider's own status chip can be green, and only for a dated live
+  run, so a built route is never shown as working.
+- The wizard's steps come from state: add an account from the provider's own templates, store the key, read terms,
+  test, choose a model. A route Hutch has not built, or the provider blocks, shows one step and no form. The actions
+  refuse an account that does not belong to the provider and refuse sign-in templates (Apps & AI owns those); only a
+  custom endpoint takes a base URL there.
+- The route picker shows provider, account and its source, billing, runtime, protocol, endpoint and readiness from
+  local settings only, plus an inference-mode verdict from the runtime's own validator. No named account chosen is
+  reported as not chosen.
+- The Media section lists routes from the route table with a dated cost estimate or "cost unknown", lists jobs from
+  the ledger (check, cancel with a second click), and keeps provider search apart from `live_search`.
+- The workspace is dark-only; the light/dark visual gate belongs to the marketing site.
 
 ## Known limits
 

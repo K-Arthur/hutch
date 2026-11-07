@@ -603,6 +603,13 @@ two matching accounts returns `needs_configuration` instead of choosing. A fallb
 subscription primary to a per-token model is refused before the call; making the metered route primary is
 the explicit decision. See ADR-0028.
 
+The same tuple is now shown in two places before the first send: a "Resolved route" disclosure under each saved
+route on the Models page, and a route picker on every provider page (`/providers/{id}`) that takes an account, a
+model id, a runtime and an inference mode. The picker adds a verdict from `validate_inference_mode`, so Strict
+Offline refuses a hosted route in the policy's own words, and choosing no named account is reported as not chosen
+(ADR-0037). First run and the Models page also share one sentence for what was found and what is saved: "OpenCode is
+available with N model options ... None is saved as the default for new assistants yet."
+
 ### Twenty-five hosted routes, no live inference (2026-10-31)
 
 The Models page and the switcher can now list models for 25 more providers, because each has a real

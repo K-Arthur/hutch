@@ -13,7 +13,7 @@ Update at every checkpoint. Keep entries short and factual.
 | 4 Hosted and gateways | done 2026-11-06 | 47067fc6 | unauthenticated probes of 49 hosts; real server + CLI on isolated state; no keyed call | no credential for any Phase 4 provider |
 | 5 Local and custom | done 2026-11-06 | 43c472cf | real LM Studio 0.0.27-1 (cold load, streaming through the pinned transport, five layered outcomes); real Ollama 0.40.13 identified behind /v1 (GET only); no paid call | vLLM, SGLang, inferrs, ds4 not installable here; private-LAN path has no peer |
 | 6 Media, speech, search | done 2026-11-06 | 7525db43 | none against a vendor; real `hutch serve` + SIGKILL recovery against a loopback stand-in provider (Hutch's own recovery and ledger only); no paid call | no credential for any of the 11 media providers; no real ComfyUI; Runway, MiniMax video, Google Omni wire not read |
-| 7 Frontend | not started | | | |
+| 7 Frontend | done 2026-11-06 | 02dd0c57 | none against a vendor; real `hutch serve` + Playwright Chromium: 49 checks, 40 pages, 4 widths, axe 4.13.0 clean, keyboard, reduced motion, Strict Offline verdict; wizard and jobs driven against loopback stand-ins (Hutch's UI, API and ledger only); no paid call | no credential for any paid route; no light theme (dark-only decision); no desktop or non-Chromium run |
 | 8 Website and docs | not started | | | |
 | 9 Final review and merge | not started | | | |
 
@@ -217,6 +217,37 @@ Update at every checkpoint. Keep entries short and factual.
   reports 8 violations, all in another tool's untracked `.codewhale/state/subagents.v1.json`.
 - No UI changed, so no screenshot gate applies; the Providers page media section is Phase 7.
 
+## Phase 7 outputs (2026-11-06)
+
+- `bf762114` Providers page is a route index: one row per provider, route chips that say built or not built (never green),
+  search plus category, status, sign-in route and service filters in the query string (form hidden until script runs).
+  Account readiness no longer repeats its detail as the next action. `providers/catalog_view.py`, `providers.js`,
+  `providers.css`, `_providers_catalogue.html`. Height at 1280: 13,279 to 8,011 px with everything below added.
+- `f46fd9d4` `/providers/{id}`: per-route setup wizard derived from state (`providers/wizard.py`), four actions in
+  `server/pages_provider_detail.py` (add, key, terms, test), capability table that lists unknown capabilities as
+  unverified. Unbuilt or blocked routes get one step and no form. Key never rendered; vendor host cannot be overridden.
+- `bd03e97f` Route picker with the resolved tuple (plain GET form; script swaps the result), also shown under each saved
+  route on Models. Fixed a shared `Query` object that bound all picker parameters to the first name.
+- `c86b2c82` Media, speech and search section (`media/view.py`, `media-jobs.js`): routes with status, credential source
+  and a dated cost or "cost unknown"; jobs from the ledger with check and a two-click cancel; provider search apart from
+  `live_search`.
+- `166675b6` One sentence for what was found and what is saved, shared by first run and Models (`starter-route.js`);
+  `app.js` shrank by four lines.
+- `003e1750` Inference-mode check in the picker through `validate_inference_mode` (Strict Offline refuses a hosted route
+  in the policy's words; a loopback route is allowed and not called working).
+- `02dd0c57` Review fixes (below). ADR-0037, `docs/research/2026-11-provider-expansion/08-FRONTEND.md`, and updates to
+  `provider-platform.md`, `models.md` and `design-system.md` are in the docs commit that follows.
+- Validation: 73 tests added; 753 adjacent tests passed (provider, media, models, connections, static); 23 focused browser
+  tests for first run and Models passed; `npm run check:agent` and `npm run audit:context` pass at the last code commit.
+  Real-browser gate `docs/realignment/capture_provider_ui.py` (4 files, each under 400 lines): 49 checks, 40 pages, zero
+  console errors, failed requests, overflow or credential in a page; evidence in
+  `docs/realignment/artifacts/provider-expansion-2026-11/phase7/` (results plus 13 screenshots).
+- Mutation checks (each made its test fail): ownership check, vendor base URL override, any-template, no-dedupe,
+  unverified-as-green, filters visible, key done without a key, unbuilt route with forms, terms always, shared `Query`,
+  trusted account, no Models tuple, actions on finished jobs, fabricated price, buttons always, mode always allowed,
+  unguarded sign-in template, probe always.
+- No generated CSS was edited or rebuilt; the new styles are the hand-written `static/providers.css`.
+
 ## Owner inputs (batch, answered 2026-11-06)
 
 - Provisioned credentials: OpenAI, Anthropic, Google Gemini. Every other paid route is
@@ -311,6 +342,19 @@ Update at every checkpoint. Keep entries short and factual.
 - 2026-11-06: ADR-0035 was already taken by the offline-models initiative running in the same repository, so this phase
   uses ADR-0036.
 
+- 2026-11-06: The workspace stays dark-only (G16). A light theme is a product decision larger than Phase 7; the workspace
+  visual gate is dark at four widths and the light/dark gate stays with the marketing site (ADR-0037).
+- 2026-11-06: A route chip is never green. Green is a provider's own status for a dated live run; a route chip says built or
+  not built, and a policy verdict ("allowed") is neutral.
+- 2026-11-06: Filtering has one implementation (script) with the query string as state; the form is hidden without script and
+  the full list is shown. Picker and jobs list fetch the server's own HTML and swap one element, so labels live in one place.
+- 2026-11-06: The wizard acts through ConnectionBook in its own module because `pages.py` is frozen; only custom endpoints may
+  set a base URL there, and sign-in templates are refused with a pointer to Apps & AI.
+- 2026-11-06: First run and Models say "OpenCode is available with N model options ... None is saved as the default for new
+  assistants yet." The earlier "ready" read as saved.
+- 2026-11-06: axe-core 4.13.0 was read from another checkout on this machine for validation only; it is not a Hutch dependency
+  and no dependency was added.
+
 
 ## Review findings log
 
@@ -386,6 +430,22 @@ Update at every checkpoint. Keep entries short and factual.
 - 2026-11-06, Phase 6, a concurrent session (offline-models Phase 7) committed to the same branch and regenerated the agent
   map; its uncommitted `modelview.py`, `models.html` and webhook files were never staged.
 
+- 2026-11-06, Phase 7, the wizard forms rendered with fields about 200px apart: the base `.hutch-form` is a column, so my
+  `flex: 1 1 220px` became a height. axe was green; the screenshot showed it.
+- 2026-11-06, Phase 7, every provider page led with "No summary is recorded"; the green "built" chip read as "works"; the
+  evidence table broke one word one letter per line; narrow-width CSS sat above the base rules it overrides. All fixed
+  after looking at the screenshots, not from the checks.
+- 2026-11-06, Phase 7, one shared `Query()` object bound the three picker parameters to the first name, so a typed model never
+  arrived; a unit test written for it fails under the bug.
+- 2026-11-06, Phase 7, own-diff review found a crafted POST for the sign-in template raised `KeyError` (HTTP 500), the test
+  action did a network read on the event loop, and every detail page probed five loopback ports. All fixed with tests.
+- 2026-11-06, Phase 7, my first assumption that the job routes need a CSRF token was wrong: they are guarded by the
+  same-origin check. The script stopped sending an unused header and a test pins the real guard.
+- 2026-11-06, Phase 7, a stated test count (125) in my own record was wrong (73); corrected after counting.
+- 2026-11-06, Phase 7, `/tmp` was a full 12 GB tmpfs (10 GB in `/tmp/pytest-of-kevina`); nothing was deleted and all scratch went
+  to `~/.hutch-tmp/provider-phase7`. Another session's uncommitted edits (Google image default and `resume.py`, route
+  sharing, webhook files, `model-switcher.js`) were present and none was staged.
+
 
 ## Open items and deferred
 
@@ -397,7 +457,7 @@ Update at every checkpoint. Keep entries short and factual.
 - OpenCode Go unattended use needs vendor confirmation before leaving `experimental`.
 - Out-of-scope providers are listed at the end of `00-GAP-AUDIT.md`.
 - Phase 1 API only: the dashboard picker does not yet show the resolved tuple before the first send
-  (Phase 7). The resolver is read-only and not persisted per run.
+  (Phase 7). The resolver is read-only and not persisted per run. (Closed in Phase 7: the route picker and the Models page show it.)
 - Billing-crossing refusal covers subscription-to-metered only; a local/free primary falling back to
   a hosted route keeps the existing first-hosted approval path.
 - Account identity is still the spec prefix; a separate Bot account field would change how saved
@@ -411,7 +471,7 @@ Update at every checkpoint. Keep entries short and factual.
   blocked. No Phase 4 route has a keyed call; OpenAI, Anthropic and Google Gemini remain the only providers with an
   owner credential, and none of them is a Phase 4 route.
 - Phase 4: the Providers page repeats each account's "no local credential" detail and a near-identical next
-  action (pre-existing duplicate copy); the page is 17,523 px tall at 1280 (G17). Both are Phase 7.
+  action (pre-existing duplicate copy); the page is 17,523 px tall at 1280 (G17). Both are Phase 7. (Partly closed in Phase 7: the next action is dropped when it restates the detail, and the page is 8,011 px at 1280 px, was 13,279.)
 - Phase 4: whether Mistral's reasoning `high` with `temperature: 0` returns HTTP 400 was not tested; it is a
   recorded vendor quirk, not a Hutch rule.
 - Phase 4: the two Tencent host spellings (`tencentmaas.com`, `tencentcloudmaas.com`) both answer HTTP 401;
@@ -438,7 +498,20 @@ Update at every checkpoint. Keep entries short and factual.
 - Phase 6: the model of a route is data with no per-user override; a stale id is a data fix. The OpenAI guide and pricing
   page name different current image ids, so the default (`gpt-image-1-mini`) is a choice, not a verified fact.
 - Phase 6: no page lists media jobs and a finished resumed job does not re-enter the conversation as a media block; the
-  API exists for the Phase 7 frontend.
+  API exists for the Phase 7 frontend. (Closed in Phase 7: the Providers page lists open and finished jobs with check and cancel. Re-entry into the conversation is still open.)
 - Phase 6: media-only vendors (fal, PixVerse, ElevenLabs, Deepgram) read one environment variable and are labeled
   ambient; there is no connection template or stored-key UI for them (frozen `connections.py`).
 - Phase 6: no real ComfyUI server was available, and Comfy Cloud is not built.
+- Phase 7: no light theme exists; the workspace gate is dark only (ADR-0037). Building one is a product choice for the owner.
+- Phase 7: the wizard's connection test ran against a loopback stand-in only, never a vendor; a keyed test per provider is
+  blocked on a credential and a per-call cap.
+- Phase 7: Chromium only (no Firefox or WebKit), no Tauri desktop run, no screen-reader session; axe covers a subset of WCAG and
+  the keyboard checks cover the filter, wizard, picker and job controls, not every control on every page.
+- Phase 7: first run was covered by its existing browser tests and not re-captured at four widths; the process-level offline
+  sandbox was not re-run (the picker shows the policy verdict).
+- Phase 7: media-only vendors (fal, PixVerse, ElevenLabs, Deepgram) still have no stored-key form (no connection template; frozen
+  `connections.py`); their page names the environment variable and calls it ambient.
+- Phase 7: the layered endpoint test (Phase 5) is still not a dashboard surface of its own, and a long flash notice still renders
+  as a heavy bold paragraph at 360 px; both are small follow-ups, not blockers for Phase 8.
+- Phase 7: the Providers and Models pages now share `static/providers.css`; another session committed `models.html` changes
+  earlier today and has uncommitted `hutch-pages.css` edits, so reconcile before Phase 8 touches either.

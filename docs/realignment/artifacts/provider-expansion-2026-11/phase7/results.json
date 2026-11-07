@@ -1,0 +1,730 @@
+{
+  "date": "2026-11-06",
+  "passed": true,
+  "origin": "http://127.0.0.1:18902",
+  "pages": [
+    {
+      "page": "providers-360",
+      "problems": [],
+      "overflow": 0,
+      "height": 14513,
+      "title": "Providers \u2014 Hutch",
+      "h1": "Providers"
+    },
+    {
+      "page": "providers-768",
+      "problems": [],
+      "overflow": 0,
+      "height": 10174,
+      "title": "Providers \u2014 Hutch",
+      "h1": "Providers"
+    },
+    {
+      "page": "providers-1280",
+      "problems": [],
+      "overflow": 0,
+      "height": 8011,
+      "title": "Providers \u2014 Hutch",
+      "h1": "Providers"
+    },
+    {
+      "page": "providers-1920",
+      "problems": [],
+      "overflow": 0,
+      "height": 7828,
+      "title": "Providers \u2014 Hutch",
+      "h1": "Providers"
+    },
+    {
+      "page": "providers-bogus-query",
+      "problems": [],
+      "overflow": 0,
+      "height": 8011,
+      "title": "Providers \u2014 Hutch",
+      "h1": "Providers"
+    },
+    {
+      "page": "provider-deepseek-360",
+      "problems": [],
+      "overflow": 0,
+      "height": 3877,
+      "title": "DeepSeek \u2014 Hutch",
+      "h1": "DeepSeek"
+    },
+    {
+      "page": "provider-deepseek-768",
+      "problems": [],
+      "overflow": 0,
+      "height": 2741,
+      "title": "DeepSeek \u2014 Hutch",
+      "h1": "DeepSeek"
+    },
+    {
+      "page": "provider-deepseek-1280",
+      "problems": [],
+      "overflow": 0,
+      "height": 2660,
+      "title": "DeepSeek \u2014 Hutch",
+      "h1": "DeepSeek"
+    },
+    {
+      "page": "provider-deepseek-1920",
+      "problems": [],
+      "overflow": 0,
+      "height": 2660,
+      "title": "DeepSeek \u2014 Hutch",
+      "h1": "DeepSeek"
+    },
+    {
+      "page": "provider-alibaba-model-studio-360",
+      "problems": [],
+      "overflow": 0,
+      "height": 2862,
+      "title": "Alibaba Model Studio \u2014 Hutch",
+      "h1": "Alibaba Model Studio"
+    },
+    {
+      "page": "provider-alibaba-model-studio-1280",
+      "problems": [],
+      "overflow": 0,
+      "height": 2120,
+      "title": "Alibaba Model Studio \u2014 Hutch",
+      "h1": "Alibaba Model Studio"
+    },
+    {
+      "page": "provider-github-copilot-360",
+      "problems": [],
+      "overflow": 0,
+      "height": 2764,
+      "title": "GitHub Copilot \u2014 Hutch",
+      "h1": "GitHub Copilot"
+    },
+    {
+      "page": "provider-github-copilot-1280",
+      "problems": [],
+      "overflow": 0,
+      "height": 2042,
+      "title": "GitHub Copilot \u2014 Hutch",
+      "h1": "GitHub Copilot"
+    },
+    {
+      "page": "provider-ollama-360",
+      "problems": [],
+      "overflow": 0,
+      "height": 2824,
+      "title": "Ollama \u2014 Hutch",
+      "h1": "Ollama"
+    },
+    {
+      "page": "provider-ollama-1280",
+      "problems": [],
+      "overflow": 0,
+      "height": 2100,
+      "title": "Ollama \u2014 Hutch",
+      "h1": "Ollama"
+    },
+    {
+      "page": "provider-opencode-360",
+      "problems": [],
+      "overflow": 0,
+      "height": 3499,
+      "title": "OpenCode \u2014 Hutch",
+      "h1": "OpenCode"
+    },
+    {
+      "page": "provider-opencode-1280",
+      "problems": [],
+      "overflow": 0,
+      "height": 2390,
+      "title": "OpenCode \u2014 Hutch",
+      "h1": "OpenCode"
+    },
+    {
+      "page": "provider-fal-360",
+      "problems": [],
+      "overflow": 0,
+      "height": 2914,
+      "title": "fal \u2014 Hutch",
+      "h1": "fal"
+    },
+    {
+      "page": "provider-fal-1280",
+      "problems": [],
+      "overflow": 0,
+      "height": 2079,
+      "title": "fal \u2014 Hutch",
+      "h1": "fal"
+    },
+    {
+      "page": "provider-openai-360",
+      "problems": [],
+      "overflow": 0,
+      "height": 4391,
+      "title": "OpenAI \u2014 Hutch",
+      "h1": "OpenAI"
+    },
+    {
+      "page": "provider-openai-768",
+      "problems": [],
+      "overflow": 0,
+      "height": 3169,
+      "title": "OpenAI \u2014 Hutch",
+      "h1": "OpenAI"
+    },
+    {
+      "page": "provider-openai-1280",
+      "problems": [],
+      "overflow": 0,
+      "height": 3007,
+      "title": "OpenAI \u2014 Hutch",
+      "h1": "OpenAI"
+    },
+    {
+      "page": "provider-openai-1920",
+      "problems": [],
+      "overflow": 0,
+      "height": 2906,
+      "title": "OpenAI \u2014 Hutch",
+      "h1": "OpenAI"
+    },
+    {
+      "page": "wizard-1-empty",
+      "problems": [],
+      "overflow": 0,
+      "height": 2753,
+      "title": "Custom compatible endpoint \u2014 Hutch",
+      "h1": "Custom compatible endpoint"
+    },
+    {
+      "page": "wizard-2-key-step",
+      "problems": [],
+      "overflow": 0,
+      "height": 2831,
+      "title": "Custom compatible endpoint \u2014 Hutch",
+      "h1": "Custom compatible endpoint"
+    },
+    {
+      "page": "wizard-3-tested",
+      "problems": [],
+      "overflow": 0,
+      "height": 2854,
+      "title": "Custom compatible endpoint \u2014 Hutch",
+      "h1": "Custom compatible endpoint"
+    },
+    {
+      "page": "picker-1280-resolved",
+      "problems": [],
+      "overflow": 0,
+      "height": 3030,
+      "title": "DeepSeek \u2014 Hutch",
+      "h1": "DeepSeek"
+    },
+    {
+      "page": "picker-360-resolved",
+      "problems": [],
+      "overflow": 0,
+      "height": 4703,
+      "title": "DeepSeek \u2014 Hutch",
+      "h1": "DeepSeek"
+    },
+    {
+      "page": "strict-offline-hosted-refused",
+      "problems": [],
+      "overflow": 0,
+      "height": 3086,
+      "title": "DeepSeek \u2014 Hutch",
+      "h1": "DeepSeek"
+    },
+    {
+      "page": "strict-offline-local-allowed",
+      "problems": [],
+      "overflow": 0,
+      "height": 2498,
+      "title": "Ollama \u2014 Hutch",
+      "h1": "Ollama"
+    },
+    {
+      "page": "strict-offline-360",
+      "problems": [],
+      "overflow": 0,
+      "height": 4834,
+      "title": "DeepSeek \u2014 Hutch",
+      "h1": "DeepSeek"
+    },
+    {
+      "page": "models-360",
+      "problems": [],
+      "overflow": 0,
+      "height": 4494,
+      "title": "Models \u2014 Hutch",
+      "h1": "Models"
+    },
+    {
+      "page": "models-768",
+      "problems": [],
+      "overflow": 0,
+      "height": 2707,
+      "title": "Models \u2014 Hutch",
+      "h1": "Models"
+    },
+    {
+      "page": "models-1280",
+      "problems": [],
+      "overflow": 0,
+      "height": 2545,
+      "title": "Models \u2014 Hutch",
+      "h1": "Models"
+    },
+    {
+      "page": "models-1920",
+      "problems": [],
+      "overflow": 0,
+      "height": 2455,
+      "title": "Models \u2014 Hutch",
+      "h1": "Models"
+    },
+    {
+      "page": "media-360",
+      "problems": [],
+      "overflow": 0,
+      "height": 14993,
+      "title": "Providers \u2014 Hutch",
+      "h1": "Providers"
+    },
+    {
+      "page": "media-768",
+      "problems": [],
+      "overflow": 0,
+      "height": 10501,
+      "title": "Providers \u2014 Hutch",
+      "h1": "Providers"
+    },
+    {
+      "page": "media-1280",
+      "problems": [],
+      "overflow": 0,
+      "height": 8207,
+      "title": "Providers \u2014 Hutch",
+      "h1": "Providers"
+    },
+    {
+      "page": "media-1920",
+      "problems": [],
+      "overflow": 0,
+      "height": 8024,
+      "title": "Providers \u2014 Hutch",
+      "h1": "Providers"
+    },
+    {
+      "page": "media-after-actions",
+      "problems": [],
+      "overflow": 0,
+      "height": 8299,
+      "title": "Providers \u2014 Hutch",
+      "h1": "Providers"
+    }
+  ],
+  "checks": [
+    {
+      "check": "index lists every catalogue provider once",
+      "ok": true,
+      "rows": 64,
+      "api": 64
+    },
+    {
+      "check": "search narrows to the API's matches",
+      "ok": true,
+      "rows": 1,
+      "want": 1,
+      "status": "Showing 1 of 64 providers."
+    },
+    {
+      "check": "status filter equals the API count",
+      "ok": true,
+      "rows": 3,
+      "want": 3
+    },
+    {
+      "check": "auth and service filters combine with AND",
+      "ok": true,
+      "rows": 10,
+      "want": 10
+    },
+    {
+      "check": "filters are written to the URL",
+      "ok": true,
+      "url": "http://127.0.0.1:18902/providers?auth=api_key&service=video"
+    },
+    {
+      "check": "a reload restores the filters",
+      "ok": true,
+      "rows": 10
+    },
+    {
+      "check": "clear restores every row and the bare URL",
+      "ok": true,
+      "rows": 64,
+      "url": "http://127.0.0.1:18902/providers"
+    },
+    {
+      "check": "no match shows the empty state and says so",
+      "ok": true,
+      "status": "No provider matches those filters."
+    },
+    {
+      "check": "an unknown value in the URL is ignored, not trusted",
+      "ok": true,
+      "rows": 64
+    },
+    {
+      "check": "Tab reaches the filters in reading order, then the first provider link",
+      "ok": true,
+      "order": [
+        {
+          "tag": "input",
+          "id": "provider-search",
+          "name": "q",
+          "ring": true
+        },
+        {
+          "tag": "select",
+          "id": "filter-category",
+          "name": "category",
+          "ring": true
+        },
+        {
+          "tag": "select",
+          "id": "filter-status",
+          "name": "status",
+          "ring": true
+        },
+        {
+          "tag": "select",
+          "id": "filter-auth",
+          "name": "auth",
+          "ring": true
+        },
+        {
+          "tag": "select",
+          "id": "filter-service",
+          "name": "service",
+          "ring": true
+        },
+        {
+          "tag": "button",
+          "id": "provider-filter-clear",
+          "name": "Clear filters",
+          "ring": true
+        },
+        {
+          "tag": "a",
+          "id": "",
+          "name": "OpenAI",
+          "ring": true
+        }
+      ]
+    },
+    {
+      "check": "every stop in the filter traversal shows a focus ring",
+      "ok": true,
+      "order": [
+        {
+          "tag": "input",
+          "id": "provider-search",
+          "name": "q",
+          "ring": true
+        },
+        {
+          "tag": "select",
+          "id": "filter-category",
+          "name": "category",
+          "ring": true
+        },
+        {
+          "tag": "select",
+          "id": "filter-status",
+          "name": "status",
+          "ring": true
+        },
+        {
+          "tag": "select",
+          "id": "filter-auth",
+          "name": "auth",
+          "ring": true
+        },
+        {
+          "tag": "select",
+          "id": "filter-service",
+          "name": "service",
+          "ring": true
+        },
+        {
+          "tag": "button",
+          "id": "provider-filter-clear",
+          "name": "Clear filters",
+          "ring": true
+        },
+        {
+          "tag": "a",
+          "id": "",
+          "name": "OpenAI",
+          "ring": true
+        }
+      ]
+    },
+    {
+      "check": "Escape clears the search and keeps focus there",
+      "ok": true
+    },
+    {
+      "check": "axe /providers: no serious or critical violation",
+      "ok": true,
+      "axe": "4.13.0",
+      "serious": [],
+      "other": [],
+      "ran": true
+    },
+    {
+      "check": "reduced motion: nothing is animating on /providers",
+      "ok": true,
+      "running": 0
+    },
+    {
+      "check": "detail page renders for the built shape (deepseek)",
+      "ok": true
+    },
+    {
+      "check": "detail page renders for the unbuilt shape (alibaba-model-studio)",
+      "ok": true
+    },
+    {
+      "check": "detail page renders for the blocked shape (github-copilot)",
+      "ok": true
+    },
+    {
+      "check": "detail page renders for the local shape (ollama)",
+      "ok": true
+    },
+    {
+      "check": "detail page renders for the cli shape (opencode)",
+      "ok": true
+    },
+    {
+      "check": "detail page renders for the media-only shape (fal)",
+      "ok": true
+    },
+    {
+      "check": "detail page renders for the two-routes shape (openai)",
+      "ok": true
+    },
+    {
+      "check": "wizard form is reachable by keyboard in reading order",
+      "ok": true,
+      "order": [
+        {
+          "tag": "input",
+          "id": "name-custom-endpoint",
+          "name": "name",
+          "ring": true
+        },
+        {
+          "tag": "input",
+          "id": "url-custom-endpoint",
+          "name": "base_url",
+          "ring": true
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "name": "Add account",
+          "ring": true
+        },
+        {
+          "tag": "a",
+          "id": "",
+          "name": "Check a route",
+          "ring": true
+        }
+      ]
+    },
+    {
+      "check": "adding the account moves the wizard to the key step",
+      "ok": true,
+      "url": "http://127.0.0.1:18902/providers/custom-compatible?account=stand-in#route-custom-endpoint"
+    },
+    {
+      "check": "a notice confirms it, without a key",
+      "ok": true
+    },
+    {
+      "check": "storing the key marks it done and the page never shows the value",
+      "ok": true,
+      "url": "http://127.0.0.1:18902/providers/custom-compatible?account=stand-in#route-custom-endpoint"
+    },
+    {
+      "check": "the key file exists with owner-only permissions",
+      "ok": true,
+      "mode": "0o600"
+    },
+    {
+      "check": "the connection test made a real request to the stand-in with a credential",
+      "ok": true,
+      "seen": [
+        {
+          "path": "/v1/models",
+          "authorized": true
+        },
+        {
+          "path": "/api/version",
+          "authorized": false
+        }
+      ]
+    },
+    {
+      "check": "the flash reports the test in the check's own words",
+      "ok": true,
+      "flash": "stand-in: the server answered; 1 model(s) available. A user-run server may not check keys, so the key itself was NOT verified"
+    },
+    {
+      "check": "axe /providers/deepseek: no serious or critical violation",
+      "ok": true,
+      "axe": "4.13.0",
+      "serious": [],
+      "other": [],
+      "ran": true
+    },
+    {
+      "check": "axe /providers/openai: no serious or critical violation",
+      "ok": true,
+      "axe": "4.13.0",
+      "serious": [],
+      "other": [],
+      "ran": true
+    },
+    {
+      "check": "axe /providers/alibaba-model-studio: no serious or critical violation",
+      "ok": true,
+      "axe": "4.13.0",
+      "serious": [],
+      "other": [],
+      "ran": true
+    },
+    {
+      "check": "reduced motion: nothing is animating on a provider page",
+      "ok": true,
+      "running": 0
+    },
+    {
+      "check": "typing resolves the route in place, without a navigation",
+      "ok": true,
+      "text": "Status\ncapability unverifiedAccount configuration is complete, but no live request or evidence has verified this model on this route in this build.\nRoute\ndeepseek-work/deepseek-chat\nProvider\nDeepSeek deepseek\nAccount\ndeepseek-work named connection\nBilling\nPer-token API billing\nModel\ndeepseek-chat\nRu"
+    },
+    {
+      "check": "the resolved route names a named connection and carries no credential",
+      "ok": true
+    },
+    {
+      "check": "choosing no named account is reported as not chosen, never silently resolved to the one account",
+      "ok": true
+    },
+    {
+      "check": "the picker is reachable by keyboard in reading order with visible focus",
+      "ok": true,
+      "order": [
+        {
+          "tag": "select",
+          "id": "pick-account",
+          "name": "pick_account",
+          "ring": true
+        },
+        {
+          "tag": "input",
+          "id": "pick-model",
+          "name": "pick_model",
+          "ring": true
+        },
+        {
+          "tag": "select",
+          "id": "pick-runtime",
+          "name": "pick_runtime",
+          "ring": true
+        },
+        {
+          "tag": "select",
+          "id": "pick-mode",
+          "name": "pick_mode",
+          "ring": true
+        }
+      ]
+    },
+    {
+      "check": "without JavaScript the form still resolves the route on the server",
+      "ok": true,
+      "url": "http://127.0.0.1:18902/providers/deepseek?pick_account=deepseek-work&pick_model=deepseek-chat&pick_runtime=builtin&pick_mode=hybrid#route-picker"
+    },
+    {
+      "check": "Strict Offline refuses a hosted route and says why",
+      "ok": true,
+      "text": "Status\ncapability unverifiedAccount configuration is complete, but no live request or evidence has verified this model on this route in this build.\nRoute\ndeepseek-work/deepseek-chat\nProvider\nDeepSeek deepseek\nAccount\ndeepseek-work named connection\nBilling\nPer-token API billing\nModel\ndeepseek-chat\nRu"
+    },
+    {
+      "check": "Strict Offline allows a loopback route, in the policy's words",
+      "ok": true,
+      "text": "Status\nendpoint unavailableNo local service answered on the expected loopback endpoint.\nRoute\nollama/tiny\nProvider\nOllama ollama\nAccount\nlocal service loopback service\nBilling\nLocal or free service\nModel\ntiny\nRuntime\nbuiltin implemented\nProtocol\nollama-native\nEndpoint\nhttp://localhost:11434\nInferenc"
+    },
+    {
+      "check": "the chosen mode is the selected option",
+      "ok": true
+    },
+    {
+      "check": "the resolved route opens from the keyboard on the Models page",
+      "ok": true
+    },
+    {
+      "check": "axe /models: no serious or critical violation",
+      "ok": true,
+      "axe": "4.13.0",
+      "serious": [],
+      "other": [],
+      "ran": true
+    },
+    {
+      "check": "two open jobs are listed with Check and Cancel offered",
+      "ok": true,
+      "text": "video xai-video:xai running started 2026-11-07 02:44 UTC\n\nwaves on a shore\n\nThe provider accepted it and is working. Check it for progress.\n\nCheck now\nCancel job"
+    },
+    {
+      "check": "a check while the provider is still working leaves the job running",
+      "ok": true,
+      "text": "video xai-video:xai running started 2026-11-07 02:44 UTC\n\nwaves on a shore\n\nThe provider accepted it and is working. Check it for progress.\n\nCheck now\nCancel jo"
+    },
+    {
+      "check": "the finished job offers its stored result and no further actions",
+      "ok": true,
+      "text": "video xai-video:xai finished started 2026-11-07 02:44 UTC\n\nwaves on a shore\n\nThe result is stored and verified by its checksum.\n\nCost: provider media generation is billable; hutch cannot verify the ex"
+    },
+    {
+      "check": "the served result is the stand-in's bytes",
+      "ok": true,
+      "served": 44,
+      "expected": 44
+    },
+    {
+      "check": "the first click on Cancel only asks for confirmation",
+      "ok": true
+    },
+    {
+      "check": "a cancel the provider cannot confirm is shown as not confirmed and says it may still bill",
+      "ok": true,
+      "text": "video xai-video:xai cancel not confirmed started 2026-11-07 02:44 UTC\n\na second render\n\nCancel was requested but the provider never confirmed it. The job may still run and bill.\n\nReason: cancel_unconfirmed: the backend did not confirm the c"
+    },
+    {
+      "check": "axe /providers (media section open): no serious or critical violation",
+      "ok": true,
+      "axe": "4.13.0",
+      "serious": [],
+      "other": [],
+      "ran": true
+    }
+  ]
+}

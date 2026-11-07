@@ -265,6 +265,20 @@ collapsed **Browser notifications** disclosure with their current state visible
 in its summary; recently decided requests remain collapsed until someone asks to
 review them.
 
+### Provider surfaces
+
+`/providers`, `/providers/{id}` and the Models page share `static/providers.css` (hand-written; shared chip, tag,
+panel and form classes still come from `hutch.css` and the form sheets, and the generated CSS is untouched).
+
+- Green is reserved. A provider status chip is green only for a dated live run; a route chip is neutral, amber
+  (gated) or red (blocked, retired) and says "built" or "not built"; a policy verdict ("allowed") is neutral.
+- Filters are progressive: the form is `hidden` until the script runs, state lives in the query string, and a
+  status region announces the count. A disclosure is a native `details` with a drawn chevron; completed wizard
+  steps collapse their form into one.
+- Narrow and coarse-pointer overrides sit at the end of the sheet so they win over the base rules. Targets are at
+  least 24px, and 44px on coarse pointers.
+- The workspace is dark-only (ADR-0037); do not add a light capture for these pages.
+
 ### Apps, activity, and settings
 
 Chats and the in-app Apps & AI, Models, Usage, and other views share one
