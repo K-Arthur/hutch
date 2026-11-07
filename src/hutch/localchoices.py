@@ -14,20 +14,23 @@ from .fit import estimate_fit
 from .hardware import Hardware
 from .providers.base import ModelMeta
 from .providers.discovery import ENDPOINTS, probe_local_services
-from .providers.registry import is_local
 
 
 def _ollama_choices(hw: Hardware, provider: Any, want: int) -> list[Any]:
     from .modelchoices import Choice, _cached
     from .modelview import installed
+    from .providers.locality import fetch_ollama_rows, find_row, model_locality
+    base_url = str(getattr(provider, "base_url", "") or "")
+    rows = _cached("ollama-tags", lambda: fetch_ollama_rows(base_url) or [], ttl=5.0) if base_url else []
     out: list[Any] = []
     for name, meta in sorted(_cached("installed", lambda: installed(provider)).items()):
         spec = f"ollama/{name}"
-        if not is_local(spec):
+        locality = model_locality("ollama", name, find_row(rows, name))
+        if locality.local is False:
             out.append(Choice(spec=spec, label=name, group="Hosted", state="setup", hosted=True,
-                              note="Ollama Cloud model; inference runs on ollama.com",
+                              note=f"Ollama Cloud model; inference runs on ollama.com ({locality.reason})",
                               fix="Sign in to Ollama, then use this only with Hybrid routing.",
-                              detail=["Ollama classifies this tag as a cloud model",
+                              detail=[locality.reason,
                                       "Hutch has no price row for this route; cost caps refuse it until priced"]))
             continue
         fit = estimate_fit(meta, hw, want)

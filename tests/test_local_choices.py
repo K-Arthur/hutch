@@ -86,6 +86,25 @@ def test_a_key_protected_runtime_adds_no_choice(monkeypatch):
     assert local_choices(Bot(), _hw("lmstudio"), provider=None) == []
 
 
+def test_a_renamed_cloud_copy_is_hosted_from_the_server_signal(monkeypatch):
+    class Provider:
+        base_url = "http://127.0.0.1:11434"
+
+        def list_models(self):
+            return []
+
+    monkeypatch.setattr("hutch.localchoices._runtime_rows", lambda state_dir=None: [])
+    monkeypatch.setattr("hutch.modelchoices._cached", lambda key, fn, ttl=5.0: fn())
+    monkeypatch.setattr("hutch.modelview.installed",
+                        lambda provider: {"my-local-copy:latest": ModelMeta(name="my-local-copy:latest")})
+    monkeypatch.setattr("hutch.providers.locality.fetch_ollama_rows",
+                        lambda base_url, timeout=2.0: [{"name": "my-local-copy:latest", "remote_host": "ollama.com"}])
+    choices = local_choices(Bot(), _hw("ollama"), provider=Provider())
+    assert len(choices) == 1
+    assert choices[0].group == "Hosted" and choices[0].hosted is True
+    assert "ollama.com" in choices[0].note
+
+
 def test_an_ollama_cloud_row_stays_hosted(monkeypatch):
     class Provider:
         def list_models(self):

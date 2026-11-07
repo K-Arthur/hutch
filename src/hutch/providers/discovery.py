@@ -123,6 +123,25 @@ def _merge_state(result: dict[str, Any], state: Any) -> None:
         result["evidence"] = "the port answered but did not identify the runtime"
 
 
+def _mark_needs_key(result: dict[str, Any], endpoint: LocalEndpoint, url: str, response: Any) -> None:
+    result["state"] = NEEDS_KEY
+    result["error"] = ""
+    result["fix"] = _needs_key_fix(endpoint.provider_id, url)
+    result["evidence"] = f"/v1/models answered HTTP {response.status}"
+
+
+def _loading_state(endpoint: LocalEndpoint, url: str, credential: str, timeout: float,
+                   get: Callable[..., Any]):
+    """The adapter's LOADING state when a 503 is really a model still coming up, else None."""
+    if endpoint.style != "openai":
+        return None
+    try:
+        state = introspect(endpoint.provider_id, _origin_url(url), credential, timeout=timeout, http=get)
+    except ProbeError:
+        return None
+    return state if state is not None and state.reachable and state.state == LOADING else None
+
+
 def probe_service(endpoint: LocalEndpoint, *, timeout: float = 0.5,
                   get: Callable[..., Any] = _http_get,
                   credential_for: Optional[Callable[[str, str], str]] = None) -> dict[str, Any]:
@@ -143,21 +162,14 @@ def probe_service(endpoint: LocalEndpoint, *, timeout: float = 0.5,
         result["url"] = url
         result["reachable"] = True
         if response.status in (401, 403):
-            result["state"] = NEEDS_KEY
-            result["error"] = ""
-            result["fix"] = _needs_key_fix(endpoint.provider_id, url)
-            result["evidence"] = f"/v1/models answered HTTP {response.status}"
+            _mark_needs_key(result, endpoint, url, response)
             return result
         if response.status != 200:
             # llama.cpp answers 503 "Loading model" on /v1/models while the weights
-            # are still coming up. That is a state, not an unidentified endpoint:
-            # ask the native surface (/health) so the panel can say "loading".
-            if response.status == 503 and endpoint.style == "openai":
-                try:
-                    state = introspect(endpoint.provider_id, _origin_url(url), credential, timeout=timeout, http=get)
-                except ProbeError:
-                    state = None
-                if state is not None and state.reachable and state.state == LOADING:
+            # are still coming up. That is a state, not an unidentified endpoint.
+            if response.status == 503:
+                state = _loading_state(endpoint, url, credential, timeout, get)
+                if state is not None:
                     _merge_state(result, state)
                     result["error"] = ""
                     return result

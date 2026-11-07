@@ -16,27 +16,13 @@ from .hardware import GIB, Hardware, probe
 from .health import ProviderHealth, runtime_health
 from .presets import Resolution, catalog_meta, load_presets, resolve_preset, _data
 from .providers.base import ModelMeta
-from .providers.pricing import PriceBook, Price, LOCAL_PROVIDERS
-from .route_problem import model_route_problem, route_problem
+from .configured_routes import (ConfiguredModelRoute, _configured_routes, locality_for_route,
+                                privacy_label_for)
+from .providers.pricing import PriceBook, Price
+from .route_problem import route_problem
 from .slots import recorded_swaps
 
 REFERENCE_WINDOWS = (16384, 32768)
-
-
-@dataclass
-class ConfiguredModelRoute:
-    spec: str
-    provider: str
-    model_id: str
-    label: str
-    status: str
-    is_default: bool
-    bots: list[str]
-    has_key: bool
-    is_local: bool
-    locality: str = "cloud"   # machine | network | cloud_via_local | cloud
-    privacy_label: str = ""
-    problem: Optional[str] = None
 
 
 @dataclass
@@ -94,53 +80,6 @@ def residency_note(meta: ModelMeta) -> str:
     if meta.vram_bytes is not None:
         parts.append("on the GPU" if meta.vram_bytes > 0 else "entirely on the CPU")
     return ", ".join(parts)
-
-
-_PRIVACY_LABELS = {
-    "machine": "Data stays on this machine.",
-    "network": "Data leaves this machine to a service you control.",
-    "cloud_via_local": "Data is forwarded to a cloud service through the local runtime.",
-    "cloud": "Data is sent to a hosted service.",
-}
-
-
-def locality_for_route(spec: str, is_local: bool, conn_base_url: str = "",
-                       entry: Optional[dict[str, Any]] = None) -> str:
-    if is_local:
-        if spec.startswith("ollama/"):
-            name = spec.split("/", 1)[-1]
-            try:
-                from .providers.locality import model_locality
-                verdict = model_locality("ollama", name, entry)
-                if verdict.local is False:
-                    return "cloud_via_local"
-            except Exception:
-                if name.endswith("-cloud") or ":cloud" in name:
-                    return "cloud_via_local"
-        return "machine"
-    host = ""
-    if conn_base_url:
-        try:
-            from urllib.parse import urlparse
-            host = (urlparse(conn_base_url).hostname or "").lower()
-        except Exception:
-            host = ""
-    if host == "localhost" or host.endswith(".local"):
-        return "machine"
-    try:
-        import ipaddress
-        address = ipaddress.ip_address(host)
-        if address.is_loopback:
-            return "machine"
-        if address.is_private:
-            return "network"
-    except ValueError:
-        pass
-    return "cloud"
-
-
-def privacy_label_for(locality: str) -> str:
-    return _PRIVACY_LABELS.get(locality, _PRIVACY_LABELS["cloud"])
 
 
 def _local_service_rows(state_dir: Any = None) -> dict[str, dict[str, Any]]:
@@ -227,6 +166,41 @@ def installed(provider: Any) -> dict[str, ModelMeta]:
     return out
 
 
+def _installed_rows(store: Any, inst: dict[str, ModelMeta], hw: Hardware,
+                    used_by: dict[str, list[str]]) -> list[ModelRow]:
+    rows: list[ModelRow] = []
+    for name, meta in sorted(inst.items()):
+        raw = store.kv_get(f"model_load:{name}")
+        assigned = list(used_by.get(f"ollama/{name}", []))
+        for b_name in used_by.get(name, []):
+            if b_name not in assigned:
+                assigned.append(b_name)
+        rows.append(ModelRow(
+            name=name, meta=meta,
+            fits={w: estimate_fit(meta, hw, w) for w in REFERENCE_WINDOWS},
+            bots=assigned, load_ms=json.loads(raw)["ms"] if raw else None,
+            selfcheck=_selfcheck_status(store, name)))
+        profile = store.latest_profile(f"ollama/{name}")
+        if profile is not None:
+            rows[-1].profile = profile
+            rows[-1].profile_stale = bool(
+                (meta.template_hash and profile.template_hash and meta.template_hash != profile.template_hash)
+                or (meta.digest and profile.digest and meta.digest != profile.digest))
+    return rows
+
+
+def _suggestions(inst: dict[str, ModelMeta], hw: Hardware) -> list[tuple[str, Fit, ModelMeta]]:
+    out: list[tuple[str, Fit, ModelMeta]] = []
+    for tag in _data("catalog.json")["models"]:
+        if tag in inst:
+            continue
+        meta = catalog_meta(tag)
+        if meta:
+            out.append((tag, estimate_fit(meta, hw, REFERENCE_WINDOWS[0]), meta))
+    out.sort(key=lambda t: (t[1].status == "wont_fit", t[2].params_b or 0))
+    return out
+
+
 def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, provider: Any = None,
                       with_runtimes: bool = True) -> ModelsView:
     hw = hw or probe(with_runtimes=with_runtimes)
@@ -248,32 +222,9 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
     for b in bots:
         used_by.setdefault(b.model, []).append(b.name)
         by_provider.setdefault(b.model.partition("/")[0], []).append(b.name)
-    rows = []
-    for name, meta in sorted(inst.items()):
-        raw = store.kv_get(f"model_load:{name}")
-        assigned = list(used_by.get(f"ollama/{name}", []))
-        for b_name in used_by.get(name, []):
-            if b_name not in assigned:
-                assigned.append(b_name)
-        rows.append(ModelRow(
-            name=name, meta=meta,
-            fits={w: estimate_fit(meta, hw, w) for w in REFERENCE_WINDOWS},
-            bots=assigned, load_ms=json.loads(raw)["ms"] if raw else None,
-            selfcheck=_selfcheck_status(store, name)))
-        prof = store.latest_profile(f"ollama/{name}")
-        if prof is not None:
-            rows[-1].profile = prof
-            rows[-1].profile_stale = bool((meta.template_hash and prof.template_hash and meta.template_hash != prof.template_hash)
-                                          or (meta.digest and prof.digest and meta.digest != prof.digest))
+    rows = _installed_rows(store, inst, hw, used_by)
     presets = [resolve_preset(p, hw, inst) for p in load_presets(config.state_dir / "presets.json").values()]
-    sugg = []
-    for tag in _data("catalog.json")["models"]:
-        if tag in inst:
-            continue
-        meta = catalog_meta(tag)
-        if meta:
-            sugg.append((tag, estimate_fit(meta, hw, REFERENCE_WINDOWS[0]), meta))
-    sugg.sort(key=lambda t: (t[1].status == "wont_fit", t[2].params_b or 0))
+    sugg = _suggestions(inst, hw)
     book = PriceBook(config.state_dir / "prices.json")
     local_rows = _local_service_rows(config.state_dir) if with_runtimes else None
     notes = list(hw.notes) + (local_window_notes(probed=local_rows) if local_rows is not None else [])
@@ -293,79 +244,8 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
 
     available_bots = [(b.name, b.display_name or b.name) for b in bots]
     usable_bots = {b.name: route_problem(b) is None for b in bots}
-    configured_routes = []
-    seen_specs = set()
-
-    for name, meta in sorted(inst.items()):
-        spec = f"ollama/{name}"
-        seen_specs.add(spec)
-        seen_specs.add(name)
-        assigned = list(used_by.get(spec, []))
-        for b_name in used_by.get(name, []):
-            if b_name not in assigned:
-                assigned.append(b_name)
-        is_def = spec == saved_default
-        try:
-            from .providers.locality import find_row
-            _entry = find_row(tags_rows, name)
-        except Exception:
-            _entry = None
-        _loc = locality_for_route(spec, True, entry=_entry)
-        configured_routes.append(ConfiguredModelRoute(
-            spec=spec, provider="ollama", model_id=name, label=store.kv_get(f"model_label:{spec}") or name,
-            status="ready", is_default=is_def, bots=assigned, has_key=True, is_local=True,
-            locality=_loc, privacy_label=privacy_label_for(_loc)
-        ))
-
-    for c_name, conn in conn_book.configured().items():
-        has_k = bool(conn_book.key(c_name))
-        for bot_spec, b_names in used_by.items():
-            if bot_spec.startswith(f"{c_name}/"):
-                seen_specs.add(bot_spec)
-                m_id = bot_spec.split("/", 1)[1]
-                is_def = bot_spec == saved_default
-                _loc = locality_for_route(bot_spec, False, conn.base_url)
-                configured_routes.append(ConfiguredModelRoute(
-                    spec=bot_spec, provider=c_name, model_id=m_id, label=store.kv_get(f"model_label:{bot_spec}") or f"{conn.title}: {m_id}",
-                    status="ready" if has_k else "needs_key", is_default=is_def,
-                    bots=b_names, has_key=has_k, is_local=False,
-                    locality=_loc, privacy_label=privacy_label_for(_loc)
-                ))
-
-    extra_specs = set(used_by.keys())
-    if saved_default:
-        extra_specs.add(saved_default)
-    kv_routes = [s.strip() for s in (store.kv_get("configured_model_routes") or "").split(",") if s.strip()]
-    extra_specs.update(kv_routes)
-
-    for bot_spec in sorted(extra_specs):
-        if bot_spec and bot_spec not in seen_specs:
-            b_names = used_by.get(bot_spec, [])
-            prov, mid = bot_spec.split("/", 1) if "/" in bot_spec else ("custom", bot_spec)
-            is_def = bot_spec == saved_default
-            has_k = True
-            base_url = ""
-            if prov in conn_book.names():
-                has_k = bool(conn_book.key(prov))
-                try:
-                    base_url = conn_book.get(prov).base_url if conn_book.get(prov) else ""
-                except Exception:
-                    base_url = ""
-            problem = model_route_problem(bot_spec)
-            usable = any(usable_bots.get(name, False) for name in b_names)
-            if prov == "ollama" and not ollama_up:
-                problem = problem or "Ollama is not running, so this route cannot run"
-                status = "unusable"
-            else:
-                status = "unusable" if problem and not usable else ("ready" if has_k else "needs_key")
-            is_loc = prov in LOCAL_PROVIDERS
-            _loc = locality_for_route(bot_spec, is_loc, base_url)
-            configured_routes.append(ConfiguredModelRoute(
-                spec=bot_spec, provider=prov, model_id=mid, label=store.kv_get(f"model_label:{bot_spec}") or bot_spec,
-                status=status, is_default=is_def, bots=b_names, has_key=has_k, is_local=is_loc,
-                locality=_loc, privacy_label=privacy_label_for(_loc), problem=problem,
-            ))
-
+    configured_routes = _configured_routes(store, conn_book, inst, tags_rows, used_by, saved_default,
+                                           ollama_up, usable_bots)
     default_spec = saved_default
 
     return ModelsView(hw=hw, runtimes=runtime_health(config, store, hw, [b.model for b in bots], provider if ollama_up else None,

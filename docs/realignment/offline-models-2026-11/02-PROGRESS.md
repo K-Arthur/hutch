@@ -17,7 +17,7 @@ covers before relying on it.
 | 6 Strict Offline live, boundary ADR | done (6.1, 6.2, 6.3) | see git log | 2026-11-06: real Ollama and llama.cpp tool-and-image turns through the broker; airplane test inside `unshare -rn`; shell egress 101; 1,200-token stream; cancel; runner kill; server restart; 64 MiB cap | Managed model process is the accepted ADR-0035 decision, not implemented |
 | 7 Frontend | done (7.1-7.5) | 24be8a4c, 35e63905 | 2026-11-06: real Ollama 0.40.13 and llama.cpp b12144; /models at 360/768/1280/1920 in empty, down, ready, cloud-tagged, needs-key, loading, network and offline-in-browser states; grouping/privacy/capability/measured labels live; keyboard focus order and visible focus recorded | install running/cancelled/failed visual recapture reused from Phase 4 (layout unchanged), upgrade-needed not run (no older runtime), tab-strip overlap pre-existing
 | 8 Website and docs | done (T8.1-T8.5) | b388ad8a | 2026-11-06: site local/offline block at 360/768/1280/1920 (dark), zero overflow/errors, FAQ parity; compat matrix 14 routes reviewed 2026-11-06; docs updated | light theme not captured (the site is one dark theme); no new full-suite baseline |
-| 9 Final review and merge | not started | | | |
+| 9 Final review and merge | done | pending | 2026-11-06: whole-initiative review; final gates; fresh-state tool turn on Ollama, llama.cpp and LM Studio, then the same offline | managed isolated model process not implemented (ADR-0035); no push or tag |
 
 Phase 0 exit checks: baseline (`docs/research/2026-11-offline-models/00-BASELINE.md`),
 failure mining (`01-FAILURE-MINING.md`) and API notes (`02-RUNTIME-API-NOTES.md`) written;
@@ -113,6 +113,11 @@ or out-of-scope (reason). One line per ID once touched.
 | 2026-11-06 | Ollama 0.40.13 | gemma4:e2b | same | real app, stop while running; `p6.py cancel` | stop request, worker termination, status timeline | partial text | stopped to terminal in 0.304 s; worker exited -15; `running, cancelling, stopped`; `evidence/p6/cancel-live1.json` |
 | 2026-11-06 | Ollama 0.40.13 | gemma4:e2b, qwen3:0.6b | same | broker unlink before and after a call, 64 MiB+1 request, real runner kill, real server kill/restart; `p6.py broker-missing, provider-after-loss, oversize, runner-kill, server-restart` | real broker, real runtime, real faults | managed server | before: "broker is missing, no direct network fallback"; after: bridge message, action stop; 413 for 64 MiB+1; runner kill reloaded in 8.65 s and completed; server restart 502, one reload, then "model ... is no longer installed", clear stop; `evidence/p6/*.json` |
 | 2026-11-06 | llama.cpp b12144-69ee2ecc0 (CPU) | Gemma 4 e2b 3.50 GB + 0.99 GB projector, 8192 per slot | same | `llama-server -m ... --mmproj ... -c 8192 --parallel 1 --jinja --reasoning-budget 0 --offline`; bot `llamacpp/gemma4-e2b`; `p6.py llamacpp` | real image-and-tool turn, broker, `/props` and `/slots` through the broker | GPU; LM Studio offline | succeeded 190.9 s; answer cat/3; context 2,257/8,192; `evidence/p6/llamacpp-live2.json` |
+| 2026-11-06 | none | none | Ryzen 3 5300U, CPU | fresh state, real app, no runtime listening; `p9_final.py no-runtime` | `/models` 200, no model call | a run | `ollama_up=false`, `llama_up=false`, the page says "Ollama is not running"; `evidence/p9/no-runtime.json` |
+| 2026-11-06 | Ollama 0.40.13 | qwen3:0.6b | same | fresh state, real app, bot `ollama/qwen3:0.6b` tools files+shell, `hybrid`; `p9_final.py ollama-tool` | create bot, conversation, message, governed `write_file` + `shell` | — | succeeded 29.489 s; `animal.txt` = `cat`; `wc -c` = 3; context 1,621/16,384; `evidence/p9/ollama-tool.json` |
+| 2026-11-06 | llama.cpp b12144 (CPU) | qwen3-0.6b, 8,192 per slot | same | `llama-server -m qwen3-0.6b.gguf -c 8192 --parallel 1 --jinja --reasoning-budget 0` on 8080; bot `llamacpp/qwen3-0.6b`; `p9_final.py llamacpp-tool` | the same tool turn; a first 4,096-window attempt | — | 4,096 attempt refused honestly (1,251 prompt + 926 tools + 2,048 reply > 4,096); 8,192 succeeded 41.129 s; `animal.txt` = `cat`; context 2,064/8,192; the answer leaked its reasoning (`</think>`) but both tool calls were clean; `evidence/p9/llamacpp-tool.json` |
+| 2026-11-06 | LM Studio llmster 0.0.27-1 | qwen3-0.6b | same | `lms server start --port 1234`; bot `lmstudio/qwen3-0.6b`; `p9_final.py lmstudio-tool` | create bot, conversation, message, governed `write_file` + `shell` | API-token mode | succeeded 33.513 s; `animal.txt` = `cat`; context 1,864/16,384; `evidence/p9/lmstudio-tool.json` |
+| 2026-11-06 | Ollama 0.40.13 | qwen3:0.6b | same | fresh state, bot `ollama/qwen3:0.6b` `inference_mode=offline`; `p9_final.py offline-tool` | the same governed tools in the Offline worker (bubblewrap netns + per-run broker) | host airgap in this run (Phase 6 airplane evidence stands) | succeeded 26.667 s; `animal.txt` = `cat`; context 1,618/16,384; `evidence/p9/offline-tool.json` |
 
 ## Decisions log
 
@@ -962,5 +967,79 @@ Still open (ask at the phase that needs it):
   file; the site states the worker/model-server boundary and does not say
   "nothing leaves your machine". Phase 8 is done.
 
-Next phase: Phase 9, final review and merge.
+### Phase 9 checkpoints (2026-11-06)
+
+- Whole-initiative review of the local-runtime and route-sharing paths. Findings and fixes:
+  - `LlamaCppRuntime._read` was 91 lines. Split into `_finish`, `_health`, `_props`,
+    `_models`, `_slots` and `_assemble`; every function is now 60 lines or fewer.
+  - `probe_service` was 65 lines. Extracted `_mark_needs_key` and `_loading_state`;
+    it is now 56.
+  - `build_models_view` was 149 lines. Route construction moved to
+    `src/hutch/configured_routes.py` (176 lines) and installed rows/suggestions to
+    helpers; `modelview.py` is 258 lines and every function is 60 or fewer.
+  - `_ollama_choices` used the name-only `is_local`, so a renamed cloud copy would
+    appear under "On this machine". It now reads `/api/tags` and uses
+    `remote_host` first; `tests/test_local_choices.py` covers the renamed copy.
+  - The locality fallback now returns `unknown` rather than `machine` when the
+    classifier cannot tell, and the Models page has a "Where this runs is
+    unknown" group.
+  - Reviewed the remaining new modules for silent fallbacks, credentials, name
+    guesses, status inflation and dead code; no credential value reaches a
+    result, page or log. `/code-review` and `/simplify` are not available in
+    this session; the diff was re-read manually.
+- Final gates: the focused unit set (provider discovery 11, local runtimes,
+  local choices 7, locality view 4, models page 20, local lifecycle, local
+  admission, models layer, model switcher 31, route sharing 11, compat 8,
+  site tokens 8, provider routes 10), the touched e2e files (`test_model_picker`
+  12, `test_model_sharing` 2, `test_model_install` 3, `test_model_repair` 3,
+  `test_models_detected_route` 6, `test_website` 42), `npm run check:agent`,
+  `npm run audit:context`, and `scripts/audit_emoji.py` (only the pre-existing
+  `.codewhale/state` file).
+- Final real-setup pass (fresh `HUTCH_STATE_DIR` each scenario; rows in the
+  ledger above): no runtime -> Ollama 0.40.13 tool turn (29.5 s) -> llama.cpp
+  b12144 tool turn (41.1 s after a 4,096-window refusal resolved at 8,192) ->
+  LM Studio llmster 0.0.27-1 tool turn (33.5 s) -> the same governed
+  `write_file` + `shell` turn in Strict Offline (26.7 s). Each successful run
+  wrote `animal.txt` = `cat`; `wc -c` returned 3.
+- Prune: the dry run lists 43.47 GiB across 145 stale directories from many
+  sessions; the `offline-models-2026-11` root is skipped as recent. Removed only
+  this run's `p7-*`/`p9-*` state dirs (about 60 MB); the retained models,
+  evidence and other sessions' scratch were not touched.
+- Merge state: everything is on `main`; the tree is clean except other
+  sessions' uncommitted work; no worktree, push, tag or publish. Services started
+  for the final pass were stopped and ports 11434, 1234, 8080 and 9931 are free.
+
+### Final report
+
+**Implemented (all dated in this file):** locality truth from the server signal
+and Strict Offline refusal; native introspection for Ollama, llama.cpp and LM
+Studio with measured windows and error states; lifecycle/loading/eviction
+handling; the runtime name grammar, disk/fit/ETA preflight, cancel/resume,
+GGUF import and guided paths; vision, tool benches and reasoning-budget notes;
+Strict Offline with a live model and the airplane test; the Models-page state
+labels, grouping, privacy labels and EC-28 confirmation; the public boundary
+table, compatibility rows and docs.
+
+**Verified live on 2026-11-06 (one Linux host, CPU only):** Ollama
+0.40.13/0.40.15, llama.cpp b12144, LM Studio llmster 0.0.27-1; the four final
+tool turns above; the Phase 6 failures (runner kill, server restart, broker
+loss, 64 MiB cap, cancel, airplane); the Phase 5 image and tool runs; the Phase 4
+real pull, cancel/resume, disk-full, network-drop and GGUF import; the Phase 7
+state matrix and EC-28; the Phase 8 site captures.
+
+**Not run (exact reason):** GPU inference and CUDA/ROCm/Metal (no hardware);
+vLLM and SGLang (not installed; OpenAI-compatible seam only); macOS and Windows
+executors (not implemented); the managed isolated model process (ADR-0035
+accepted, not built); the 4 GB cold load (download budget); the 60-minute LM
+Studio TTL and 5-minute Ollama keep-alive (not waited out); an older runtime
+upgrade path (no old installation); a gated Hugging Face pull (no token); Ollama
+app-level vision on the 2,048-token moondream (below the 4,096 floor); audio and
+speech (no model retained); LM Studio API-token mode from the CLI; the light
+marketing theme (the site is one dark theme).
+
+**Blocked:** nothing in the local-runtime scope. The managed isolated model
+process is a deliberate, owner-approved follow-on, not a blocker for the
+worker-boundary claim.
+
+Next phase: none; this initiative is complete.
 

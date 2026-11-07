@@ -114,7 +114,7 @@
         </tr>
       </thead>
       <tbody>
-      {% set _group_labels = {"machine": "On this machine", "network": "On your network", "cloud_via_local": "Cloud via local runtime", "cloud": "Hosted"} %}
+      {% set _group_labels = {"machine": "On this machine", "network": "On your network", "cloud_via_local": "Cloud via local runtime", "cloud": "Hosted", "unknown": "Where this runs is unknown"} %}
       {% set ns = namespace(cur="") %}
       {% for r in v.configured_routes | sort(attribute="locality") %}
         {% if r.locality != ns.cur %}

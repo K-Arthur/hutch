@@ -131,70 +131,73 @@ class LlamaCppRuntime:
     def state(self) -> RuntimeState:
         return self._read()
 
-    def _read(self) -> RuntimeState:
-        if self._cached is not None:
-            return self._cached
-        state = RuntimeState(self.provider_id)
+    def _finish(self, state: RuntimeState, loading: bool = False) -> RuntimeState:
+        # A loading server changes on its own; a cached LOADING would never become ready.
+        if not loading:
+            self._cached = state
+        return state
+
+    def _health(self, state: RuntimeState) -> tuple[Any, bool]:
         try:
             health = self._get("/health")
         except ProbeError as exc:
             state.detail = str(exc)
-            self._cached = state
-            return state
+            return None, False
         state.reachable = True
         if health.status in (401, 403):
             state.state, state.detail = NEEDS_KEY, "the server requires an API key (HTTP %d from /health)" % health.status
-            self._cached = state
-            return state
-        loading = health.status == 503
-        if loading:
+            return None, False
+        if health.status == 503:
             state.detail = "loading the model (HTTP 503 from /health)"
-        elif health.status != 200:
+            return health, True
+        if health.status != 200:
             state.state, state.detail = UNKNOWN, f"/health answered HTTP {health.status}"
-            self._cached = state
-            return state
+            return None, False
+        return health, False
 
-        props: dict[str, Any] = {}
+    def _props(self, state: RuntimeState) -> Optional[dict[str, Any]]:
         try:
-            props_response = self._get("/props")
+            response = self._get("/props")
         except ProbeError:
-            props_response = None
-        if props_response is not None and props_response.status in (401, 403):
-            state.state, state.detail = NEEDS_KEY, "the server requires an API key (HTTP %d from /props)" % props_response.status
-            self._cached = state
-            return state
-        if props_response is not None and props_response.status == 200:
+            return {}
+        if response is not None and response.status in (401, 403):
+            state.state, state.detail = NEEDS_KEY, "the server requires an API key (HTTP %d from /props)" % response.status
+            return None
+        if response is not None and response.status == 200:
             try:
-                payload = props_response.json()
-                props = payload if isinstance(payload, dict) else {}
+                payload = response.json()
+                return payload if isinstance(payload, dict) else {}
             except ProbeError:
-                props = {}
+                return {}
+        return {}
 
-        models: list[ModelMeta] = []
+    def _models(self, state: RuntimeState) -> tuple[Optional[list[ModelMeta]], Any]:
         try:
-            models_response = self._get("/v1/models")
+            response = self._get("/v1/models")
         except ProbeError:
-            models_response = None
-        if models_response is not None and models_response.status in (401, 403):
-            state.state, state.detail = NEEDS_KEY, "the server requires an API key (HTTP %d from /v1/models)" % models_response.status
-            self._cached = state
-            return state
-        if models_response is not None and models_response.status == 200:
+            return [], None
+        if response is not None and response.status in (401, 403):
+            state.state, state.detail = NEEDS_KEY, "the server requires an API key (HTTP %d from /v1/models)" % response.status
+            return None, response
+        if response is not None and response.status == 200:
             try:
-                models = _parse_models(models_response.json())
+                return _parse_models(response.json()), response
             except ProbeError:
-                models = []
+                return [], response
+        return [], response
+
+    def _slots(self) -> list[Slot]:
+        try:
+            response = self._get("/slots")
+            return _parse_slots(response.json()) if response.status == 200 else []
+        except ProbeError:
+            return []
+
+    def _assemble(self, state: RuntimeState, props: dict[str, Any], models: list[ModelMeta],
+                  slots: list[Slot], loading: bool, models_response: Any) -> None:
         state.models = models
         state.version = str(props.get("build_info") or "")
-
         build = props.get("default_generation_settings") if isinstance(props.get("default_generation_settings"), dict) else {}
-        slots: list[Slot] = []
-        try:
-            slots_response = self._get("/slots")
-            if slots_response.status == 200:
-                slots = _parse_slots(slots_response.json())
-        except ProbeError:
-            slots = []
         name = _model_name(props, models)
         applied = max((slot.n_ctx for slot in slots if slot.n_ctx), default=None)
         parallel = len(slots) or _int(props.get("total_slots"))
@@ -218,10 +221,22 @@ class LlamaCppRuntime:
                 state.detail = "the model is asleep in the runtime; the next request reloads it"
         else:
             state.state, state.detail = UNKNOWN, "the port answered but neither /props nor /v1/models identified a server"
-        # A loading server changes on its own; a cached LOADING would never become ready.
-        if not loading:
-            self._cached = state
-        return state
+
+    def _read(self) -> RuntimeState:
+        if self._cached is not None:
+            return self._cached
+        state = RuntimeState(self.provider_id)
+        health, loading = self._health(state)
+        if health is None:
+            return self._finish(state)
+        props = self._props(state)
+        if props is None:
+            return self._finish(state)
+        models, models_response = self._models(state)
+        if models is None:
+            return self._finish(state)
+        self._assemble(state, props, models, self._slots(), loading, models_response)
+        return self._finish(state, loading)
 
     @staticmethod
     def _identity(props: dict[str, Any], models: list[ModelMeta], response: Any) -> Identity:
