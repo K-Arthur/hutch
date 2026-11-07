@@ -1035,7 +1035,7 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
                        "auto does not create new plans", "an owner can link an activated saved method to an existing routine",
                        "pins the exact revision and checked inputs", "enabling the routine stays separate",
                        "run now starts one copy without advancing the schedule",
-                       "the existing local supervisor and host must be running", "live provider execution remains unverified",
+                       "the existing local supervisor and host must be running", "workflow execution itself remains unverified",
                        "experimental"):
             assert phrase in availability, phrase
 

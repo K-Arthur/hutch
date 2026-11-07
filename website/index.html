@@ -50,12 +50,14 @@
       "Named AI assistants, each with its own model, tools, schedule, memory and workspace",
       "Ask-first approvals with hard-denied shell command classes and a cross-assistant pending queue",
       "Local or hosted model routes: Ollama, llama.cpp, LM Studio, OpenAI, Anthropic, OpenRouter, OpenAI-compatible and OpenCode",
+      "Measured local-runtime state: version, loaded models, applied context window, vision and tool support, with cloud-routed models labelled from the server signal",
+      "A per-assistant data-sharing confirmation before a route that leaves the machine is saved or used for one message",
       "Estimated spend ceilings, usage reservations and run budgets",
       "Hash-verified transcripts and locally stored, versioned document files",
       "A validated provider catalogue with multiple named accounts, explicit readiness states and separated execution runtimes",
       "Recurring tasks with IANA-timezone schedules that catch up after sleep"
     ],
-    "dateModified": "2026-10-30"
+    "dateModified": "2026-11-06"
   }
   </script>
   <script type="application/ld+json">
@@ -124,7 +126,7 @@
         "name": "What actually leaves my machine?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Hutch stores its control state locally. A hosted model receives the prompt and context Hutch sends to it; network tools connect to their own destinations. A local model can still use online tools. Review the selected connection and tools before running a task."
+          "text": "Control state — conversations, memory, logs, schedules and files — stays in Hutch’s local state directory. A hosted model receives the prompt and context Hutch sends; network tools contact their own destinations. A local model can still use online tools. In Strict Offline, the run’s worker has no network and its only model path is a loopback socket, but a separately running model server is outside that boundary and may itself use the network. A model switch that leaves this machine asks for a per-assistant confirmation first."
         }
       },
       {
@@ -569,6 +571,25 @@
           <div class="choice-heading"><span class="choice-icon choice-icon-home" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 14 12-9 12 9v13H4z"/><path d="M12 27v-8h8v8M8 14h16"/></svg></span><h3>Keep a home for your work</h3></div>
           <p>Chats, choices and assistant settings stay with Hutch on your computer. Connected services follow their own rules.</p>
         </article>
+      </div>
+
+      <div id="local-offline">
+      <div class="section-head">
+        <h3 class="section-heading">Local and offline, stated exactly.</h3>
+        <p class="section-desc">Hutch can run a complete assistant turn on a model served by Ollama, llama.cpp or LM Studio on this machine. What that proves is scoped: the run’s worker could not reach the network, and its model route went only to your loopback address. The model server is a separate process Hutch does not isolate yet, so it may still check for updates, pull a model or forward a cloud-tagged request. Hutch does not claim that nothing left this machine.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table availability">
+          <caption class="visually-hidden">What Hutch enforces for local and offline work</caption>
+          <thead><tr><th scope="col">Layer</th><th scope="col">What this means today</th></tr></thead>
+          <tbody>
+            <tr><th scope="row" class="av-area"><span class="av-k">Run worker</span><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Enforced</span></th><td class="av-v"><b>Enforced:</b> in Strict Offline, the worker runs in a fresh bubblewrap network and PID namespace with no host interfaces. Its only model path is a per-run Unix socket fixed to the reviewed loopback origin; hosted routes, overrides and escalation are refused, and browser and web tools are removed. <b>Not covered:</b> the host itself.</td></tr>
+            <tr><th scope="row" class="av-area"><span class="av-k">Model server</span><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Not isolated</span></th><td class="av-v">Hutch reads what the runtime reports (version, loaded models, applied window, vision and tool support) and labels cloud-tagged or renamed copies from the server signal, not the name alone. <b>Not enforced:</b> a separately running Ollama, llama.cpp or LM Studio process is an ordinary host process. It may proxy, update or download. Loopback addressing does not prove it stays local. The owner-approved managed process (ADR-0035) is not implemented.</td></tr>
+            <tr><th scope="row" class="av-area"><span class="av-k">Updates and telemetry</span><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Hutch sends none</span></th><td class="av-v"><b>Enforced:</b> Hutch does not start an update check or send telemetry. <b>Not controlled:</b> each runtime has its own release cadence and network behavior.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="section-desc">Verified on one Linux host on 2026-11-06: Ollama 0.40.13 and 0.40.15, llama.cpp build b12144, and LM Studio llmster 0.0.27-1, including tool calls, images, a measured applied window and a complete governed turn inside an airplane-mode namespace. GPU, vLLM, SGLang, macOS and Windows were not verified. A model switch that leaves this machine shows a per-assistant confirmation before it is saved or used for one message.</p>
       </div>
 
       <details class="page-details technical-details">
@@ -1046,7 +1067,7 @@
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">What actually leaves my machine?</summary>
-          <div class="collapse-content"><p>Hutch stores its control state locally. A hosted model receives the prompt and context Hutch sends to it; network tools connect to their own destinations. A local model can still use online tools. Review the selected connection and tools before running a task.</p></div>
+          <div class="collapse-content"><p>Control state — conversations, memory, logs, schedules and files — stays in Hutch’s local state directory. A hosted model receives the prompt and context Hutch sends; network tools contact their own destinations. A local model can still use online tools. In Strict Offline, the run’s worker has no network and its only model path is a loopback socket, but a separately running model server is outside that boundary and may itself use the network. A model switch that leaves this machine asks for a per-assistant confirmation first.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Can I use different models for different kinds of work?</summary>

@@ -115,6 +115,25 @@ Still open after this run:
 - Bundled starters remain: eight catalogue assistants and three skill packages. They are real, reviewed manifests with publisher,
   version and hash, now labelled as what Hutch ships rather than "samples"; a person adds their own sources in the Catalog.
 
+## 3c. Local models and offline (2026-11-06)
+
+The offline-models initiative (Phases 1-8) added local-runtime rows and the public
+local/offline boundary. Focused evidence, not a new full-suite baseline:
+
+| Item | How it was checked | Result |
+|---|---|---|
+| Compatibility matrix | `tests/test_compat.py` (8) | 14 routes, `reviewed_on` 2026-11-06; new `llamacpp-server`, `lmstudio-native` and `vllm-sglang-openai` rows, and the Ollama row now carries the live 2026-11-06 evidence and limits |
+| Local runtime state and locality | `tests/test_provider_discovery.py` (11), `tests/test_local_runtimes.py`, `tests/test_local_choices.py`, `tests/test_model_locality_view.py` (4), `tests/test_models_page.py` (20) | fingerprint not port; loading, needs-key and down states; server-signal grouping; measured/predicted/unknown labels |
+| Data-sharing confirmation | `tests/test_route_sharing.py` (11), `tests/e2e/test_model_sharing.py` (2), `tests/e2e/test_model_picker.py` (12), `tests/e2e/test_model_repair.py` (3) | 409 without the acknowledgement; one-use consumption; cancel keeps the default; the repair and switcher dialogs show the server text |
+| Public site | `tests/test_site_tokens.py`, `tests/e2e/test_website.py`, `capture_marketing_top.py` | boundary block and FAQ parity; four widths, both themes; zero overflow and zero console errors; images viewed |
+| Frozen sizes | `npm run audit:context` | 117 frozen over-cap files; `model-switcher.js` 466 lines (baseline 483); new modules under 400 |
+
+The full non-browser suite count in section 1 is the 2026-10-30 snapshot and was not
+re-run for this documentation phase; CI runs it on three Python versions. The local
+runtime evidence is one Linux host (Ryzen 3 5300U, CPU only, 22 GiB RAM): GPU, vLLM,
+SGLang, macOS, Windows, the managed isolated model process and the 4 GB cold load were
+not run.
+
 ## 4. Reproduce
 
 ```bash

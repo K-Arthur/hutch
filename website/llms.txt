@@ -4,6 +4,8 @@
 
 Hutch keeps its control state — conversations, memory, logs, schedules and files — in one local state directory on the machine you control. Model calls go to the route you confirm for each assistant: a local runtime (Ollama, llama.cpp, LM Studio) or a hosted provider (OpenAI, Anthropic, OpenRouter, OpenAI-compatible endpoints, or OpenCode). On first run Hutch may preselect a free OpenCode model as a disclosed starting point; free hosted models can keep or learn from what you send, and nothing is saved until you create the assistant. Hosted providers receive the prompts and context Hutch sends them; network tools contact their own destinations.
 
+Local and offline are scoped claims. In Strict Offline, the run's worker has no network namespace and its only model path is a per-run Unix socket fixed to the reviewed loopback origin, so Hutch may say that this run's worker could not reach the network and its model route went only to loopback. A separately running Ollama, llama.cpp or LM Studio process is outside that boundary: it may check for updates, pull a model or forward a cloud-tagged request, and loopback addressing does not prove it stays local. The owner-approved Hutch-managed isolated model process (ADR-0035) is not implemented. Hutch does not claim that nothing left the machine.
+
 ## Key facts
 
 - Site: https://k-arthur.github.io/hutch/ (single static page, GitHub Pages).
@@ -12,6 +14,8 @@ Hutch keeps its control state — conversations, memory, logs, schedules and fil
 - License: MIT. The software is free; hosted model usage is billed by your own provider account.
 - Assistants (called bots in the CLI): each has its own model, tools, schedule, memory and workspace.
 - Approvals: assistants ask before consequential actions; some shell command classes are always denied; there is no bulk approval.
+- Local runtimes: Ollama, llama.cpp and LM Studio are first-class routes on 2026-11-06 evidence (Ollama 0.40.13/0.40.15, llama.cpp b12144, LM Studio llmster 0.0.27-1). Hutch reads their reported version, loaded models, applied window and vision/tool support and labels a model that leaves the machine. The evidence is one Linux host; GPU, vLLM, SGLang, macOS and Windows were not verified.
+- Data-sharing confirmation: switching an existing assistant to a cloud-tagged or non-loopback model requires a recorded per-assistant confirmation; the save or one-message use consumes it once, and switching back asks again.
 - Spend controls: estimated budgets, usage reservations and per-bot ceilings; provider billing stays authoritative.
 - Chat input: text plus PNG/JPEG/WebP image attachments (up to 4 per message, 1.5 MB each); built-in runtimes need a vision-capable model route, and the OpenCode runtime checks the selected model's declared image support.
 - Schedules: IANA-timezone recurring tasks that catch up after sleep while the local service is running; nothing runs while the machine is off.

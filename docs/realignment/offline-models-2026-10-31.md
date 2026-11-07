@@ -506,3 +506,63 @@ dated managed-process test.
 LM Studio under the Offline worker (its adapter shares the OpenAI-compatible broker path
 proven on llama.cpp), vLLM/SGLang, macOS and Windows, GPU inference, and the managed model
 process itself (not built).
+
+---
+
+## 10. Phase 7 and 8 (2026-11): the visible state and the public claim
+
+Phase 7 made local runtime state first-class on the Models page and added the EC-28
+data-sharing confirmation. Phase 8 wrote the boundary into the public site, the marketing
+claims ledger, the compatibility rows and the setup docs. Research and design are in
+`docs/research/2026-11-offline-models/10-PHASE8-WEBSITE.md` and
+`docs/realignment/offline-models-2026-11/10-PHASE8-DESIGN.md`; the dated ledger is
+`02-PROGRESS.md`.
+
+### What was run (2026-11-06)
+
+- **Models page state matrix.** Real FastAPI app, fresh `HUTCH_STATE_DIR`, real Ollama
+  0.40.13 and llama.cpp b12144, Chromium at 360/768/1280/1920: empty, runtime down, ready,
+  cloud-tagged (`gpt-oss:20b-cloud` and a renamed `my-local-copy`), needs-key
+  (`llama-server --api-key`), loading (cold `llama-server`), network (a private HTTPS
+  connection) and offline-in-browser. Zero horizontal overflow; zero console errors except
+  the deliberately aborted detect fetch. Images viewed.
+- **Keyboard.** 60 Tab presses recorded a logical order and a visible focus ring on every
+  stop.
+- **EC-28.** A real PATCH and one-message override to a cloud-tagged route returned 409
+  without the confirmation, saved/accepted with one recorded acknowledgement, and asked
+  again after switching away and back. The browser dialog names the assistant, the route
+  and what moves; cancelling keeps the saved default.
+- **Public site.** The local/offline block and the FAQ answer were captured at 360, 768,
+  1280 and 1920 in the site's one dark theme; zero overflow and zero console errors; images
+  viewed.
+
+### What changed
+
+- `src/hutch/modelview.py`, `providers/discovery.py`, `providers/local/llamacpp.py` and
+  `server/templates/_models_runtimes.html`: measured/predicted/unknown labels, one card per
+  detected runtime, cloud-vs-local grouping from the server signal, the loading state, and
+  an honest `cannot run` reason.
+- `route_sharing.py`, `server/model_sharing_api.py`, `static/model-sharing-confirm.js` and
+  `static/model-marks.js`: the per-assistant confirmation and the extracted mark/dialog
+  modules. (`model-switcher.js` shrank below its frozen baseline.)
+- `website/index.html`, `website/llms.txt`, `docs/marketing-site.md`,
+  `docs/models.md`, `docs/runtime-setup.md` and `src/hutch/data/compat.json`: the boundary
+  table, the dated runtime rows and the public wording.
+
+### The public claim
+
+The site may say: *"This run's worker could not reach the network, and its model route
+went only to your loopback address."* It must not say: *"nothing left your machine"*, *"the
+model server is isolated"* or *"air-gapped"*. The model server is an ordinary host process;
+ADR-0035 records the owner's accepted managed-process decision and it is not implemented.
+The verified set is one Linux host on 2026-11-06: Ollama 0.40.13/0.40.15, llama.cpp
+b12144, and LM Studio llmster 0.0.27-1. GPU, vLLM, SGLang, macOS and Windows were not
+verified.
+
+### Not run
+
+The managed isolated model process, LM Studio under the Offline worker, vLLM/SGLang,
+macOS/Windows, GPU inference, a 4 GB cold load, the 60-minute LM Studio TTL and the
+5-minute Ollama keep-alive. The install running/cancelled/failed visual recapture reuses the
+Phase 4 evidence because the install layout is unchanged; the upgrade-needed state has no
+older runtime on this host.

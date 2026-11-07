@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "reviewed_on": "2026-10-30",
+  "reviewed_on": "2026-11-06",
   "routes": [
     {
       "id": "openai-chat-completions",
@@ -93,13 +93,13 @@
       "harness": "Hutch builtin runtime",
       "api_shape": "Ollama native /api/chat",
       "auth_flow": "No key is sent to the default loopback service. A custom endpoint requires explicit connection configuration.",
-      "models": "The local server reports installed models and per-model metadata. Cloud-tagged model names are classified as hosted, not local.",
-      "streaming": "Newline-delimited JSON streams are consumed through the done record.",
-      "tool_calls": "Native tool-call framing and streamed response aggregation are fixture-tested; per-model reliability still needs a local model probe.",
+      "models": "The local server reports installed models and per-model metadata. Cloud-tagged model names are classified as hosted, not local. Live 2026-11-06 on 0.40.13 and 0.40.15: a renamed cloud copy (`my-local-copy`) was identified from the `/api/tags` `remote_host` field, not its name, and twelve retained models were listed.",
+      "streaming": "Newline-delimited JSON streams are consumed through the done record. Live 2026-11-06: a forced 1,200-token generation crossed the Offline broker as 1,202 chunks and 131,695 bytes.",
+      "tool_calls": "Native tool-call framing and streamed response aggregation are fixture-tested. Live 2026-11-06: qwen3:0.6b, qwen2.5-coder:1.5b and qwen3:4b each passed 15/15 isolated tool probes; the current Qwen3.5 and Gemma 4 rows also passed 15/15 on Ollama. The same model can score differently on another runtime, and the isolated bench does not predict full-app image behavior.",
       "structured_output": "Not sent by default. A per-Bot constrained tool protocol uses the native `format` field (Ollama Cloud models are excluded); the server must support structured outputs.",
-      "vision": "Image input is implemented by the built-in runtime when the selected route and model accept it; the model is verified before sending and an unsupported model refuses the attachment rather than dropping it. The route or catalogue listing alone does not establish image understanding.",
-      "context_limits": "Hutch requires and sends num_ctx explicitly. Runtime-reported truncation is surfaced; fit and memory admission remain estimates.",
-      "cancellation": "Stop closes the active HTTP response. Local server teardown and inference-process state are not certified by this provider contract.",
+      "vision": "Image input is implemented by the built-in runtime when the selected route and model accept it; the model is verified before sending and an unsupported model refuses the attachment rather than dropping it. Live 2026-11-06: moondream described a real 640 px cat photo through the native provider (741 prompt tokens); a text-only model was refused. The route or catalogue listing alone does not establish image understanding.",
+      "context_limits": "Hutch requires and sends num_ctx explicitly. Runtime-reported truncation is surfaced; fit and memory admission remain estimates. Live 2026-11-06: the app refused a 2,048-token model below its 4,096-token agent floor, and a 4,096-token needled self-check passed on llama.cpp.",
+      "cancellation": "Stop closes the active HTTP response. Local server teardown and inference-process state are not certified by this provider contract. Live 2026-11-06: a real `kill -9` of the Ollama child runner produced \"llama-server process has terminated: signal: killed\"; Hutch reloaded once and the run completed.",
       "usage_reporting": "Prompt/evaluation token counts and runtime timings are recorded from completed responses.",
       "quota_reporting": "No provider quota applies to local models. Ollama Cloud quota is not queried by Hutch.",
       "retention": "Local service storage and any proxying are controlled by that service. Local route mode does not guarantee offline operation.",
@@ -107,8 +107,8 @@
         "sent": ["model", "messages", "tools", "stream", "options.num_ctx", "options.num_predict", "temperature when set", "keep_alive", "think when the model reports thinking capability"],
         "omitted": ["effort", "reasoning_effort", "OpenAI-only stream_options", "structured output"]
       },
-      "verification": "Recorded local HTTP fixtures cover request shape, context sizing, streaming, tools, usage and failure paths; Ollama was not installed for a live model check.",
-      "verified_on": "2026-10-08",
+      "verification": "Live 2026-11-06 on Ollama 0.40.13 and 0.40.15: version, tags and residency were read; tool and image turns ran; a real runner kill and a server restart were handled; and a governed tool-and-image turn ran under Strict Offline. Host: AMD Ryzen 3 5300U, CPU only, 22 GiB RAM. Not run: GPU, a 4 GB cold load, the 60-minute keep-alive, and an older Ollama upgrade path.",
+      "verified_on": "2026-11-06",
       "policy_evidence": [
         {"title": "Ollama chat API", "url": "https://docs.ollama.com/api/chat", "observed_on": "2026-10-08"},
         {"title": "Ollama Cloud models", "url": "https://registry.ollama.com/blog/cloud-models", "observed_on": "2026-10-08"}
@@ -302,6 +302,90 @@
       "verified_on": "2026-10-30",
       "policy_evidence": [
         {"title": "DeepSeek API documentation", "url": "https://api-docs.deepseek.com/", "observed_on": "2026-10-30"}
+      ]
+    },
+    {
+      "id": "llamacpp-server",
+      "title": "llama.cpp server",
+      "state": "experimental",
+      "harness": "Hutch builtin runtime",
+      "api_shape": "llama.cpp HTTP server: OpenAI-compatible /v1 plus native /health, /props and /slots",
+      "auth_flow": "No key is sent to the stock loopback server. A server started with `--api-key` reports `needs_key`; a stored key is sent only to that origin and never in a URL.",
+      "models": "The server lists its model id in /v1/models and reports the build in /props.build_info. Live 2026-11-06 on b12144: the stock port is 9931 (not 8080), and a server on 8080 that answered /v1/models was reported as an unidentified server, not llama.cpp.",
+      "streaming": "OpenAI-compatible SSE is consumed by the common adapter. A live governed turn streamed to completion; a 1,200-token forced generation was also exercised through the Offline broker on Ollama, not llama.cpp.",
+      "tool_calls": "`--jinja` plus a tool-capable template is required. Live 2026-11-06: Qwen3.5 2B passed 15/15 probes; Gemma 4 e2b passed 11/15 (tool choice 0/3, three complete calls left in `content`); qwen2.5-coder-3b returned a complete call body as text on 15/15. Hutch does not promote call-shaped text to a call.",
+      "structured_output": "Not sent; the constrained tool protocol is not live-verified on this server.",
+      "vision": "Requires `--mmproj` (or `-hf` with the projector). Live 2026-11-06: Qwen2.5-VL-3B and Gemma 4 e2b answered a real cat photo, a real Playwright screenshot, two images and an image-plus-tool probe.",
+      "context_limits": "The window is fixed at launch. Hutch reads the per-request window from `/slots[].n_ctx` (and `/props.default_generation_settings.n_ctx`); with `-c 8192 --parallel 2`, each slot reported 4,096. An over-long request returned the server's own HTTP 400 `exceed_context_size_error` with `n_ctx=4096`; Hutch refuses before sending.",
+      "cancellation": "Stop closes the response. Live 2026-11-06: a `kill -9` of the server mid-stream was classified as a local runtime stop; one reload succeeded and the run completed. A server restart produced a 502, one reload, then a clear stop.",
+      "usage_reporting": "Token counts and timings are recorded when the server reports them; a missing count is not zero.",
+      "quota_reporting": "No provider quota applies. Concurrent slots are the server's own limit.",
+      "retention": "The runtime's own storage and any proxying are outside Hutch's worker boundary. `--offline` disables its network fetches when the operator starts it that way.",
+      "hutch_request_mapping": {
+        "sent": ["model", "messages", "tools", "stream", "max_tokens", "temperature when set"],
+        "omitted": ["num_ctx (the window is set at launch)", "think", "effort", "reasoning_effort", "response_format"]
+      },
+      "verification": "Live 2026-11-06 on llama.cpp b12144 (CPU and Vulkan builds) on one Linux host: discovery fingerprint, applied window, tools, vision, a real image-plus-tool turn, loading 503, needs-key, runner kill, server restart, and a governed Strict Offline turn. Not run: GPU inference, vLLM/SGLang, macOS/Windows, and a per-model three-trial bench for every model.",
+      "verified_on": "2026-11-06",
+      "policy_evidence": [
+        {"title": "llama.cpp server API", "url": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md", "observed_on": "2026-11-06"},
+        {"title": "llama.cpp function calling", "url": "https://github.com/ggml-org/llama.cpp/blob/master/docs/function-calling.md", "observed_on": "2026-11-06"}
+      ]
+    },
+    {
+      "id": "lmstudio-native",
+      "title": "LM Studio local server",
+      "state": "experimental",
+      "harness": "Hutch builtin runtime",
+      "api_shape": "LM Studio native /api/v1/models plus OpenAI-compatible /v1",
+      "auth_flow": "The default loopback server needs no key. API-token mode was not enabled live; a 401 path was exercised with a real key-protected llama.cpp server instead. A stored key is scoped to the matching origin.",
+      "models": "`GET /api/v1/models` lists model key, type, architecture, quantization, max context, capabilities (vision, trained_for_tool_use, reasoning) and `loaded_instances[].config.context_length`. Live 2026-11-06 on llmster 0.0.27-1: qwen3-4b JIT-loaded at 8,192 tokens with `parallel: 4` and a 3,600 s TTL.",
+      "streaming": "OpenAI-compatible streaming is used by the common adapter; a live chat returned a complete answer.",
+      "tool_calls": "Live 2026-11-06: qwen3-0.6b passed 15/15 probes, qwen2.5-coder-1.5b 3/15, qwen2.5-vl 6/15, and Gemma 4 e2b 12/15 (three `reasoning_only` turns at the 256-token cap). The OpenAI-compatible surface has no thinking toggle.",
+      "structured_output": "Not sent; the constrained tool protocol is not live-verified on this server.",
+      "vision": "`capabilities.vision` is the signal. Live 2026-11-06: PNG and JPEG data URIs answered; a WebP data URI was refused by the server and Hutch now refuses WebP on this route before sending. A projector is paired only when the file is named `mmproj-<model>.gguf`, and the server must be restarted.",
+      "context_limits": "The applied window is `loaded_instances[].config.context_length`, not the model's max context. A cold model is loaded with an explicit fitted window and the applied value is read back. Live: 8,192 applied against a 262,144 maximum, with `parallel: 4`.",
+      "cancellation": "Stop closes the response; an explicit unload then reload was measured at 2.905 s. The 60-minute idle TTL was not waited out.",
+      "usage_reporting": "Usage is recorded when the endpoint reports it; a missing value is not zero.",
+      "quota_reporting": "No provider quota applies. Parallel slots and the idle TTL are the server's own settings.",
+      "retention": "LM Studio owns its model storage, catalog and update behavior; they are outside Hutch's worker boundary.",
+      "hutch_request_mapping": {
+        "sent": ["model", "messages", "tools", "stream", "max_tokens", "temperature when set", "image data URIs for PNG/JPEG"],
+        "omitted": ["num_ctx (set at load)", "think", "effort", "reasoning_effort", "response_format", "WebP images"]
+      },
+      "verification": "Live 2026-11-06 on LM Studio llmster 0.0.27-1 on one Linux host: native model list, JIT load with an explicit window, a real chat, vision with PNG/JPEG, a WebP refusal, unload/reload, and a tool bench. Not run: API-token mode on LM Studio, GPU inference, and the 60-minute TTL.",
+      "verified_on": "2026-11-06",
+      "policy_evidence": [
+        {"title": "LM Studio native REST API", "url": "https://lmstudio.ai/docs/app/api/endpoints/rest", "observed_on": "2026-11-06"},
+        {"title": "LM Studio OpenAI-compatible endpoints", "url": "https://lmstudio.ai/docs/developer/openai-compat", "observed_on": "2026-11-06"}
+      ]
+    },
+    {
+      "id": "vllm-sglang-openai",
+      "title": "vLLM and SGLang OpenAI-compatible servers",
+      "state": "experimental",
+      "harness": "Hutch builtin runtime",
+      "api_shape": "OpenAI Chat Completions-compatible HTTP endpoint",
+      "auth_flow": "A connection owns the endpoint and its key; the ambient OpenAI key is never sent to a custom host.",
+      "models": "The /v1/models list is read when the endpoint provides it. Neither vLLM nor SGLang was installed on this host, so no model row was live-checked.",
+      "streaming": "The common adapter's SSE path is fixture-tested; not live-exercised on either server.",
+      "tool_calls": "The common function-call framing is fixture-tested; no live vLLM or SGLang tool-call run was made.",
+      "structured_output": "Not sent by the default adapter; not live-verified.",
+      "vision": "Not live-exercised; the common image path is implemented for a route that declares support.",
+      "context_limits": "Not reported over /v1/models. Hutch says unknown and makes no truncation claim.",
+      "cancellation": "Stop closes the response; provider-side work and billing are not certified.",
+      "usage_reporting": "Reported usage is recorded; a missing count is not zero.",
+      "quota_reporting": "No provider quota integration; server concurrency is the operator's concern.",
+      "retention": "The configured server controls processing and retention.",
+      "hutch_request_mapping": {
+        "sent": ["model", "messages", "tools", "stream", "max_tokens", "temperature when set"],
+        "omitted": ["num_ctx", "think", "effort", "reasoning_effort", "response_format"]
+      },
+      "verification": "Not installed on this host. The OpenAI-compatible seam is fixture-tested; no live vLLM or SGLang model, window, tool or vision check exists.",
+      "verified_on": "2026-11-06",
+      "policy_evidence": [
+        {"title": "vLLM OpenAI-compatible server", "url": "https://docs.vllm.ai/en/stable/serving/online_serving/openai_compatible_server/", "observed_on": "2026-11-06"},
+        {"title": "SGLang OpenAI-compatible API", "url": "https://docs.sglang.ai/backend/openai_api_completions.html", "observed_on": "2026-11-06"}
       ]
     }
   ]

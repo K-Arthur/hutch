@@ -88,7 +88,7 @@ def test_studio_stylesheet_references_only_defined_tokens():
     definition_files = ["ui.css", "brand-tokens.css", "style.css", "studio.css", "model-switcher.css",
                         # Server-page sheets: the shared nav/shell tier consumes the same tokens.
                         "hutch.css", "hutch-nav.css", "hutch-shell.css", "responsive.css", "hutch-overlays.css"]
-    inline_files = ["app.js", "model-switcher.js", "index.html"]
+    inline_files = ["app.js", "model-switcher.js", "model-marks.js", "index.html"]
     defined: set[str] = set()
     for name in definition_files + inline_files:
         path = static / name

@@ -1,0 +1,82 @@
+{
+  "captured_at": "2026-11-07T02:40:04.141956+00:00",
+  "command": ".venv/bin/python docs/realignment/capture_marketing_top.py",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "python_version": "3.13.15",
+  "git_revision": "003e175075cfd23c979d9666f2d38d99a8b9e1c2",
+  "site": "anonymous local static site; no credentials or external requests",
+  "reduced_motion": true,
+  "source_sha256": {
+    "website/index.html": "656dce9d198afecb45e509bc637f5bdb129ae5706cfe8fb0c6e4cfa0cb0e0dca",
+    "website/llms.txt": "7756a3813121798a1899a988aef08f776bbe3439e7e66ce5d4c1c136c305857e",
+    "website/styles.css": "8885a9fce8c6f927f27eec725f7f26ea20fc8b15165756e20964e1060bd4141d",
+    "website/site.js": "5b30d3f5a02a2d1c5407f89a2ad09c9e9960f31269aba596268d46dfaf41c2d1",
+    "website/app.css": "e4b9e5bbd5f89b907306ca4a24f1705f7bbcf559e4b576d353a2140a4e9bb9ae",
+    "website/tokens.css": "7e5b0d00fb6ed8c46e3e50e6ce8c48a878a31902fb57445f988ff823305c4a86",
+    "website/assets/captures/setup-desktop.webp": "d31f732128242d123d2ad9d51f0512234feccf76207be611f9d6e97730418547",
+    "website/assets/captures/setup-phone.webp": "b31c97332981340f72cac7157e0c24a1367e081a1e54d3a6f3d3434aa034ba61",
+    "website/assets/hutch-agent.webp": "da73ea5e42ebe5a0f9af5c2e9071467be90bbb34508ae1767321160b9dce34b7",
+    "website/assets/fonts/geist-latin-var.woff2": "62cce2065edc12d5069a490f00c00d42c4248e86f117be9afab99b39dd02c7c7",
+    "website/assets/fonts/geist-mono-latin-var.woff2": "4b617a4082284f303c4159c66fb73d1fe71f7eadd4cd2387e9bf872b426dd539"
+  },
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/desktop.png",
+      "full_page_path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/desktop-full.png",
+      "local_offline_path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/desktop-local-offline.png",
+      "faq_data_movement_path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/desktop-faq-data-movement.png",
+      "horizontal_overflow": 0,
+      "page_errors": [],
+      "requests_same_origin": true
+    },
+    {
+      "size": "laptop",
+      "viewport": [
+        1280,
+        1000
+      ],
+      "path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/laptop.png",
+      "full_page_path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/laptop-full.png",
+      "local_offline_path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/laptop-local-offline.png",
+      "faq_data_movement_path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/laptop-faq-data-movement.png",
+      "horizontal_overflow": 0,
+      "page_errors": [],
+      "requests_same_origin": true
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        768,
+        1024
+      ],
+      "path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/tablet.png",
+      "full_page_path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/tablet-full.png",
+      "local_offline_path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/tablet-local-offline.png",
+      "faq_data_movement_path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/tablet-faq-data-movement.png",
+      "horizontal_overflow": 0,
+      "page_errors": [],
+      "requests_same_origin": true
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        360,
+        844
+      ],
+      "path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/phone.png",
+      "full_page_path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/phone-full.png",
+      "local_offline_path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/phone-local-offline.png",
+      "faq_data_movement_path": "docs/realignment/artifacts/offline-models-2026-11/p8-website/phone-faq-data-movement.png",
+      "horizontal_overflow": 0,
+      "page_errors": [],
+      "requests_same_origin": true
+    }
+  ]
+}

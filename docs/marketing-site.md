@@ -56,7 +56,7 @@ site, because no captured viewport has been reviewed for it yet.
 | State shown publicly | Evidence and limit |
 |---|---|
 | Supported | Linux execution, local SQLite state, up to 100 named recurring tasks per bot with independent timing/prompts, and fixture-tested lifecycle/control paths. A running local supervisor is needed for schedules; tasks on one bot queue under its single-run rule. Actual runs require a configured model route and a running local service or provider connection. |
-| Experimental | Configured hosted-provider and local-inference routes; OpenCode Go's user-supplied API-key connection; opt-in Sign in with ChatGPT local token-sharing preview (eligibility for Hutch is unconfirmed, no live account verification, and no provider-enforced output limit); reviewed owner-launched OpenCode coding tasks on Linux in pinned worktrees (`hutch code login` connects a provider in a dedicated Hutch-managed profile; model usage and command permissions remain outside Hutch; no Hutch shell sandbox or automatic branch application; an owner-run `hutch code verify` records a content-free check receipt, and `hutch code prune` removes the retained worktree and branch only after a passing check and explicit confirmation); one Hutch local caller and up to eight waiters per state directory; host-gated Offline isolation; opt-in same-bot child tasks under Strict Offline with approval on every request; one explicit user-reviewed coordinator handoff with a durable parent status/result and a durable owner-approved specialist roster that starts empty; an optional, user-selected exact specialist response can be attached as untrusted text to a coordinator follow-up; up to eight current reviewed coordinator facts may be selected for one task, with provider-retention limits disclosed; HTTPS-paired dashboard sessions with revocation; local same-session browser handoff on a Linux desktop; HTTP(S)/WebSocket browser egress pinned by a local proxy. Coordinator handoff does not automatically plan more work or transfer files/history/permissions; selected fact snapshots stay with that task and are not added to specialist memory. A specialist's own enabled memory and workspace may still apply. Same-Bot delegation is serial, task-text-only, private-workspace and subject to the two-run default. Provider/model calls, backend provenance, the visible desktop flow, public browser destinations, non-HTTP browser traffic and physical-device/network access were not verified live for this release. |
+| Experimental | Configured hosted-provider and local-inference routes; OpenCode Go's user-supplied API-key connection; opt-in Sign in with ChatGPT local token-sharing preview (eligibility for Hutch is unconfirmed, no live account verification, and no provider-enforced output limit); reviewed owner-launched OpenCode coding tasks on Linux in pinned worktrees (`hutch code login` connects a provider in a dedicated Hutch-managed profile; model usage and command permissions remain outside Hutch; no Hutch shell sandbox or automatic branch application; an owner-run `hutch code verify` records a content-free check receipt, and `hutch code prune` removes the retained worktree and branch only after a passing check and explicit confirmation); one Hutch local caller and up to eight waiters per state directory; host-gated Offline isolation; opt-in same-bot child tasks under Strict Offline with approval on every request; one explicit user-reviewed coordinator handoff with a durable parent status/result and a durable owner-approved specialist roster that starts empty; an optional, user-selected exact specialist response can be attached as untrusted text to a coordinator follow-up; up to eight current reviewed coordinator facts may be selected for one task, with provider-retention limits disclosed; HTTPS-paired dashboard sessions with revocation; local same-session browser handoff on a Linux desktop; HTTP(S)/WebSocket browser egress pinned by a local proxy. Coordinator handoff does not automatically plan more work or transfer files/history/permissions; selected fact snapshots stay with that task and are not added to specialist memory. A specialist's own enabled memory and workspace may still apply. Same-Bot delegation is serial, task-text-only, private-workspace and subject to the two-run default. Provider/model calls, backend provenance, the visible desktop flow, public browser destinations, non-HTTP browser traffic and physical-device/network access were not verified live for this release. Local runtime introspection (Ollama, llama.cpp, LM Studio) is experimental on one Linux host: measured version, loaded models and applied window, cloud-vs-local labels from the server signal, tool and vision support, and a per-assistant data-sharing confirmation before a non-local route is saved or used. |
 | Unavailable | macOS/Windows executor, a public package or installer, authenticated PTY/physical desktop control, phone browser handoff and Pi as a Hutch-managed Bot runtime. OpenCode is available with an owned private profile; its approved tools run outside the built-in sandbox. |
 
 Assistant retirement is a supported lifecycle state and may be described in exactly these terms: an
@@ -102,6 +102,33 @@ measurements and backend-reported resident allocations; fit remains estimated. O
 protocols lack validated memory admission. Hutch reserves token and price estimates before
 eligible hosted calls, but provider invoices can differ. Bubblewrap is a Linux namespace sandbox,
 not a VM; migrated bots remain unsandboxed until an operator enables the setting.
+
+### Local models and offline (2026-11-06)
+
+The site may describe Ollama, llama.cpp and LM Studio as first-class local routes and show
+the measured state Hutch reads for each: version, loaded models, applied window, vision and
+tool support, and a cloud-vs-local label taken from the server signal first. The evidence is
+one Linux host on 2026-11-06 (Ollama 0.40.13 and 0.40.15, llama.cpp b12144, LM Studio
+llmster 0.0.27-1), including tool calls, real images, a measured per-slot window and a
+governed turn inside an airplane-mode namespace. GPU inference, vLLM, SGLang, macOS and
+Windows were not verified; the compatibility rows in `src/hutch/data/compat.json` say so
+per route.
+
+The site must state the boundary in its own words:
+
+| Layer | Claim allowed |
+|---|---|
+| Run worker | Under Strict Offline, this run's worker could not reach the network, and its model route went only to the reviewer's loopback address. |
+| Model server | Not isolated. A separately running Ollama, llama.cpp or LM Studio process may check for updates, pull a model or forward a cloud-tagged request. ADR-0035 accepts a Hutch-managed isolated process but it is not implemented. |
+| Updates and telemetry | Hutch starts no update check and sends no telemetry; each runtime has its own behavior. |
+
+Forbidden wording: "nothing leaves your machine", "the model server is isolated",
+"air-gapped", or an unqualified "offline" badge. The allowed sentence is scoped to the
+worker and the route. The site may describe the per-assistant data-sharing confirmation
+that now precedes saving or one-message use of a cloud-tagged or non-loopback route; it
+must not imply a silent fallback exists. Evidence: `02-PROGRESS.md` Phase 1-7 rows,
+`tests/test_route_sharing.py`, `tests/e2e/test_model_sharing.py`, and the Phase 7 state
+captures.
 
 ## Cost, context and routing claims
 

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
+import argparse
 import hashlib
 import importlib.metadata
 import json
@@ -28,7 +29,13 @@ class QuietSiteHandler(SimpleHTTPRequestHandler):
 
 
 def main() -> None:
-    OUTPUT.mkdir(parents=True, exist_ok=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out", default=str(OUTPUT))
+    args = parser.parse_args()
+    output = Path(args.out)
+    if not output.is_absolute():
+        output = ROOT / output
+    output.mkdir(parents=True, exist_ok=True)
     server = ThreadingHTTPServer(("127.0.0.1", 0), QuietSiteHandler)
     worker = Thread(target=server.serve_forever, daemon=True)
     worker.start()
@@ -37,9 +44,10 @@ def main() -> None:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
             for width, height, size in (
-                (1440, 1000, "desktop"),
-                (900, 1024, "tablet"),
-                (390, 844, "phone"),
+                (1920, 1080, "desktop"),
+                (1280, 1000, "laptop"),
+                (768, 1024, "tablet"),
+                (360, 844, "phone"),
             ):
                 context = browser.new_context(
                     viewport={"width": width, "height": height}, reduced_motion="reduce"
@@ -56,16 +64,28 @@ def main() -> None:
                 assert overflow <= 1, (size, overflow)
                 assert not errors, (size, errors)
                 assert all(url.startswith(base) for url in requests), (size, requests)
-                image = OUTPUT / f"{size}.png"
+                image = output / f"{size}.png"
                 page.screenshot(path=str(image), animations="disabled")
-                full_image = OUTPUT / f"{size}-full.png"
+                full_image = output / f"{size}-full.png"
                 page.screenshot(path=str(full_image), full_page=True, animations="disabled")
+                # Component-only captures suppress the sticky header and skip link,
+                # otherwise fixed elements composite across the section image.
+                page.add_style_tag(content="header.sticky{position:static!important}.skip-link{display:none!important}")
+                local_image = output / f"{size}-local-offline.png"
+                page.locator("#local-offline").screenshot(path=str(local_image), animations="disabled")
+                page.locator('.faq-item:has(summary:has-text("What actually leaves my machine?")) summary').click()
+                page.wait_for_timeout(150)
+                faq_image = output / f"{size}-faq-data-movement.png"
+                page.locator('.faq-item:has(summary:has-text("What actually leaves my machine?"))').screenshot(
+                    path=str(faq_image), animations="disabled")
                 captures.append(
                     {
                         "size": size,
                         "viewport": [width, height],
                         "path": image.relative_to(ROOT).as_posix(),
                         "full_page_path": full_image.relative_to(ROOT).as_posix(),
+                        "local_offline_path": local_image.relative_to(ROOT).as_posix(),
+                        "faq_data_movement_path": faq_image.relative_to(ROOT).as_posix(),
                         "horizontal_overflow": overflow,
                         "page_errors": errors,
                         "requests_same_origin": True,
@@ -88,6 +108,7 @@ def main() -> None:
                     name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
                     for name in (
                         "website/index.html",
+                        "website/llms.txt",
                         "website/styles.css",
                         "website/site.js",
                         "website/app.css",
@@ -95,12 +116,13 @@ def main() -> None:
                         "website/assets/captures/setup-desktop.webp",
                         "website/assets/captures/setup-phone.webp",
                         "website/assets/hutch-agent.webp",
-                        "website/assets/fonts/archivo-latin-var.woff2",
+                        "website/assets/fonts/geist-latin-var.woff2",
+                        "website/assets/fonts/geist-mono-latin-var.woff2",
                     )
                 },
                 "captures": captures,
             }
-            (OUTPUT / "capture.json").write_text(json.dumps(record, indent=2) + "\n")
+            (output / "capture.json").write_text(json.dumps(record, indent=2) + "\n")
             browser.close()
     finally:
         server.shutdown()

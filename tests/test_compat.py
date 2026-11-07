@@ -14,10 +14,11 @@ from hutch.server.app import create_app
 def test_versioned_matrix_has_status_and_dated_policy_evidence_for_every_route():
     matrix = compatibility_matrix()
     assert matrix["version"] == 1
-    assert matrix["reviewed_on"] == "2026-10-30"
+    assert matrix["reviewed_on"] == "2026-11-06"
     routes = {route["id"]: route for route in matrix["routes"]}
     assert {
         "openai-chat-completions", "anthropic-messages", "ollama-native",
+        "llamacpp-server", "lmstudio-native", "vllm-sglang-openai",
         "openai-compatible-connection", "opencode-go-connection", "sign-in-with-chatgpt",
         "opencode-harness", "pi-harness", "consumer-plan-oauth",
     } <= routes.keys()

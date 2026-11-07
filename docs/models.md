@@ -466,6 +466,31 @@ the running build. llama.cpp publishes no feature matrix, so Hutch records its b
 gates on the fields it actually returns, never a guessed build floor. An unknown version produces
 no advice.
 
+### Local runtimes on the Models page (2026-11-06)
+
+The page shows one card per detected local runtime with its reported version, state
+(`ready`, `loading`, `needs_key`, `down`, `unknown`), loaded models, applied window and
+per-slot count, and the single next action. Values the runtime reports are labelled
+measured; fit and window estimates are labelled predicted; a value it did not report is
+shown as unknown. Discovery fingerprints the response rather than trusting a port: llama.cpp
+on 9931 and a decoy on 8080 are distinguished by `/props` and `/v1/models`; a 401/403 is
+`needs_key`, and a 503 on `/v1/models` is `loading` when `/health` confirms it.
+
+Configured routes are grouped by where inference happens: "On this machine", "On your
+network", "Cloud via local runtime" and "Hosted", each with a privacy sentence. A renamed
+cloud copy (`my-local-copy`) is grouped by the `/api/tags.remote_host` signal, not its name.
+A saved route whose runtime is down shows `cannot run` with the reason in words.
+
+### Data-sharing confirmation (EC-28, 2026-11-06)
+
+Changing an existing assistant's saved route, or using a one-message override, on a
+cloud-tagged, non-loopback or hosted route requires a per-assistant confirmation. The
+dialog names the assistant, the exact route and what moves; the server records a digest
+bound to the route and scope, and the save or send consumes it once, so switching back asks
+again. A local loopback route needs none. Creation from a hosted starter route keeps the
+starter-route notice. Code: `route_sharing.py` and `server/model_sharing_api.py`; tests:
+`tests/test_route_sharing.py` and `tests/e2e/test_model_sharing.py`.
+
 Run details separate recorded inference admission waits from model/tool time and Hutch overhead.
 Step timing covers recorded steps; startup admission waits are included in the run's `queue_ms`
 total. Interrupted waits that never acquire capacity are not included in that admitted-wait total.

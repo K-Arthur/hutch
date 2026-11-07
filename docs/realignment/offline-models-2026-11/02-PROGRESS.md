@@ -16,7 +16,7 @@ covers before relying on it.
 | 5 Multimodal and tool reliability | done (5.1-5.5) | 3a789476..a08009f6 + current-model comparison | 2026-11-06: real Ollama 0.40.13, llama.cpp b12144 + Qwen2.5-VL/Qwen3.5/Gemma 4 projectors, LM Studio 0.0.27-1, real cat photo and Playwright screenshot, sixteen model/runtime benches (2025 baseline and current Qwen3.5/Gemma 4), full-app current-model comparison | Ollama app-level vision blocked for the 2K moondream only; audio/speech not run; vLLM/SGLang not installed; Gemma 4 e4b/12b/26b and Qwen3.5 122B not run |
 | 6 Strict Offline live, boundary ADR | done (6.1, 6.2, 6.3) | see git log | 2026-11-06: real Ollama and llama.cpp tool-and-image turns through the broker; airplane test inside `unshare -rn`; shell egress 101; 1,200-token stream; cancel; runner kill; server restart; 64 MiB cap | Managed model process is the accepted ADR-0035 decision, not implemented |
 | 7 Frontend | done (7.1-7.5) | 24be8a4c, 35e63905 | 2026-11-06: real Ollama 0.40.13 and llama.cpp b12144; /models at 360/768/1280/1920 in empty, down, ready, cloud-tagged, needs-key, loading, network and offline-in-browser states; grouping/privacy/capability/measured labels live; keyboard focus order and visible focus recorded | install running/cancelled/failed visual recapture reused from Phase 4 (layout unchanged), upgrade-needed not run (no older runtime), tab-strip overlap pre-existing
-| 8 Website and docs | not started | | | |
+| 8 Website and docs | done (T8.1-T8.5) | pending | 2026-11-06: site local/offline block at 360/768/1280/1920 (dark), zero overflow/errors, FAQ parity; compat matrix 14 routes reviewed 2026-11-06; docs updated | light theme not captured (the site is one dark theme); no new full-suite baseline |
 | 9 Final review and merge | not started | | | |
 
 Phase 0 exit checks: baseline (`docs/research/2026-11-offline-models/00-BASELINE.md`),
@@ -910,5 +910,57 @@ Still open (ask at the phase that needs it):
   images and the exact not-run reasons above. Phase 7 is done. The pre-existing
   tab-strip overlap on /models remains logged (not introduced or fixed here).
 
-Next phase: Phase 8, Website and documentation.
+### Phase 8 checkpoints
+
+- 2026-11-06, Phase 8 research: `docs/research/2026-11-offline-models/10-PHASE8-WEBSITE.md`
+  (F-P8-1..F-P8-5, D-P8-1..D-P8-4). Design:
+  `docs/realignment/offline-models-2026-11/10-PHASE8-DESIGN.md`.
+- 2026-11-06, Phase 8.1: `website/index.html` gained a visible "Local and
+  offline, stated exactly" block in `#runs` with the three-layer boundary table
+  (worker egress enforced, model server not isolated, updates/telemetry not
+  controlled), the verified runtime list and dates, and explicit forbidden
+  wording; the JSON-LD `featureList` and `dateModified` were updated, and the
+  FAQ answer "What actually leaves my machine?" now states the same boundary in
+  both the visible markup and the JSON-LD. `website/llms.txt` carries the same
+  boundary and the EC-28 confirmation. No CSS source changed.
+- 2026-11-06, Phase 8.2: `docs/marketing-site.md` has a "Local models and
+  offline (2026-11-06)" subsection with the allowed/forbidden claims and the
+  Experimental capability row now names local runtime introspection and the
+  confirmation.
+- 2026-11-06, Phase 8.3: `src/hutch/data/compat.json` reviewed 2026-11-06 with
+  14 routes. The `ollama-native` row now carries the 2026-11-06 live evidence
+  and limits; new `llamacpp-server`, `lmstudio-native` and `vllm-sglang-openai`
+  rows record the build, native endpoints, applied-window source, tools,
+  vision, offline behavior and what was not run. `tests/test_compat.py` (8)
+  follows the date and the new ids.
+- 2026-11-06, Phase 8.4: `docs/models.md` gained "Local runtimes on the Models
+  page" (state labels, measured/predicted/unknown, grouping, honest `cannot
+  run`) and "Data-sharing confirmation (EC-28)"; `docs/runtime-setup.md` gained
+  the confirmation line; `docs/realignment/offline-models-2026-10-31.md`
+  gained section 10 (Phase 7/8 evidence, the public claim, not run).
+- 2026-11-06, Phase 8.5: `docs/release-checklist.md` section 3c records the
+  focused counts and the fact that the full-suite baseline was not re-run.
+- 2026-11-06, Phase 8 visual: `capture_marketing_top.py` now takes `--out`,
+  captures 1920/1280/768/360, and takes component captures of the new block and
+  the updated FAQ with the sticky header suppressed. Output:
+  `docs/realignment/artifacts/offline-models-2026-11/p8-website/`. Four widths
+  (the site is one dark theme by design), zero horizontal overflow, zero page
+  errors, same-origin requests only; images viewed. The block and FAQ wrap
+  cleanly at 360; the boundary table's 122 px label column stays readable.
+- 2026-11-06, Phase 8 gates: `tests/test_site_tokens.py` (8; the inline-token
+  scan now includes `model-marks.js`), `tests/test_compat.py` (8),
+  `tests/e2e/test_website.py` (42; updated the stale Workflows phrase to the
+  current copy). `npm run check:agent` and `npm run audit:context` pass;
+  `scripts/audit_emoji.py` reports only the pre-existing `.codewhale/state` file,
+  not a Phase 8 file. `/code-review` and `/simplify` are not available in this
+  session; the diff was re-read manually.
+- 2026-11-06, Phase 8 not run: a light-theme capture (the site is a single dark
+  theme; a light capture would be a fiction), a new full-suite baseline (CI runs
+  it), and the live external crawler audit. No new public claim beyond the dated
+  ledger was made.
+- Phase 8 exit checks: every public sentence added maps to a dated row in this
+  file; the site states the worker/model-server boundary and does not say
+  "nothing leaves your machine". Phase 8 is done.
+
+Next phase: Phase 9, final review and merge.
 
