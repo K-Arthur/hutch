@@ -2,8 +2,8 @@
   "_readme": "Media price rows, read on 2026-11-06 from each vendor's own pricing page. A row is an ESTIMATE shown before approval, never a quote: the vendor's account is authoritative. A route with no row Hutch could read is 'unpriced' and the approval says so. Bases: per_item (usd per image), per_audio_second (usd per second of audio; seconds are estimated from characters), per_video_second (usd per second requested), unpriced.",
   "prices": {
     "google-image": {"basis": "per_item", "usd": 0.0336, "unit": "image",
-      "detail": "gemini-nano-banana-2.1, 1K image, Standard tier ($30 per 1M output image tokens)",
-      "read": "2026-11-06", "source": "https://aistudio.google.com/docs/pricing"},
+      "detail": "gemini-3.1-flash-lite-image, 1K image, Standard tier ($30 per 1M output image tokens)",
+      "read": "2026-11-06", "source": "https://ai.google.dev/gemini-api/docs/pricing"},
     "google-speech": {"basis": "per_audio_second", "usd_per_second": 0.000225, "chars_per_second": 15,
       "detail": "gemini-3.8-flash-tts, Standard tier, 25 audio tokens per second at $9 per 1M; text input is under a thousandth of this",
       "changes": "doubles on 2027-01-01 ($18 per 1M audio tokens)",

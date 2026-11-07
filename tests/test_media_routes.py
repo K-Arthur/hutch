@@ -198,7 +198,7 @@ def test_google_image_uses_the_interactions_wire_and_picks_the_last_image_block(
     request = seen[0]
     assert request.headers["x-goog-api-key"] == "unit-key" and "authorization" not in request.headers
     assert request.headers["api-revision"] == "2026-05-20"
-    assert json.loads(request.content) == {"model": "gemini-nano-banana-2.1",
+    assert json.loads(request.content) == {"model": "gemini-3.1-flash-lite-image",
                                            "input": [{"type": "text", "text": "a fox"}],
                                            "response_format": {"type": "image"}}
 

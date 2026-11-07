@@ -91,8 +91,8 @@
       "sources": [{"url": "https://platform.minimax.io/docs/api-reference/video-generation-t2v", "read": "2026-11-06"}]
     },
     "google-image": {
-      "provider": "google", "kind": "image", "protocol": "sync", "title": "Google Gemini image (Nano Banana)",
-      "status": "implemented-unverified", "model": "gemini-nano-banana-2.1",
+      "provider": "google", "kind": "image", "protocol": "sync", "title": "Google Gemini image (Nano Banana 2 Lite)",
+      "status": "implemented-unverified", "model": "gemini-3.1-flash-lite-image",
       "credential": {"templates": ["google-gemini"]},
       "auth": {"header": "x-goog-api-key", "scheme": ""},
       "headers": {"Api-Revision": "2026-05-20"},
@@ -105,7 +105,7 @@
       "price": "google-image",
       "notes": "Interactions API as shown in Google's current REST example. The docs read do not show a way to stop Google keeping the interaction; none is sent. A response with no image block is a failure, never an empty success. Safety-block shape is not documented on the page read.",
       "sources": [{"url": "https://ai.google.dev/gemini-api/docs/interactions/image-generation", "read": "2026-11-06"},
-                  {"url": "https://aistudio.google.com/docs/pricing", "read": "2026-11-06"}]
+                  {"url": "https://ai.google.dev/gemini-api/docs/pricing", "read": "2026-11-06"}]
     },
     "google-speech": {
       "provider": "google", "kind": "audio", "protocol": "sync", "title": "Google Gemini text to speech",
