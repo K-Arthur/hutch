@@ -15,7 +15,7 @@ covers before relying on it.
 | 4 Get a model (install, import, guide) | done (4.1-4.5) | see git log (b32a5e47..) | 2026-11-06: real 1.9 GiB pull cancelled/resumed through the page; real disk-full and no-route pulls; real GGUF import (reuse and upload); four-width captures | Gated HF pull not run (no token); LM Studio/vLLM/SGLang install guided only |
 | 5 Multimodal and tool reliability | done (5.1-5.5) | 3a789476..a08009f6 + current-model comparison | 2026-11-06: real Ollama 0.40.13, llama.cpp b12144 + Qwen2.5-VL/Qwen3.5/Gemma 4 projectors, LM Studio 0.0.27-1, real cat photo and Playwright screenshot, sixteen model/runtime benches (2025 baseline and current Qwen3.5/Gemma 4), full-app current-model comparison | Ollama app-level vision blocked for the 2K moondream only; audio/speech not run; vLLM/SGLang not installed; Gemma 4 e4b/12b/26b and Qwen3.5 122B not run |
 | 6 Strict Offline live, boundary ADR | done (6.1, 6.2, 6.3) | see git log | 2026-11-06: real Ollama and llama.cpp tool-and-image turns through the broker; airplane test inside `unshare -rn`; shell egress 101; 1,200-token stream; cancel; runner kill; server restart; 64 MiB cap | Managed model process is the accepted ADR-0035 decision, not implemented |
-| 7 Frontend | done (7.1-7.5) | 24be8a4c + final-pass commit | 2026-11-06: real Ollama 0.40.13 and llama.cpp b12144; /models at 360/768/1280/1920 in empty, down, ready, cloud-tagged, needs-key, loading, network and offline-in-browser states; grouping/privacy/capability/measured labels live; keyboard focus order and visible focus recorded | install running/cancelled/failed visual recapture reused from Phase 4 (layout unchanged), upgrade-needed not run (no older runtime), tab-strip overlap pre-existing
+| 7 Frontend | done (7.1-7.5) | 24be8a4c, 35e63905 | 2026-11-06: real Ollama 0.40.13 and llama.cpp b12144; /models at 360/768/1280/1920 in empty, down, ready, cloud-tagged, needs-key, loading, network and offline-in-browser states; grouping/privacy/capability/measured labels live; keyboard focus order and visible focus recorded | install running/cancelled/failed visual recapture reused from Phase 4 (layout unchanged), upgrade-needed not run (no older runtime), tab-strip overlap pre-existing
 | 8 Website and docs | not started | | | |
 | 9 Final review and merge | not started | | | |
 
@@ -904,7 +904,7 @@ Still open (ask at the phase that needs it):
   `model-switcher.js` was frozen at 483 lines, so the marks moved to
   `model-marks.js` (50) and the dialog to `model-sharing-confirm.js` (57); the
   switcher is 466. The oversized picker test file split into
-  `test_model_picker.py` (340) and `test_model_sharing.py` (78).
+  `test_model_picker.py` (340) and `test_model_sharing.py` (78). Commit 35e63905.
 - Phase 7 exit checks: 7.1-7.5 implemented, and the deferred EC-28 confirmation
   UI is now implemented and tested. The state matrix is covered with dated
   images and the exact not-run reasons above. Phase 7 is done. The pre-existing
