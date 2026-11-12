@@ -22,8 +22,8 @@
     "watch:css:app": "node scripts/watch_app_css.mjs"
   },
   "devDependencies": {
-    "@tailwindcss/cli": "^4.3.3",
-    "daisyui": "^5.7.47",
+    "@tailwindcss/cli": "^4.3.5",
+    "daisyui": "^5.7.50",
     "open-props": "^1.7.23",
     "tailwindcss": "^4.3.3"
   }
